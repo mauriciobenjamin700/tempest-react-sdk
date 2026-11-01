@@ -373,15 +373,19 @@ Refreshes also collapse per **rotation**, not just per overlap in time: a 401 wh
 
 ### Several tabs — the session belongs to the origin, not the tab
 
-With `storage: "local"` (the default), every tab of the app reads and writes the **same** keys: `tempest-auth` (the `{ user, token }`) and `tempest-auth-refresh`. So there is one session for the whole origin, and each tab **follows** what another one wrote — on the browser's `storage` event and, before any refresh, `logout()` or ending of the session, by comparing the stored session with the one it holds in memory:
+With `storage: "local"` (the default), every tab of the app reads and writes the **same** keys: `tempest-auth` (the `{ user, token }`), `tempest-auth-refresh` and `tempest-auth-lineage`. So there is one session for the whole origin, and each tab **follows** what another one wrote — on the browser's `storage` event and, before any refresh, `logout()`, ending of the session or write of the `mePath` user, by comparing the stored session with the one it holds in memory.
+
+The comparison is by the session's **lineage**: an identifier `login()` mints and every rotation keeps. The same lineage is the same session, rotated; another lineage is another sign-in — of another account or of the same one:
 
 | In the other tab | In this tab |
 | --- | --- |
-| refreshed the same account | adopts the new token; the request that came back 401 replays with it, **without** refreshing again |
+| rotated the same session | adopts the new token; the request that came back 401 replays with it, **without** refreshing again |
 | `logout()` | the session ends here too: store cleared, `onSessionEnd` with `reason: "logout"` and `elsewhere: true` |
-| `login()` as another account | A's session ends here (`reason: "switch"`, `elsewhere: true`) and B's is adopted |
+| `login()` — as another account or the same one | this tab's session ends here (`reason: "switch"`, `elsewhere: true`) and the new one is adopted |
 
-What this tab **never** does is redeem a refresh token that is not its session's, or write over the session another tab installed. A request in flight from the ended session rejects with `SessionSupersededError`, as on an account switch in the same tab.
+What this tab **never** does is redeem a refresh token that is not its session's, or write over the session another tab installed. A request in flight from the ended session rejects with `SessionSupersededError`, as on an account switch in the same tab — and so does a `login()` of this tab still waiting for `mePath`: the profile that arrives is discarded instead of being written next to another account's token.
+
+Two tabs refreshing together — typically the browser reopening several tabs, each calling `auth.refresh()` at boot — do **not** redeem the same refresh token twice: the redemption runs under an origin-wide [Web Lock](https://developer.mozilla.org/docs/Web/API/Web_Locks_API), and the tab that waited adopts the token the other one brought back. That matters with a backend that detects reuse (the tempest-fastapi-sdk does): the second redemption of the same token revokes the whole family and ends the session in every tab. Without the API (SSR, an old browser) or after waiting 10 seconds, the redemption goes ahead without the lock, as before.
 
 ```ts
 import { createTempestAuth } from "tempest-react-sdk";
@@ -408,6 +412,8 @@ Note `elsewhere`. The in-memory cache (`queryClient.clear()`) belongs to this ta
 
 !!! info "Why it used to be different"
     Up to 0.80.0 each tab kept the session in memory only and re-read the stored refresh token on every refresh. A tab left open as A after logout, with B signing in on the same browser, redeemed **B's** refresh token on its next 401 and persisted `{ user: A, token: B }` — the screen showed A and every request went out as B (#524). And a refresh in one tab made the other refresh again on its next 401, rotating the first tab's token away.
+
+    Up to 0.81.0 continuity was decided by comparing the **user**. A tab whose `login()` was still waiting for `mePath` had a `null` user; if another tab signed in as another account in that window, the stored user was `null` too, and `null === null` passed for "same account": the tab adopted B's token as a rotation and its `/me` persisted `{ user: A, token: B }` (#544). When the `storage` event had not arrived yet, it was B's tab that ended up showing A next to B's refresh token. A session persisted before lineages existed keeps following the old rule until the next login.
 
 !!! tip "With `sessionStorage`, nothing changes"
     With `storage: "session"`, each tab has its own `sessionStorage` and its own session — none of this applies.
@@ -465,13 +471,15 @@ export async function signOut(): Promise<void> {
 - The promise `logout()` returns waits for the revocation. That is why `await auth.logout()` before navigating matters: a hard navigation aborts the request in flight.
 - Revocation is **best-effort**: a network failure, `4xx` or `5xx` is swallowed, and the user is signed out all the same.
 - A `login()` started while the revocation is in flight waits for it, because the logout response clears the auth cookies and, arriving later, would clear the new account's.
-- Only an explicit `logout()` revokes. On an account switch (`"switch"`) the browser's cookie is already the new account's; on `"expired"` the server has already refused the session.
+- An explicit `logout()` revokes, and so does an account switch (`"switch"`) — **in body mode only**: the replaced session's refresh token is still in the client's hands, and the tempest-fastapi-sdk revokes by rotation family, so the new session is untouched even when it is the same account. In cookie mode a switch does not revoke, since the browser's cookie is already the new account's. On `"expired"` the server has already refused the session.
 - Two overlapping `logout()` calls each send their own revocation, and `login()` waits for **all** of them — at most 10 seconds: a revocation that never answers delays the sign-in, it does not block it.
 - A `logout()` during a `login()` or refresh in flight: in cookie mode, the revocation waits for its response (within the same 10-second bound), since that response is what sets the ending session's cookie; in body mode, the refresh token the superseded response brings back is revoked separately.
 - A failed revocation calls `onLogoutError(error)` and, in a dev build, warns in the console — `logout()` resolves all the same.
 
 !!! warning "Without server-side revocation, the departed account stays restorable by the boot `refresh()`"
     The preset never refreshes on its own after `logout()`, but A's HttpOnly cookie is still in the browser and still valid on the server when `logoutPath` is not configured (the default), when the revocation fails (network, `4xx`, `5xx`) or when it takes longer than 10 seconds. In that case, the next load that calls `auth.refresh()` at boot restores A for whoever is at the browser — it is the same cookie, and nothing on the client tells "A reloaded the page" from "A left and someone else opened the app". Only the server closes this: configure `logoutPath` with the route that revokes the cookie and handle `onLogoutError`. A backend with stateless (JWT) refresh tokens, which cannot revoke, leaves this window open until the cookie expires.
+
+    That is why, in a dev build, `withCredentials: true` without `logoutPath` warns in the console once per store. A warning, not a requirement: requiring `logoutPath` would break the app whose backend cannot revoke — and would close nothing for it, since a route that answers `404` revokes nothing — and refusing the boot `refresh()` after a logout would break the sign-ins that set the cookie outside `login()`, such as an OAuth callback.
 
 !!! info "The route in tempest-fastapi-sdk"
     `make_auth_router` mounts `POST /auth/logout` (`204`, idempotent) when the service stores refresh tokens in the database (`refresh_token_model`): in body mode it reads `{ refresh_token }`, in cookie mode it reads the cookie and deletes both auth cookies. With `AUTH_TOKEN_DELIVERY=both`, the cookie route is `/auth/cookie/logout`. A stateless (JWT) refresh token cannot be revoked, and the route does not exist — there the cookie only dies when it expires.

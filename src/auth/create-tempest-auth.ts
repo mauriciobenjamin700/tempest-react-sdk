@@ -101,9 +101,14 @@ export interface CreateTempestAuthOptions<TUser> {
      * while it is in flight waits for it, because the logout response clears
      * the auth cookies and would otherwise clear the new account's.
      *
-     * Only an explicit `logout()` revokes. On `"switch"` the cookie jar already
-     * holds the new account's cookie, and on `"expired"` the server has already
-     * refused the session.
+     * An explicit `logout()` revokes, and so does a `"switch"` in body mode:
+     * the replaced session's refresh token is still in the client's hands, and
+     * the tempest-fastapi-sdk revokes by rotation family, so the session the
+     * new login opened is untouched even for the same user. Before 0.82.0 a
+     * switch revoked nothing and the replaced token stayed redeemable until it
+     * expired. A `"switch"` in cookie mode does not revoke — the cookie jar
+     * already holds the new account's cookie — and on `"expired"` the server
+     * has already refused the session.
      *
      * Overlapping sign-outs each send their own revocation, and `login()` waits
      * for all of them — at most 10 seconds, so one that
@@ -268,6 +273,16 @@ export interface TempestAuth<TUser, TCredentials> {
 const LOGOUT_REVOCATION_WAIT_MS = 10_000;
 
 /**
+ * How long a refresh waits for another tab's refresh to release the
+ * origin-wide refresh lock before redeeming without it.
+ *
+ * The same reasoning as {@link LOGOUT_REVOCATION_WAIT_MS}: past any healthy
+ * round trip, and a bound so that a tab stuck holding the lock costs a
+ * duplicate redemption, not a request that never settles.
+ */
+const REFRESH_LOCK_WAIT_MS = 10_000;
+
+/**
  * Wait until every promise settled, or until `ms` passed, whichever is first.
  *
  * @param pending - What to wait for; rejections count as settled.
@@ -283,6 +298,62 @@ function settleWithin(pending: readonly Promise<unknown>[], ms: number): Promise
             resolve();
         });
     });
+}
+
+/**
+ * Mint the identifier of a new session lineage: one per successful `login()`,
+ * kept across every rotation of that session, see `createTempestAuth`.
+ *
+ * It only has to tell two sign-ins apart, never to resist guessing — it guards
+ * nothing on the server and is readable by any script of the origin anyway. So
+ * the fallback for a page without `crypto.randomUUID` (served over plain http,
+ * where the browser withholds it) is a timestamp plus `Math.random`, not an
+ * error.
+ *
+ * @returns A fresh lineage identifier.
+ */
+function newLineage(): string {
+    const host = globalThis.crypto as Partial<Crypto> | undefined;
+    if (typeof host?.randomUUID === "function") return host.randomUUID();
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * The store names already warned about cookie mode without `logoutPath`, so a
+ * hot-module reload that rebuilds the preset does not repeat the warning.
+ */
+const warnedCookieWithoutLogout = new Set<string>();
+
+/**
+ * Warn, in a dev build and once per store, that cookie mode has no
+ * `logoutPath` (#531).
+ *
+ * `logout()` cannot reach an HttpOnly refresh cookie, so without a revocation
+ * the cookie stays redeemable and the boot `refresh()` of the next page load
+ * signs the account that just signed out back in — for whoever uses the
+ * browser next. Measured with the `cookieBackend` of
+ * `create-tempest-auth.cookie.test.ts`: login, `logout()`, a new preset and
+ * `refresh()` restore `A-tok-cookie-1`.
+ *
+ * A warning, not a requirement. Requiring `logoutPath` would break every app
+ * whose backend cannot revoke — the tempest-fastapi-sdk mounts no logout route
+ * with stateless refresh tokens — and would not close the hole for them
+ * either: a route that answers `404` revokes nothing. Refusing the boot
+ * `refresh()` after a logout would break the sign-ins that set the cookie
+ * outside `login()`, such as an OAuth callback. Only the backend can end the
+ * cookie; this makes the missing half visible while the app is being built.
+ *
+ * @param storeName - The preset's persist key.
+ */
+function warnCookieWithoutLogout(storeName: string): void {
+    if (!isDevBuild() || warnedCookieWithoutLogout.has(storeName)) return;
+    warnedCookieWithoutLogout.add(storeName);
+    console.warn(
+        "[tempest-react-sdk] createTempestAuth: withCredentials is set without logoutPath. " +
+            "logout() cannot clear the HttpOnly refresh cookie, so the next refresh() — the " +
+            "boot restore — signs the same account back in. Pass logoutPath (the backend's " +
+            "cookie logout route) so the server revokes it.",
+    );
 }
 
 function defaultParseTokens(data: unknown): { token: string; refreshToken?: string } {
@@ -329,8 +400,13 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * elsewhere ends the session here too, with `onSessionEnd` told it happened
  * `elsewhere`. Before 0.81.0 a tab left open after logout kept account A and,
  * on its next `401`, redeemed account B's refresh token from the shared
- * storage, persisting `{ user: A, token: B }` (#524). `storage: "session"` is
- * per tab and behaves as before.
+ * storage, persisting `{ user: A, token: B }` (#524). Whether the stored
+ * session is the held one is decided by a **session lineage** that `login()`
+ * mints and every rotation keeps — not by comparing users, which took two
+ * sign-ins whose user had not loaded yet for the same account (#544). Two tabs
+ * never redeem the same refresh token at once: the redemption runs under an
+ * origin-wide Web Lock when the browser has one. `storage: "session"` is per
+ * tab and behaves as before.
  *
  * Refreshes are collapsed per rotation, not just per overlap: a `401` whose
  * request left with a token that has since been replaced in the same session
@@ -374,6 +450,8 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         onSessionEnd,
     } = options;
 
+    if (withCredentials && !logoutPath) warnCookieWithoutLogout(storeName);
+
     const useAuthStore = createAuthStore<TUser>({ name: storeName, storage });
     const refreshKey = `${storeName}-refresh`;
 
@@ -393,6 +471,17 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         else s.removeItem(refreshKey);
     }
 
+    const lineageKey = `${storeName}-lineage`;
+    const refreshLockName = `tempest-react-sdk:${storeName}:refresh`;
+    let heldLineage: string | null = storageImpl()?.getItem(lineageKey) ?? null;
+    function writeLineage(lineage: string | null): void {
+        heldLineage = lineage;
+        const s = storageImpl();
+        if (!s) return;
+        if (lineage) s.setItem(lineageKey, lineage);
+        else s.removeItem(lineageKey);
+    }
+
     const state = (): AuthState<TUser> => useAuthStore.getState();
     const getToken = (): string | null => state().token;
 
@@ -410,8 +499,22 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * `login(B)` — is discarded instead of written next to B's token, and the
      * `login()` that asked for it rejects as superseded (#473).
      *
+     * Before the profile is written, the shared storage is followed (#544).
+     * The write persists the whole `{ user, token }` this tab holds, so a tab
+     * that had not yet seen another account's sign-in used to overwrite it
+     * with its own token next to that account's refresh token — and the
+     * other tab, following the write, paired that refresh token with this
+     * account's user. Following first turns that into a session ended
+     * elsewhere, and the profile is discarded.
+     *
+     * Bound to the session, not to the token the request carried: a token
+     * that changed because another tab rotated the same session still
+     * belongs to this user, and discarding the profile then would fail a
+     * sign-in that succeeded.
+     *
      * @throws {SessionSupersededError} When the epoch changed while the
-     *   request was in flight, on success and on failure alike.
+     *   request was in flight, on success and on failure alike, or another
+     *   tab ended or replaced the session.
      */
     async function fetchUser(): Promise<TUser | null> {
         if (!mePath) return state().user;
@@ -423,7 +526,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             if (epoch !== started) throw new SessionSupersededError();
             throw error;
         }
-        if (epoch !== started) throw new SessionSupersededError();
+        if (epoch !== started || !followSharedSession().continues) {
+            throw new SessionSupersededError();
+        }
         state().setUser(user);
         return user;
     }
@@ -561,38 +666,109 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * is redeemed either — the refresh token in storage is not this session's
      * (#524) — and the call rejects as superseded.
      *
+     * With `storage: "local"` the redemption runs under a Web Lock shared by
+     * every tab of the origin, see `underRefreshLock`; the comparison with the
+     * stored session happens once the lock is held, so a tab that waited
+     * behind another tab's rotation adopts its tokens instead of presenting
+     * the refresh token that rotation just spent.
+     *
      * @throws {SessionSupersededError} When the epoch changed during the call,
      *   or another tab ended or replaced the session.
      */
     async function rotate(): Promise<void> {
         const before = getToken();
-        if (!followSharedSession().continues) throw new SessionSupersededError();
-        if (getToken() !== before) return;
         const started = epoch;
         rotatingEpochs.add(started);
         try {
-            let data: unknown;
-            try {
-                data = await trackCredentialRequest(
-                    api.post<unknown>(refreshPath, {
-                        body: refreshBody(readRefreshToken()),
-                        skipAuth: true,
-                    }),
-                );
-            } catch (error) {
-                if (epoch !== started) throw new SessionSupersededError();
-                throw error;
-            }
-            const { token, refreshToken } = parseTokens(data);
-            if (epoch !== started || !followSharedSession().continues) {
-                revokeDiscarded(token ?? null, refreshToken);
-                throw new SessionSupersededError();
-            }
-            state().setToken(token);
-            if (refreshToken) writeRefreshToken(refreshToken);
+            await underRefreshLock(() => redeem(before));
         } finally {
             rotatingEpochs.delete(started);
         }
+    }
+
+    /**
+     * Run `run` while holding the origin-wide refresh lock, when there is one
+     * to hold (run-7 hardening note).
+     *
+     * Two tabs whose requests expire together used to redeem the same refresh
+     * token at once. A backend with reuse detection — the tempest-fastapi-sdk
+     * has it — answers the second redemption by revoking the whole rotation
+     * family, so the session ends in every tab. The common trigger is a
+     * browser restart that restores several tabs, each calling the boot
+     * `refresh()`: measured with two presets over a reuse-detecting backend,
+     * both presented `ref-1`, the family was revoked, and no refresh token was
+     * left alive.
+     *
+     * The lock is the Web Locks API (`navigator.locks`), held only for the
+     * redemption round trip. Only `storage: "local"` shares a session between
+     * tabs, so `"session"` takes no lock. Fail-open, by design: without the
+     * API (SSR, an old browser, jsdom), when acquiring it throws (an opaque
+     * origin), or after {@link REFRESH_LOCK_WAIT_MS} of waiting behind a tab
+     * that never releases it, the redemption runs unlocked — the behaviour
+     * before the lock existed — instead of leaving the request hanging.
+     *
+     * @param run - The redemption.
+     * @returns A promise settling with `run`.
+     */
+    async function underRefreshLock(run: () => Promise<void>): Promise<void> {
+        const locks =
+            storage === "local" && typeof navigator !== "undefined"
+                ? (navigator as Partial<Navigator>).locks
+                : undefined;
+        if (!locks) return run();
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), REFRESH_LOCK_WAIT_MS);
+        let acquired = false;
+        try {
+            await locks.request(refreshLockName, { signal: controller.signal }, async () => {
+                acquired = true;
+                clearTimeout(timer);
+                await run();
+            });
+        } catch (error) {
+            if (acquired) throw error;
+            clearTimeout(timer);
+            await run();
+        }
+    }
+
+    /**
+     * The body of one rotation, run under the refresh lock.
+     *
+     * A tab that held no session when the rotation was asked for — the boot
+     * `refresh()` — and finds one installed once the lock is held was restored
+     * by another tab while it waited: that is the outcome it asked for, so it
+     * resolves without redeeming.
+     *
+     * @param before - The access token held when the rotation was asked for.
+     * @throws {SessionSupersededError} See `rotate()`.
+     */
+    async function redeem(before: string | null): Promise<void> {
+        const held = before !== null || state().user !== null || heldRefreshToken !== null;
+        const followed = followSharedSession();
+        if (!held && getToken() !== null) return;
+        if (!followed.continues) throw new SessionSupersededError();
+        if (getToken() !== before) return;
+        const started = epoch;
+        let data: unknown;
+        try {
+            data = await trackCredentialRequest(
+                api.post<unknown>(refreshPath, {
+                    body: refreshBody(readRefreshToken()),
+                    skipAuth: true,
+                }),
+            );
+        } catch (error) {
+            if (epoch !== started) throw new SessionSupersededError();
+            throw error;
+        }
+        const { token, refreshToken } = parseTokens(data);
+        if (epoch !== started || !followSharedSession().continues) {
+            revokeDiscarded(token ?? null, refreshToken);
+            throw new SessionSupersededError();
+        }
+        state().setToken(token);
+        if (refreshToken) writeRefreshToken(refreshToken);
     }
 
     let queue = createRefreshQueue(rotate);
@@ -770,10 +946,12 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             revokeDiscarded(token ?? null, refreshToken);
             throw new SessionSupersededError();
         }
+        revokeDiscarded(getToken(), readRefreshToken() ?? undefined);
         const { done } = finish("switch");
         const mine = epoch;
         await done.catch(() => undefined);
         if (epoch !== mine) throw new SessionSupersededError();
+        writeLineage(newLineage());
         state().setToken(token);
         writeRefreshToken(refreshToken ?? null);
         const embedded = parseUser?.(data);
@@ -826,6 +1004,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         if (live || reason !== "expired") nextEpoch();
         state().logout();
         writeRefreshToken(null);
+        writeLineage(null);
         if (!live) {
             const wait = reason === "switch" || hooksRunning === 0;
             return { live, done: wait ? ending : Promise.resolve() };
@@ -864,7 +1043,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 
     /**
      * Read the session as the shared storage holds it: the persisted
-     * `{ user, token }` and the stored refresh token.
+     * `{ user, token }`, the stored refresh token and the session lineage.
      *
      * Read straight from storage rather than through
      * `useAuthStore.persist.rehydrate()`: a rehydration that finds no entry —
@@ -878,12 +1057,14 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         user: TUser | null;
         token: string | null;
         refreshToken: string | null;
+        lineage: string | null;
     } | null {
         const s = storageImpl();
         if (!s) return null;
         const refreshToken = s.getItem(refreshKey);
+        const lineage = s.getItem(lineageKey);
         const raw = s.getItem(storeName);
-        if (!raw) return { user: null, token: null, refreshToken };
+        if (!raw) return { user: null, token: null, refreshToken, lineage };
         try {
             const parsed = JSON.parse(raw) as {
                 state?: { user?: TUser | null; token?: string | null };
@@ -892,9 +1073,10 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
                 user: parsed.state?.user ?? null,
                 token: parsed.state?.token ?? null,
                 refreshToken,
+                lineage,
             };
         } catch {
-            return { user: null, token: null, refreshToken };
+            return { user: null, token: null, refreshToken, lineage };
         }
     }
 
@@ -905,21 +1087,32 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * stored session differs from the held one only when another tab wrote
      * it. The stored one then wins, without redeeming or clearing anything:
      *
-     * - the same access token (the other tab only loaded the user), or another
-     *   token for the same user (it rotated): adopted, the session continues;
-     * - no token, or another user: the held session ended elsewhere. The epoch
-     *   moves, so nothing in flight from it can install tokens or end the new
-     *   session; the stored state is adopted; and `onSessionEnd` runs with
-     *   `elsewhere: true` — `"logout"` when no session is left, `"switch"`
-     *   when another account is installed.
+     * - a token of the same **lineage** — the identifier `login()` mints and
+     *   every rotation keeps — whether it is the same token (the other tab only
+     *   loaded the user) or a new one (it rotated): adopted, the session
+     *   continues;
+     * - no token, or another lineage: the held session ended elsewhere. The
+     *   epoch moves, so nothing in flight from it can install tokens or end
+     *   the new session; the stored state is adopted; and `onSessionEnd` runs
+     *   with `elsewhere: true` — `"logout"` when no session is left,
+     *   `"switch"` when another sign-in is installed, even of the same user.
+     *
+     * Continuity used to be decided by comparing users, and two sessions whose
+     * user had not loaded yet compared equal: a tab whose `login()` was still
+     * waiting for `mePath` adopted another account's token as a rotation, and
+     * its profile then persisted `{ user: A, token: B }` (#544). Requiring a
+     * user would have closed that and turned every rotation of a session
+     * without a user model into an account switch; the lineage answers the
+     * actual question — is this the same sign-in — for both.
+     *
+     * A session persisted before lineages existed has none, on either side,
+     * and keeps the old rule: the same token, or a token for the same user.
+     * No `login()` of this version can produce that state, so a lineage-less
+     * session can only have been rotated, never replaced.
      *
      * It never calls `finish()`: that clears the shared keys, which here would
      * erase the other tab's new session — and, with rotating refresh tokens,
-     * sign every tab out whenever any tab rotates. Users are compared by their
-     * JSON, since that is what the storage keeps. Without a user model (no
-     * `parseUser`, no `mePath`) both sides are `null` and another account's
-     * login is adopted like a rotation — harmless, since there is no user to
-     * show next to the wrong token.
+     * sign every tab out whenever any tab rotates.
      *
      * The hook's error reaches only the callers that return `done`; the
      * automatic paths drop it.
@@ -932,14 +1125,23 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         const { user, token } = state();
         if (shared === null) return { continues: true, done: Promise.resolve() };
         const sameUser = JSON.stringify(shared.user) === JSON.stringify(user);
-        if (shared.token === token && shared.refreshToken === heldRefreshToken && sameUser) {
+        if (
+            shared.token === token &&
+            shared.refreshToken === heldRefreshToken &&
+            shared.lineage === heldLineage &&
+            sameUser
+        ) {
             return { continues: true, done: Promise.resolve() };
         }
-        const continues =
-            shared.token !== null && (shared.token === token || (token !== null && sameUser));
+        const sameSession =
+            shared.lineage !== null || heldLineage !== null
+                ? shared.lineage === heldLineage
+                : shared.token === token || (token !== null && sameUser);
+        const continues = shared.token !== null && sameSession;
         const live = token !== null || user !== null || heldRefreshToken !== null;
         if (!continues) nextEpoch();
         heldRefreshToken = shared.refreshToken;
+        heldLineage = shared.lineage;
         useAuthStore.setState({
             user: shared.user,
             token: shared.token,
@@ -1048,7 +1250,14 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      */
     function onStorage(event: StorageEvent): void {
         if (event.storageArea !== storageImpl()) return;
-        if (event.key !== null && event.key !== storeName && event.key !== refreshKey) return;
+        if (
+            event.key !== null &&
+            event.key !== storeName &&
+            event.key !== refreshKey &&
+            event.key !== lineageKey
+        ) {
+            return;
+        }
         followSharedSession();
     }
 

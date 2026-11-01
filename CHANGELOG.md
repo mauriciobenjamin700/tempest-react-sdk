@@ -4,6 +4,39 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Telas de autenticação: `AuthPage` + `AuthForm` e os presets `LoginForm`, `SignUpForm`,
+  `ForgotPasswordForm` e `ResetPasswordForm`.** Dois apps em produção (transport-frontend e
+  alofans-frontend) montavam à mão o mesmo `AuthWrapper` — topo colorido com logo e "Voltar", folha
+  branca de cantos arredondados no celular, 50/50 no desktop a partir de 768 px — e o mesmo formulário
+  com `useZodForm`, olho na senha e o laço que copia o `fields` do 422 de volta para os inputs. Agora o
+  app passa a marca e a **lista de campos**:
+  - `AuthPage` — a casca: `brand`, `title` (heading, nível em `headingLevel`), `subtitle`, `back`
+    (rota ou `{ to, label, onClick }`, sempre rotulado), `footer`, `aside` (`background` aceita
+    qualquer CSS, inclusive gradiente; padrão `var(--tempest-primary)`), `variant: "split" | "card"`
+    (o `card` é o login de painel administrativo) e `breakpoint` (padrão **768**, em px —
+    configurável, por isso a troca é por `useMediaQuery` e não por `@media`; o `useBreakpoint`
+    continua em 1024). Raiz `<main>` por padrão, `as="div"` dentro de layout que já tem uma.
+  - `AuthForm` — gerado de `schema` + `fields: AuthField[]`; cada `type` (`text`, `email`,
+    `password`, `phone`, `cpf`, `cnpj`, `checkbox`, `pin`) vira o controle do SDK pela camada de
+    forms (`useZodForm` + `FormProvider` + `FormField`), `render` cobre o resto, e `name` é tipado
+    contra as chaves do schema. Erro do `onSubmit`: `TempestApiError` com `fields` marca só os campos
+    declarados (o primeiro recebe foco); o resto vira `Alert` com `describeApiError` (`errorOptions`
+    repassado). Botão em `loading` durante o envio; `social` ganha um `Divider` "ou".
+  - Presets com textos PT-BR substituíveis por `labels` e links do router por `links`; schemas
+    (`loginSchema`, `signUpSchema`, `forgotPasswordSchema`, `resetPasswordSchema`, `authEmail()`,
+    `authPassword()`) e listas (`LOGIN_FIELDS`, `SIGN_UP_FIELDS`, …) exportados para estender.
+    Nova página [Telas de autenticação](docs/components/auth-screens.md) (PT + EN) e seção
+    `auth-screens` na gallery. Budgets (medido com `npx size-limit` sobre o build deste branch): fatia
+    nova `{ AuthPage, LoginForm }` **8,75 kB** brotli (teto 9,2 kB — inclui `Input`, `PasswordInput`,
+    `PinInput`, `Checkbox`, máscaras BR, `Alert`, `Button`, `Divider`, `Form` e `describeApiError`);
+    barrel ESM 146,54 → 149,22 kB e CJS 175,01 → 178,39 kB (tetos 149,3 / 178,5 kB); `styles.css`
+    30,56 → 31,22 kB e `styles/forms.css` 5,65 → 6,35 kB (tetos 31,3 / 6,4 kB), pelas duas folhas novas
+    no grupo `forms`. O teto da fatia "typical app" sobe 12,1 → 12,2 kB sem comprar comportamento: o
+    bundle esbuild dela tem **os mesmos 34 844 B** antes e depois (nenhum módulo novo entra), mas a
+    renomeação de identificadores do Rolldown muda o brotli de 12,05 para 12,11 kB.
+
 ## [0.80.0] — 2026-10-26
 
 ### Breaking

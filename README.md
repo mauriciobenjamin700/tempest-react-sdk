@@ -42,6 +42,7 @@ The goal is to start every new React frontend with the same opinionated foundati
   - [Polling](#polling-recipe)
   - [Retry & idempotency](#retry--idempotency-recipe)
   - [Auth store (Zustand)](#auth-store-recipe)
+  - [Auth screens (login, sign-up, password reset)](#auth-screens-recipe)
   - [Route guard](#route-guard-recipe)
   - [JWT helpers & refresh queue](#jwt-helpers--refresh-queue-recipe)
   - [Code-splitting with retry](#code-splitting-with-retry-recipe)
@@ -266,7 +267,7 @@ Every module is re-exported from the package root — `import { Button, useDebou
 
 | Module                                                                                            | Exports                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `components`                                                                                      | `Avatar`, `Badge`, `Breadcrumbs`, `Button`, `Card`, `Checkbox`, `ChipInput`, `ConfirmDialog`, `Container`, `DatePicker`, `Drawer`, `EmptyState`, `ErrorState`, `FileUpload`, `Form` (`FormSection`, `FormRow`, `FormActions`), `Grid`, `Input`, `InstallBanner`, `InstallButton`, `Modal`, `Pagination`, `Progress`, `Radio`, `RadioGroup`, `SearchBar`, `Select`, `Skeleton`, `Spinner`, `Stack`, `Stepper`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast` (`ToastProvider`, `useToast`), `Tooltip`, `VirtualList`                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `components`                                                                                      | `AuthPage` + `AuthForm` with the presets `LoginForm`, `SignUpForm`, `ForgotPasswordForm`, `ResetPasswordForm` (auth screens from a list of fields), `Avatar`, `Badge`, `Breadcrumbs`, `Button`, `Card`, `Checkbox`, `ChipInput`, `ConfirmDialog`, `Container`, `DatePicker`, `Drawer`, `EmptyState`, `ErrorState`, `FileUpload`, `Form` (`FormSection`, `FormRow`, `FormActions`), `Grid`, `Input`, `InstallBanner`, `InstallButton`, `Modal`, `Pagination`, `Progress`, `Radio`, `RadioGroup`, `SearchBar`, `Select`, `Skeleton`, `Spinner`, `Stack`, `Stepper`, `Switch`, `Table`, `Tabs`, `Textarea`, `Toast` (`ToastProvider`, `useToast`), `Tooltip`, `VirtualList`                                                                                                                                                                                                                                                                                |
 | `hooks`                                                                                           | `useDebounce`, `usePagination`, `useClientFilter`, `useDraftFilters` (draft vs applied server-side filter), `useMediaQuery`, `useOnline`, `useDocumentVisibility`, `useIntersectionObserver`, `useResizeObserver`, `useClipboard`, `useKeyboardShortcut`, `useBeforeInstallPrompt`, `useIdle`, `useGeolocation`, `useScrollLock`, `useFocusTrap`, `useStableCallback`, `useAnnounce` (+ pure `announce`/`clearAnnouncer` — one shared live-region pair), `useDeepMemo`, `useObjectUrl`, `useLongPressHandlers` (spreadable long-press handlers + `wasLongPress()` guard), `useInstallPrompt` (install-method resolver with decline cooldown), `useServiceWorkerUpdate` (consent-based SW update flow), `useStorageEstimate` + `estimateStorage`/`requestPersistentStorage` (Storage API quota & persistence), PWA env helpers `isIOS`/`isAndroid`/`isAndroidWithoutPromptApi`/`isStandalone`/`buildOpenInChromeIntent`, type `BeforeInstallPromptEvent` |
 | `http`                                                                                            | `createApiClient`, `buildApiUrl`, `csrfHeaders`, `parseResponse`, `uploadWithProgress`, `createResumableUpload` (tus 1.0.0: chunked + resumable, `pause`/`resume`/`abort`), `createLocalUploadStorage`, `uploadFingerprint`, `retry`, `generateIdempotencyKey`, `usePoll`, types: `ApiClient`, `ApiClientConfig`, `ApiError`, `BuildApiUrlOptions`, `CsrfOptions`, `RequestOptions`, `RetryOptions`, `UploadProgressEvent`, `UploadWithProgressOptions`, `UsePollOptions`, `UsePollResult`                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `auth` _(peer: `zustand`)_                                                                        | `createAuthStore`, `AuthGuard`, `decodeJWT`, `isJWTExpired`, `lazyWithRetry`, `createRefreshQueue`, **passkeys/WebAuthn**: `createPasskeyClient`, `usePasskeyRegistration`, `usePasskeySignIn`, `usePasskeyCapabilities`, `isPasskeySupported`, `isPlatformAuthenticatorAvailable`, `isConditionalMediationAvailable`, `classifyPasskeyError`, `PasskeyError`, `base64UrlToBytes`, `bytesToBase64Url`, types: `AuthState`, `CreateAuthStoreOptions`, `AuthGuardProps`, `DecodedJWT`, `LazyWithRetryOptions`                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -776,6 +777,37 @@ useAuthStore.getState().logout();
 ```
 
 The store exposes `user`, `token`, `isAuthenticated`, `setSession`, `setUser`, `setToken`, and `logout`. `isAuthenticated` is derived from `token` and rehydrates correctly after page reload.
+
+### Auth screens recipe
+
+The sign-in screen without hand-building the layout or the form: `AuthPage` is the shell (colored top + rounded sheet below 768 px, 50/50 brand panel and form above it, or a centered `card`), and `LoginForm` / `SignUpForm` / `ForgotPasswordForm` / `ResetPasswordForm` are generated from a list of fields and a zod schema. A 422 with `fields` lands on the matching inputs; any other error shows an `Alert`.
+
+```tsx
+import { AuthPage, LoginForm, createApiClient, useNavigate } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: "/api" });
+
+export function LoginScreen() {
+  const navigate = useNavigate();
+  return (
+    <AuthPage
+      brand={<img src="/logo.svg" alt="Acme" width={96} height={96} />}
+      back="/"
+      title="Bem-vindo!"
+    >
+      <LoginForm
+        onSubmit={async (values) => {
+          await api.post("/auth/login", { body: values });
+          navigate("/", { replace: true });
+        }}
+        links={{ forgotPassword: "/recuperar-senha", signUp: "/cadastro" }}
+      />
+    </AuthPage>
+  );
+}
+```
+
+Full guide: [Auth screens](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/components/auth-screens/) · [Telas de autenticação](https://mauriciobenjamin700.github.io/tempest-react-sdk/components/auth-screens/).
 
 ### Route guard recipe
 

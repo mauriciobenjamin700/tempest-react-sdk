@@ -16,6 +16,11 @@ São cinco peças, todas desacopladas entre si:
     primitivos compõem livremente: você usa o store sem o guard, o guard sem o
     JWT decoder, e por aí vai.
 
+!!! tip "As telas de login e cadastro"
+    Este módulo cuida da sessão. A tela em si — layout, formulário de login,
+    cadastro, "esqueci a senha" — está em
+    [Telas de autenticação](components/auth-screens.md): `AuthPage` + `LoginForm`.
+
 <!-- gallery:recipe-auth -->
 [![Auth & Access Control na gallery](assets/gallery/recipe-auth.webp)](gallery.md)
 

@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "12.1 kB",
+    "limit": "12.2 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -138,6 +138,28 @@
       "./dist/tempest-react-sdk.js": "{ FormField, useZodForm, zodResolver, CPFInput, CNPJInput, PhoneInput, CEPInput, MoneyInput, useViaCEP }"
     },
     "limit": "3 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: auth screens (`AuthPage` + `LoginForm` — shell, generated form, its controls)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ AuthPage, LoginForm }"
+    },
+    "limit": "9.2 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -385,7 +407,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "146.6 KB",
+    "limit": "149.3 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -404,7 +426,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "175.1 KB",
+    "limit": "178.5 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -714,7 +736,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "30.6 kB"
+    "limit": "31.3 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",
@@ -747,7 +769,7 @@
   {
     "name": "styles/forms.css (the largest group)",
     "path": "dist/styles/forms.css",
-    "limit": "6 kB"
+    "limit": "6.4 kB"
   },
   {
     "name": "utilities.css (opt-in layer)",

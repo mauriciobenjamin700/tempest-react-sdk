@@ -63,6 +63,7 @@ const CATEGORY_GROUP = {
     actions: "actions",
     identity: "identity",
     inputs: "forms",
+    "auth-screens": "forms",
     layout: "layout",
     "advanced-layout": "layout",
     navigation: "navigation",

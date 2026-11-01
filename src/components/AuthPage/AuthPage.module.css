@@ -1,0 +1,218 @@
+/* ============================================================
+ * AuthPage — the shell around a sign-in / sign-up form.
+ *
+ * Three layouts, chosen in JS (the breakpoint is a prop, and a CSS
+ * media query cannot read a custom property):
+ *
+ *   stacked  colored top with back + brand, then a sheet with large
+ *            rounded top corners that holds the form (mobile)
+ *   split    brand panel and form side by side, 50/50 (desktop)
+ *   card     one centered card at every width (internal panels)
+ *
+ * The brand color travels as two component-scoped properties set
+ * inline from the `aside` prop, falling back to the primary token.
+ * ============================================================ */
+.root {
+    --tempest-auth-page-bg: var(--tempest-auth-page-aside-bg, var(--tempest-primary));
+    --tempest-auth-page-fg: var(--tempest-auth-page-aside-fg, var(--tempest-text-on-primary));
+    box-sizing: border-box;
+    min-height: 100dvh;
+    width: 100%;
+    color: var(--tempest-text);
+    font-family: var(--tempest-font-sans);
+}
+
+/* ---------- brand panel ---------- */
+.aside {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tempest-space-4);
+    color: var(--tempest-auth-page-fg);
+    text-align: center;
+}
+
+.brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    font-size: var(--tempest-text-2xl);
+    font-weight: var(--tempest-weight-bold);
+}
+
+.brand img,
+.brand svg {
+    max-width: 100%;
+    height: auto;
+}
+
+.asideContent {
+    max-width: 28rem;
+    font-size: var(--tempest-text-md);
+    line-height: var(--tempest-leading-relaxed);
+}
+
+.back {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    min-height: 44px;
+    padding: var(--tempest-space-2) var(--tempest-space-3);
+    border: 0;
+    border-radius: var(--tempest-radius-md);
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: var(--tempest-text-md);
+    font-weight: var(--tempest-weight-medium);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.back:hover {
+    text-decoration: underline;
+}
+
+.back:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid currentColor;
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
+/* ---------- form panel ---------- */
+.panel {
+    display: flex;
+    justify-content: center;
+    background: var(--tempest-bg);
+}
+
+.sheet {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-5);
+    width: 100%;
+    max-width: 28rem;
+}
+
+.header {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+}
+
+.title {
+    margin: 0;
+    color: var(--tempest-text);
+    font-size: var(--tempest-text-3xl);
+    font-weight: var(--tempest-weight-bold);
+    line-height: var(--tempest-leading-tight);
+}
+
+.subtitle {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-md);
+}
+
+.footer {
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    text-align: center;
+}
+
+/* ---------- stacked (below the breakpoint) ---------- */
+.stacked {
+    display: flex;
+    flex-direction: column;
+    background: var(--tempest-auth-page-bg);
+}
+
+.stacked .aside {
+    padding: calc(var(--tempest-space-16) + var(--tempest-safe-area-top, 0px))
+        var(--tempest-space-5) var(--tempest-space-10);
+}
+
+.stacked .back {
+    position: absolute;
+    top: calc(var(--tempest-space-3) + var(--tempest-safe-area-top, 0px));
+    left: var(--tempest-space-2);
+}
+
+.stacked .panel {
+    flex: 1;
+    padding: var(--tempest-space-8) var(--tempest-space-5)
+        calc(var(--tempest-space-8) + var(--tempest-safe-area-bottom, 0px));
+    border-top-left-radius: calc(var(--tempest-radius-2xl) * 2);
+    border-top-right-radius: calc(var(--tempest-radius-2xl) * 2);
+}
+
+/* ---------- split (at or above the breakpoint) ---------- */
+.split {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+}
+
+.split .aside {
+    padding: var(--tempest-space-12);
+    background: var(--tempest-auth-page-bg);
+}
+
+.split .back {
+    position: absolute;
+    top: var(--tempest-space-5);
+    left: var(--tempest-space-5);
+}
+
+.split .panel {
+    align-items: center;
+    padding: var(--tempest-space-12) var(--tempest-space-8);
+}
+
+/* ---------- card (every width) ---------- */
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tempest-space-3);
+    padding: var(--tempest-space-5);
+    background: var(--tempest-auth-page-aside-bg, var(--tempest-surface));
+}
+
+.cardBack {
+    width: 100%;
+    max-width: 28rem;
+    color: var(--tempest-auth-page-aside-fg, var(--tempest-text));
+}
+
+.card .panel {
+    width: 100%;
+    max-width: 28rem;
+    padding: var(--tempest-space-8) var(--tempest-space-6);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-xl);
+    box-shadow: var(--tempest-shadow-md);
+}
+
+.cardBrand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    color: var(--tempest-primary);
+    font-size: var(--tempest-text-2xl);
+    font-weight: var(--tempest-weight-bold);
+    text-align: center;
+}
+
+.card .header {
+    text-align: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .back {
+        transition: var(--tempest-transition-color);
+    }
+}

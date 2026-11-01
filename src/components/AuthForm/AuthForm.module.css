@@ -1,0 +1,51 @@
+/* ============================================================
+ * AuthForm — the generated form and the links its presets add.
+ * ============================================================ */
+.form {
+    width: 100%;
+}
+
+.social {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--tempest-space-2);
+}
+
+.link {
+    color: var(--tempest-primary);
+    font-weight: var(--tempest-weight-semibold);
+    text-decoration: none;
+    border-radius: var(--tempest-radius-xs);
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+
+.link:focus-visible {
+    outline: var(--tempest-focus-ring-width) solid var(--tempest-focus-ring-color);
+    outline-offset: var(--tempest-focus-ring-offset);
+}
+
+.forgot {
+    align-self: flex-end;
+    font-size: var(--tempest-text-sm);
+}
+
+.prompt {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    text-align: center;
+}
+
+.hints {
+    display: flex;
+    flex-direction: column;
+    gap: var(--tempest-space-1);
+    margin: 0;
+    padding-left: var(--tempest-space-5);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}

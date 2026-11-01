@@ -21,6 +21,7 @@ props, examples, and accessibility notes.
 - **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
 - **[Identity & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 - **[Utilities & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Reveal, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
+- **[Auth screens](./components/auth-screens.md)** — AuthPage, AuthForm, LoginForm, SignUpForm, ForgotPasswordForm, ResetPasswordForm
 - **Overlays & advanced** — the components at parity with shadcn/ui, across five pages ([overview](./components/advanced.md)):
     - **[Essentials](./components/advanced-essentials.md)** — Toggle, ToggleGroup, Label, Collapsible, ContextMenu, HoverCard, Command
     - **[Layout & UX](./components/advanced-layout.md)** — ScrollArea, Resizable, Calendar, Scheduler

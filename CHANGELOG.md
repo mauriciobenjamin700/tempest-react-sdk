@@ -21,6 +21,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   como boleto — o que já era o veredito do parser. Nenhuma linha que o SDK aceitava como cobrança
   muda de leitura.
 
+### Segurança
+
+- **Replay do background sync reaplicava o bearer do app em requisição para outra origem (#523).**
+  No replay, o `defaultBeforeReplay` reaplicava a credencial devolvida pela página a todo header
+  de credencial que a requisição original levava, conferindo só o **nome** — e o JSDoc do
+  `provideBackgroundSyncCredentials` dizia que devolver `Authorization` para toda URL era seguro.
+  Com o `match` do `template-pwa` (`/api/` em qualquer origem) e o provedor dele (bearer para
+  qualquer URL), um `POST https://third.party/api/hooks` com `Authorization: Bearer THIRD` que
+  falhou offline saía no replay com `Authorization: Bearer APP`. Reproduzido antes da correção em
+  `src/sw/background-sync.credential-scope.test.ts` (4 dos 7 casos falhavam; o primeiro recebia
+  `["Bearer APP"]`), com `npx vitest run src/sw/background-sync.credential-scope.test.ts`. A issue
+  acertou a causa; o defeito era um pouco maior: um `beforeReplay` próprio também podia mandar
+  credencial para qualquer origem, então a regra mora no `replayQueue`, não só no hook padrão.
+  Agora o replay usa a regra do `ApiClient` (`isTrustedCredentialTarget`): credencial só vai para a
+  origem do worker e para a nova opção **`trustedOrigins`** do `installBackgroundSync`. Entrada que
+  levava header de credencial para outra origem é **descartada** antes do `beforeReplay`, sem
+  perguntar à página — reenviá-la sem a credencial seria uma requisição que o app nunca fez; e o
+  `Request` devolvido por qualquer `beforeReplay` com header de `credentialHeaders` para outra
+  origem também é descartado. Em build de desenvolvimento, um aviso por origem e por replay.
+  Entrada sem header de credencial não muda. O `template-pwa` passa a casar só a própria origem.
+  **Migração:** app cuja API mora em outra origem que a do service worker e que reenvia mutações
+  autenticadas declara a origem —
+  `installBackgroundSync({ match, trustedOrigins: ["https://api.exemplo.com"] })`; sem isso, essas
+  entradas são descartadas no replay (o console de desenvolvimento diz qual origem faltou).
+  **Tamanho:** os tetos do barrel inteiro sobem — ESM 146,6 → 147 kB (146 539 → 146 956 B br) e
+  CJS 175,1 → 175,3 kB (175 014 → 175 266 B br), medidos com `npm run build && npx size-limit
+--json` contra a `origin/main`; nenhum outro check do `size-limit` mudou. O ESM tinha 61 B de folga, menos do
+  que a regra de escopo e o aviso custam.
+
 ## [0.80.0] — 2026-10-26
 
 ### Breaking

@@ -337,7 +337,9 @@ Full coverage of the common case. For very specific edges (partial-content preca
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 ```
 
 The original fetch still **rejects** for now (your app shows an offline state), but the request is replayed later. `maxRetentionMinutes` drops stale entries; 4xx responses are discarded (a client error won't fix itself).

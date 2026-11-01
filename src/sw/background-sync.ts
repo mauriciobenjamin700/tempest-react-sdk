@@ -21,6 +21,7 @@
  *
  *   installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
  */
+import { isTrustedCredentialTarget } from "../http/credential-scope";
 import { isDevBuild } from "../utils/dev-mode";
 import { DEFAULT_CREDENTIAL_HEADERS, credentialHeaderSet } from "./credential-headers";
 
@@ -212,6 +213,43 @@ export interface InstallBackgroundSyncOptions {
      */
     credentialHeaders?: readonly string[];
     /**
+     * Origins besides the worker's own that a replayed request may carry a
+     * credential header to — typically the API host when it is not the app's
+     * origin (`["https://api.acme.com"]`). Default `[]`: only the worker's origin.
+     *
+     * A credential re-applied at replay comes from the page, so it is the app's
+     * credential, whatever the request originally carried under the same header
+     * name. Before 0.81.0 the worker checked only the name, and a mutation to a
+     * third party that failed offline carrying that party's `Authorization` was
+     * replayed to it with the app's bearer (#523). Now, with the rule
+     * `isTrustedCredentialTarget` enforces on the live `ApiClient`:
+     * - an entry that carried a credential header to an origin outside this
+     *   scope is dropped before `beforeReplay` runs — re-sending it without the
+     *   credential would be a request the app never made, and with the app's
+     *   credential, a leak;
+     * - a request returned by `beforeReplay` (custom or default) that carries a
+     *   header from `credentialHeaders` to an origin outside this scope is
+     *   dropped instead of sent.
+     *
+     * Both drops warn once per origin per replay in development builds. Entries
+     * with no credential header are not affected: the browser attaches that
+     * origin's own cookies, as it did on the original attempt.
+     */
+    trustedOrigins?: readonly string[];
+    /**
+     * How an `"unknown"` owner is handled on an entry with no stripped
+     * credentials (see {@link BackgroundSyncOwnerPolicy}). Default `"strict"`.
+     *
+     * `"lenient"` restores the replay-as-is of 0.77.0 and earlier for an app without sign-in,
+     * where no page ever reports a principal. Do not use it with a cookie
+     * session: the browser attaches on replay the cookie of whoever is signed in
+     * at that moment, so a mutation queued by A whose owner was never stamped
+     * (issuing tab closed, empty `clientId`, stamp lost, legacy entry) goes out
+     * with B's session. Entries with stripped credentials ask the pages either
+     * way. Ignored when a custom `beforeReplay` is given.
+     */
+    ownerPolicy?: BackgroundSyncOwnerPolicy;
+    /**
      * Prepare each queued request right before it is replayed: return the
      * request to send (typically with the current credentials applied) or
      * `null` to drop the entry for good. A thrown error keeps the entry pending.
@@ -238,20 +276,11 @@ export interface InstallBackgroundSyncOptions {
      * `maxRetentionMinutes` (and warns once per replay in development builds) —
      * so a page that never calls {@link provideBackgroundSyncCredentials} leaves
      * every entry it queued `"unknown"`, and none of them is replayed.
-     */
-    /**
-     * How an `"unknown"` owner is handled on an entry with no stripped
-     * credentials (see {@link BackgroundSyncOwnerPolicy}). Default `"strict"`.
      *
-     * `"lenient"` restores the replay-as-is of 0.77.0 and earlier for an app without sign-in,
-     * where no page ever reports a principal. Do not use it with a cookie
-     * session: the browser attaches on replay the cookie of whoever is signed in
-     * at that moment, so a mutation queued by A whose owner was never stamped
-     * (issuing tab closed, empty `clientId`, stamp lost, legacy entry) goes out
-     * with B's session. Entries with stripped credentials ask the pages either
-     * way. Ignored when a custom `beforeReplay` is given.
+     * Whatever the hook returns is still held to `trustedOrigins`: a credential
+     * header bound for an origin outside the worker's own and `trustedOrigins` is
+     * never sent.
      */
-    ownerPolicy?: BackgroundSyncOwnerPolicy;
     beforeReplay?: (
         request: Request,
         context: BackgroundSyncReplayContext,
@@ -544,14 +573,16 @@ async function askAllClients(
     return answers.filter((answer): answer is ClientAnswer => answer !== undefined);
 }
 
-/** State of one replay pass: answers cached per URL + method, and the warning flag. */
+/** State of one replay pass: answers cached per URL + method, and the warning flags. */
 interface ReplayRun {
     ask(request: Request): Promise<ClientAnswer[]>;
     warnNoAnswer(): void;
+    warnOutOfScope(url: string): void;
 }
 
 function createReplayRun(sw: BgSwGlobal): ReplayRun {
     const answers = new Map<string, Promise<ClientAnswer[]>>();
+    const outOfScope = new Set<string>();
     let warned = false;
     return {
         ask(request) {
@@ -575,6 +606,14 @@ function createReplayRun(sw: BgSwGlobal): ReplayRun {
                     "to confirm who is signed in or to supply the current credentials, and no " +
                     "open page answered. Call " +
                     "provideBackgroundSyncCredentials() in the page; the entry stays pending.",
+            );
+        },
+        warnOutOfScope(url) {
+            const origin = new URL(url).origin;
+            if (outOfScope.has(origin) || !isDevBuild()) return;
+            outOfScope.add(origin);
+            console.warn(
+                `[tempest-react-sdk/sw] background-sync: dropped a credentialed request to ${origin}; list it in trustedOrigins to replay it.`,
             );
         },
     };
@@ -647,6 +686,13 @@ interface ReplayConfig {
     credentialHeaders: ReadonlySet<string>;
     beforeReplay?: InstallBackgroundSyncOptions["beforeReplay"];
     ownerPolicy: BackgroundSyncOwnerPolicy;
+    /** Whether a request to this URL may carry a credential header. */
+    inCredentialScope: (url: string) => boolean;
+}
+
+/** Whether a request carries any of the configured credential headers. */
+function carriesCredential(request: Request, credentialHeaders: ReadonlySet<string>): boolean {
+    return [...request.headers.keys()].some((name) => credentialHeaders.has(name));
 }
 
 /**
@@ -658,9 +704,22 @@ interface ReplayConfig {
  * against the store right before it is sent, so a queue cleared mid-replay stops
  * the replay. Throws if any entry is still pending, so a `sync` handler keeps
  * the sync registered.
+ *
+ * Credential scope (#523) is enforced here rather than in the default hook, so
+ * a custom `beforeReplay` is held to it too: an entry that stripped a credential
+ * header for an origin outside the scope is dropped before preparation, and a
+ * prepared request carrying one to such an origin is dropped instead of sent.
  */
 async function replayQueue(config: ReplayConfig, now: number): Promise<void> {
-    const { sw, name, maxRetentionMs, credentialHeaders, beforeReplay, ownerPolicy } = config;
+    const {
+        sw,
+        name,
+        maxRetentionMs,
+        credentialHeaders,
+        beforeReplay,
+        ownerPolicy,
+        inCredentialScope,
+    } = config;
     const run = createReplayRun(sw);
     const prepare =
         beforeReplay ??
@@ -686,6 +745,11 @@ async function replayQueue(config: ReplayConfig, now: number): Promise<void> {
                 entry,
                 credentialHeaders,
             );
+            if (strippedHeaders.length > 0 && !inCredentialScope(stored.url)) {
+                run.warnOutOfScope(stored.url);
+                await remove(name, entry.id);
+                continue;
+            }
             const request = await prepare(stored, {
                 queuedAt: entry.timestamp,
                 strippedHeaders,
@@ -694,6 +758,11 @@ async function replayQueue(config: ReplayConfig, now: number): Promise<void> {
             });
             if (!(await stillQueued(name, entry.id))) continue;
             if (request === null) {
+                await remove(name, entry.id);
+                continue;
+            }
+            if (carriesCredential(request, credentialHeaders) && !inCredentialScope(request.url)) {
+                run.warnOutOfScope(request.url);
                 await remove(name, entry.id);
                 continue;
             }
@@ -792,8 +861,10 @@ export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}
         credentialHeaders = DEFAULT_CREDENTIAL_HEADERS,
         beforeReplay,
         ownerPolicy = "strict",
+        trustedOrigins = [],
     } = options;
     const stripped = credentialHeaderSet(credentialHeaders);
+    const workerOrigin = globalThis.location?.href ?? "";
     const replay: ReplayConfig = {
         sw,
         name: queueName,
@@ -801,6 +872,7 @@ export function installBackgroundSync(options: InstallBackgroundSyncOptions = {}
         credentialHeaders: stripped,
         beforeReplay,
         ownerPolicy,
+        inCredentialScope: (url) => isTrustedCredentialTarget(url, workerOrigin, trustedOrigins),
     };
 
     sw.addEventListener("fetch", (event) => {
@@ -928,9 +1000,15 @@ async function ownerFingerprint(principal: string | null | undefined): Promise<s
  * keeps an entry pending when one it stripped is missing), or `null` when there
  * is no session — the worker then drops the entry instead of replaying it
  * anonymously. A throw from `getHeaders` or `getPrincipal` is answered as an
- * explicit `{ error: true }`. The worker only applies headers whose names the
- * original request carried, so returning `Authorization` for every URL never
- * leaks it to a URL that did not receive it in the first place.
+ * explicit `{ error: true }`.
+ *
+ * The worker applies only the header names the original request carried, and
+ * only to the worker's own origin or the `trustedOrigins` given to
+ * {@link installBackgroundSync}: an entry bound for any other origin is dropped
+ * without asking this page. Matching the name is not enough on its own — a
+ * request to a third party carries *that party's* `Authorization`, and until
+ * 0.81.0 its replay received the app's bearer (#523). `getHeaders` still gets
+ * the URL, for an app whose trusted origins need different credentials.
  *
  * Pass `getPrincipal` to bind each entry to whoever queued it: the worker asks
  * the issuing tab right after queueing, asks every tab again before replaying,

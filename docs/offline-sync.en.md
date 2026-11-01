@@ -86,6 +86,23 @@ sync.clearOutbox();
 !!! info "Failed deliveries stay queued"
     If `deliver` throws, the entry **stays** in the outbox with its `attempts` bumped and `lastError` recorded — the next flush retries it. Pair it with `installBackgroundSync` in the service worker to replay even with the app closed.
 
+!!! info "Logout ends the flush that is in flight"
+    `resetWatermark()` and `clearOutbox()` also end the session for a flush that
+    has already started. From that point the run **delivers** no further entry,
+    **requests** no next page, **applies** no pulled item and **writes** no
+    watermark — nothing of the user who left crosses into the next one. The run
+    resolves with `summary.interrupted: true`, and a `sync.flush()` called after
+    logout starts a new run instead of waiting on the abandoned one.
+
+    What cannot be undone is the `deliver` that was **already on the wire** at
+    logout: it was issued under the previous session. Its row leaves the queue (or
+    gets its `attempts` bumped), but `onEntryDelivered`/`onEntryFailed` do not
+    fire, because they would act on the next user's local state.
+
+    Scope: the fence is per tab. With `crossTab`, an entry another tab removed from
+    the shared outbox is not delivered, but a pull in flight in another tab only
+    stops when that tab also calls `resetWatermark()`/`clearOutbox()`.
+
 !!! danger "Per-record order survives a failure — it did not before"
     When an entry fails, the **remaining entries for that same record** are left
     untried for this pass and come back in their original order on the next one.

@@ -310,6 +310,32 @@ function UserList() {
     that does not compile as a JavaScript regex fails **generation**, naming the
     schema and the property path — instead of breaking the app on import.
 
+    Text that would turn into something else at its destination is refused too,
+    before the first write:
+
+    - **A path that does not start with `/`** (`https://other.example/x`) — the
+      client passes an absolute URL through as is, so the method would call
+      another origin — and **a path with a `.` or `..` segment** (`/../x`,
+      `/%2e%2e/x`, `/a\..\x`), which leaves the `baseURL`'s path prefix once the
+      URL is normalized. A dot inside a segment (`/v1.2/..cache`) or in the query
+      is still fine.
+    - **A property named `__proto__`**, or a `__proto__` key inside a `default`:
+      in the generated object literal it swaps the prototype instead of
+      declaring the field, and Zod 4 drops it even as a computed key — there is
+      no code that validates it.
+
+    A `pattern` that **compiles** but has a nested quantifier (`^(a+)+$`,
+    `(\w+\s?)*`) is generated as usual and printed as a **warning** (`!`) in the
+    terminal: on a near-miss value it backtracks exponentially — 28 characters
+    took 873 ms on Node 24 and each extra one doubles it — and freezes the tab
+    that validates it. It is a heuristic for that shape, not a safety proof:
+    `^([a-z0-9]+-)*[a-z0-9]+$` (every repetition ends on a mandatory `-`) is not
+    flagged, and overlapping alternation (`(a|aa)+`) is not analysed.
+
+    What the CLI prints from the spec — tag names, warnings and error messages —
+    comes out without C0/C1 control characters: a tag carrying `ESC ] 0 ;`
+    neither retitles the terminal nor prints a hidden OSC 8 link.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` generates, **per route group**, three files: `schemas.ts` (Zod), `types.ts` (`z.infer`) and `service.ts` (class).

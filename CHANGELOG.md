@@ -4,6 +4,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`tempest gen api` recusa spec que gerava código enganoso, e `create-tempest-app <nome>` recusa
+  destino que é symlink (#533).** Passam a falhar, antes da primeira escrita: path key que não
+  começa com `/` (`https://outro.example/x`) ou que tem segmento `.`/`..` (inclusive `%2e` e `\`);
+  propriedade chamada `__proto__`; chave `__proto__` dentro de `default`; e, no scaffold,
+  `create-tempest-app my-app` com `my-app` sendo link simbólico. **Migração:** nenhuma para spec
+  válido — o OpenAPI exige path relativo começando com `/`. Se o seu falhar, corrija o path no
+  backend (a origem vai no `baseURL` do `createApiClient`) ou renomeie a propriedade
+  (`alias` no Pydantic); no scaffold, passe o caminho real da pasta em vez do link.
+
 ### Segurança
 
 - **Release: o guard não confia mais no commit taggeado nem numa branch `release-*` recém-criada
@@ -35,6 +46,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   provenance nem Release. Guardas em `test/ci-policy.test.ts` (6 testes que falhavam contra a
   `main`). **Migração (mantenedor):** não há publish local; publique por `make release` +
   `make release-tag`, e revogue o secret `NPM_TOKEN` legado (item 5 do checklist).
+
+- **Hardening do `create-tempest-app` e do `tempest gen api` contra spec hostil (#533).** Medido na
+  `main` antes da correção, com um spec montado para isso (os testes novos em
+  `bin/lib/openapi/generate.hostile.test.mjs`, `bin/tempest-gen.test.mjs` e
+  `bin/create-tempest-app.e2e.test.mjs` — 17 falhavam, `npx vitest run bin/`):
+  - a tag `"a\u001b]0;PWNED\u0007"` era impressa crua depois de `✓ Generated` — escape OSC que
+    troca o título do terminal; OSC 8 imprimia link com alvo escondido. O `JSON.stringify` das
+    mensagens de erro escapa C0 mas deixa C1 (`\u009b`, CSI de 8 bits) cru. Agora tags, avisos e
+    erros passam por `terminalText`, que remove C0/C1 (menos tab e LF), e o comentário gerado
+    também perde esses caracteres. A dica de uso no fim imprimia `@/api/<tag crua>` — errada para
+    `"Items API"` (a pasta é `items-api`, a classe `ItemsApiService`); agora usa a pasta e a
+    classe geradas.
+  - a path key `https://other.example/x` virava `this.api.get("https://other.example/x")`, que o
+    `buildApiUrl` repassa intacta: o bearer era retido pelo `isTrustedCredentialTarget`, mas body
+    e cookies (com `credentials: "include"`) iam junto. `/../y` virava `get("/../y")`. Recusados.
+  - `properties: { "__proto__": … }` virava `z.object({ "__proto__": z.string() })`, cujo shape
+    ficava sem o campo (`Object.keys(shape)` = `["x"]`), e um `required` aceitava `{}`. Escrever
+    como chave computada não resolve: o Zod 4.6.7 descarta `__proto__` mesmo assim (aceitou `5`
+    para um `z.string()` obrigatório). Recusado.
+  - `pattern: "^(a+)+$"` virava `new RegExp(...)` sem aviso; no V8 ele leva 873 ms em 28
+    caracteres e dobra a cada um (`/^(a+)+$/.test("a".repeat(28) + "!")`, Node 24.15). Agora o
+    gerador marca quantificador aninhado com aviso `!` e gera normalmente — é heurística, não
+    prova, então não reprova a geração.
+  - o scaffold com `my-app -> ../outro` (link para pasta vazia) escrevia o template no alvo do
+    link. Recusado, como o modo merge já fazia com symlink no destino.
+  - A janela check-then-write (TOCTOU) entre a checagem de contenção e a escrita continua: o Node
+    não tem walk `openat`/`O_NOFOLLOW`, e o processo que ganharia a corrida já escreve no projeto
+    do usuário. Fica documentada como risco aceito no `create-tempest-app.mjs` e no
+    `bin/lib/fs/contain.mjs`.
 
 ## [0.81.0] — 2026-11-01
 

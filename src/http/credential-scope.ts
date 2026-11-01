@@ -7,17 +7,23 @@ import { isDevBuild } from "../utils/dev-mode";
 const reported = new Set<string>();
 
 /**
- * The origin a URL resolves to, or `null` when it has none to compare.
+ * A base no real request resolves against, used only to tell a relative
+ * reference from one that does not parse when there is no document at all.
+ */
+const DETACHED_BASE = "http://relative.invalid";
+
+/**
+ * The origin a credential reference names, or `null` when it has none.
  *
- * Relative values resolve against the document, because that is what they mean
- * everywhere else in the SDK: an `endpoint` of `"/api/uploads"` and a `baseURL`
- * of `"/api"` are the shape you get behind a dev-server or a reverse proxy, and
- * both name the page's own origin. Comparing a resolved absolute target against
- * an unresolved relative reference is how the first draft of this function
- * withheld the credential from every client configured that way.
+ * A reference — `baseURL`, `endpoint`, `credentialOrigin`, a trusted origin —
+ * is the trust anchor, so a relative one resolves against the page's own
+ * address (`location.href`), never against a `<base href>`: an injected
+ * `<base>` must not be able to move the anchor onto its own host.
  *
- * `null` is reserved for the case with genuinely nothing to compare: a relative
- * URL outside a browsing context, where there is no document to resolve against.
+ * Relative references are the shape you get behind a dev-server or a reverse
+ * proxy, and they name the page's own origin. Comparing a resolved absolute
+ * target against an unresolved relative reference is how the first draft of
+ * this function withheld the credential from every client configured that way.
  *
  * @param url - Absolute or relative URL.
  * @returns The origin, or `null` when it cannot be resolved.
@@ -25,6 +31,70 @@ const reported = new Set<string>();
 function originOf(url: string): string | null {
     try {
         return new URL(url, globalThis.location?.href).origin;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Where a request to `target` actually goes, as the transport resolves it.
+ *
+ * `XMLHttpRequest.open()` and `fetch()` resolve a relative URL against the
+ * document's base URL (`document.baseURI`), which a `<base href>` changes and
+ * `location.href` does not. Until 0.82.0 the target was resolved against the
+ * page's address, so under an injected `<base>` a relative `url` and a relative
+ * `credentialOrigin` compared equal while the request went to the `<base>` host
+ * with the token (#530). A worker has no document; its base is its location.
+ *
+ * Three answers, because the caller treats them differently:
+ *
+ * - an origin — compare it;
+ * - `"relative"` — a relative target with nothing to resolve it against
+ *   (outside any browsing context): there is no origin for it to cross;
+ * - `"invalid"` — a target that does not parse. Refused: the check used to
+ *   fail open here, so a custom `fetcher` that accepts such a string received
+ *   the credential (#530).
+ *
+ * An opaque origin (`data:`, `file:`) comes back as the string `"null"`, which
+ * the caller also refuses: two opaque origins are never the same origin, yet
+ * `"null" === "null"`.
+ *
+ * @param target - The URL the request is about to go to.
+ * @returns The origin, `"relative"` or `"invalid"`.
+ */
+function targetOriginOf(target: string): string {
+    const base = globalThis.document?.baseURI ?? globalThis.location?.href;
+    if (base !== undefined) {
+        try {
+            return new URL(target, base).origin;
+        } catch {
+            return "invalid";
+        }
+    }
+    try {
+        return new URL(target).origin;
+    } catch {
+        try {
+            new URL(target, DETACHED_BASE);
+            return "relative";
+        } catch {
+            return "invalid";
+        }
+    }
+}
+
+/**
+ * Resolve a URL the way the transport will, against the document base URL.
+ *
+ * Exported for the resumable upload, which has to resolve a relative tus
+ * `Location` against the creation endpoint as the request actually went out.
+ *
+ * @param url - Absolute or relative URL.
+ * @returns The absolute URL, or `null` when it does not resolve.
+ */
+export function resolveRequestUrl(url: string): string | null {
+    try {
+        return new URL(url, globalThis.document?.baseURI ?? globalThis.location?.href).href;
     } catch {
         return null;
     }
@@ -45,11 +115,13 @@ function originOf(url: string): string | null {
  * rather than the request blocked: the upload still goes through, it just goes
  * without the API's bearer token.
  *
- * Both sides are resolved against the document first, so a relative `baseURL`
- * or `endpoint` — the shape behind a dev-server or reverse proxy — compares
- * equal to the absolute URL the request actually goes to. Outside a browsing
- * context a relative target resolves to nothing and is allowed: there is no
- * origin for it to cross.
+ * Both sides are resolved first, so a relative `baseURL` or `endpoint` — the
+ * shape behind a dev-server or reverse proxy — compares equal to the absolute
+ * URL the request actually goes to. The target resolves against the document
+ * base URL, where the transport sends it; the reference against the page's
+ * own address, which a `<base href>` cannot move. Outside a browsing context a
+ * relative target is allowed — there is no origin for it to cross — and a
+ * target that does not parse is refused rather than trusted.
  *
  * @param target - The URL the request is about to go to.
  * @param reference - The origin the credential belongs to, normally the
@@ -69,8 +141,9 @@ export function isTrustedCredentialTarget(
     reference: string,
     trustedOrigins: readonly string[] = [],
 ): boolean {
-    const targetOrigin = originOf(target);
-    if (targetOrigin === null) return true;
+    const targetOrigin = targetOriginOf(target);
+    if (targetOrigin === "relative") return true;
+    if (targetOrigin === "invalid" || targetOrigin === "null") return false;
     if (targetOrigin === originOf(reference)) return true;
     return trustedOrigins.some((origin) => originOf(origin) === targetOrigin);
 }

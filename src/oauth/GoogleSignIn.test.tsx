@@ -49,4 +49,10 @@ describe("GoogleSignIn", () => {
             }),
         );
     });
+
+    it("forwards a server-issued nonce, so the ID token can be bound to it (#530)", () => {
+        const FakeGoogleLogin = vi.fn((_props: Record<string, unknown>) => null);
+        render(<GoogleSignIn component={FakeGoogleLogin} onSuccess={() => {}} nonce="n-123" />);
+        expect(FakeGoogleLogin.mock.calls[0]?.[0]).toMatchObject({ nonce: "n-123" });
+    });
 });

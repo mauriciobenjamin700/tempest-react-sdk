@@ -268,7 +268,41 @@ In a development build, the first suppression per origin writes one console line
 !!! info "A relative `baseURL` needs nothing here"
     Behind a dev-server proxy, `baseURL: "/api"` resolves against the document — the page's own origin. Both sides are resolved before comparing, so the check passes.
 
-An `Authorization` **you** wrote by hand in `headers` is never touched: the scope governs only the header derived from `getToken`.
+!!! info "Relative `baseURL` and `<base href>`"
+    The target resolves the way `fetch`/XHR resolve it — against `document.baseURI` — and the reference against the page's own address. An injected `<base href>` changes where the request goes, but not the anchor: the request it diverts goes out without the token.
+
+An `Authorization` **you** wrote by hand in a **call's** `headers` is never touched: the scope governs the header derived from `getToken` and the client's static `headers`.
+
+### What else follows the scope (0.82.0)
+
+Since **0.82.0** the token's scope also governs:
+
+- **The client's static `headers`.** An `X-Api-Key` declared in `createApiClient({ headers })` is as much a credential as the bearer, so it only goes to `baseURL`'s origin and the `trustedOrigins`. The `headers` you pass on one call still go wherever that call goes — you wrote them for that URL.
+- **The `401` cycle.** A `401` from an origin outside the scope answers a request that never carried this session's credential, so it says nothing about it: it is thrown as a `TempestApiError` **without** calling `refresh` or `onUnauthorized`. Before, any host answering `401` spent a refresh and ended the user's session.
+- **A target that does not parse.** `isTrustedCredentialTarget` refuses (`false`) a malformed URL and an opaque origin (`data:`, `file:`). It used to return `true`, and a custom `fetcher` that accepted the string received the token.
+
+```ts
+const api = createApiClient({
+  baseURL: "https://api.example.com",
+  headers: { "X-Api-Key": key },
+  getToken: () => useAuthStore.getState().token,
+  onUnauthorized: () => useAuthStore.getState().logout(),
+});
+
+await api.get("https://cdn.other.com/file.json");
+// → no Authorization and no X-Api-Key; a 401 from here does not call logout()
+```
+
+!!! warning "Cross-origin redirects: the scope looks at the initial URL"
+    Stripping `Authorization` from a redirect to another origin is the browser's job, under the Fetch rule (whatwg/fetch#1544). According to [caniuse](https://caniuse.com/mdn-api_fetch_authorization_removed_cross_origin), checked on 01/11/2026, Firefox 111+ and Safari 16.1+ follow it; Chrome is **not** listed as supporting it. So in Chrome, an open redirect on a trusted origin can carry the token onward.
+
+    The SDK does not change the `redirect` default because the most common redirect from a Tempest backend is legitimate and same-origin: FastAPI's trailing-slash `307` (`redirect_slashes`). `redirect: "manual"` would turn it into an opaque response and `redirect: "error"` into a failure. On a call to a URL you do not control, ask for it yourself — the option goes straight to `fetch`:
+
+    ```ts
+    await api.get(urlFromTheNetwork, { redirect: "error" });
+    ```
+
+    The uploads' XHR (`uploadWithProgress`, `createResumableUpload`) has no equivalent mode.
 
 The predicate itself is exported, for when you build the request yourself:
 
@@ -670,8 +704,8 @@ export function AvatarUpload() {
 
 `onProgress` receives `{ loaded, total, fraction, lengthComputable }`. `fraction` is `null` when the total size is unknown. Aborting via `signal` rejects with `DOMException("Aborted")`.
 
-!!! tip "`credentialOrigin` when the `url` does not come from your code"
-    This helper has no `baseURL` to infer a scope from — you name the destination on every call — so the origin check is **opt-in** here. Turn it on when the `url` can come from a response body rather than from your own code:
+!!! tip "`credentialOrigin` when the API lives on another origin"
+    This helper has no `baseURL` to infer a scope from, so since **0.82.0** the default scope is the **page's own origin** (`location.origin`): `Authorization` goes to a relative or same-origin `url`, and to no other. An API on another origin — or a storage host that needs the token — declares itself:
 
     ```ts
     await uploadWithProgress({
@@ -683,9 +717,7 @@ export function AvatarUpload() {
     });
     ```
 
-    Without `credentialOrigin`, the header goes wherever `url` points — the behaviour of every version before 0.66.0.
-
-    The `csrf` option follows the same scope, with one difference: **without** `credentialOrigin` it is scoped to the page's own origin rather than left open. `Authorization` stays open only for compatibility; `csrf` is new and starts closed. An API on another origin declares `credentialOrigin` to receive the token.
+    Up to 0.81.0, without `credentialOrigin` the header went wherever `url` pointed — including a signed URL that came from a response body. The `csrf` option follows exactly the same scope. The `headers` you pass here belong to the call and go to its `url`.
 
 ## Direct upload with a ceiling — `uploadPresignedPost`
 

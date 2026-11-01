@@ -194,14 +194,19 @@ describe("uploadWithProgress — scoping the credential with credentialOrigin", 
         return sent?.[1] as string | undefined;
     }
 
-    it("sends the token when no origin is declared, as every version before 0.66.0 did", async () => {
+    /**
+     * Until 0.82.0 this asserted the opposite — "sends the token when no origin
+     * is declared, as every version before 0.66.0 did". The default scope is now
+     * the page's own origin (#530), the one the CSRF token already had.
+     */
+    it("withholds the token from another origin when no origin is declared", async () => {
         const xhr = installXhr();
         await uploadWithProgress({
             url: "https://storage.other/u",
             body: new FormData(),
             getToken: () => "tok",
         });
-        expect(authHeaderOf(xhr)).toBe("Bearer tok");
+        expect(authHeaderOf(xhr)).toBeUndefined();
         vi.unstubAllGlobals();
     });
 

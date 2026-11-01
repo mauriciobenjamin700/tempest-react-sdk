@@ -116,7 +116,12 @@ function normalizeError(error: unknown): unknown {
  * allowing a preflight.
  *
  * A file larger than `post.max_bytes` is refused before anything is sent, with
- * the same `413 FILE_TOO_LARGE` the server would answer. Server errors are
+ * the same `413 FILE_TOO_LARGE` the server would answer. A numeric string
+ * (`"5242880"`) compares as a number; a missing or non-numeric `max_bytes` —
+ * a bare boto3 `generate_presigned_post` has none — skips this precheck, and
+ * the signed policy's `content-length-range` stays the control that refuses
+ * the bytes. The precheck saves a wasted upload; it never was the limit.
+ * Server errors are
  * normalized into one `TempestApiError` whichever backend answered: the S3 XML
  * (`EntityTooLarge` → `FILE_TOO_LARGE`, `EntityTooSmall` → `FILE_TOO_SMALL`,
  * `AccessDenied` → `SIGNED_URL_INVALID`, or `SIGNED_URL_EXPIRED` when the policy

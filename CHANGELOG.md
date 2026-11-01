@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **O `logger` do `createApiClient` gravava a query escrita no path (#526).** A promessa era nunca
+  logar query string, mas só `params` ficava de fora: `api.get("/files?access_token=…")` e uma URL
+  pré-assinada absoluta (`https://user:senha@cdn…/a.png?X-Amz-Signature=…#…`) iam inteiras para o
+  sink, em `debug` e em `warn` (o nível que fica em produção). Reproduzido antes da correção em
+  `src/http/api-client.logger.test.ts`: a linha saía `GET /files?access_token=leaky-path#frag-secret → 200`
+  e `PUT https://uploader:pa55word@cdn.example.com/bucket/a.png?X-Amz-Signature=sig-secret#frag-secret → 403`.
+  Agora o caminho do log é cortado no primeiro `?`/`#` e perde o userinfo da URL absoluta:
+  `PUT https://cdn.example.com/bucket/a.png → 403`. A requisição continua indo com a URL completa.
+  O `error` da linha `→ no response` segue sendo o objeto que o `fetch` lançou, sem edição.
+  **Migração:** nenhuma; quem filtrava o log pela query do path passa a ver só o caminho.
+  Budgets, medidos com `npm run build && npx size-limit --json` sobre `origin/main` (`dcf99b1`) e
+  este branch (brotli): `slice: http client` 4733 → 4781 B (+48 B, teto 4,74 → 4,79 kB); barrel ESM
+  146539 → 146893 B (+354 B, teto 146,6 → 146,9 kB); barrel CJS 175014 → 175164 B (+150 B, teto
+  175,1 → 175,2 kB). A fatia "typical app" foi de 12052 → 12084 B e segue abaixo dos 12,1 kB.
+
 ## [0.80.0] — 2026-10-26
 
 ### Breaking

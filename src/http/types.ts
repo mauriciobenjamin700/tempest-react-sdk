@@ -213,7 +213,10 @@ export interface ApiClientConfig {
      * Never logs a body, a header, or the query string — a bearer token in
      * `Authorization`, a password in a login payload and an `access_token` query
      * param would all end up in whatever the sink writes to. What is logged is
-     * the method, the path as the call site wrote it, and the numbers.
+     * the method, the path and the numbers. The path is cut at the first `?` or
+     * `#`, and an absolute URL loses its `user:password@`, so a query written
+     * into the path (`"/files?access_token=…"`) or the signature of a presigned
+     * URL stays out just like `params` does.
      */
     logger?: ApiClientLogger;
     /**

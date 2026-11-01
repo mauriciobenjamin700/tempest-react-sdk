@@ -50,6 +50,7 @@ import { Form, FormSection, FormRow, FormActions, Input, Select, Button } from "
 `columns` aceita `number` (`repeat(N, minmax(0, 1fr))`) ou `string` (`"2fr 1fr"`, `"min-content auto"`).
 
 `gap` aceita `number` (escala 4px: `2` → `8px`, `4` → `16px`) ou `string` (qualquer CSS length: `"1.5rem"`, `"20px"`).
+O número é passo, não pixel: `gap={24}` dá 96px, e em desenvolvimento um número acima de `12` avisa no console uma vez — detalhes em [`gap={24}` não é 24px](components/layout.md#stack).
 
 ### Stacked
 

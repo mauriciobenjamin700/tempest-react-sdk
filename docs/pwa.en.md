@@ -109,7 +109,9 @@ The revalidation that keeps going after the response — the `stale-while-revali
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 ```
 
 To replay even **without a fresh navigation**, register a periodic sync on the main thread. The SW already listens for the `periodicsync` event:
@@ -165,7 +167,7 @@ On replay the worker asks **every** tab in parallel, under one 3 s deadline, and
 
 | Chosen answer | Replay |
 | -- | -- |
-| headers including every stripped one | sent with them — only the header **names** the original request carried, so always returning `Authorization` never leaks the token to a URL that did not receive it |
+| headers including every stripped one | sent with them — only the header **names** the original request carried, and only to the worker's origin or `trustedOrigins` ([below](#credentials-only-go-back-to-a-trusted-origin)) |
 | headers missing a stripped one | stays pending (it does not go out anonymous to take a 401 and vanish) |
 | `null` (no session) | dropped, unsent |
 | no valid answer | stays pending until `maxRetentionMinutes` |
@@ -174,13 +176,35 @@ Only an **unowned** entry with no credential header is replayed as it was, witho
 
 Measured in Chromium 153 (11/10/2026), with a real service worker, IndexedDB and two tabs: A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST; with B's tab open next to it, A's mutation goes out with A's refreshed token.
 
+#### Credentials only go back to a trusted origin
+
+The header name is not enough. A request to a third party (`https://payments.example/webhooks`) carries **that party's** `Authorization`; the worker strips it before storing, like any credential. If the replay asked the page for the credential and applied it by name, the third party would receive the **app's** bearer — and up to 0.80.0 it did (#523): measured with the `--pwa` template's `match` and provider, the replay of a `POST https://third.party/api/hooks` with `Authorization: Bearer THIRD` went out with `Authorization: Bearer APP`.
+
+The replay now uses the same rule as the `ApiClient` (`isTrustedCredentialTarget`): a credential only goes to the **worker's own origin** and to the origins in `trustedOrigins`.
+
+- An entry that carried a credential header to another origin is **dropped**, without asking the page and before `beforeReplay`. Replaying it without the credential would be a request the app never made; with the app's, a leak.
+- A `Request` that `beforeReplay` (custom or default) returns with a `credentialHeaders` header for another origin is dropped too, instead of sent.
+- An entry **without** a credential header is unchanged: the browser attaches that origin's cookies, as on the original attempt.
+
+In development builds, each drop warns once per origin per replay. If your API lives on another origin, declare it:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({
+  match: (url) => url.origin === "https://api.example.com",
+  trustedOrigins: ["https://api.example.com"],
+});
+```
+
 There is one replay per queue: `sync`, `periodicsync` and the Safari fallback firing together share the same pass, so a mutation is never sent twice. And `clearBackgroundSyncQueue()` reaches work in flight: each entry is checked against the database right before it goes out, and a request still failing when the queue was cleared is not written afterwards.
 
-Outside that path, `installBackgroundSync` has three knobs:
+Outside that path, `installBackgroundSync` has four knobs:
 
 - **`credentialHeaders`** — the list of headers removed. For a custom one: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. The provider must return all of them.
 - **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — replaces the request to the pages: return the `Request` to send, `null` to drop, or throw to keep it pending. Useful when the worker can get the credential by itself; `ownerState`/`owner` let it apply the same owner rule.
 - **`ownerPolicy`** — `"strict"` (default) or `"lenient"`; see [`ownerPolicy`: an app without sign-in](#ownerpolicy-an-app-without-sign-in).
+- **`trustedOrigins`** — origins besides the worker's that may receive a credential on replay; see [above](#credentials-only-go-back-to-a-trusted-origin).
 
 !!! warning "Limit: credentials in the URL or the body"
     Only **headers** leave the queue. A token in the query string (`?access_token=…`) or inside the mutation body is stored as sent. Send credentials in a header.
@@ -195,7 +219,10 @@ The default is `ownerPolicy: "strict"`. An app **without sign-in**, where no pag
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: /\/api\//, ownerPolicy: "lenient" });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+  ownerPolicy: "lenient",
+});
 ```
 
 | Entry | `"strict"` (default) | `"lenient"` |

@@ -94,6 +94,16 @@ export interface SyncRunSummary {
     skipped: boolean;
     /** Last delivery error message seen this run, or `null` when none failed. */
     lastError: string | null;
+    /**
+     * `true` when {@link OfflineSync.clearOutbox} or {@link OfflineSync.resetWatermark}
+     * ended the session while this run was in flight, so it stopped early.
+     *
+     * The counts cover only what happened before the stop: a delivery already in
+     * progress at logout is still counted, but no later entry was sent, no further
+     * page was pulled or applied, and the watermark was not written. Absent on a
+     * run that went to completion.
+     */
+    interrupted?: true;
 }
 
 /**
@@ -225,9 +235,22 @@ export interface OfflineSync<TPayload> {
     pendingCount: () => Promise<number>;
     /** The queued mutations in FIFO order. */
     listPending: () => Promise<OutboxEntry<TPayload>[]>;
-    /** Drop every queued mutation (e.g. on logout). */
+    /**
+     * Drop every queued mutation (e.g. on logout).
+     *
+     * Also ends the current session for any `flush` already in flight: that run
+     * delivers no further entry, pulls and applies nothing more and writes no
+     * watermark, and resolves with `interrupted: true`. A `flush` called after this
+     * starts a fresh run instead of joining the abandoned one.
+     */
     clearOutbox: () => Promise<void>;
-    /** Reset the pull watermark (e.g. on logout / account switch). */
+    /**
+     * Reset the pull watermark (e.g. on logout / account switch).
+     *
+     * Ends the current session for an in-flight `flush` exactly like
+     * {@link OfflineSync.clearOutbox}, so the run cannot write the ended
+     * session's watermark back after the reset.
+     */
     resetWatermark: () => void;
     /** Read the current reactive {@link SyncState} snapshot synchronously. */
     getState: () => SyncState;
@@ -325,6 +348,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         config.isOnline ?? (() => (typeof navigator !== "undefined" ? navigator.onLine : true));
 
     let inflight: Promise<SyncRunSummary> | null = null;
+    let generation = 0;
 
     const listeners = new Set<(state: SyncState) => void>();
     let state: SyncState = {
@@ -366,6 +390,30 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     }
 
     /**
+     * End the current session: every run started before this call is fenced off.
+     *
+     * Runs capture `generation` when they start and re-check it after every
+     * `await`, so the next step of a run started under the previous user — the
+     * next `deliver`, the next `pullPage`, an `applyRemote`, the watermark write —
+     * never executes under the next user's session. The await already pending (a
+     * `deliver` in flight) cannot be recalled; it was issued under the old session
+     * and is only bookkept.
+     *
+     * Detaching `inflight` is what lets the next session's `flush` start its own
+     * run instead of joining the abandoned one, which would hand the new user a
+     * summary of the old user's queue and leave their own entries waiting. The
+     * phase drops back to `"idle"` because nothing of the current session is
+     * syncing any more.
+     */
+    function endSession(): void {
+        generation += 1;
+        if (inflight) {
+            inflight = null;
+            setState({ phase: "idle" });
+        }
+    }
+
+    /**
      * Drain the outbox in `enqueuedAt` order, one record at a time.
      *
      * Once an entry for a record fails, the remaining entries **for that record**
@@ -380,9 +428,19 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * Skipping is per record, not per run. Records are independent, so a record
      * the server is rejecting must not hold up every other pending change.
      *
+     * The entry list is a snapshot, so before each `deliver` the run checks that
+     * its session is still current (see `endSession`) and that the entry is still
+     * in the outbox — another tab sharing the IndexedDB may have cleared it on
+     * logout. A delivery already in progress when the session ended still has its
+     * row deleted or its attempt bumped, because that outcome is true for the
+     * server; its `onEntryDelivered`/`onEntryFailed` callback is not fired, since
+     * it would act on the next user's local state.
+     *
      * @param summary - Mutated with the per-entry outcome counts.
+     * @param runGeneration - The session the run started under.
+     * @returns `false` when the session ended mid-drain and the run must stop.
      */
-    async function push(summary: SyncRunSummary): Promise<void> {
+    async function push(summary: SyncRunSummary, runGeneration: number): Promise<boolean> {
         const entries = await outbox.list(undefined, { orderBy: "enqueuedAt" });
         const blocked = new Set<string>();
         for (const entry of entries) {
@@ -390,41 +448,72 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 summary.deferred += 1;
                 continue;
             }
+            const stillQueued = await outbox.get(entry.id);
+            if (generation !== runGeneration) return false;
+            if (!stillQueued) continue;
             try {
                 await config.deliver(entry);
                 await outbox.delete(entry.id);
-                await config.onEntryDelivered?.(entry);
                 summary.succeeded += 1;
+                if (generation !== runGeneration) return false;
+                await config.onEntryDelivered?.(entry);
             } catch (cause) {
                 const message = cause instanceof Error ? cause.message : "delivery failed";
                 await outbox.update(entry.id, {
                     attempts: entry.attempts + 1,
                     lastError: message,
                 } as Partial<OutboxEntry<TPayload>>);
-                await config.onEntryFailed?.(entry, cause);
                 blocked.add(entry.recordId);
                 summary.failed += 1;
                 summary.lastError = message;
+                if (generation !== runGeneration) return false;
+                await config.onEntryFailed?.(entry, cause);
             }
         }
+        return generation === runGeneration;
     }
 
-    async function pull(): Promise<void> {
+    /**
+     * Pull the server delta page by page, then advance the watermark.
+     *
+     * Checks the session (see `endSession`) before every `applyRemote`, before the
+     * next `pullPage` and before the watermark write: a page fetched under the
+     * previous user is never merged into the local store after logout, the next
+     * page is never requested with the previous user's cursor, and
+     * `resetWatermark()` is never undone by the run it was meant to end.
+     *
+     * @param runGeneration - The session the run started under.
+     * @returns `false` when the session ended mid-pull and the run stopped.
+     */
+    async function pull(runGeneration: number): Promise<boolean> {
         const since = watermark.get();
         let cursor: string | null = null;
         let serverTime: string | null;
         do {
             const page = await config.pullPage(since, cursor);
             for (const item of page.items) {
+                if (generation !== runGeneration) return false;
                 await config.applyRemote(item);
             }
+            if (generation !== runGeneration) return false;
             cursor = page.nextCursor;
             serverTime = page.serverTime;
         } while (cursor);
         if (serverTime) watermark.set(serverTime);
+        return true;
     }
 
-    async function runOnce(trigger: SyncTrigger): Promise<SyncRunSummary> {
+    /**
+     * One push-then-pull pass, stopped early when the session it belongs to ends.
+     *
+     * @param trigger - What asked for this run, carried into the summary.
+     * @param runGeneration - The session captured when `flush` was called, not
+     *   when the pass starts: with Web Locks the pass can start after a logout that
+     *   happened while the lock was being granted, and must not adopt the new
+     *   session.
+     * @returns The run summary, with `interrupted: true` when the session ended.
+     */
+    async function runOnce(trigger: SyncTrigger, runGeneration: number): Promise<SyncRunSummary> {
         const startedAt = Date.now();
         const summary: SyncRunSummary = {
             trigger,
@@ -440,8 +529,8 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             summary.durationMs = Date.now() - startedAt;
             return summary;
         }
-        await push(summary);
-        await pull();
+        const completed = (await push(summary, runGeneration)) && (await pull(runGeneration));
+        if (!completed) summary.interrupted = true;
         summary.durationMs = Date.now() - startedAt;
         return summary;
     }
@@ -458,15 +547,19 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * per-tab run when `crossTab` is off or Web Locks is missing.
      *
      * @param trigger - What asked for this run, carried into the summary.
+     * @param runGeneration - The session the run belongs to (see `runOnce`).
      * @returns The run summary, or an empty summary when another tab held the lock.
      */
-    async function runGuarded(trigger: SyncTrigger): Promise<SyncRunSummary> {
+    async function runGuarded(
+        trigger: SyncTrigger,
+        runGeneration: number,
+    ): Promise<SyncRunSummary> {
         const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
-        if (!crossTab || !locks) return runOnce(trigger);
+        if (!crossTab || !locks) return runOnce(trigger, runGeneration);
         const result = await locks.request(
             `${channelName}:flush`,
             { ifAvailable: true },
-            async (lock) => (lock ? runOnce(trigger) : null),
+            async (lock) => (lock ? runOnce(trigger, runGeneration) : null),
         );
         return (
             result ?? {
@@ -524,9 +617,11 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         flush(trigger: SyncTrigger = "manual") {
             if (!inflight) {
                 setState({ phase: "syncing" });
-                inflight = runGuarded(trigger)
+                const runGeneration = generation;
+                const run: Promise<SyncRunSummary> = runGuarded(trigger, runGeneration)
                     .then(async (summary) => {
                         await refreshPending();
+                        if (generation !== runGeneration) return summary;
                         setState({
                             phase: summary.skipped
                                 ? "offline"
@@ -540,8 +635,9 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                         return summary;
                     })
                     .finally(() => {
-                        inflight = null;
+                        if (inflight === run) inflight = null;
                     });
+                inflight = run;
             }
             return inflight;
         },
@@ -552,10 +648,12 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             return outbox.list(undefined, { orderBy: "enqueuedAt" });
         },
         async clearOutbox() {
+            endSession();
             await outbox.clear();
             await refreshPending();
         },
         resetWatermark() {
+            endSession();
             watermark.clear();
         },
         getState() {

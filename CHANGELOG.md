@@ -4,6 +4,42 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`TempestSessionEnd` ganha `elsewhere: boolean` e `TempestAuth` ganha `dispose()`** (ver
+  Corrigido, #524). Só quebra tipo, e só para quem monta esses objetos à mão — tipicamente um mock
+  de teste. **Migração:** acrescente `elsewhere: false` ao objeto passado ao seu `onSessionEnd` e
+  `dispose: () => {}` ao objeto que finge ser o preset. Quem usa `createTempestAuth` não muda nada.
+
+### Segurança
+
+- **Replay do background sync reaplicava o bearer do app em requisição para outra origem (#523).**
+  No replay, o `defaultBeforeReplay` reaplicava a credencial devolvida pela página a todo header
+  de credencial que a requisição original levava, conferindo só o **nome** — e o JSDoc do
+  `provideBackgroundSyncCredentials` dizia que devolver `Authorization` para toda URL era seguro.
+  Com o `match` do `template-pwa` (`/api/` em qualquer origem) e o provedor dele (bearer para
+  qualquer URL), um `POST https://third.party/api/hooks` com `Authorization: Bearer THIRD` que
+  falhou offline saía no replay com `Authorization: Bearer APP`. Reproduzido antes da correção em
+  `src/sw/background-sync.credential-scope.test.ts` (4 dos 7 casos falhavam; o primeiro recebia
+  `["Bearer APP"]`), com `npx vitest run src/sw/background-sync.credential-scope.test.ts`. A issue
+  acertou a causa; o defeito era um pouco maior: um `beforeReplay` próprio também podia mandar
+  credencial para qualquer origem, então a regra mora no `replayQueue`, não só no hook padrão.
+  Agora o replay usa a regra do `ApiClient` (`isTrustedCredentialTarget`): credencial só vai para a
+  origem do worker e para a nova opção **`trustedOrigins`** do `installBackgroundSync`. Entrada que
+  levava header de credencial para outra origem é **descartada** antes do `beforeReplay`, sem
+  perguntar à página — reenviá-la sem a credencial seria uma requisição que o app nunca fez; e o
+  `Request` devolvido por qualquer `beforeReplay` com header de `credentialHeaders` para outra
+  origem também é descartado. Em build de desenvolvimento, um aviso por origem e por replay.
+  Entrada sem header de credencial não muda. O `template-pwa` passa a casar só a própria origem.
+  **Migração:** app cuja API mora em outra origem que a do service worker e que reenvia mutações
+  autenticadas declara a origem —
+  `installBackgroundSync({ match, trustedOrigins: ["https://api.exemplo.com"] })`; sem isso, essas
+  entradas são descartadas no replay (o console de desenvolvimento diz qual origem faltou).
+  **Tamanho:** os tetos do barrel inteiro sobem — ESM 146,6 → 147 kB (146 539 → 146 956 B br) e
+  CJS 175,1 → 175,3 kB (175 014 → 175 266 B br), medidos com `npm run build && npx size-limit
+--json` contra a `origin/main`; nenhum outro check do `size-limit` mudou. O ESM tinha 61 B de folga, menos do
+  que a regra de escopo e o aviso custam.
+
 ### Adicionado
 
 - **Telas de autenticação: `AuthPage` + `AuthForm` e os presets `LoginForm`, `SignUpForm`,
@@ -31,11 +67,102 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     `auth-screens` na gallery. Budgets (medido com `npx size-limit` sobre o build deste branch): fatia
     nova `{ AuthPage, LoginForm }` **8,75 kB** brotli (teto 9,2 kB — inclui `Input`, `PasswordInput`,
     `PinInput`, `Checkbox`, máscaras BR, `Alert`, `Button`, `Divider`, `Form` e `describeApiError`);
-    barrel ESM 146,54 → 149,22 kB e CJS 175,01 → 178,39 kB (tetos 149,3 / 178,5 kB); `styles.css`
+    barrel ESM 147 227 → 149 789 B e CJS 175 353 → 178 824 B, medidos sobre a `main` já com #523–#526 (tetos 147,3 → 149,9 / 175,4 → 178,9 kB); `styles.css`
     30,56 → 31,22 kB e `styles/forms.css` 5,65 → 6,35 kB (tetos 31,3 / 6,4 kB), pelas duas folhas novas
     no grupo `forms`. O teto da fatia "typical app" sobe 12,1 → 12,2 kB sem comprar comportamento: o
     bundle esbuild dela tem **os mesmos 34 844 B** antes e depois (nenhum módulo novo entra), mas a
-    renomeação de identificadores do Rolldown muda o brotli de 12,05 para 12,11 kB.
+    renomeação de identificadores do Rolldown muda o brotli de 12 084 para 12 158 B (sobre a mesma `main`).
+
+### Corrigido
+
+- **Linha digitável de 47 dígitos começando com `8` era lida como arrecadação (#529).** O
+  `parseLinhaDigitavel` reconstruía o código de barras, que também começa com `8`, e o
+  `parseCodigoBarras` escolhia o layout só por esse dígito. Reproduzido na `main` com
+  `81600000090000000000000000000190900000000000000` (três DVs de campo válidos): `boletoKind` →
+  `"banco"`, `validateBoleto` → `true`, parse → `kind: "arrecadacao"`, `valor` 900000000 e linha de
+  48 dígitos — a leitura de cobrança dos mesmos dígitos é banco 816, `valor` 0. Medido com um teste
+  Vitest chamando as quatro funções sobre essa linha. Agora a linha lança `BoletoError` ("cannot
+  start with 8"), `validateBoleto` devolve `false` e `boletoKind` devolve `null`; pela mesma regra,
+  `boletoKind` também devolve `null` para 48 dígitos que não começam com `8`, que o parser já
+  recusava. Ler como cobrança não era opção: o código de barras dessa linha, em qualquer leitor de 44
+  posições (o próprio `parseCodigoBarras` incluído), é arrecadação, e o round trip quebraria.
+  **Migração:** quem usava `boletoKind(x) !== null` como "é boleto" deixa de ver essas duas formas
+  como boleto — o que já era o veredito do parser. Nenhuma linha que o SDK aceitava como cobrança
+  muda de leitura.
+
+- **O `logger` do `createApiClient` gravava a query escrita no path (#526).** A promessa era nunca
+  logar query string, mas só `params` ficava de fora: `api.get("/files?access_token=…")` e uma URL
+  pré-assinada absoluta (`https://user:senha@cdn…/a.png?X-Amz-Signature=…#…`) iam inteiras para o
+  sink, em `debug` e em `warn` (o nível que fica em produção). Reproduzido antes da correção em
+  `src/http/api-client.logger.test.ts`: a linha saía `GET /files?access_token=leaky-path#frag-secret → 200`
+  e `PUT https://uploader:pa55word@cdn.example.com/bucket/a.png?X-Amz-Signature=sig-secret#frag-secret → 403`.
+  Agora o caminho do log é cortado no primeiro `?`/`#` e perde o userinfo da URL absoluta:
+  `PUT https://cdn.example.com/bucket/a.png → 403`. A requisição continua indo com a URL completa.
+  O `error` da linha `→ no response` segue sendo o objeto que o `fetch` lançou, sem edição.
+  **Migração:** nenhuma; quem filtrava o log pela query do path passa a ver só o caminho.
+  Tamanho, medido com `npm run build && npx size-limit --json` sobre a `main` já com o #523 e sobre
+  este branch atualizado (brotli): `slice: http client` 4733 → 4781 B (+48 B, teto 4,74 → 4,79 kB); barrel ESM 146 956 → 146 974 B (+18 B) e CJS
+  175 266 → 175 235 B, dentro dos tetos atuais — os do barrel não sobem. Uma medição anterior contra a
+  `dcf99b1` deu +354 B no ESM; refeita sobre a soma, não se sustentou.
+
+- **Logout no `createOfflineSync` não parava o flush em andamento (#525).** `clearOutbox()` e
+  `resetWatermark()` — o passo de logout documentado — só apagavam a fila e o watermark; o run que
+  já tinha começado seguia com a lista de entradas lida antes. Reproduzido antes da correção, com
+  três entradas `a1..a3`, `deliver` de `a1` travado, logout no meio e o `deliver` liberado:
+  `delivered: ["a1","a2","a3"]`, `applied: ["a-remote"]`, watermark de volta em `"wm-of-a"` e
+  — além do que a issue descrevia — o `flush()` chamado depois do logout **devolvia a promise do run
+  abandonado**, então as entradas do próximo usuário esperavam o run do anterior terminar. Agora as
+  duas chamadas encerram a sessão: o run confere a sessão (e, no push, que a entrada ainda está na
+  outbox) antes de cada `deliver`, `pullPage`, `applyRemote` e da escrita do watermark, resolve com
+  o novo campo opcional `summary.interrupted: true` e deixa de bloquear o próximo `flush()`. Depois
+  da correção: `delivered: ["a1"]`, nada aplicado, watermark `null`. O `deliver` que já estava no
+  ar no logout não tem como ser desfeito: a linha dele sai da fila (ou ganha `attempts`), mas os
+  callbacks `onEntryDelivered`/`onEntryFailed` não disparam. A cerca é por aba. Testes em
+  `src/offline/create-offline-sync.logout.test.ts` (8, todos vermelhos na `main`;
+  `npx vitest run src/offline/create-offline-sync.logout.test.ts`).
+  **Migração:** nenhuma para quem já chama `resetWatermark()`/`clearOutbox()` no logout. Quem
+  aguarda o `flush()` disparado antes do logout passa a receber um summary com
+  `interrupted: true` e contagens parciais; quem implementa `SyncRunSummary` à mão não muda nada
+  (o campo é opcional). Custo, medido com `npm run build && npx size-limit --json` na `main` (`dcf99b1`) e na branch: fatia
+  offline + PWA 4643 → 4749 B (limite 6000, inalterado). No barrel, remedido sobre a `main` já com
+  #523 e #526: ESM 146 974 → 146 936 B e CJS 175 235 → 175 203 B, dentro do ruído do brotli e dos
+  tetos atuais — nenhum teto sobe.
+
+- **Aba deixada aberta depois do logout resgatava o refresh token da conta seguinte (#524).** Com
+  `storage: "local"`, cada aba de `createTempestAuth` guardava `{ user, token }` só em memória e relia
+  o refresh token compartilhado a cada refresh, sem nunca reagir ao que outra aba gravava. Medido
+  antes da correção (em `dcf99b1`, duas instâncias sobre o mesmo `localStorage` do jsdom, backend
+  que rotaciona e revoga o par anterior — `src/auth/create-tempest-auth.cross-tab.test.ts`):
+
+  | Cenário                                                           | Antes                                                                                                                                                         | Depois                                                                                  |
+  | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+  | aba 1: `logout()` + `login(B)`; aba 2 (ainda A) faz request → 401 | aba 2 manda `B-ref-1`, fica com `{ user: A, token: "B-tok-2" }` e grava isso no storage                                                                       | aba 2 não manda refresh nenhum, adota B, a request rejeita com `SessionSupersededError` |
+  | o mesmo em modo cookie (`withCredentials`)                        | refresh com o cookie de B, `{ user: A, token: "B-tok-2" }` persistido                                                                                         | nenhum refresh, B adotado                                                               |
+  | aba 1 renova A; aba 2 faz request → 401                           | aba 2 renova de novo com `A-ref-2` e derruba o token da aba 1 (um refresh extra por aba por rotação) — **não** deslogava, ao contrário do que a issue supunha | aba 2 adota `A-tok-2` e repete a request; um refresh só                                 |
+  | aba 1 faz `logout()`                                              | aba 2 seguia logada como A                                                                                                                                    | aba 2 limpa o store no evento `storage`; `onSessionEnd` com `elsewhere: true`           |
+
+  Agora cada aba segue a sessão guardada: no evento `storage` das chaves dela e antes de todo refresh,
+  `logout()` ou encerramento automático, compara o `{ user, token }` e o refresh token guardados com
+  os que tem. Mesma conta renovada em outra aba → adota o token novo; logout ou outra conta → avança
+  a época, adota o estado guardado e roda `onSessionEnd` com `reason: "logout"`/`"switch"` e
+  `elsewhere: true`. Nunca chama o encerramento normal nesse caminho — ele limparia as chaves e
+  apagaria a sessão nova da outra aba. Um refresh que já estava em voo quando a outra aba trocou de
+  conta é descartado ao voltar, e um `logout()` numa aba atrasada não revoga nem limpa a sessão de
+  quem entrou depois. Leitura direta do storage em vez de `persist.rehydrate()`: conferido no código do zustand
+  5.0.15, um rehydrate sem entrada (`localStorage.clear()` em outra aba) mantém o estado em memória.
+  `storage: "session"` continua igual. 16 testes novos, 13 deles reprovando em `dcf99b1` (os de
+  `sessionStorage`, de chave alheia e de `dispose()` passam nos dois). **Migração:** no `onSessionEnd`, pule o teardown do que é
+  compartilhado pela origem (IndexedDB, Cache Storage, push, chamada ao servidor) quando
+  `session.elsewhere` for `true` — a outra aba já fez, e no `"switch"` refazer apagaria os dados da
+  conta nova. Estado em memória da aba continua sendo limpo em toda aba.
+
+### Budgets
+
+- Teto do barrel ESM 147 → 147,3 kB e CJS 175,3 → 175,4 kB, pelo seguimento da sessão entre abas
+  (#524). Medido com `npm run build && npx size-limit --json` na `main` em `3d06b42` (já com #523,
+  #525 e #526) e na mesma árvore com o #524: barrel ESM 146 936 → 147 227 B (+291) e CJS
+  175 203 → 175 353 B (+150). Nenhuma fatia mudou (`slice: http client` 4781 B, `slice: typical
+app` 12 084 B).
 
 ## [0.80.0] — 2026-10-26
 

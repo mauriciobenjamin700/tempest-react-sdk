@@ -242,13 +242,20 @@ export function mod11DacArrecadacao(value: string): number {
 /**
  * Which layout a string is in, without throwing.
  *
+ * Length and first digit have to agree: a 47-digit line is cobrança and never
+ * starts with `8`, a 48-digit one is arrecadação and always does. A string where
+ * they disagree is in neither layout and comes back `null` — the same input
+ * {@link parseLinhaDigitavel} rejects, so the two never name different layouts
+ * for one string.
+ *
  * @param value - A barcode or typed line, masked or not.
- * @returns The layout, or `null` when the length is not 44, 47 or 48.
+ * @returns The layout, or `null` when the length is not 44, 47 or 48, or when a
+ * 47-digit line starts with `8` or a 48-digit one does not.
  */
 export function boletoKind(value: string): BoletoKind | null {
     const raw = digits(value);
-    if (raw.length === 47) return "banco";
-    if (raw.length === 48) return "arrecadacao";
+    if (raw.length === 47) return raw.startsWith("8") ? null : "banco";
+    if (raw.length === 48) return raw.startsWith("8") ? "arrecadacao" : null;
     if (raw.length === 44) return raw.startsWith("8") ? "arrecadacao" : "banco";
     return null;
 }
@@ -496,11 +503,23 @@ export function parseCodigoBarras(value: string, options: BoletoOptions = {}): B
  * 44-digit barcode as it goes and every DV is verified: the three (bank) or four
  * (arrecadação) block digits, plus the general one.
  *
+ * The length fixes the layout, and the first digit has to agree with it. A
+ * 47-digit line starting with `8` is rejected rather than read: its first three
+ * digits would be a bank code `8xx`, but the 44-digit barcode it rebuilds starts
+ * with `8` too, and in the barcode that digit is what marks an arrecadação slip —
+ * {@link parseCodigoBarras}, and any reader that only sees the barcode, would read
+ * it as arrecadação. Before this check
+ * `81600000090000000000000000000190900000000000000` passed every field DV, came
+ * back as `kind: "arrecadacao"` with `valor` 900000000 and a 48-digit line, while
+ * the cobrança reading of the same digits is bank 816 with `valor` 0 (#529). No
+ * single reading is right for both forms, so neither is returned.
+ *
  * @param value - 47 or 48 digits. The usual `.`, ` ` and `-` are ignored.
  * @param options - Fator de vencimento epoch. See {@link boletoDueDate}.
  * @returns The parsed boleto, with the barcode filled in.
- * @throws {BoletoError} On a length other than 47 or 48, or on any check digit
- * that does not recompute.
+ * @throws {BoletoError} On a length other than 47 or 48, on a 47-digit line that
+ * starts with `8` or a 48-digit one that does not, or on any check digit that does
+ * not recompute.
  *
  * @example
  * const boleto = parseLinhaDigitavel("34191.09008 64592.181109 00000.463074 1 84410000002000");
@@ -517,6 +536,12 @@ export function parseLinhaDigitavel(value: string, options: BoletoOptions = {}):
 
 /** Verify the three field DVs of a 47-digit line and rebuild the barcode. */
 function bancoBarcode(line: string): string {
+    if (line.startsWith("8")) {
+        throw new BoletoError(
+            "A 47-digit typed line is a bank boleto and cannot start with 8: " +
+                "its barcode would read as an arrecadação slip.",
+        );
+    }
     const fields: [string, string][] = [
         [line.slice(0, 9), line.slice(9, 10)],
         [line.slice(10, 20), line.slice(20, 21)],

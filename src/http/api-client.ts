@@ -90,6 +90,26 @@ function elapsedMs(startedAt: number): number {
     return Math.round(performance.now() - startedAt);
 }
 
+/**
+ * The request path as the log line shows it: no query, no fragment, no userinfo.
+ *
+ * The logger promises never to write the query string, and `params` was never
+ * the only way one gets in: a call site can write `"/files?access_token=…"`
+ * inline, and an absolute path — the signed upload endpoint or CDN URL that
+ * `buildApiUrl` passes through untouched — carries its signature in the query
+ * and may carry `user:password@` in the authority. Everything from the first
+ * `?` or `#` is dropped and the userinfo of an absolute (or scheme-relative)
+ * URL is removed; the host and the path stay, because they are what makes the
+ * line useful. Pure string work, no `URL` round trip, so a path that would not
+ * parse is still logged instead of throwing inside the logging branch.
+ *
+ * @param path - The path exactly as the call site passed it.
+ * @returns The path without query, fragment or credentials.
+ */
+function pathForLog(path: string): string {
+    return path.replace(/[?#][^]*/, "").replace(/^([^/]*\/\/)[^/]*@/, "$1");
+}
+
 async function parseError(response: Response, sentRequestId?: string): Promise<TempestApiError> {
     let body: unknown;
     try {
@@ -258,16 +278,17 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const log = config.logger;
         if (!log) return rawRequest(path, options, requestId, skipAuth);
 
+        const target = `${method} ${pathForLog(path)}`;
         const startedAt = performance.now();
         try {
             const response = await rawRequest(path, options, requestId, skipAuth);
             const entry = { requestId, status: response.status, ms: elapsedMs(startedAt) };
-            const line = `${method} ${path} → ${response.status}`;
+            const line = `${target} → ${response.status}`;
             if (response.status >= 400) log.warn(line, entry);
             else log.debug(line, entry);
             return response;
         } catch (error) {
-            log.warn(`${method} ${path} → no response`, {
+            log.warn(`${target} → no response`, {
                 requestId,
                 ms: elapsedMs(startedAt),
                 error,

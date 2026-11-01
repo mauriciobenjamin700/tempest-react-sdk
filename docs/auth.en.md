@@ -322,7 +322,7 @@ On all three paths — `logout()`, the automatic end and the account switch — 
 | --- | --- | --- |
 | 1 | Any refresh in flight is **superseded**: it can no longer reinstall the ending session's tokens | yes |
 | 2 | The store and the stored refresh token are cleared — `isAuthenticated` is already `false` | yes |
-| 3 | `onSessionEnd` runs with `{ reason, user, token, api }` | may be `async` |
+| 3 | `onSessionEnd` runs with `{ reason, user, token, api, elsewhere }` — `elsewhere` is `false` on all three of this tab's paths | may be `async` |
 | 4 | On the automatic end with `redirectTo`, the browser navigates; on an account switch, the new session is installed — both **after** the hook, even if it threw | — |
 
 `reason` is `"logout"` for an explicit `logout()`, `"expired"` when the client ended it and `"switch"` when a `login()` replaced the session. On `"logout"` and `"switch"` the token is usually still valid; on `"expired"` the server has already refused it, so treat the authenticated call as best-effort and keep the local half of the teardown independent of it.
@@ -370,6 +370,49 @@ export async function loadOrders(): Promise<unknown[] | null> {
 ```
 
 Refreshes also collapse per **rotation**, not just per overlap in time: a 401 whose request left with a token the same session has since replaced replays with the new token and refreshes nothing. Three expired requests take one refresh, whether their 401s arrive together or one after another.
+
+### Several tabs — the session belongs to the origin, not the tab
+
+With `storage: "local"` (the default), every tab of the app reads and writes the **same** keys: `tempest-auth` (the `{ user, token }`) and `tempest-auth-refresh`. So there is one session for the whole origin, and each tab **follows** what another one wrote — on the browser's `storage` event and, before any refresh, `logout()` or ending of the session, by comparing the stored session with the one it holds in memory:
+
+| In the other tab | In this tab |
+| --- | --- |
+| refreshed the same account | adopts the new token; the request that came back 401 replays with it, **without** refreshing again |
+| `logout()` | the session ends here too: store cleared, `onSessionEnd` with `reason: "logout"` and `elsewhere: true` |
+| `login()` as another account | A's session ends here (`reason: "switch"`, `elsewhere: true`) and B's is adopted |
+
+What this tab **never** does is redeem a refresh token that is not its session's, or write over the session another tab installed. A request in flight from the ended session rejects with `SessionSupersededError`, as on an account switch in the same tab.
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const queryClient = new QueryClient();
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.example.com",
+  onSessionEnd: async (session) => {
+    queryClient.clear();
+    if (session.elsewhere) return;
+    await session.api.post("/api/telemetry/session-end", { body: { reason: session.reason } });
+  },
+});
+```
+
+Note `elsewhere`. The in-memory cache (`queryClient.clear()`) belongs to this tab, so it goes in every tab. What the **origin shares** — IndexedDB, Cache Storage, a push subscription, a call to the server — the other tab already tore down when it ran its hook. On `"switch"`, redoing it here would wipe what the new account already wrote: skip it when `session.elsewhere` is `true`.
+
+!!! info "Why it used to be different"
+    Up to 0.80.0 each tab kept the session in memory only and re-read the stored refresh token on every refresh. A tab left open as A after logout, with B signing in on the same browser, redeemed **B's** refresh token on its next 401 and persisted `{ user: A, token: B }` — the screen showed A and every request went out as B (#524). And a refresh in one tab made the other refresh again on its next 401, rotating the first tab's token away.
+
+!!! tip "With `sessionStorage`, nothing changes"
+    With `storage: "session"`, each tab has its own `sessionStorage` and its own session — none of this applies.
+
+In tests, or under hot reload, when several presets are built in one window, `auth.dispose()` removes the `storage` listener. An app keeps one preset for the page's lifetime and does not need to call it.
 
 ### Cookie refresh and server-side logout — `logoutPath`
 
@@ -517,6 +560,7 @@ The flow: login calls `setSession`, persisting `user` + `token`. `ProtectedLayou
 - **`createRefreshQueue`** — N concurrent refreshes become 1.
 - **`onSessionEnd`** — per-user teardown on `logout()` **and** on automatic expiry, with `session.api` still authenticated.
 - **`SessionSupersededError`** — a refresh or request from a session that already ended; drop it, do not sign out.
+- **Several tabs** — with `storage: "local"` the session belongs to the origin: logout, account switch and refresh in one tab reach the others, with `elsewhere: true` in the hook.
 - **`logoutPath`** — revokes the refresh token (or cookie) on the server on `logout()`; restore the session at boot with `auth.refresh()`.
 
 ### See also

@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment-options {"url":"https://app.test/"}
+ */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { setDevBuild } from "../utils/dev-mode";
 import { DEFAULT_CREDENTIAL_HEADERS } from "./credential-headers";

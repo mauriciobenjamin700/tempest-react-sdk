@@ -428,7 +428,25 @@ Each line's context carries `requestId`, `status` and the elapsed `ms`. It is **
     Any object with `debug` and `warn` works (the exported type is `ApiClientLogger`), so it does not have to be the SDK logger.
 
 !!! warning "What the log never carries"
-    Body, headers and query string are left out on purpose: `Authorization` is a bearer token, a login body is a password, and an `access_token` query param would end up written to the sink alongside. What is logged is the method, the path as the call site wrote it, and the numbers.
+    Body, headers and query string are left out on purpose: `Authorization` is a bearer token, a login body is a password, and an `access_token` query param would end up written to the sink alongside. What is logged is the method, the path and the numbers.
+
+    The path is cut at the first `?` or `#`, and an absolute URL loses its `user:password@`. So a query written straight into the path disappears from the log just like one from `params`, and a presigned URL shows up without its signature:
+
+    ```ts
+    import { createApiClient, createLogger } from "tempest-react-sdk";
+
+    const api = createApiClient({
+      baseURL: "https://api.example.com",
+      logger: createLogger({ level: "debug" }).child("http"),
+    });
+
+    await api.get("/files?access_token=abc");
+    // [http] GET /files → 200
+    await api.put("https://cdn.example.com/b/a.png?X-Amz-Signature=xyz", { body: { a: 1 } });
+    // [http] PUT https://cdn.example.com/b/a.png → 200
+    ```
+
+    The request itself still goes out with the full URL — only the log line is trimmed. Before 0.81.0 (#526) the path's query reached the sink verbatim.
 
     If you need the payload to debug, wrap the `fetcher` in your app — then logging a secret is your call, explicitly, and it does not reach production by accident.
 

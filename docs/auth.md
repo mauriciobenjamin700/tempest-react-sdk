@@ -321,7 +321,7 @@ Nos três caminhos — `logout()`, o encerramento automático e a troca de conta
 | --- | --- | --- |
 | 1 | Todo refresh em voo é **superado**: não pode mais reinstalar os tokens da sessão que está acabando | sim |
 | 2 | O store e o refresh token guardado são limpos — `isAuthenticated` já é `false` | sim |
-| 3 | `onSessionEnd` roda com `{ reason, user, token, api }` | pode ser `async` |
+| 3 | `onSessionEnd` roda com `{ reason, user, token, api, elsewhere }` — `elsewhere` é `false` nos três caminhos desta aba | pode ser `async` |
 | 4 | No encerramento automático com `redirectTo`, o navegador navega; na troca de conta, a sessão nova é instalada — nos dois, **depois** do hook, mesmo que ele lance | — |
 
 `reason` é `"logout"` no `logout()` explícito, `"expired"` quando o cliente encerrou e `"switch"` quando um `login()` substituiu a sessão. No `"logout"` e no `"switch"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
@@ -369,6 +369,49 @@ export async function loadOrders(): Promise<unknown[] | null> {
 ```
 
 Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
+
+### Várias abas — a sessão é da origem, não da aba
+
+Com `storage: "local"` (o default), todas as abas do app leem e gravam as **mesmas** chaves: `tempest-auth` (o `{ user, token }`) e `tempest-auth-refresh`. Então a sessão é uma só para a origem inteira, e cada aba **segue** o que outra gravou — no evento `storage` do navegador e, antes de qualquer refresh, `logout()` ou encerramento, comparando a sessão guardada com a que ela tem em memória:
+
+| Na outra aba | Nesta aba |
+| --- | --- |
+| renovou a mesma conta | adota o token novo; a request que voltou 401 repete com ele, **sem** renovar de novo |
+| `logout()` | a sessão acaba aqui também: store limpo, `onSessionEnd` com `reason: "logout"` e `elsewhere: true` |
+| `login()` de outra conta | a sessão de A acaba aqui (`reason: "switch"`, `elsewhere: true`) e a de B é adotada |
+
+O que esta aba **nunca** faz é resgatar um refresh token que não é o da sessão dela, nem gravar por cima da sessão que outra aba instalou. Uma request em voo da sessão que acabou rejeita com `SessionSupersededError`, como na troca de conta da mesma aba.
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const queryClient = new QueryClient();
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  onSessionEnd: async (session) => {
+    queryClient.clear();
+    if (session.elsewhere) return;
+    await session.api.post("/api/telemetry/session-end", { body: { reason: session.reason } });
+  },
+});
+```
+
+Repare no `elsewhere`. O cache em memória (`queryClient.clear()`) é desta aba, então sai em toda aba. Já o que é **compartilhado pela origem** — IndexedDB, Cache Storage, inscrição de push, uma chamada ao servidor — a outra aba já limpou quando rodou o hook dela. No `"switch"`, refazer aqui apagaria o que a conta nova já gravou: pule quando `session.elsewhere` for `true`.
+
+!!! info "Por que antes era diferente"
+    Até a 0.80.0 cada aba tinha a sessão só em memória e relia o refresh token guardado a cada refresh. Uma aba deixada aberta como A depois do logout, com B logando no mesmo navegador, resgatava no próximo 401 o refresh token de **B** e gravava `{ user: A, token: B }` — a tela mostrava A e toda request saía como B (#524). E uma renovação numa aba fazia a outra renovar de novo no próximo 401, derrubando o token da primeira.
+
+!!! tip "Com `sessionStorage`, nada muda"
+    Com `storage: "session"`, cada aba tem o próprio `sessionStorage` e a própria sessão — nada disso se aplica.
+
+Em teste, ou com hot reload, quando vários presets nascem na mesma janela, `auth.dispose()` remove o listener de `storage`. Um app tem um preset para a vida da página e não precisa chamar.
 
 ### Refresh por cookie e logout no servidor — `logoutPath`
 
@@ -516,6 +559,7 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
 - **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
 - **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
+- **Várias abas** — com `storage: "local"` a sessão é da origem: logout, troca de conta e renovação numa aba chegam nas outras, com `elsewhere: true` no hook.
 - **`logoutPath`** — revoga o refresh token (ou o cookie) no servidor no `logout()`; restaure a sessão no boot com `auth.refresh()`.
 
 ### Veja também

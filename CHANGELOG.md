@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Linha digitável de 47 dígitos começando com `8` era lida como arrecadação (#529).** O
+  `parseLinhaDigitavel` reconstruía o código de barras, que também começa com `8`, e o
+  `parseCodigoBarras` escolhia o layout só por esse dígito. Reproduzido na `main` com
+  `81600000090000000000000000000190900000000000000` (três DVs de campo válidos): `boletoKind` →
+  `"banco"`, `validateBoleto` → `true`, parse → `kind: "arrecadacao"`, `valor` 900000000 e linha de
+  48 dígitos — a leitura de cobrança dos mesmos dígitos é banco 816, `valor` 0. Medido com um teste
+  Vitest chamando as quatro funções sobre essa linha. Agora a linha lança `BoletoError` ("cannot
+  start with 8"), `validateBoleto` devolve `false` e `boletoKind` devolve `null`; pela mesma regra,
+  `boletoKind` também devolve `null` para 48 dígitos que não começam com `8`, que o parser já
+  recusava. Ler como cobrança não era opção: o código de barras dessa linha, em qualquer leitor de 44
+  posições (o próprio `parseCodigoBarras` incluído), é arrecadação, e o round trip quebraria.
+  **Migração:** quem usava `boletoKind(x) !== null` como "é boleto" deixa de ver essas duas formas
+  como boleto — o que já era o veredito do parser. Nenhuma linha que o SDK aceitava como cobrança
+  muda de leitura.
+
 ## [0.80.0] — 2026-10-26
 
 ### Breaking

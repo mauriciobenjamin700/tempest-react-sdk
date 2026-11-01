@@ -51,6 +51,13 @@ const BANCO = {
     },
 } as const;
 
+/**
+ * A 47-digit line whose three field DVs recompute and whose rebuilt barcode starts
+ * with `8` (#529). Before the fix it parsed as arrecadação with `valor` 900000000,
+ * while `boletoKind` said `"banco"` and `validateBoleto` said `true`.
+ */
+const BANK_LINE_STARTING_WITH_8 = "81600000090000000000000000000190900000000000000";
+
 const ARRECADACAO = {
     /** Segmento 5, identificação 6: real money, general DV by módulo 10. */
     mod10: {
@@ -157,6 +164,32 @@ describe("boletoKind", () => {
     it("returns null for a length that is not 44, 47 or 48", () => {
         expect(boletoKind("1234")).toBeNull();
         expect(boletoKind("")).toBeNull();
+    });
+
+    it("returns null when the length and the first digit name different layouts", () => {
+        expect(boletoKind(BANK_LINE_STARTING_WITH_8)).toBeNull();
+        expect(boletoKind(`7${ARRECADACAO.mod10.line.slice(1)}`)).toBeNull();
+    });
+
+    it.each([
+        BANCO.current.barcode,
+        BANCO.current.line,
+        BANCO.legacy.line,
+        ARRECADACAO.mod10.barcode,
+        ARRECADACAO.mod10.line,
+        ARRECADACAO.mod11.line,
+        BANK_LINE_STARTING_WITH_8,
+        `7${ARRECADACAO.mod10.line.slice(1)}`,
+    ])("names the layout the parser reads %s as, or null when the parser rejects it", (value) => {
+        const raw = value.replace(/\D/g, "");
+        let parsed: string | null;
+        try {
+            parsed = (raw.length === 44 ? parseCodigoBarras(raw) : parseLinhaDigitavel(raw)).kind;
+        } catch {
+            parsed = null;
+        }
+        expect(boletoKind(value)).toBe(parsed);
+        expect(validateBoleto(value)).toBe(parsed !== null);
     });
 });
 
@@ -385,6 +418,12 @@ describe("parseLinhaDigitavel", () => {
         );
     });
 
+    it("rejects a 47-digit line starting with 8 instead of reading it as arrecadação", () => {
+        expect(() => parseLinhaDigitavel(BANK_LINE_STARTING_WITH_8)).toThrow(BoletoError);
+        expect(() => parseLinhaDigitavel(BANK_LINE_STARTING_WITH_8)).toThrow(/cannot start with 8/);
+        expect(() => linhaDigitavelToCodigoBarras(BANK_LINE_STARTING_WITH_8)).toThrow(BoletoError);
+    });
+
     it("rejects a 48-digit line that does not start with 8", () => {
         const broken = `7${ARRECADACAO.mod10.line.slice(1)}`;
         expect(() => parseLinhaDigitavel(broken)).toThrow(/must start with 8/);
@@ -429,6 +468,7 @@ describe("validateBoleto", () => {
             `3419915700000123456000012345678901234567890`,
         ],
         ["a 48-digit arrecadação line with a broken block DV", `8${"0".repeat(47)}`],
+        ["a 47-digit line starting with 8, every field DV valid", BANK_LINE_STARTING_WITH_8],
     ])("rejects %s", (_label, value) => {
         expect(validateBoleto(value)).toBe(false);
     });

@@ -245,6 +245,8 @@ if (boleto.kind === "banco") {
 
 `parseLinhaDigitavel` faz o caminho inverso e aceita as duas linhas (47 ou 48). Os dois parsers **conferem todos os dígitos verificadores** que o layout permite conferir: os 3 (banco) ou 4 (arrecadação) DVs de bloco, mais o DV geral. Qualquer um errado lança `BoletoError` dizendo qual.
 
+O tamanho fixa o layout, e o primeiro dígito tem de concordar com ele. Uma linha de 47 dígitos que começa com `8` lança `BoletoError` em vez de ser lida: o código de barras que ela reconstrói também começa com `8`, e no código de barras esse dígito marca arrecadação — qualquer leitor que só veja as 44 posições, `parseCodigoBarras` incluído, a leria como convênio. Antes da 0.81.0, `81600000090000000000000000000190900000000000000` passava nos três DVs de campo e voltava como arrecadação de `valor` 900000000, enquanto a leitura de cobrança dos mesmos dígitos dá banco 816 e `valor` 0 (#529).
+
 Conversão explícita, quando você só quer a outra representação:
 
 ```ts
@@ -270,7 +272,10 @@ formatLinhaDigitavel(input);
 
 Para ramificar a UI antes de validar (mostrar o campo certo, escolher o ícone),
 `boletoKind` diz o layout a partir do tamanho e do primeiro dígito, e devolve
-`null` para entrada que não é boleto — sem lançar:
+`null` para entrada que não é boleto — sem lançar. Quando tamanho e primeiro
+dígito discordam (47 dígitos começando com `8`, 48 começando com outro), também é
+`null`: é a mesma entrada que o parser recusa, então os dois nunca nomeiam layouts
+diferentes para a mesma string:
 
 ```ts
 import { boletoKind } from "tempest-react-sdk/br";

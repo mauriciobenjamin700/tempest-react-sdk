@@ -4,10 +4,22 @@ import { fileURLToPath } from "node:url";
 
 import { ESLint } from "eslint";
 import ts from "typescript";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { encodeIdSegment } from "../../../src/data";
 import { generate } from "./generate.mjs";
+
+/**
+ * Gives the tests in this file 60 s instead of Vitest's 5 s default.
+ *
+ * Several of them build a TypeScript program (and, some, an ESLint instance)
+ * in-process over the generated files. That takes 3-5 s on an idle machine,
+ * right at the default, so a busy one — another suite, a model training — failed
+ * them by timeout while the code was correct: 5.1-5.7 s measured in three
+ * `make check` runs on 2026-11-01, load average between 21 and 48.
+ * `test/docs-guard.test.ts` gives its compile 120 s for the same reason.
+ */
+vi.setConfig({ testTimeout: 60_000 });
 
 const SPEC = {
     openapi: "3.1.0",

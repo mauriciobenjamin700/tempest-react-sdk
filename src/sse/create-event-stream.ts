@@ -20,6 +20,16 @@ export type EventStreamStatus = "idle" | "connecting" | "open" | "closed" | "err
  */
 export type EventStreamUrl = string | (() => string | Promise<string>);
 
+/**
+ * Identifies the session a stream belongs to: the signed-in user's id, an
+ * auth epoch, `null` when signed out.
+ *
+ * A primitive on purpose. The hook form lists it in its effect dependencies,
+ * and an object built inline would be a new identity on every render, so the
+ * stream would reopen on every render.
+ */
+export type SessionKey = string | number | boolean | null | undefined;
+
 export interface EventStreamMessage<T> {
     /** Server-named event (default `"message"`). */
     event: string;
@@ -92,6 +102,30 @@ export interface CreateEventStreamOptions<T> {
      */
     onUrlError?: (error: unknown) => void;
     /**
+     * Read the current session key; the stream belongs to the session that was
+     * current when it connected.
+     *
+     * The server cannot end the stream for you. The `tempest-fastapi-sdk` SSE
+     * router checks the ticket only when the stream opens, and neither logout
+     * nor refresh-token revocation touches an open stream: it lives until the
+     * client leaves. So a tab that switches from user A to user B without
+     * closing the stream keeps receiving A's events under B.
+     *
+     * With this set, the key is read when each connection starts, again when
+     * its URL resolved, and before every frame is delivered. A frame that
+     * arrives after the key changed is dropped, never delivered, and the stream
+     * reconnects for the session now current — with a fresh ticket, for the
+     * ticket stream. A URL resolved while the key changed is discarded the same
+     * way, since the ticket inside it may belong to either session.
+     *
+     * The check runs when a frame arrives: a stream that stays quiet holds its
+     * connection until the next frame or until `close()`. The hook form closes
+     * it as soon as the key changes.
+     *
+     * Keys are compared with `Object.is`. Leave it out and nothing changes.
+     */
+    sessionKey?: () => SessionKey;
+    /**
      * Whether a URL-resolution failure is worth another attempt. Default: always.
      *
      * Return `false` for failures no backoff can fix — a `401` or a `403` when
@@ -124,6 +158,10 @@ export interface EventStreamController {
  * reconnect presents a fresh credential instead of the one that expired. A
  * resolution still pending when `close()` or `reconnect()` runs is discarded.
  *
+ * Pass `sessionKey` to bind the stream to the session it opened under: once
+ * the key changes, no frame of the previous session reaches `onMessage`, and
+ * the stream reconnects for the new one.
+ *
  * @param url - Full SSE endpoint URL, or a function returning it per connection.
  * @param options - Stream configuration and callbacks.
  * @returns A controller exposing `close`, `reconnect` and the current `status`.
@@ -148,6 +186,7 @@ export function createEventStream<T = unknown>(
         onValidationError,
         onUrlError,
         shouldRetryUrl = () => true,
+        sessionKey,
         onStatusChange,
     } = options;
 
@@ -157,6 +196,7 @@ export function createEventStream<T = unknown>(
     let status: EventStreamStatus = "idle";
     let closed = false;
     let attempt = 0;
+    let boundKey: SessionKey;
 
     function setStatus(next: EventStreamStatus): void {
         if (status === next) return;
@@ -164,8 +204,30 @@ export function createEventStream<T = unknown>(
         onStatusChange?.(next);
     }
 
-    function emit(eventName: string, event: MessageEvent): void {
-        if (heartbeatEvents.includes(eventName)) return;
+    function sessionChanged(): boolean {
+        return sessionKey !== undefined && !Object.is(sessionKey(), boundKey);
+    }
+
+    /**
+     * Deliver one frame, unless it no longer belongs to this stream.
+     *
+     * A frame from a source other than the current one — closed by `close()`,
+     * replaced by a reconnect — is ignored: it would otherwise reach `onMessage`
+     * after the caller let go of the stream, and the session check below would
+     * reopen a controller that `close()` already ended. A frame that arrives
+     * after `sessionKey` changed is dropped and the stream reconnects for the
+     * session now current.
+     *
+     * @param from - The `EventSource` the frame came from.
+     * @param eventName - The SSE event name.
+     * @param event - The raw message event.
+     */
+    function emit(from: EventSource, eventName: string, event: MessageEvent): void {
+        if (from !== source || heartbeatEvents.includes(eventName)) return;
+        if (sessionChanged()) {
+            reconnect();
+            return;
+        }
         const decoded = decodeFrame<T>(
             typeof event.data === "string" ? event.data : "",
             "createEventStream",
@@ -209,6 +271,7 @@ export function createEventStream<T = unknown>(
         }
         setStatus("connecting");
         attempt += 1;
+        boundKey = sessionKey?.();
         if (typeof url === "string") {
             open(url);
             return;
@@ -218,7 +281,12 @@ export function createEventStream<T = unknown>(
             .then(url)
             .then(
                 (resolved) => {
-                    if (!closed && current === attempt) open(resolved);
+                    if (closed || current !== attempt) return;
+                    if (sessionChanged()) {
+                        connect();
+                        return;
+                    }
+                    open(resolved);
                 },
                 (error: unknown) => {
                     if (!closed && current === attempt) failUrl(error);
@@ -236,9 +304,9 @@ export function createEventStream<T = unknown>(
             onOpen?.();
         };
 
-        es.onmessage = (event) => emit("message", event);
+        es.onmessage = (event) => emit(es, "message", event);
         for (const name of namedEvents) {
-            es.addEventListener(name, (event) => emit(name, event as MessageEvent));
+            es.addEventListener(name, (event) => emit(es, name, event as MessageEvent));
         }
         for (const name of heartbeatEvents) {
             es.addEventListener(name, () => {

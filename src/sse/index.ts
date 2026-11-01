@@ -5,6 +5,7 @@ export type {
     EventStreamMessage,
     EventStreamStatus,
     EventStreamUrl,
+    SessionKey,
 } from "./create-event-stream";
 export {
     createTicketEventStream,

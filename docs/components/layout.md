@@ -312,6 +312,38 @@ export function Empilhado() {
 
 `gap` numérico mapeia para escala 4px (`2 → 8px`, `4 → 16px`).
 
+!!! info "`gap={24}` não é 24px"
+    O número em `gap` conta **passos da escala de 4px**, não pixels — então `gap={24}`
+    vira um buraco de **96px**. Quem vem do CSS ou do `style={{ gap: 24 }}` do React
+    escreve pixel por reflexo. Para 24px, escreva o passo (`gap={6}`); para um valor
+    exato fora da escala, passe uma **string**, que entra crua no CSS:
+
+    ```tsx
+    import { Card, Stack } from "tempest-react-sdk";
+
+    export function Espacamentos() {
+        return (
+            <>
+                <Stack
+                    gap={6} // 24px
+                >
+                    <Card>Passo da escala</Card>
+                </Stack>
+                <Stack gap="24px">
+                    <Card>Pixel exato, como string</Card>
+                </Stack>
+            </>
+        );
+    }
+    ```
+
+    Em build de desenvolvimento, `Stack`, `Grid`, `Form`, `FormSection`, `FormRow` e
+    `FormActions` avisam no console, **uma vez por valor**, quando o número passa de
+    `12` (48px) — o topo das classes `tempest-gap-*` e o maior `gap` que o próprio SDK
+    usa. A mensagem diz o pixel que saiu e as duas saídas. Uma string nunca avisa: é
+    o jeito de dizer "96px é de propósito" (`gap="96px"` ou
+    `gap="var(--tempest-space-24)"`). Em produção, silêncio.
+
 ## `Grid`
 
 CSS Grid wrapper.

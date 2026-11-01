@@ -4,6 +4,43 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Aviso em desenvolvimento quando um `gap` numérico parece pixel (#536).** `Stack`, `Grid`,
+  `Form`, `FormSection`, `FormRow` e `FormActions` leem `gap` numérico como passo da escala de 4px
+  — `gap={24}` virava um buraco de 96px sem erro nem aviso. Agora, em build de desenvolvimento
+  (`isDevBuild()`), um número acima de `12` (48px) loga **uma vez por valor**
+  `<Stack gap={24}> renders a 96px gap: numeric gap counts 4px steps, not pixels. For 24px use gap={6}. For 96px on purpose, pass gap="96px".`
+  O limite saiu da medição, não da issue (que sugeria `> 16`, deixando passar o `gap={16}` → 64px,
+  o gap em pixel mais comum): as classes `tempest-gap-*` param em `12`, nenhuma folha do SDK usa
+  `gap` acima de `--tempest-space-12`, e os 125 `gap` numéricos literais de `src/`, `docs/`,
+  `examples/gallery/src`, `template/` e `template-pwa/` vão até `8`
+  (`grep -rhoE "gap=\{[^}]*\}+" src examples/gallery/src docs template template-pwa`). String nunca
+  avisa — é a saída para quem quer mesmo 96px (`gap="96px"`, `gap="var(--tempest-space-24)"`) — e
+  produção fica em silêncio. Nada muda no valor renderizado. Teste:
+  `npx vitest run src/components/Layout/gap.test.tsx` (10 dos 13 casos falhavam na `main`; os 3 que
+  passavam são os de silêncio). A opção de tipar a escala (`gap?: SpaceToken | string`) ficou de
+  fora: é breaking, e fica para uma major.
+
+### Corrigido
+
+- **README dizia "Vitest needs nothing." (#535).** Só vale quando o Vitest lê o `createViteConfig`,
+  que liga o `tempestVitest()`. Reproduzido com o tarball da 0.81.0 num projeto descartável
+  (Vitest 4.1.12, Node 24): `vitest.config.ts` com `defineConfig` do `vitest/config`, um
+  `vite.config.ts` com `defineConfig` do `vite` e **nenhuma config** caem os três com
+  `Unknown file extension ".css"`; com `plugins: [tempestVitest()]`, 1 passed. O defeito é um pouco
+  maior que o da issue: não é só o `vitest.config.ts` próprio, é todo arranjo que não passa pelo
+  `createViteConfig`. O README agora diz isso e aponta para "Testes com Vitest" do site, que já
+  estava certo.
+
+### Budgets
+
+- Teto do barrel ESM 149,9 → 150,1 kB e CJS 178,9 → 179,4 kB, pelo aviso de `gap` (#536). Medido
+  com `npm run build && npx size-limit --json` na `main` em `b054c16` e na mesma árvore com a
+  mudança: barrel ESM 149 789 → 150 003 B (+214) e CJS 178 824 → 179 282 B (+458);
+  `slice: auth screens` 8753 → 8967 B (+214, dentro do limite de 9,2 kB, pelo `Form`). Nenhuma
+  outra fatia mudou.
+
 ## [0.81.0] — 2026-11-01
 
 ### Breaking

@@ -249,18 +249,28 @@ describe("parseInline", () => {
 });
 
 /**
- * Run `work` and return how long it took, in milliseconds.
+ * Run `work` three times and return the fastest run, in milliseconds.
  *
  * The budget is about eight times what the linear parser needs under coverage
  * instrumentation (at most ~35 ms, for the inline cases; under 10 ms bare), and
  * below what the backtracking regexes took before #437 on the same inputs:
  * `"# a" + " ".repeat(3000) + "b"` cost about 2 s, and the other cases 0.45 to
  * 2.3 s each.
+ *
+ * The fastest of three, not one run: load on the machine only ever adds time, so
+ * the minimum measures the parser rather than the scheduler. A single run failed
+ * at 532 ms in a `make check` on 2026-11-01 with the load average at 23 while the
+ * parser was linear; a quadratic regression stays far above the budget in every
+ * run.
  */
 function elapsed(work: () => unknown): number {
-    const start = performance.now();
-    work();
-    return performance.now() - start;
+    let fastest = Number.POSITIVE_INFINITY;
+    for (let run = 0; run < 3; run += 1) {
+        const start = performance.now();
+        work();
+        fastest = Math.min(fastest, performance.now() - start);
+    }
+    return fastest;
 }
 
 /** Ceiling for one parse of an adversarial input, in milliseconds. */

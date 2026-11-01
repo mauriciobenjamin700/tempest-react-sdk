@@ -42,6 +42,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   **Migração:** rota que **quer** cachear a API por cookie liga `cacheAuthenticated: true` — a
   entrada fica por URL (não há header para o `Vary`), então chame `clearSessionData()` no logout.
 
+- **`href` de navegação passa pela lista do `safeLinkUrl` (#534).** `Button`, `Breadcrumbs`,
+  `NavigationMenu`, `Sidebar`, os `links` dos presets do `AuthForm` e o `back` do `AuthPage`
+  escreviam o `href` como vinha. Medido com `npx vitest run src/components/link-href-vetting.test.tsx`
+  sobre as fontes da `main` em `b054c16`: 25 dos 28 casos de componente falhavam (os 3 restantes fixam o caminho seguro) — `javascript:`,
+  `JaVaScRiPt:`, `java\tscript:` e `" javascript:"` chegavam ao DOM nos seis componentes (no React
+  19 como o stub `javascript:throw…`, no React 18 — dentro do peer range — como vieram, clicáveis).
+  Agora só `http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa viram link, e a URL sai
+  **como foi passada** (um caminho com espaço continua com espaço). Fora da lista: `Button` vira o
+  link inerte `aria-disabled` do caso desabilitado; item de `Sidebar`/`NavigationMenu` vira
+  `<button>`; item de `Breadcrumbs` vira texto (ou continua clicável pelo `onClick`); link do
+  `AuthForm` some, como rota não passada; `back` do `AuthPage` cai no `onClick` ou some.
+  **Migração:** link para esquema próprio (`whatsapp:`, `intent:`, deep link de app) no `Button` vai
+  pelo `ButtonSlot` com o seu `<a>`; num item de menu, use `onSelect`/`onChange` e navegue no
+  handler.
+- **Clique em notificação só abre página da própria origem por padrão (#534).** Duas mudanças no
+  `tempest-react-sdk/sw`: o `installPushHandler` espalha `payload.data` **antes** de gravar `url` e
+  `actionUrls` — até a 0.81.0 era depois, e `data.url` sobrescrevia o destino declarado — e o
+  resolver padrão do `installNotificationClickHandler` troca por `"/"` toda URL de outra origem ou
+  com esquema que não seja `http(s)` (`//host`, `javascript:`, `data:`). Um `resolveUrl` próprio
+  continua podendo abrir outra origem `http(s)`; esquema diferente disso vira `"/"` nele também.
+  Medido com `npx vitest run src/sw/create-push-handler.test.ts` sobre a `main`: 9 dos 10 casos novos
+  falhavam (o primeiro gravava `url: "https://evil.test/phish"`). **Migração:** quem punha o
+  destino em `data.url` passa a mandá-lo no `url` de topo; app cujo clique abre outra origem passa
+  um `resolveUrl` que decida qual.
+- **`getList` do data provider: `pagination` e `sort` ganham de filtro com o mesmo nome (#534).**
+  Os `filters` eram copiados depois, então `filters: { page: 1 }` vindo do estado de filtros de uma
+  tabela prendia toda requisição na página 1. Agora entram antes. Sem `pagination`/`sort`, o filtro
+  continua indo como veio. **Migração:** quem usava um filtro para forçar `page`/`size` passa o
+  valor em `pagination`.
+
 ### Segurança
 
 - **Release: o guard não confia mais no commit taggeado nem numa branch `release-*` recém-criada
@@ -224,6 +254,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   passavam são os de silêncio). A opção de tipar a escala (`gap?: SpaceToken | string`) ficou de
   fora: é breaking, e fica para uma major.
 
+- **`acceptPeer` no `createPeerMesh` (#534).** A mesh responde qualquer oferta que chega no
+  `accept` — é o fluxo documentado, o lado que responde conhece o par pela oferta —, o que deixa a
+  publicação de microfone e câmera dependendo só do servidor de sinalização. `acceptPeer(peerId)`
+  devolvendo `false` recusa a oferta de par sem link: não abre conexão, não responde e chama
+  `onNotice("offer_refused")`. Par adicionado com `addPeer` não é consultado. Sem a opção, nada muda.
+
 ### Corrigido
 
 - **README dizia "Vitest needs nothing." (#535).** Só vale quando o Vitest lê o `createViteConfig`,
@@ -246,6 +282,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   dentro dos 6 kB. Medido com `npm run build && npx size-limit --json` sobre a `origin/main`
   (`b054c16`) e sobre esta branch.
 
+- **`useCan` devolvia por um frame a resposta do recurso anterior (#534).** No render entre a troca
+  dos params e o efeito que refaz a checagem, o hook devolvia o `allowed` antigo com
+  `isLoading: false`, e o `<Can>` mostrava os filhos do recurso novo. A resposta agora fica guardada
+  com o `control` e os params que responde; o primeiro render com params novos (ou `control` novo)
+  lê `{ allowed: false, isLoading: true }`. Reproduzido em `src/access/use-can.test.tsx` (2 casos
+  falhavam na `main`).
+- **`themeInitScript` seguro para inline com qualquer opção (#534).** `storageKey`/`defaultTheme`
+  entravam por `JSON.stringify`, que não escapa `</script>`: parseando o HTML resultante com
+  `DOMParser`, uma `storageKey` `"</script><script>…</script>"` gerava dois `<script>`. Agora `<`,
+  `>`, `&`, U+2028 e U+2029 viram `\uXXXX` (`npx vitest run src/theme/initial-theme.test.ts`).
+- **`deepMerge` pula `__proto__`, `constructor` e `prototype` (#534).** Uma chave `__proto__` vinda
+  de `JSON.parse` trocava o protótipo do objeto retornado (sem poluição global). Medido em
+  `src/utils/objects.test.ts`: 3 casos falhavam na `main`.
+- **`validateForm`/`zodResolver` perdiam a mensagem de campo com nome de membro de
+  `Object.prototype` (#534).** `constructor`/`toString` pareciam já ter erro por herança; um issue em
+  `__proto__` (possível só via `superRefine` — medido: o zod 4.6.7 não reporta issue para uma chave
+  `__proto__` do shape) trocava o protótipo do mapa. Erros agora são propriedades próprias.
+- **`decompressFromString` limita a saída a 64 MiB (#534).** O fflate dimensiona a saída pelo
+  trailer do gzip e nunca passa dele (medido: payload de 1 MB com trailer de 10 bytes inflou para
+  exatamente 10), então recusar trailer acima do limite limita a alocação antes de inflar. Razão
+  medida do deflate: 20 MB de `"A"` → 19 551 B (1023:1).
+- **`CompactPredictor` recusa árvore malformada no `create` (#534).** O percurso não tem limite de
+  passos, então um filho apontando para trás travava a aba no primeiro `predict`, e um índice fora
+  do array respondia `NaN`. O `create` agora prova `nó < filho < fim da árvore` (invariante do
+  scikit-learn — 0 violações em 1 761 nós dos fixtures) e lança `CompactFormatError`.
+- **`loadEdgePackage` confere o `sha256` do manifesto (#534).** O cache é por URL e cache-first;
+  modelo republicado no mesmo nome continuava respondendo com os bytes antigos ao lado do manifesto
+  novo. Divergência refaz o download uma vez (trocando a entrada do cache); a segunda lança
+  `ModelFetchError`. Não conferido: `cache: false` (o runtime busca a URL sozinho) e contexto não
+  seguro (sem `crypto.subtle`).
+
 ### Budgets
 
 - Teto do barrel ESM 149,9 → 150,1 kB e CJS 178,9 → 179,4 kB, pelo aviso de `gap` (#536). Medido
@@ -253,6 +320,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mudança: barrel ESM 149 789 → 150 003 B (+214) e CJS 178 824 → 179 282 B (+458);
   `slice: auth screens` 8753 → 8967 B (+214, dentro do limite de 9,2 kB, pelo `Form`). Nenhuma
   outra fatia mudou.
+
+- Medido com `npm run build && npx size-limit --json` sobre as fontes da `main` em `b054c16` e na
+  mesma árvore com o #534: `slice: Button` 1203 → 1390 B (+187, teto 1,3 → 1,4 kB), `slice: typical
+app` 12 158 → 12 303 B (+145, teto 12,2 → 12,35 kB), `slice: createPeerMesh` 3394 → 3412 B (+18,
+  teto 3,4 → 3,45 kB), barrel ESM 150 701 → 151 071 B (+370, teto 150,8 → 151,1 kB) e CJS
+  180 042 → 180 205 B (+163, teto 180,1 → 180,3 kB), os dois remedidos sobre a `main` já com #551. O custo é o `safeLinkUrl` entrando em `Button` e nos
+  componentes de navegação; o leitor compacto do `tabular` sobe 1499 → 1827 B com a validação das
+  árvores, dentro do teto de 3 kB.
 
 ## [0.81.0] — 2026-11-01
 

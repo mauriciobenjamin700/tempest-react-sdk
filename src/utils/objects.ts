@@ -50,6 +50,9 @@ export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Om
     return result as Omit<T, K>;
 }
 
+/** Keys {@link deepMerge} never copies from `source`. */
+const UNSAFE_MERGE_KEYS: ReadonlySet<string> = new Set(["__proto__", "constructor", "prototype"]);
+
 /**
  * Recursively merge `source` into `target`, returning a new object.
  *
@@ -57,6 +60,13 @@ export function omit<T extends object, K extends keyof T>(obj: T, keys: K[]): Om
  * - Arrays and non-plain values (dates, class instances, primitives) replace
  *   the target value entirely — they are not merged element by element.
  * - Neither `target` nor `source` is mutated.
+ * - `__proto__`, `constructor` and `prototype` keys in `source` are skipped.
+ *   Assigning `result["__proto__"]` does not create a key: it **replaces the
+ *   result's prototype**, so a `JSON.parse`d settings blob carrying
+ *   `{"__proto__": {"isAdmin": true}}` produced an object whose `isAdmin` read
+ *   `true` through inheritance while `Object.keys` showed nothing. No global
+ *   prototype is touched either way; the skip removes the surprise, and the
+ *   other two names go with it because nothing legitimate merges into them.
  *
  * @example
  * deepMerge(
@@ -75,6 +85,7 @@ export function deepMerge<T>(target: T, source: Partial<T>): T {
     }
     const result: Record<string, unknown> = { ...target };
     for (const key of Object.keys(source)) {
+        if (UNSAFE_MERGE_KEYS.has(key)) continue;
         const sourceValue = (source as Record<string, unknown>)[key];
         const targetValue = result[key];
         if (isPlainRecord(targetValue) && isPlainRecord(sourceValue)) {

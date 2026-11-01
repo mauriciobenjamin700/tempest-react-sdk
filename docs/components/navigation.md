@@ -385,6 +385,9 @@ botão. Item `disabled` ignora o `href` e continua `<button disabled>`: âncora 
 tem estado desabilitado, e tirar o `href` pra simular um deixaria um link que se
 anuncia acionável e não é.
 
+!!! check "Só esquema seguro vira link"
+    O `href` do item passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema o item vira `<button>`, como um item sem `href` — um menu montado com dado de API não põe um `javascript:` clicável na barra lateral no React 18.
+
 ### Item ativo a partir da rota
 
 Quando a `key` (ou o `href`) de cada item é uma URL, quase nunca o `pathname` é
@@ -659,6 +662,8 @@ export function Trilha() {
 ```
 
 **A11y**: último item é marcado com `aria-current="page"`.
+
+Cada `href` passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Um item com outro esquema perde o `href` e vira texto — ou continua clicável pelo `onClick`, se tiver um. Uma trilha montada com nomes de pasta vindos da API não vira link de script.
 
 ## `Pagination`
 

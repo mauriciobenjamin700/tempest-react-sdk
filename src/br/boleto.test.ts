@@ -492,3 +492,23 @@ describe("formatLinhaDigitavel", () => {
         expect(formatLinhaDigitavel(BANCO.current.barcode)).toBe(BANCO.current.barcode);
     });
 });
+
+describe("parseLinhaDigitavel — pasted text", () => {
+    const formatted = "34190.00017 23456.789017 23456.789017 1 15700000123456";
+
+    it.each([
+        ["non-breaking spaces", formatted.replace(/ /g, " ")],
+        ["line breaks", formatted.replace(/ /g, "\n")],
+        ["tabs", formatted.replace(/ /g, "\t")],
+        ["a leading label", `Linha digitável: ${formatted}`],
+    ])("reads a line copied from a PDF with %s", (_, pasted) => {
+        expect(parseLinhaDigitavel(pasted, { reference: REFERENCE }).kind).toBe("banco");
+    });
+
+    it.each([
+        ["a value before it", `R$ 1.234,56 ${formatted}`],
+        ["a due date after it", `${formatted} Vencimento 15/09/2026`],
+    ])("refuses text that adds digits — %s", (_, pasted) => {
+        expect(() => parseLinhaDigitavel(pasted, { reference: REFERENCE })).toThrow(BoletoError);
+    });
+});

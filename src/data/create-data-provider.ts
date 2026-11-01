@@ -13,7 +13,14 @@ export interface GetListParams {
     pagination?: { page?: number; pageSize?: number };
     /** Single-field sort. `order` defaults to `"asc"`. */
     sort?: { field: string; order?: "asc" | "desc" };
-    /** Arbitrary filter query params, spread onto the request. */
+    /**
+     * Arbitrary filter query params, spread onto the request **before**
+     * `pagination` and `sort`. A filter whose key equals a pagination or sort
+     * param name (`page`, `size`, `order_by`, `ascending` by default) is
+     * overridden by the structured value when that one is set: until 0.81.0 the
+     * filter won, so `filters: { page: 1 }` from a table's filter state silently
+     * pinned every request to page 1.
+     */
     filters?: DataFilters;
 }
 
@@ -188,7 +195,7 @@ export function createDataProvider(
     const provider: DataProvider = {
         getList<T>(resource: string, params: GetListParams = {}): Promise<OffsetPage<T>> {
             const { pagination, sort, filters } = params;
-            const query: Record<string, ParamValue> = {};
+            const query: Record<string, ParamValue> = { ...filters };
 
             if (pagination?.page != null) query[pageParam] = pagination.page;
             if (pagination?.pageSize != null) query[sizeParam] = pagination.pageSize;
@@ -197,12 +204,6 @@ export function createDataProvider(
                 const order = sort.order ?? "asc";
                 query[sortFieldParam] = sort.field;
                 query[sortOrderParam] = sortOrderAsBoolean ? order === "asc" : order;
-            }
-
-            if (filters) {
-                for (const [key, value] of Object.entries(filters)) {
-                    query[key] = value;
-                }
             }
 
             const requestOptions: RequestOptions = { params: query };

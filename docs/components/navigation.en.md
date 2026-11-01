@@ -405,6 +405,9 @@ button. A `disabled` item ignores `href` and stays a `<button disabled>`: an
 anchor has no disabled state, and dropping the `href` to fake one leaves a link
 that announces itself as actionable and is not.
 
+!!! check "Only a safe scheme becomes a link"
+    The item's `href` goes through `safeLinkUrl`'s list (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs). With any other scheme the item becomes a `<button>`, like an item without `href` — a menu built from API data cannot put a clickable `javascript:` in the sidebar on React 18.
+
 ### Active item from the route
 
 When each item's `key` (or `href`) is a URL, the `pathname` almost never equals
@@ -693,6 +696,8 @@ export function Trilha() {
 ```
 
 **A11y**: the last item is marked with `aria-current="page"`.
+
+Each `href` goes through `safeLinkUrl`'s list (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs). An item with any other scheme loses the `href` and renders as text — or stays clickable through its `onClick`, when it has one. A trail built from folder names that came from the API never becomes a script link.
 
 ## `Pagination`
 

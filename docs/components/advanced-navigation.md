@@ -46,6 +46,9 @@ import { NavigationMenu } from "tempest-react-sdk";
 !!! note "Fechamento"
     Fecha no clique fora, Escape, ou ao selecionar uma entrada-folha.
 
+!!! check "Só esquema seguro vira link"
+    O `href` de cada entrada passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema a entrada vira `<button>` e continua chamando `onSelect`.
+
 ## `Menubar`
 
 <!-- gallery:overlays -->

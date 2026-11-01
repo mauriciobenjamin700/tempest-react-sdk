@@ -52,6 +52,30 @@ describe("createDataProvider", () => {
         });
     });
 
+    it("getList lets pagination and sort win over a filter with the same key", async () => {
+        const client = mockClient();
+        const provider = createDataProvider(client);
+
+        await provider.getList<User>("users", {
+            pagination: { page: 3, pageSize: 10 },
+            sort: { field: "name", order: "asc" },
+            filters: { page: 1, size: 500, order_by: "id", ascending: false, active: true },
+        });
+
+        expect(client.get).toHaveBeenCalledWith("/users", {
+            params: { page: 3, size: 10, order_by: "name", ascending: true, active: true },
+        });
+    });
+
+    it("getList keeps a filter named like a pagination param when pagination is unset", async () => {
+        const client = mockClient();
+        const provider = createDataProvider(client);
+
+        await provider.getList<User>("users", { filters: { page: 4 } });
+
+        expect(client.get).toHaveBeenCalledWith("/users", { params: { page: 4 } });
+    });
+
     it("getList defaults sort order to ascending true", async () => {
         const client = mockClient();
         const provider = createDataProvider(client);

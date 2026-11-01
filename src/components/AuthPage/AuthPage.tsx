@@ -3,6 +3,7 @@ import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { Link } from "react-router";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/utils/cn";
+import { vettedHref } from "@/utils/safe-url";
 import styles from "./AuthPage.module.css";
 
 /** How the page is laid out: brand panel beside the form, or one centered card. */
@@ -32,7 +33,11 @@ export interface AuthPageAside {
 
 /** The back action, as an object when the label or the behavior is not the default. */
 export interface AuthPageBackAction {
-    /** Route to navigate to, rendered as a router `Link`. */
+    /**
+     * Route to navigate to, rendered as a router `Link`. Passes through
+     * `safeLinkUrl`: a destination it rejects is dropped, leaving the button with
+     * `onClick` or, without one, no back action at all.
+     */
     to?: string;
     /** Visible label (and accessible name). Default `"Voltar"`. */
     label?: string;
@@ -83,11 +88,19 @@ const DEFAULT_BACK_LABEL = "Voltar";
 /**
  * Render the back action, as a router link or a plain button.
  *
+ * The route is vetted with `safeLinkUrl`'s allowlist: the router `Link` writes it to
+ * `href`, and React 18 — inside the peer range — keeps a `javascript:` href
+ * verbatim. A rejected route with no `onClick` renders nothing, because a back
+ * button that does nothing is worse than none.
+ *
  * @param props - The `back` prop, already present.
- * @returns The link or button, labelled by its visible text.
+ * @returns The link or button, labelled by its visible text, or `null`.
  */
 function BackAction({ back }: { back: string | AuthPageBackAction }): ReactNode {
-    const action: AuthPageBackAction = typeof back === "string" ? { to: back } : back;
+    const given: AuthPageBackAction = typeof back === "string" ? { to: back } : back;
+    const to = vettedHref(given.to);
+    if (given.to !== undefined && to === undefined && given.onClick === undefined) return null;
+    const action: AuthPageBackAction = { ...given, to };
     const content = (
         <>
             <svg aria-hidden width="20" height="20" viewBox="0 0 24 24" fill="none">

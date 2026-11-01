@@ -64,6 +64,46 @@ describe("useCan", () => {
     });
 });
 
+describe("useCan — params change", () => {
+    it("never returns the previous resource's answer for the new resource", async () => {
+        const control: AccessControl = {
+            can: ({ resource }) => (resource === "public" ? true : new Promise<boolean>(() => {})),
+        };
+        const seen: { resource: string; allowed: boolean; isLoading: boolean }[] = [];
+        const { result, rerender } = renderHook(
+            ({ resource }: { resource: string }) => {
+                const answer = useCan({ action: "read", resource });
+                seen.push({ resource, allowed: answer.allowed, isLoading: answer.isLoading });
+                return answer;
+            },
+            { wrapper: wrapper(control), initialProps: { resource: "public" } },
+        );
+        await waitFor(() => expect(result.current.allowed).toBe(true));
+
+        rerender({ resource: "secret" });
+
+        const forSecret = seen.filter((entry) => entry.resource === "secret");
+        expect(forSecret.length).toBeGreaterThan(0);
+        expect(forSecret.every((entry) => !entry.allowed && entry.isLoading)).toBe(true);
+    });
+
+    it("does not carry an answer over to a swapped control", async () => {
+        let current: AccessControl = { can: () => true };
+        const Swappable = ({ children }: { children: ReactNode }) => (
+            <AccessControlProvider control={current}>{children}</AccessControlProvider>
+        );
+        const { result, rerender } = renderHook(() => useCan({ action: "read", resource: "x" }), {
+            wrapper: Swappable,
+        });
+        await waitFor(() => expect(result.current.allowed).toBe(true));
+
+        current = { can: () => new Promise<boolean>(() => {}) };
+        rerender();
+
+        expect(result.current).toEqual({ allowed: false, isLoading: true });
+    });
+});
+
 describe("useCan — async failures", () => {
     it("reports the error message when the check rejects", async () => {
         const control: AccessControl = {

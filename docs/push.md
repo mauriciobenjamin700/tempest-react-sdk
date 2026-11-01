@@ -746,6 +746,27 @@ installNotificationClickHandler({
 });
 ```
 
+### Para onde o clique pode ir
+
+Duas regras valem desde a 0.82.0:
+
+- **`data` não sobrescreve o destino.** O `installPushHandler` espalha o `data` do payload **antes** de gravar `url` e `actionUrls`. Até a 0.81.0 era depois, e `{ "url": "/orders/9", "data": { "url": "https://outro.site" } }` abria `https://outro.site` — e o `data` costuma ser preenchido com o registro que disparou o push.
+- **O resolver padrão só abre página da própria origem.** URL de outra origem, ou com esquema que não seja `http:`/`https:` (`javascript:`, `data:`), vira `"/"`. Um `resolveUrl` seu é como o app escolhe outra origem — o que ele devolver pode ir para qualquer `http(s)`, e esquema diferente disso continua virando `"/"`.
+
+```ts
+/// <reference lib="webworker" />
+import { installNotificationClickHandler } from "tempest-react-sdk/sw";
+
+const PARCEIROS = new Set(["https://parceiro.exemplo.com"]);
+
+installNotificationClickHandler({
+  resolveUrl: (data) => {
+    const { url } = data as { url: string };
+    return PARCEIROS.has(new URL(url, self.location.origin).origin) ? url : "/";
+  },
+});
+```
+
 !!! note "Quantos botões aparecem"
     O navegador mostra até `Notification.maxActions` botões (2 no Chrome desktop) e
     ignora o resto. Safari e Firefox não desenham botão nenhum — o clique no corpo

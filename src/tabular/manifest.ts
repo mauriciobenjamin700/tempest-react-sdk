@@ -230,10 +230,20 @@ export async function fetchEdgeManifest(
  * console.log(pkg.explain(probabilities[0]!)); // [{ name: "approved", score: 0.91 }, ...]
  * ```
  *
+ * The model bytes are checked against the `sha256` the manifest lists for
+ * them before any runtime sees them. The cache is keyed by URL and read
+ * cache-first, so a model republished in place under the same file name kept
+ * answering from the old bytes next to the new manifest — new column order,
+ * old weights, no error. A mismatch now refetches once from the network, and a
+ * second mismatch throws. Two cases are not checked: `cache: false`, where the
+ * runtime fetches the URL itself and the bytes never pass through here, and a
+ * non-secure context, which has no `crypto.subtle` (nor Cache Storage).
+ *
  * @param directoryUrl URL of the package directory.
  * @param options Predictor options plus caching.
  * @returns The loaded package.
- * @throws {@link ModelFetchError} when the manifest or model cannot be read.
+ * @throws {@link ModelFetchError} when the manifest or model cannot be read, or
+ *   when the model does not match the manifest's `sha256` even after a refetch.
  */
 export async function loadEdgePackage(
     directoryUrl: string,
@@ -242,14 +252,14 @@ export async function loadEdgePackage(
     const manifest = await fetchEdgeManifest(directoryUrl);
     const base = directoryUrl.endsWith("/") ? directoryUrl : `${directoryUrl}/`;
     const runtime = chooseRuntime(manifest, options.runtime ?? "auto");
-    const file = fileFor(manifest, runtime);
+    const { file, sha256 } = fileFor(manifest, runtime);
     const modelUrl = `${base}${file}`;
 
     const cache = options.cache ?? true;
     const source =
         cache === false
             ? modelUrl
-            : await fetchModelBytes(modelUrl, typeof cache === "object" ? cache : {});
+            : await verifiedModelBytes(modelUrl, sha256, typeof cache === "object" ? cache : {});
 
     const predictor: PredictorLike =
         runtime === "compact"
@@ -303,15 +313,67 @@ function chooseRuntime(manifest: EdgeManifest, requested: TabularRuntime | "auto
 }
 
 /**
- * Find the file a runtime reads.
+ * Find the file a runtime reads, with the digest the manifest records for it.
  *
  * @param manifest The package manifest.
  * @param runtime The chosen runtime.
- * @returns The filename inside the package directory.
+ * @returns The filename inside the package directory and its `sha256`.
  */
-function fileFor(manifest: EdgeManifest, runtime: TabularRuntime): string {
+function fileFor(
+    manifest: EdgeManifest,
+    runtime: TabularRuntime,
+): { file: string; sha256: string } {
     const entry = (manifest.runtimes ?? []).find((item) => item.kind === runtime);
-    return entry?.file ?? manifest.model.file;
+    return entry ?? manifest.model;
+}
+
+/**
+ * Whether `bytes` hash to `expected`.
+ *
+ * Answers `true` when nothing can be compared — no digest in the manifest, or
+ * no `crypto.subtle` outside a secure context — because refusing to load there
+ * would take inference away from an app over a check it never had.
+ *
+ * @param bytes The model bytes.
+ * @param expected Hex SHA-256 from the manifest.
+ * @returns `false` only on a real mismatch.
+ */
+async function digestMatches(bytes: Uint8Array, expected: string): Promise<boolean> {
+    const subtle = globalThis.crypto?.subtle;
+    if (!subtle || !expected) return true;
+    const digest = new Uint8Array(await subtle.digest("SHA-256", bytes as Uint8Array<ArrayBuffer>));
+    const hex = Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return hex === expected.toLowerCase();
+}
+
+/**
+ * Read the model bytes and prove they are the ones the manifest describes.
+ *
+ * A cached copy that does not match is refetched from the network once (the
+ * refetch also replaces the cache entry); only a second mismatch throws.
+ *
+ * @param url The model URL.
+ * @param expected Hex SHA-256 from the manifest.
+ * @param options Cache options as the caller gave them.
+ * @returns The verified bytes.
+ * @throws {@link ModelFetchError} when the bytes cannot be read or never match.
+ */
+async function verifiedModelBytes(
+    url: string,
+    expected: string,
+    options: ModelCacheOptions,
+): Promise<Uint8Array> {
+    const bytes = await fetchModelBytes(url, options);
+    if (await digestMatches(bytes, expected)) return bytes;
+    if (options.revalidate !== true) {
+        const fresh = await fetchModelBytes(url, { ...options, revalidate: true });
+        if (await digestMatches(fresh, expected)) return fresh;
+    }
+    throw new ModelFetchError(
+        `The model at ${url} does not match the sha256 in its manifest. The file and ` +
+            "the manifest were published separately, or the download was altered — " +
+            "republish the package so both describe the same model.",
+    );
 }
 
 /**

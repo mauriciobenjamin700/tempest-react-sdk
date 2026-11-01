@@ -466,6 +466,20 @@ O token de redefinição fica fora dos campos: ele vem da URL, e o app o junta n
 `onSubmit`, onde também decide como fica um token expirado. `hints` vira uma lista
 acima do botão — o texto é seu, porque só o backend sabe as regras dele.
 
+## Destinos dos links
+
+Os `links` dos presets (`forgotPassword`, `signUp`, `signIn`) e o `back` do `AuthPage` vão para o `Link` do react-router, que escreve a string no `href`. Os dois passam antes pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa):
+
+| O que chegou | O que aparece |
+| --- | --- |
+| `"/cadastro"`, `"https://conta.exemplo.com"` | o link, como hoje |
+| `"javascript:..."` num link do formulário | nada — como se a rota não tivesse sido passada |
+| `"javascript:..."` no `back` com `onClick` | o botão, só com o `onClick` |
+| `"javascript:..."` no `back` sem `onClick` | nada — botão de voltar que não faz nada é pior que nenhum |
+
+!!! info "Por que a lib filtra em vez de pedir cuidado"
+    Medido: no React 19 um `href` `javascript:` é trocado por um stub que lança; no React 18 — dentro do peer range — ele vai para o DOM como veio. Só é explorável se o app repassar dado não confiável (config de tenant, query string) para essas props, mas a resposta certa é sempre a mesma, então mora no componente.
+
 ## Migrando uma tela feita à mão
 
 O padrão que estes componentes substituem, como ele aparece nos apps:

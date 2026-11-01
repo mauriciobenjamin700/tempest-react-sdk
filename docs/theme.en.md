@@ -112,6 +112,9 @@ export function Head() {
 !!! warning "The script must be synchronous and run early"
     Do not use `defer`, `async`, or move the script to the end of `<body>` — it has to run before the first paint, otherwise the flash returns. `getInitialTheme()` exposes the same resolution logic for when you want the computed theme in JS without injecting the script.
 
+!!! check "Safe to inline with any option"
+    `storageKey` and `defaultTheme` are escaped into the script: `<`, `>`, `&`, U+2028 and U+2029 become `\uXXXX`. With plain `JSON.stringify`, a `storageKey` containing `</script>` closed the element in the HTML parser and the rest became another script — the test proves it by parsing the resulting HTML.
+
 ## Customizing tokens
 
 The `--tempest-*` tokens are the only theming API. Override them anywhere in the cascade — one for the light theme, another inside the dark-theme selector:

@@ -93,6 +93,9 @@ export function Ctas() {
 !!! info "Link desabilitado"
     `<a>` não tem `disabled`. Com `disabled` ou `loading`, o link recebe `aria-disabled="true"`, `role="link"` e `tabIndex={-1}`, perde o `href` e tem o clique e o clique do meio cancelados — não navega e é anunciado como indisponível.
 
+!!! check "O esquema da URL é conferido"
+    O `href` passa pela mesma lista do [`safeLinkUrl`](../utilities.md#url-que-veio-de-outra-pessoa-safelinkurl-safeimageurl-safeattachmenturl): `http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa. Qualquer outro esquema — `javascript:`, `data:`, e as variações com maiúscula ou tab no meio — vira o mesmo link inerte e `aria-disabled` do caso desabilitado. O React 19 bloqueia `javascript:` sozinho, mas o React 18, dentro do peer range, escreve o `href` como veio, e um CTA montado com dado de API viraria script clicável. Link para esquema próprio (`whatsapp:`, deep link de app) vai pelo [`ButtonSlot`](#buttonslot) com o seu `<a>`.
+
 !!! note "Por que `InstallButton` não aceita `href`"
     O clique dele abre o prompt de instalação ou mostra a instrução — é ação, não navegação. Ele herda as props do modo `<button>`.
 

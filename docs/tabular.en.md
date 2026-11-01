@@ -358,6 +358,9 @@ console.log(pkg.explain(probabilities[0]!));
     ONNX plus a stamp naming the file that produced it — enough to trace a
     model running in a tab back to the pipeline, six months later.
 
+!!! check "The model is checked against the manifest's `sha256`"
+    The cache is keyed by URL and read cache-first, so a model republished under the same file name kept answering from the old bytes next to the new manifest — new column order, old weights, no error. `loadEdgePackage` now hashes the bytes before handing them to the runtime; on a mismatch it refetches from the network once (which also replaces the cache entry), and a second mismatch throws `ModelFetchError`. Two cases are not checked: `cache: false`, where the runtime fetches the URL itself and the bytes never pass through here, and a non-secure context, which has no `crypto.subtle` (nor Cache Storage).
+
 ### Check the version without downloading the model
 
 ```tsx
@@ -495,6 +498,9 @@ configureOrtAssets("/ort/");
     A `FeatureShapeError` naming the expectation (`the model expects 4
     features per row, got 2`) instead of an opaque WebAssembly error. Ragged
     batches too — the error says **which row**.
+
+!!! check "A malformed tree fails at load"
+    Each tree walk follows `node_left`/`node_right` until it meets a leaf, with no step limit — a limit there would be paid on every node of every row. `CompactPredictor.create` proves once, at load, that every child comes after its parent and inside its own tree (scikit-learn numbers a node before its children; measured on every tree in the fixtures, 0 violations in 1 761 nodes). A tampered file that would spin the tab forever or answer `NaN` throws `CompactFormatError` from `create`.
 
 ## Errors
 

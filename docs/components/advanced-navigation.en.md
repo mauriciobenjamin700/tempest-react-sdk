@@ -46,6 +46,9 @@ import { NavigationMenu } from "tempest-react-sdk";
 !!! note "Closing"
     Closes on outside click, Escape, or selecting a leaf entry.
 
+!!! check "Only a safe scheme becomes a link"
+    Each entry's `href` goes through `safeLinkUrl`'s list (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs). With any other scheme the entry becomes a `<button>` and still calls `onSelect`.
+
 ## `Menubar`
 
 <!-- gallery:overlays -->

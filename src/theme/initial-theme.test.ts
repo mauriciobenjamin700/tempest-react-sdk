@@ -41,6 +41,27 @@ describe("themeInitScript", () => {
         expect(script).toContain("data-tempest-theme");
         expect(script).toContain("tempest-theme");
     });
+
+    it("keeps an option containing </script> inside its own script element", () => {
+        const storageKey = "</script><script>window.__pwned=1</script>";
+        const html = `<head><script>${themeInitScript({ storageKey })}</script></head>`;
+        const parsed = new DOMParser().parseFromString(html, "text/html");
+        expect(parsed.querySelectorAll("script")).toHaveLength(1);
+    });
+
+    it("escapes <, >, & and the line separators, and still reads the same key back", () => {
+        const storageKey = "a</b>&c\u2028d\u2029e";
+        const script = themeInitScript({ storageKey });
+        expect(script).not.toMatch(/[<>&\u2028\u2029]/);
+        localStorage.setItem(storageKey, "dark");
+        try {
+            new Function(script)();
+            expect(document.documentElement.getAttribute("data-tempest-theme")).toBe("dark");
+        } finally {
+            localStorage.removeItem(storageKey);
+            document.documentElement.removeAttribute("data-tempest-theme");
+        }
+    });
 });
 
 describe("getInitialTheme — fallbacks", () => {

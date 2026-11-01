@@ -478,7 +478,13 @@ export function createPeerMesh(options: PeerMeshOptions): PeerMesh {
     };
 
     const acceptOffer = async (from: string, sdp: string): Promise<void> => {
-        if (!links.has(from)) await addPeer(from, { offerer: false });
+        if (!links.has(from)) {
+            if (options.acceptPeer && !options.acceptPeer(from)) {
+                options.onNotice?.("offer_refused");
+                return;
+            }
+            await addPeer(from, { offerer: false });
+        }
         const link = links.get(from);
         if (!link || !isLive(link)) return;
 

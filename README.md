@@ -1995,15 +1995,14 @@ Every gallery section maps 1-to-1 with a docs page — see [`docs/gallery.md`](.
 
 ## Release
 
-Versioning is managed with [Changesets](https://github.com/changesets/changesets):
+Two commands, with the release PR's review in between:
 
 ```bash
-npx changeset          # describe the change (patch / minor / major)
-npx changeset version  # bump versions + update CHANGELOG.md
-npm run release        # build + changeset publish
+make release TAG=X.Y.Z       # opens the release PR (no tag, no publish)
+make release-tag TAG=X.Y.Z   # after the merge: tags the merge commit and pushes it
 ```
 
-CI workflow `.github/workflows/release.yml` publishes to npm whenever a "Version Packages" PR merges into `main`. The first publish is manual — set the `NPM_TOKEN` secret in _Settings → Secrets and variables → Actions_ and run `npm publish` once.
+The tag push runs `.github/workflows/release-npm.yml`, which publishes through npm Trusted Publishing (OIDC, with provenance) — no npm token anywhere, and no local publish (`make publish` refuses). Pipeline and the repository owner's settings checklist: [Release pipeline](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/release/).
 
 Tags follow `vMAJOR.MINOR.PATCH`. CSS tokens (`--tempest-*`) are treated as public API — renames bump the minor (or major, on removal).
 

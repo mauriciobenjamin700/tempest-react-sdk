@@ -144,7 +144,7 @@ release-tag: _require-tag ## Depois do merge: tag no commit do merge + push (pub
 	  ./scripts/release-tag.sh "$(TAG)"
 
 # ---------------------------------------------------------------------------
-# Publish manual (fallback caso CI falhe) — exige token com bypass 2FA
+# Publish: só pelo release-npm.yml (#532). Não existe publish local.
 # ---------------------------------------------------------------------------
 
 .PHONY: publish publish-dry
@@ -152,9 +152,12 @@ release-tag: _require-tag ## Depois do merge: tag no commit do merge + push (pub
 publish-dry: ## Roda npm publish --dry-run (não publica)
 	npm publish --dry-run --access public
 
-publish: ## npm publish manual (requer NPM_TOKEN em ~/.npmrc ou npm login prévio)
-	@test -d dist || { echo "ERROR: dist/ não existe — rode 'make validate' antes"; exit 1; }
-	npm publish --access public
+publish: ## Recusa: publicar é só pelo workflow (make release + make release-tag)
+	@echo "ERROR: não há publish local. Publicar daqui pula o guard de tag, a conferência"
+	@echo "       com a main, os smokes do tarball, a provenance e o GitHub Release, e"
+	@echo "       exige um token npm de vida longa. Use: make release TAG=X.Y.Z, merge do"
+	@echo "       PR, make release-tag TAG=X.Y.Z. Veja docs/release.md."
+	@exit 1
 
 # ---------------------------------------------------------------------------
 # Guards (uso interno)

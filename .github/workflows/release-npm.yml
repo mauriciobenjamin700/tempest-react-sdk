@@ -59,6 +59,18 @@ jobs:
                   cache: npm
                   cache-dependency-path: package-lock.json
 
+            # The guard and its dist-tag script run from origin/main, not from
+            # the tagged commit (#527): a commit that rewrites the guard must not
+            # approve itself. This stops a mistake, not an actor who can push a
+            # tag — a tag push runs this very file from the tagged commit. Who
+            # may publish is decided by the npm-release environment's required
+            # reviewers and the npm Trusted Publisher bound to it.
+            - name: Take the release guard from origin/main
+              run: |
+                  mkdir -p "$RUNNER_TEMP/release-guard"
+                  git show refs/remotes/origin/main:scripts/check-release-ref.sh > "$RUNNER_TEMP/release-guard/check-release-ref.sh"
+                  git show refs/remotes/origin/main:scripts/release-dist-tag.sh > "$RUNNER_TEMP/release-guard/release-dist-tag.sh"
+
             # The guard picks the dist-tag against the registry's current
             # `latest`, so `latest` only ever moves forward (#472). Only an
             # explicit E404 counts as a package with no `latest`; an empty answer
@@ -68,7 +80,7 @@ jobs:
               id: registry
               run: |
                   PKG_NAME=$(node -p "require('./package.json').name")
-                  LATEST=$(scripts/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
+                  LATEST=$(bash "$RUNNER_TEMP"/release-guard/release-dist-tag.sh current-latest "$PKG_NAME" 2>"$RUNNER_TEMP/current-latest.err") || { cat "$RUNNER_TEMP/current-latest.err"; exit 1; }
                   cat "$RUNNER_TEMP/current-latest.err"
                   echo "current_latest=${LATEST}" >> "$GITHUB_OUTPUT"
                   echo "· ${PKG_NAME} latest on the registry: '${LATEST}'"
@@ -79,12 +91,14 @@ jobs:
             # That commit must already be on main (#472): the tag is cut after
             # the release PR is merged (`make release-tag`), so nothing
             # unreviewed publishes. The one exception is a backport below the
-            # registry's latest, from origin/release-<maj>.<min>.
+            # registry's latest, from origin/release-<maj>.<min>, and only for a
+            # line the owner opened in the RELEASE_BACKPORT_LINES variable (#527).
             - name: Check the ref is a release tag for this commit
               id: version
               env:
                   CURRENT_LATEST: ${{ steps.registry.outputs.current_latest }}
-              run: scripts/check-release-ref.sh
+                  BACKPORT_LINES: ${{ vars.RELEASE_BACKPORT_LINES }}
+              run: bash "$RUNNER_TEMP/release-guard/check-release-ref.sh"
 
             - name: Install dependencies
               run: npm ci
@@ -244,8 +258,26 @@ jobs:
             # published v0.74.0 through v0.76.0 (the floating `latest` tag resolved
             # to it, read off the run logs), and `latest` had moved 10 → 11 → 12 under
             # this job without anyone choosing it. Bump it on purpose.
-            - name: Install the pinned npm CLI
-              run: npm install -g npm@12.2.0
+            # The tarball is fetched by URL and checked against the integrity
+            # pinned here before anything installs it (#532), then installed
+            # --offline: npm bundles its dependencies, so nothing else is fetched.
+            # Bumping means changing the version and the integrity together,
+            # with the integrity read from `npm view npm@<version> dist.integrity`.
+            - name: Install the pinned npm CLI, checked against its integrity
+              env:
+                  NPM_CLI_VERSION: "12.2.0"
+                  NPM_CLI_INTEGRITY: "sha512-ZsJjKpTnlmSXOLLXiU1xDCzC4Wlok4IwZmh/aw2KUuXytU7q6qMv/cUT7MoeSf95Slwuw/lRXYefGzGCspHPNQ=="
+              run: |
+                  mkdir -p "$RUNNER_TEMP/npm-cli"
+                  curl --fail --silent --show-error --location --retry 3 --output "$RUNNER_TEMP/npm-cli/npm.tgz" "https://registry.npmjs.org/npm/-/npm-${NPM_CLI_VERSION}.tgz"
+                  ACTUAL="sha512-$(openssl dgst -sha512 -binary "$RUNNER_TEMP/npm-cli/npm.tgz" | base64 -w0)"
+                  if [ "$ACTUAL" != "$NPM_CLI_INTEGRITY" ]; then
+                    echo "::error::npm-${NPM_CLI_VERSION}.tgz is ${ACTUAL}, not the pinned ${NPM_CLI_INTEGRITY}"
+                    exit 1
+                  fi
+                  npm install -g --offline "$RUNNER_TEMP/npm-cli/npm.tgz"
+                  hash -r
+                  test "$(npm --version)" = "$NPM_CLI_VERSION"
 
             # Downloaded outside the workspace, so the artifact cannot land on
             # top of the checkout whatever it contains.

@@ -17,6 +17,7 @@ import type {
     Ref,
     RefAttributes,
 } from "react";
+import { vettedHref } from "@/utils/safe-url";
 import { buttonClassName, preventActivation } from "./button-class";
 import { ButtonContent } from "./ButtonContent";
 import { resolveLinkRel } from "./link-rel";
@@ -81,6 +82,13 @@ type ButtonRenderProps = ButtonBaseProps &
  * link gets `aria-disabled="true"`, `role="link"`, `tabIndex={-1}`, no `href`, and
  * its click and middle-click cancelled.
  *
+ * The `href` is vetted first, with `safeLinkUrl`'s allowlist: `http:`, `https:`, `mailto:`,
+ * `tel:`, `sms:` and relative URLs pass, anything else renders as the same inert,
+ * `aria-disabled` link. React 19 blocks a `javascript:` href but the peer range
+ * admits React 18, which writes it verbatim (#447), and a CTA built from API data
+ * should not need the app to remember that. A link to a custom scheme (`whatsapp:`,
+ * an app deep link) goes through {@link ButtonSlot} with the app's own `<a>`.
+ *
  * To style another element — a react-router `Link` — use {@link ButtonSlot}. It is
  * a separate component, not an `asChild` prop, so an app that never uses it does
  * not ship the prop merge and ref composition it needs.
@@ -118,7 +126,8 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
         rel,
         ...rest
     } = props as ButtonRenderProps;
-    const inactive = disabled || loading;
+    const safeHref = vettedHref(href);
+    const inactive = disabled || loading || (href !== undefined && safeHref === undefined);
     const classes = buttonClassName(
         { variant, size, loading, fullWidth, iconOnly, pill },
         className,
@@ -135,7 +144,7 @@ export const Button = forwardRef<HTMLElement, ButtonProps>(function Button(
                 {...rest}
                 ref={ref as Ref<HTMLAnchorElement>}
                 className={classes}
-                href={inactive ? undefined : href}
+                href={inactive ? undefined : safeHref}
                 target={target}
                 rel={resolveLinkRel(target, rel)}
                 role={inactive ? "link" : rest.role}

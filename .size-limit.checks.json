@@ -27,7 +27,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button }"
     },
-    "limit": "1.3 KB",
+    "limit": "1.4 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "12.2 kB",
+    "limit": "12.35 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -388,7 +388,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createPeerMesh, scaleForRoom, resolveDegradation }"
     },
-    "limit": "3.4 KB",
+    "limit": "3.45 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -407,7 +407,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "149.9 KB",
+    "limit": "150.2 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -426,7 +426,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "178.9 KB",
+    "limit": "179.4 KB",
     "ignore": [
       "react",
       "react-dom",

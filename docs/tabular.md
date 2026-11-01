@@ -353,6 +353,9 @@ console.log(pkg.explain(probabilities[0]!));
     arquivo o produziu — o suficiente para rastrear um modelo rodando numa
     aba de volta até a esteira, seis meses depois.
 
+!!! check "O modelo é conferido contra o `sha256` do manifesto"
+    O cache é por URL e cache-first, então um modelo republicado no mesmo nome de arquivo continuava respondendo com os bytes antigos ao lado do manifesto novo — ordem de colunas nova, pesos velhos, nenhum erro. O `loadEdgePackage` agora calcula o SHA-256 dos bytes antes de entregá-los ao runtime; se não bate, busca de novo na rede uma vez (o que também troca a entrada do cache), e se ainda não bate lança `ModelFetchError`. Dois casos não são conferidos: `cache: false`, em que o runtime busca a URL sozinho e os bytes não passam por aqui, e contexto não seguro, que não tem `crypto.subtle` (nem Cache Storage).
+
 ### Checar versão sem baixar o modelo
 
 ```tsx
@@ -486,6 +489,9 @@ configureOrtAssets("/ort/");
     `FeatureShapeError` nomeando a expectativa (`o modelo espera 4 features
     por linha, recebeu 2`), em vez de um erro opaco vindo do WebAssembly.
     Lote irregular também: o erro diz **qual linha**.
+
+!!! check "Árvore malformada falha no carregamento"
+    O percurso de cada árvore segue `node_left`/`node_right` até uma folha, sem limite de passos — limite ali seria pago em todo nó de toda linha. O `CompactPredictor.create` prova uma vez, ao carregar, que todo filho fica depois do pai e dentro da própria árvore (o scikit-learn numera o nó antes dos filhos; medido em todas as árvores dos fixtures, 0 violações em 1 761 nós). Arquivo adulterado que faria a aba girar para sempre ou responder `NaN` lança `CompactFormatError` no `create`.
 
 ## Erros
 

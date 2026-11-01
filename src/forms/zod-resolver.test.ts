@@ -31,3 +31,36 @@ describe("zodResolver", () => {
         expect(result.errors.name).toBeDefined();
     });
 });
+
+describe("zodResolver — fields named like Object.prototype members", () => {
+    const inherited = z
+        .object({ constructor: z.string().min(1, "constructor obrigatório") })
+        .superRefine((_, context) => {
+            context.addIssue({
+                code: "custom",
+                path: ["__proto__"],
+                message: "__proto__ inválido",
+            });
+        });
+
+    it.each(["firstError", "all"] as const)(
+        "reports each field's own message in %s mode",
+        async (mode) => {
+            const result = await zodResolver(inherited)(
+                { constructor: "" } as never,
+                undefined,
+                resolverOptions(mode),
+            );
+            const errors = result.errors as Record<string, unknown>;
+            expect(Object.getPrototypeOf(errors)).toBe(Object.prototype);
+            expect(Object.getOwnPropertyDescriptor(errors, "constructor")?.value).toEqual({
+                type: "too_small",
+                message: "constructor obrigatório",
+            });
+            expect(Object.getOwnPropertyDescriptor(errors, "__proto__")?.value).toEqual({
+                type: "custom",
+                message: "__proto__ inválido",
+            });
+        },
+    );
+});

@@ -26,6 +26,10 @@ export interface SidebarItem {
      * A `disabled` entry ignores this and stays a `<button disabled>`: there is no
      * disabled state for an anchor, and dropping the `href` to fake one leaves a
      * link that announces itself as actionable and is not.
+     *
+     * The URL goes through `safeLinkUrl`: a scheme outside
+     * `http:`/`https:`/`mailto:`/`tel:`/`sms:` makes the entry a button, the same
+     * as an entry without `href`.
      */
     href?: string;
 }

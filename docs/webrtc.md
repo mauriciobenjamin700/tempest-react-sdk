@@ -358,6 +358,25 @@ mesh.stop(); // desligou
 
 As tracks em si **não** são paradas: são suas, e podem estar num preview ou ser reaproveitadas na próxima chamada. Para entrar de novo, crie outra mesh.
 
+### Quem pode receber o seu microfone: `acceptPeer`
+
+O lado que responde normalmente conhece o par pela oferta, então a mesh responde qualquer oferta que chega no `accept` — abre a conexão e publica as faixas locais. Isso faz o microfone e a câmera dependerem só do servidor de sinalização entregar oferta para as pessoas certas. Com `acceptPeer`, a decisão passa a ser do app também:
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+const sala = new Set(["ana", "bruno"]);
+
+export const mesh = createPeerMesh({
+  slots: [{ name: "mic", kind: "audio" }],
+  send: (message) => console.log(message),
+  acceptPeer: (peerId) => sala.has(peerId),
+  onNotice: (reason) => console.warn(reason),
+});
+```
+
+Oferta recusada não abre conexão, não responde nada e chega como `onNotice("offer_refused")`. Par adicionado com `addPeer` não é consultado — adicionar já foi a decisão. Sem `acceptPeer`, o comportamento é o de antes.
+
 ### Medindo a sala: `stats`
 
 A mesh sabe quantos links existem e quando um vai embora, então ela é o lugar certo para amostrar. `stats` liga um único timer que ela mesma gerencia:

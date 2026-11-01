@@ -32,3 +32,30 @@ describe("validateForm", () => {
         expect(Object.keys(result.errors)).toEqual(["name"]);
     });
 });
+
+describe("validateForm — fields named like Object.prototype members", () => {
+    const inherited = z
+        .object({
+            constructor: z.string().min(1, "constructor obrigatório"),
+            toString: z.string().min(1, "toString obrigatório"),
+        })
+        .superRefine((_, context) => {
+            context.addIssue({
+                code: "custom",
+                path: ["__proto__"],
+                message: "__proto__ inválido",
+            });
+        });
+
+    it("keeps the message of every field and leaves the map's prototype alone", () => {
+        const result = validateForm(inherited, { constructor: "", toString: "" });
+        expect(result.success).toBe(false);
+        expect(Object.getPrototypeOf(result.errors)).toBe(Object.prototype);
+        expect(Object.keys(result.errors).sort()).toEqual(["__proto__", "constructor", "toString"]);
+        expect(result.errors.constructor).toBe("constructor obrigatório");
+        expect(result.errors.toString).toBe("toString obrigatório");
+        expect(Object.getOwnPropertyDescriptor(result.errors, "__proto__")?.value).toBe(
+            "__proto__ inválido",
+        );
+    });
+});

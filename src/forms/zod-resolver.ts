@@ -26,6 +26,12 @@ interface ResolverError {
  * `ResolverOptions` is accepted and ignored, because react-hook-form always
  * passes the whole object.
  *
+ * Errors are written as **own** properties and checked with `hasOwnProperty`.
+ * A plain `errors[path]` read saw `Object.prototype.constructor` for a field
+ * named `constructor`, so `firstError` mode kept the inherited function instead
+ * of the message, and an issue a `superRefine` files under `__proto__` replaced
+ * the map's prototype instead of adding the field.
+ *
  * @example
  * const form = useForm<LoginForm>({ resolver: zodResolver(loginSchema) });
  */
@@ -49,8 +55,18 @@ export function zodResolver<TSchema extends z.ZodTypeAny>(
 
         for (const issue of result.error.issues) {
             const path = issue.path.length === 0 ? "_root" : issue.path.join(".");
-            if (criteriaMode === "firstError" && errors[path]) continue;
-            errors[path] = { type: issue.code, message: issue.message };
+            if (
+                criteriaMode === "firstError" &&
+                Object.prototype.hasOwnProperty.call(errors, path)
+            ) {
+                continue;
+            }
+            Object.defineProperty(errors, path, {
+                value: { type: issue.code, message: issue.message },
+                enumerable: true,
+                writable: true,
+                configurable: true,
+            });
         }
 
         return { values: {}, errors: errors as FieldErrors<Values> };

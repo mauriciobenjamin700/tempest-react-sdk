@@ -358,6 +358,25 @@ mesh.stop(); // hung up
 
 The tracks themselves are **not** stopped: they are yours, and may be in a preview or reused on the next call. To join again, create a new mesh.
 
+### Who may receive your microphone: `acceptPeer`
+
+The answering side usually learns of a peer from its offer, so the mesh answers any offer that reaches `accept` — it opens the connection and publishes the local tracks. That makes the microphone and camera depend only on the signalling server delivering offers to the right people. With `acceptPeer`, the app gets a say too:
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+const room = new Set(["ana", "bruno"]);
+
+export const mesh = createPeerMesh({
+  slots: [{ name: "mic", kind: "audio" }],
+  send: (message) => console.log(message),
+  acceptPeer: (peerId) => room.has(peerId),
+  onNotice: (reason) => console.warn(reason),
+});
+```
+
+A refused offer opens no connection, answers nothing and arrives as `onNotice("offer_refused")`. A peer added with `addPeer` is not asked — adding it was the decision. Without `acceptPeer`, the behaviour is unchanged.
+
 ### Measuring the room: `stats`
 
 The mesh knows how many links there are and when one goes away, which makes it the right place to sample from. `stats` arms a single timer it owns:

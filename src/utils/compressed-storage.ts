@@ -50,20 +50,53 @@ export function compressToString<T>(value: T): string {
 }
 
 /**
+ * Largest decompressed size {@link decompressFromString} will allocate: 64 MiB.
+ *
+ * Deflate reaches ~1000:1 on repetitive input (measured with fflate: 20 MB of
+ * `"A"` gzips to 19 551 bytes, ratio 1023), so the ~5 MB a `localStorage` origin
+ * holds could ask for gigabytes on read. A legitimate value is far below this:
+ * it had to pass through `JSON.stringify` and `gzipSync` in the same tab first.
+ */
+const MAX_DECOMPRESSED_BYTES = 64 * 1024 * 1024;
+
+/**
  * Decode a string produced by {@link compressToString}.
  *
  * A string without the marker is parsed as plain JSON, so values written before
  * compression was enabled — or by a write that fell back after `gzipSync`
  * failed — still read back.
  *
+ * The output size is bounded before anything is inflated. fflate sizes its
+ * output buffer from the gzip trailer (`ISIZE`) and never grows it — measured: a
+ * 1 MB payload whose trailer claims 10 bytes inflates to exactly 10 — so
+ * refusing a trailer above {@link MAX_DECOMPRESSED_BYTES} bounds the allocation,
+ * whatever the trailer says about the real data. A corrupted or hostile value
+ * fails fast instead of taking the tab's memory.
+ *
  * @typeParam T - The expected value shape.
  * @param raw - The stored string.
  * @returns The decoded value.
- * @throws If the payload is neither valid compressed data nor valid JSON.
+ * @throws If the payload is neither valid compressed data nor valid JSON, or
+ *   declares a decompressed size above 64 MiB.
  */
 export function decompressFromString<T>(raw: string): T {
     if (!raw.startsWith(MARKER)) return JSON.parse(raw) as T;
-    const bytes = gunzipSync(base64ToBytes(raw.slice(MARKER.length)));
+    const compressed = base64ToBytes(raw.slice(MARKER.length));
+    if (compressed.byteLength >= 4) {
+        const trailer = new DataView(
+            compressed.buffer,
+            compressed.byteOffset,
+            compressed.byteLength,
+        );
+        const size = trailer.getUint32(compressed.byteLength - 4, true);
+        if (size > MAX_DECOMPRESSED_BYTES) {
+            throw new RangeError(
+                `Compressed value declares ${size} bytes once inflated, above the ` +
+                    `${MAX_DECOMPRESSED_BYTES}-byte limit.`,
+            );
+        }
+    }
+    const bytes = gunzipSync(compressed);
     return JSON.parse(new TextDecoder().decode(bytes)) as T;
 }
 

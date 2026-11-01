@@ -112,6 +112,9 @@ export function Head() {
 !!! warning "O script precisa ser síncrono e vir cedo"
     Não use `defer`, `async` nem mova o script para o fim do `<body>` — ele tem que rodar antes da primeira pintura, senão o flash volta. `getInitialTheme()` expõe a mesma lógica de resolução para quando você quiser o tema calculado em JS sem injetar o script.
 
+!!! check "Seguro para inline com qualquer opção"
+    `storageKey` e `defaultTheme` entram no script escapados: `<`, `>`, `&`, U+2028 e U+2029 viram `\uXXXX`. Com `JSON.stringify` puro, uma `storageKey` contendo `</script>` fechava o elemento no parser de HTML e o resto virava outro script — o teste prova isso parseando o HTML resultante.
+
 ## Customizando tokens
 
 Os tokens `--tempest-*` são a única API de tema. Sobrescreva-os em qualquer ponto da cascata — um para o tema claro, outro dentro do seletor de tema escuro:

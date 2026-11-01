@@ -148,7 +148,17 @@ const SEGMENTO_LABELS: Record<number, string> = {
 /** Segmento whose company identifier is a CNPJ prefix instead of a FEBRABAN code. */
 const SEGMENTO_CNPJ = 6;
 
-/** Digits of a value that may carry the usual dots, spaces and dashes. */
+/**
+ * Digits of a value that may carry the usual dots, spaces and dashes.
+ *
+ * Every non-digit is dropped, not only `.`, ` ` and `-`, on purpose (#534):
+ * a line copied from a PDF arrives with non-breaking spaces, line breaks, tabs
+ * or a leading "Linha digitável:", and all four parse today — an allowlist of
+ * the three usual separators would reject each of them. Surrounding text that
+ * carries digits (a value, a due date) changes the length and fails, and a line
+ * assembled from scattered digits still has to pass every field DV and the
+ * general DV, so the lenient read cannot produce a boleto the text did not hold.
+ */
 function digits(value: string): string {
     return value.replace(/\D/g, "");
 }

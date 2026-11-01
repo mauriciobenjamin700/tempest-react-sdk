@@ -276,8 +276,10 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     app.
   - **Tamanho** (`npm run build && npx size-limit --json`, `b054c16` → esta mudança, B brotli):
     fatia http client 4778 → 4896 (+118), resumable upload 4458 → 4607 (+149), app típico
-    12 158 → 12 308 (+150), barrel ESM 149 789 → 149 958 (+169), CJS 178 824 → 179 202 (+378).
-    Tetos sobem para 4,91 / 4,65 / 12,35 / 150,1 / 179,3 kB.
+    12 158 → 12 308 (+150) na mesma base; remedido sobre a `main` já com #552: typical app
+    12 303 → 12 426 (+123), barrel ESM 151 071 → 151 314 (+243), CJS 180 205 → 180 801 (+596).
+    Tetos: http client 4,91 kB, resumable upload 4,65 kB, typical app 12,35 → 12,45 kB, barrel ESM
+    151,1 → 151,4 kB, CJS 180,3 → 180,9 kB.
 
 ### Adicionado
 

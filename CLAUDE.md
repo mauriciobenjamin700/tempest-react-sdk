@@ -139,8 +139,8 @@ mais voltam:
 
 ## Estado atual (snapshot pós-v0.80.0 — `[Unreleased]` abre o ciclo 0.81.0)
 
-- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 100 tags publicadas
-  (0.1.0 → 0.80.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
+- **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 101 tags publicadas
+  (0.1.0 → 0.81.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 41 módulos em `src/` (`ls -d src/*/`), 134 componentes
   (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths

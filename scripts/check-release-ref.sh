@@ -13,10 +13,21 @@
 #
 # A única exceção ao item 4 é o backport: um commit fora da `main` passa só se é
 # ancestral de `origin/release-<maj>.<min>` (a branch de manutenção da linha da
-# própria versão) **e** o dist-tag escolhido é esse mesmo `release-<maj>.<min>`.
-# Assim uma branch de manutenção nunca publica em `latest` nem em `next`: esses
-# dois saem só da `main`. Proteger `release-*` (PR obrigatório) é configuração do
-# repositório, como proteger a `main`.
+# própria versão), **se** o dist-tag escolhido é esse mesmo `release-<maj>.<min>`
+# **e se** a linha está em BACKPORT_LINES (#527). BACKPORT_LINES vem da variável
+# de repositório `RELEASE_BACKPORT_LINES` (lista separada por espaço ou vírgula,
+# por exemplo `release-0.75`), que só o dono do repositório edita: criar uma
+# branch `release-0.79` não abre a linha 0.79 sozinho. Vazia ou ausente, nenhum
+# backport passa. Assim uma branch de manutenção nunca publica em `latest` nem em
+# `next`: esses dois saem só da `main`. Proteger `release-*` (PR obrigatório) é
+# configuração do repositório, como proteger a `main`.
+#
+# O workflow roda a cópia deste script (e do `release-dist-tag.sh`) que está em
+# `origin/main`, não a do commit taggeado (#527): um commit que reescreve o guard
+# não aprova a si mesmo. Isso barra engano, não um ator que empurra tag — num
+# tag push o próprio `release-npm.yml` vem do commit da tag. Quem decide quem
+# publica é o environment `npm-release` (revisor obrigatório) e o Trusted
+# Publisher do npm amarrado a ele; `docs/release.md` lista a configuração.
 #
 # O item 4 precisa do histórico das branches: o checkout do job `build` usa
 # `fetch-depth: 0`, que traz `refs/remotes/origin/*`. Sem `origin/main` no
@@ -26,9 +37,9 @@
 # publicava aquela árvore e o `gh release create` criava a tag na HEAD da branch
 # padrão — outro commit. Com o guard, tag, npm e Release apontam para o mesmo SHA.
 #
-# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME, GITHUB_SHA e CURRENT_LATEST; escreve tag,
-# version, prerelease e dist_tag em GITHUB_OUTPUT. Roda na raiz do checkout, com
-# as tags buscadas.
+# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME, GITHUB_SHA, CURRENT_LATEST e
+# BACKPORT_LINES; escreve tag, version, prerelease e dist_tag em GITHUB_OUTPUT.
+# Roda na raiz do checkout, com as tags buscadas.
 #
 # O dist-tag é monotônico (#472) e a regra mora em `scripts/release-dist-tag.sh`
 # (`pick`), a mesma que o job publish reaplica logo antes do `npm publish`.
@@ -89,6 +100,17 @@ if git merge-base --is-ancestor "${GITHUB_SHA}" refs/remotes/origin/main; then
     REACHED_FROM=main
 else
     MAINTENANCE="release-$(echo "$PKG_VERSION" | cut -d. -f1,2)"
+    OPENED=false
+    OPENED_LINES="${BACKPORT_LINES:-}"
+    for LINE in ${OPENED_LINES//,/ }; do
+        if [ "$LINE" = "$MAINTENANCE" ]; then
+            OPENED=true
+        fi
+    done
+    if [ "$DIST_TAG" = "$MAINTENANCE" ] && [ "$OPENED" = false ]; then
+        echo "::error::${TAG} points at ${GITHUB_SHA}, which is not on main, and ${MAINTENANCE} is not an opened backport line. The repository owner opens one by adding '${MAINTENANCE}' to the RELEASE_BACKPORT_LINES repository variable (currently '${BACKPORT_LINES:-}')."
+        exit 1
+    fi
     if [ "$DIST_TAG" = "$MAINTENANCE" ] &&
         git rev-parse --verify --quiet "refs/remotes/origin/${MAINTENANCE}^{commit}" >/dev/null &&
         git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${MAINTENANCE}"; then

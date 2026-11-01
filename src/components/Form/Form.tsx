@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import type { CSSProperties, FormHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { resolveGap } from "../Layout/gap";
 import styles from "./Form.module.css";
 
 export type FormLayout = "stack" | "inline" | "grid";
@@ -11,13 +12,8 @@ interface LayoutProps {
     layout?: FormLayout;
     /** Number of columns when `layout="grid"`, or a custom `grid-template-columns` value. Default `2`. */
     columns?: number | string;
-    /** Gap between fields. Numbers map to a multiple of the 4px scale (default `4` → 16px). */
+    /** Gap between fields. Numbers map to a multiple of the 4px scale (default `4` → 16px). A number is a step, not pixels (`6` → 24px): above `12` a development build warns once, and a string such as `"96px"` passes through untouched. */
     gap?: number | string;
-}
-
-function resolveGap(gap: number | string | undefined, fallback: number): string {
-    if (gap === undefined) return `${fallback * 4}px`;
-    return typeof gap === "number" ? `${gap * 4}px` : gap;
 }
 
 function resolveColumns(columns: number | string | undefined): string {
@@ -46,7 +42,7 @@ export const Form = forwardRef<HTMLFormElement, FormProps>(function Form(
     ref,
 ) {
     const finalStyle: CSSProperties = {
-        gap: resolveGap(gap, 4),
+        gap: resolveGap("Form", gap ?? 4),
         ...(layout === "grid" ? { gridTemplateColumns: resolveColumns(columns) } : null),
         ...style,
     };
@@ -98,7 +94,7 @@ export function FormSection({
     ...props
 }: FormSectionProps) {
     const bodyStyle: CSSProperties = {
-        gap: resolveGap(gap, 4),
+        gap: resolveGap("FormSection", gap ?? 4),
         ...(layout === "grid" ? { gridTemplateColumns: resolveColumns(columns) } : null),
     };
     return (
@@ -117,7 +113,7 @@ export function FormSection({
 }
 
 export interface FormRowProps extends HTMLAttributes<HTMLDivElement> {
-    /** Gap between row items. Numbers map to a multiple of the 4px scale (default `3` → 12px). */
+    /** Gap between row items. Numbers map to a multiple of the 4px scale (default `3` → 12px). A number is a step, not pixels (`6` → 24px): above `12` a development build warns once, and a string such as `"96px"` passes through untouched. */
     gap?: number | string;
 }
 
@@ -136,7 +132,7 @@ export interface FormRowProps extends HTMLAttributes<HTMLDivElement> {
  * </Form>
  */
 export function FormRow({ gap, className, style, children, ...props }: FormRowProps) {
-    const finalStyle: CSSProperties = { gap: resolveGap(gap, 3), ...style };
+    const finalStyle: CSSProperties = { gap: resolveGap("FormRow", gap ?? 3), ...style };
     return (
         <div className={cn(styles.row, className)} style={finalStyle} {...props}>
             {children}
@@ -147,7 +143,7 @@ export function FormRow({ gap, className, style, children, ...props }: FormRowPr
 export interface FormActionsProps extends HTMLAttributes<HTMLDivElement> {
     /** Horizontal alignment of buttons. Default `end`. */
     align?: FormActionsAlign;
-    /** Gap between buttons. Numbers map to a multiple of the 4px scale (default `2` → 8px). */
+    /** Gap between buttons. Numbers map to a multiple of the 4px scale (default `2` → 8px). A number is a step, not pixels (`6` → 24px): above `12` a development build warns once, and a string such as `"96px"` passes through untouched. */
     gap?: number | string;
 }
 
@@ -168,7 +164,7 @@ export function FormActions({
     children,
     ...props
 }: FormActionsProps) {
-    const finalStyle: CSSProperties = { gap: resolveGap(gap, 2), ...style };
+    const finalStyle: CSSProperties = { gap: resolveGap("FormActions", gap ?? 2), ...style };
     return (
         <div className={cn(styles.actions, styles[align], className)} style={finalStyle} {...props}>
             {children}

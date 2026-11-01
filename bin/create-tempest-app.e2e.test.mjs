@@ -49,6 +49,37 @@ function scaffoldHere() {
     return { status: result.status, stdout: result.stdout + result.stderr };
 }
 
+describe("create-tempest-app new-folder mode refuses a destination that is a symlink (#533)", () => {
+    it("my-app -> ../outside is refused and nothing lands at the link target", () => {
+        symlinkSync("../outside", join(proj, "my-app"));
+
+        const result = spawnSync(process.execPath, [CLI, "my-app"], {
+            cwd: proj,
+            encoding: "utf8",
+            env: { ...process.env, NO_COLOR: "1" },
+        });
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toMatch(/"my-app" is a symbolic link/);
+        expect(readdirSync(outside)).toEqual([]);
+        expect(lstatSync(join(proj, "my-app")).isSymbolicLink()).toBe(true);
+    });
+
+    it("a plain new folder name is still scaffolded", () => {
+        const result = spawnSync(process.execPath, [CLI, "my-app"], {
+            cwd: proj,
+            encoding: "utf8",
+            env: { ...process.env, NO_COLOR: "1" },
+        });
+
+        expect(result.status).toBe(0);
+        expect(existsSync(join(proj, "my-app", "src", "main.tsx"))).toBe(true);
+        expect(JSON.parse(readFileSync(join(proj, "my-app", "package.json"), "utf8")).name).toBe(
+            "my-app",
+        );
+    });
+});
+
 describe("create-tempest-app merge mode never writes through a symlink (#436)", () => {
     it("a symlinked src/ pointing outside the project is skipped, not written into", () => {
         writeFileSync(join(outside, "main.tsx"), "OUTSIDE-USER-FILE");

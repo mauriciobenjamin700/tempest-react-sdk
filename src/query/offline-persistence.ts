@@ -6,6 +6,7 @@ import {
 } from "@tanstack/react-query";
 import { createOfflineStore } from "../offline/create-offline-store";
 import { isDevBuild } from "../utils/dev-mode";
+import { ownerFingerprint } from "../utils/owner-fingerprint";
 
 /**
  * Clears still running, per `databaseName` + `key` slot, across every handle.
@@ -31,6 +32,29 @@ export interface OfflineQueryPersistenceOptions {
      * one trailing write per window. Default `1000`.
      */
     throttleMs?: number;
+    /**
+     * Who is signed in right now — a stable, non-secret id such as the user id;
+     * `null`/`undefined` when nobody is. Read on every write, which stamps the
+     * snapshot with a one-way fingerprint of it (never the id itself), and on
+     * `restore()`, which hydrates only a snapshot stamped with the same
+     * fingerprint.
+     *
+     * `clear()` on logout already deletes the snapshot; this covers the session
+     * that ends without it — a token that expired, a crash, a tab closed while
+     * signed in. Without it, the next account to boot on the browser is shown
+     * the previous account's cached responses (#531). A snapshot written before
+     * this option was set carries no stamp and is not restored either; it is a
+     * cache, so the cost is one cold start.
+     *
+     * A foreign snapshot is skipped, not deleted: a cookie app that only learns
+     * the principal after a `/me` round trip would otherwise wipe its own cache
+     * on every cold start. The next write replaces it.
+     *
+     * Read synchronously. A non-string, non-number value (the `Promise` of an
+     * `async` getter) or a getter that throws reads as nobody. Omit it to restore
+     * every snapshot, as before 0.82.0.
+     */
+    getPrincipal?: () => string | number | null | undefined;
 }
 
 /** Options for {@link OfflineQueryPersistence.clear}. */
@@ -50,7 +74,8 @@ export interface OfflineQueryPersistence {
     /**
      * Load the persisted snapshot into the `QueryClient`. Call once on boot,
      * before rendering queries, so cached data is available offline. A no-op
-     * once {@link OfflineQueryPersistence.clear} has been called.
+     * once {@link OfflineQueryPersistence.clear} has been called, and — with
+     * `getPrincipal` — for a snapshot written under another principal.
      */
     restore: () => Promise<void>;
     /**
@@ -100,6 +125,22 @@ export interface OfflineQueryPersistence {
 interface Snapshot {
     id: string;
     state: ReturnType<typeof dehydrate>;
+    /** Owner fingerprint when `getPrincipal` was set at write time; absent otherwise. */
+    owner?: string | null;
+}
+
+/**
+ * Fingerprint whoever `getPrincipal` says is signed in.
+ *
+ * @param getPrincipal - The app's principal getter.
+ * @returns The fingerprint, or `null` for nobody, a non-identity value or a throw.
+ */
+function currentOwner(getPrincipal: () => unknown): string | null {
+    try {
+        return ownerFingerprint("p", getPrincipal());
+    } catch {
+        return null;
+    }
 }
 
 /**
@@ -131,7 +172,7 @@ interface Snapshot {
 export function persistQueryClientOffline(
     options: OfflineQueryPersistenceOptions,
 ): OfflineQueryPersistence {
-    const { queryClient, throttleMs = 1000 } = options;
+    const { queryClient, throttleMs = 1000, getPrincipal } = options;
     const key = options.key ?? "tanstack-query";
     const databaseName = options.databaseName ?? "TempestQueryCache";
     const store = createOfflineStore<Snapshot, string>({
@@ -166,7 +207,9 @@ export function persistQueryClientOffline(
         if (ended) return;
         await afterPendingClear();
         if (ended) return;
-        const write = store.put({ id: key, state: dehydrate(queryClient) });
+        const snapshot: Snapshot = { id: key, state: dehydrate(queryClient) };
+        if (getPrincipal) snapshot.owner = currentOwner(getPrincipal);
+        const write = store.put(snapshot);
         inFlight.add(write);
         try {
             await write;
@@ -220,7 +263,9 @@ export function persistQueryClientOffline(
             await afterPendingClear();
             if (ended) return;
             const snapshot = await store.get(key);
-            if (snapshot && !ended) hydrate(queryClient, snapshot.state);
+            if (!snapshot || ended) return;
+            if (getPrincipal && snapshot.owner !== currentOwner(getPrincipal)) return;
+            hydrate(queryClient, snapshot.state);
         },
         async flush() {
             if (ended) {

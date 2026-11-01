@@ -325,6 +325,39 @@ export function Stacked() {
 
 A numeric `gap` maps to the 4px scale (`2 → 8px`, `4 → 16px`).
 
+!!! info "`gap={24}` is not 24px"
+    The number in `gap` counts **steps of the 4px scale**, not pixels — so `gap={24}`
+    becomes a **96px** hole. Anyone coming from CSS or from React's
+    `style={{ gap: 24 }}` writes pixels by reflex. For 24px, write the step
+    (`gap={6}`); for an exact value off the scale, pass a **string**, which goes into
+    the CSS untouched:
+
+    ```tsx
+    import { Card, Stack } from "tempest-react-sdk";
+
+    export function Spacings() {
+        return (
+            <>
+                <Stack
+                    gap={6} // 24px
+                >
+                    <Card>A scale step</Card>
+                </Stack>
+                <Stack gap="24px">
+                    <Card>Exact pixels, as a string</Card>
+                </Stack>
+            </>
+        );
+    }
+    ```
+
+    In a development build, `Stack`, `Grid`, `Form`, `FormSection`, `FormRow` and
+    `FormActions` warn in the console, **once per value**, when the number goes above
+    `12` (48px) — the top of the `tempest-gap-*` classes and the largest `gap` the SDK
+    itself uses. The message names the pixels you got and both ways out. A string
+    never warns: it is how you say "96px is on purpose" (`gap="96px"` or
+    `gap="var(--tempest-space-24)"`). Production stays silent.
+
 ## `Grid`
 
 CSS Grid wrapper.

@@ -54,6 +54,9 @@ import { Form, FormSection, FormRow, FormActions, Input, Select, Button } from "
 
 `gap` accepts a `number` (4px scale: `2` → `8px`, `4` → `16px`) or a `string`
 (any CSS length: `"1.5rem"`, `"20px"`).
+The number is a step, not pixels: `gap={24}` gives 96px, and in development a
+number above `12` warns once in the console — see
+[`gap={24}` is not 24px](components/layout.md#stack).
 
 ### Stacked
 

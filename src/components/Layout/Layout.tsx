@@ -1,6 +1,7 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import { useBreakpoint } from "@/hooks/use-breakpoint";
+import { resolveGap } from "./gap";
 import styles from "./Layout.module.css";
 
 export type ContainerSize = "sm" | "md" | "lg" | "xl" | "full";
@@ -64,7 +65,7 @@ export type StackDirection = "vertical" | "horizontal";
 export interface StackProps extends HTMLAttributes<HTMLDivElement> {
     /** Direction. Accepts responsive object — e.g. `{ mobile: "vertical", desktop: "horizontal" }`. */
     direction?: ResponsiveValue<StackDirection>;
-    /** Gap as a CSS length. Numbers map to a multiple of the 4px scale. Accepts responsive object. */
+    /** Gap as a CSS length. Numbers map to a multiple of the 4px scale. Accepts responsive object. A number is a step, not pixels (`6` → 24px): above `12` a development build warns once, and a string such as `"96px"` passes through untouched. */
     gap?: ResponsiveValue<number | string>;
     align?: StackAlign;
     justify?: StackJustify;
@@ -72,9 +73,11 @@ export interface StackProps extends HTMLAttributes<HTMLDivElement> {
     children?: ReactNode;
 }
 
-function resolveGap(gap: number | string | undefined): string | undefined {
-    if (gap === undefined) return undefined;
-    return typeof gap === "number" ? `${gap * 4}px` : gap;
+function resolveOptionalGap(
+    component: string,
+    gap: number | string | undefined,
+): string | undefined {
+    return gap === undefined ? undefined : resolveGap(component, gap);
 }
 
 function deviceFromBreakpoint(
@@ -101,7 +104,7 @@ export function Stack({
     const { isMobile, isTablet } = useBreakpoint();
     const device = deviceFromBreakpoint(isMobile, isTablet);
     const finalDirection: StackDirection = pickResponsive(direction, device) ?? "vertical";
-    const finalGap = resolveGap(pickResponsive(gap, device));
+    const finalGap = resolveOptionalGap("Stack", pickResponsive(gap, device));
     const finalStyle: CSSProperties = { gap: finalGap, ...style };
     const justifyClass =
         justify === "between"
@@ -134,7 +137,7 @@ export function Stack({
 export interface GridProps extends HTMLAttributes<HTMLDivElement> {
     /** Number of columns or a custom `grid-template-columns` value. Accepts responsive object. */
     columns?: ResponsiveValue<number | string>;
-    /** Gap as a CSS length. Numbers map to a multiple of the 4px scale. Accepts responsive object. */
+    /** Gap as a CSS length. Numbers map to a multiple of the 4px scale. Accepts responsive object. A number is a step, not pixels (`6` → 24px): above `12` a development build warns once, and a string such as `"96px"` passes through untouched. */
     gap?: ResponsiveValue<number | string>;
     children?: ReactNode;
 }
@@ -149,7 +152,7 @@ export function Grid({ columns = 2, gap = 4, className, style, children, ...prop
     const { isMobile, isTablet } = useBreakpoint();
     const device = deviceFromBreakpoint(isMobile, isTablet);
     const templateColumns = resolveColumns(pickResponsive(columns, device));
-    const finalGap = resolveGap(pickResponsive(gap, device));
+    const finalGap = resolveOptionalGap("Grid", pickResponsive(gap, device));
     return (
         <div
             className={cn(styles.grid, className)}

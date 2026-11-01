@@ -186,3 +186,103 @@ describe("tempest gen api / gen icons — write containment (#484)", () => {
         expect(filesUnder(outside)).toEqual([]);
     });
 });
+
+describe("tempest gen api — spec text never drives the terminal (#533)", () => {
+    const TERMINAL_CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/;
+    const SGR = /\u001b\[\d+(?:;\d+)*m/g;
+    let cwd;
+
+    beforeEach(() => {
+        cwd = mkdtempSync(join(tmpdir(), "tempest-gen-tty-"));
+        mkdirSync(join(cwd, "src"));
+    });
+
+    afterEach(() => {
+        rmSync(cwd, { recursive: true, force: true });
+    });
+
+    /**
+     * Write `doc` as the project's spec and run `tempest gen api` on it.
+     *
+     * @param {object} doc - The OpenAPI document.
+     * @returns {{ status: number | null, out: string }} Exit code and the
+     *   combined output with the CLI's own color codes removed.
+     */
+    function genApi(doc) {
+        writeFileSync(join(cwd, "spec.json"), JSON.stringify(doc));
+        const result = spawnSync(process.execPath, [CLI, "gen", "api", "spec.json"], {
+            cwd,
+            encoding: "utf8",
+        });
+        return { status: result.status, out: (result.stdout + result.stderr).replace(SGR, "") };
+    }
+
+    it("a tag carrying OSC, CSI and carriage-return sequences prints without them", () => {
+        const tag = "users\u001b]0;PWNED\u0007\u001b]8;;https://evil/\u001b\\x\u009b2J\r";
+        const { status, out } = genApi({
+            ...SPEC,
+            paths: {
+                "/users": { get: { tags: [tag], responses: { 200: { description: "ok" } } } },
+            },
+        });
+
+        expect(status).toBe(0);
+        expect(out).not.toMatch(TERMINAL_CONTROL);
+        expect(out).not.toContain("\u001b]");
+        expect(out).toContain("users]0;PWNED]8;;https://evil/\\x2J");
+    });
+
+    it("the usage hint names the folder and class that were generated", () => {
+        const { out } = genApi({
+            ...SPEC,
+            paths: {
+                "/users": {
+                    get: { tags: ["User Profiles"], responses: { 200: { description: "ok" } } },
+                },
+            },
+        });
+
+        expect(out).toContain('import { UserProfilesService } from "@/api/user-profiles";');
+    });
+
+    it("a refusal that quotes a C1 control from the spec prints without it", () => {
+        const { status, out } = genApi({
+            ...SPEC,
+            paths: { "https://x\u009b2J/": { get: { responses: { 200: { description: "ok" } } } } },
+        });
+
+        expect(status).toBe(1);
+        expect(out).toMatch(/does not start with "\/"/);
+        expect(out).not.toMatch(TERMINAL_CONTROL);
+    });
+
+    it("a nested-quantifier pattern is printed as a warning and the files are still written", () => {
+        const { status, out } = genApi({
+            ...SPEC,
+            components: {
+                schemas: {
+                    Q: { type: "object", properties: { s: { type: "string", pattern: "(a+)+" } } },
+                },
+            },
+            paths: {
+                "/users": {
+                    post: {
+                        tags: ["users"],
+                        requestBody: {
+                            content: {
+                                "application/json": { schema: { $ref: "#/components/schemas/Q" } },
+                            },
+                        },
+                        responses: { 200: { description: "ok" } },
+                    },
+                },
+            },
+        });
+
+        expect(status).toBe(0);
+        expect(out).toMatch(
+            /! OpenAPI schema "Q" at properties\.s: pattern "\(a\+\)\+" repeats a group/,
+        );
+        expect(existsSync(join(cwd, "src", "api", "users", "schemas.ts"))).toBe(true);
+    });
+});

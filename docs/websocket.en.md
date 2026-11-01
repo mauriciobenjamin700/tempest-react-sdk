@@ -141,6 +141,8 @@ try {
 
     Turn on `queueWhileClosed: true` when the action **must not** vanish: `send()` then buffers during the backoff and returns `true`, and the queue drains on the next open. The queue dies on `close()` — nothing survives an explicit shutdown.
 
+    A cookie-authenticated socket re-handshakes as whoever is signed in at reconnect time. If the app does not close the socket on logout, pass `getPrincipal: () => userId`: each buffered payload carries a fingerprint of whoever sent it, and the next `open` sends only the **same** owner's — the rest is dropped.
+
 !!! danger "Against a Tempest server, leave `pingInterval` off"
     `tempest-fastapi-sdk` **sends** the ping and wants the `pong` back. A client-originated `{"type":"ping"}` is an unknown frame to it — a strict handler rejects it. Keep `pingInterval: 0` (the default) and let `respondToPing` handle the heartbeat.
 

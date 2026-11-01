@@ -99,6 +99,7 @@ function ticketStreamUrl(source: TicketEventStreamSource): () => Promise<string>
  * @example
  * const stream = createTicketEventStream<Notification>({
  *     client: api,
+ *     sessionKey: () => useAuthStore.getState().user?.id ?? null,
  *     onMessage: ({ data }) => addNotification(data),
  *     onUrlError: (error) => toast.error(describeApiError(error)),
  * });
@@ -131,10 +132,17 @@ export function createTicketEventStream<T = unknown>(
  * Reopening on identity would reconnect on every render for a client built
  * inline.
  *
+ * Pass `sessionKey` (the signed-in user's id): the ticket names the channel of
+ * the user who asked for it, the server never ends an open stream on logout,
+ * and a tab that switches accounts without `enabled` going `false` would
+ * otherwise keep delivering the previous user's events. A change of key closes
+ * that stream and asks a ticket for the new session.
+ *
  * @example
  * const { status } = useTicketEventStream<Notification>({
  *     client: api,
  *     enabled: isAuthenticated,
+ *     sessionKey: user?.id ?? null,
  *     schema: notificationSchema,
  *     onMessage: ({ data }) => addNotification(data),
  * });

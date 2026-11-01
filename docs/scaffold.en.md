@@ -49,7 +49,7 @@ Open **<http://127.0.0.1:5173>** — the app is already live with providers, rou
     There is no `create-tempest-app` package on npm — the CLI is the `bin` of `tempest-react-sdk`, so `npm create tempest-app` fails with a 404. Use `npx -p tempest-react-sdk create-tempest-app .`; inside a project that already has the SDK installed, `-p` is unnecessary.
 
 !!! warning "In named mode the folder must be empty"
-    With `create-tempest-app my-app`, the target directory **must not exist** or must be **empty** — this keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section).
+    With `create-tempest-app my-app`, the target directory **must not exist** or must be **empty** — this keeps you from overwriting one of your projects by accident. If the folder already has files, the CLI suggests using `.` to **merge** into the current directory instead of aborting (see the next section). A `my-app` that is a **symbolic link** is refused as well, even when it points to an empty folder: the project would be created where the link points, not where you named it.
 
 ### The two modes, side by side
 

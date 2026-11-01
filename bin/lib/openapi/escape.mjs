@@ -16,7 +16,11 @@
  *   {@link assertNoCollision}, never silently merged;
  * - string position → `JSON.stringify` at the call site;
  * - doc comment → {@link commentText};
- * - URL template literal → {@link urlTemplate}.
+ * - URL template literal → {@link urlTemplate};
+ * - the developer's terminal → {@link terminalText}.
+ *
+ * One more check covers the text that becomes a URL rather than being escaped
+ * into one: {@link assertSafePath}.
  */
 
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/;
@@ -151,18 +155,78 @@ export function assertNoCollision(entries, what) {
 }
 
 /**
+ * C0 and C1 control characters except tab and line feed: everything a terminal
+ * may read as the start of an escape sequence (`ESC`, the 8-bit `CSI` and
+ * `OSC`), plus `CR` and backspace, which rewrite what is already on the line.
+ */
+const TERMINAL_CONTROLS = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
+
+/**
+ * Make spec text safe to print to the developer's terminal.
+ *
+ * `tempest gen api` echoes the spec's tag names, and its errors quote spec
+ * names. `JSON.stringify` escapes the C0 range but leaves the C1 range raw, so
+ * neither path was safe on its own: a tag carrying `ESC ] 0 ; ... BEL` retitled
+ * the terminal window, and an OSC 8 sequence printed a clickable link whose
+ * target the developer never saw (#533). Every control character a terminal
+ * acts on is dropped; tab and line feed are kept so a multi-line error still
+ * reads as one.
+ *
+ * @param {unknown} text - Text that may come from the spec.
+ * @returns {string} The text without terminal control characters.
+ */
+export function terminalText(text) {
+    return String(text).replace(TERMINAL_CONTROLS, "");
+}
+
+/**
  * Make spec text safe inside a `/** ... *\/` block comment.
  *
  * Line terminators collapse to a space, so the text cannot start a new line of
  * the comment, and every `*\/` is broken as `*\\/` so it cannot close it.
+ * Terminal control characters are dropped too ({@link terminalText}): they are
+ * not code, but printing the generated file with `cat` would replay them.
  *
  * @param {unknown} text - The spec text (tag, summary, path).
  * @returns {string} The neutralized single-line text.
  */
 export function commentText(text) {
-    return String(text)
-        .replace(/[\r\n\u2028\u2029]+/g, " ")
-        .replace(/\*\//g, "*\\/");
+    return terminalText(String(text).replace(/[\r\n\u2028\u2029]+/g, " ")).replace(/\*\//g, "*\\/");
+}
+
+/**
+ * Throw when an OpenAPI path key would not stay a path under the client's
+ * `baseURL`.
+ *
+ * The key becomes the URL the generated method requests, and the client passes
+ * an absolute URL through untouched: a key `"https://other.example/x"` made the
+ * method call another origin \u2014 the Bearer is withheld there, but the body and,
+ * with `credentials: "include"`, the cookies were not. A static `.` or `..`
+ * segment (`"/../x"`) climbs out of the `baseURL`'s path prefix once the URL is
+ * normalized. OpenAPI requires a path key to start with `/` and to be relative
+ * to the server URL, so neither is a valid spec; both are refused before any
+ * file is written instead of becoming a call the developer never reads. `\` is
+ * a separator and `%2e` a dot here because the WHATWG URL parser normalizes them
+ * that way.
+ *
+ * @param {unknown} path - The key from `paths`.
+ * @throws {Error} When the key does not start with `/` or has a dot segment.
+ */
+export function assertSafePath(path) {
+    if (typeof path !== "string" || !path.startsWith("/")) {
+        throw new Error(
+            `OpenAPI path ${JSON.stringify(path)} does not start with "/". A path key is relative to the server URL; an absolute URL here would send the request to another origin.`,
+        );
+    }
+    const dotSegment = path
+        .replace(/[?#][\s\S]*$/, "")
+        .split(/[/\\]/)
+        .some((segment) => /^(?:\.|%2e){1,2}$/i.test(segment));
+    if (dotSegment) {
+        throw new Error(
+            `OpenAPI path ${JSON.stringify(path)} has a "." or ".." segment, which leaves the baseURL's path once the URL is normalized. Rename the path in the spec.`,
+        );
+    }
 }
 
 /**

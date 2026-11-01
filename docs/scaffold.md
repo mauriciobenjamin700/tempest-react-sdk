@@ -49,7 +49,7 @@ Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas 
     Não existe pacote `create-tempest-app` publicado no npm — a CLI é o `bin` do `tempest-react-sdk`, então `npm create tempest-app` falha com 404. Use `npx -p tempest-react-sdk create-tempest-app .`; dentro de um projeto que já tem o SDK instalado, o `-p` é dispensável.
 
 !!! warning "No modo com nome, a pasta precisa estar vazia"
-    Em `create-tempest-app my-app`, o diretório alvo **não pode existir** ou precisa estar **vazio** — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+    Em `create-tempest-app my-app`, o diretório alvo **não pode existir** ou precisa estar **vazio** — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção). Um `my-app` que é **link simbólico** também é recusado, mesmo apontando para pasta vazia: o projeto seria criado onde o link aponta, não onde você o nomeou.
 
 ### Os dois modos, lado a lado
 

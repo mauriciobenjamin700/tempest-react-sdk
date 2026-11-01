@@ -250,6 +250,7 @@ As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flu
 - **Para persistir a próxima sessão, crie um handle novo no login**: o handle antigo não volta a gravar. Em build de dev, o primeiro `restore()`, `flush()` ou query nova num handle encerrado gera **um** `console.warn` avisando disso.
 - **Handles de sessões diferentes não se atropelam.** Enquanto um `clear()` está rodando, o `restore()` e as gravações de um handle novo com o mesmo `databaseName` + `key` esperam ele terminar — mesmo que o logout não tenha sido aguardado.
 - Se a remoção no IndexedDB falhar, `resetClient` limpa o `QueryClient` mesmo assim, e o erro chega a quem chamou.
+- **Sessão que acaba sem `clear()`** (token vencido, crash, aba fechada logada) não passa pelo logout. Para ela, passe `getPrincipal: () => userId`: cada gravação carimba o snapshot com a impressão de quem está logado, e o `restore()` só hidrata o snapshot do **mesmo** dono. O de outra pessoa é ignorado, não apagado — app com cookie que só descobre o usuário depois do `/me` não perde o próprio cache —, e a próxima gravação o substitui. Snapshot gravado antes da opção não tem carimbo e não é restaurado: custa um boot frio, uma vez.
 
 !!! warning "Mudou na 0.77.0: o handle morre no `clear()`"
     Antes, o mesmo handle continuava gravando depois do `clear()`. Se o seu app guarda a `persistence` no nível do módulo e reaproveita depois do login, ele **para de persistir** a partir da 0.77.0. Crie o handle dentro da sessão:

@@ -12,6 +12,7 @@ import {
     type WebSocketLostReason,
 } from "./resilience";
 import { decodeFrame } from "../utils/json-frame";
+import { ownerFingerprint } from "../utils/owner-fingerprint";
 import type { SchemaIssue, SchemaLike } from "../utils/schema-like";
 
 export type WebSocketStatus = "idle" | "connecting" | "open" | "closing" | "closed" | "error";
@@ -109,6 +110,24 @@ export interface CreateWebSocketOptions<T> {
     queueWhileClosed?: boolean;
     /** Cap on buffered payloads when `queueWhileClosed` is on. Default: 100. */
     maxQueuedMessages?: number;
+    /**
+     * Who is signed in right now — a stable, non-secret id such as the user id;
+     * `null`/`undefined` when nobody is. Read when a payload is buffered by
+     * `queueWhileClosed` and again when the buffer drains on the next open: a
+     * payload goes out only while the same principal is signed in, and is
+     * dropped otherwise.
+     *
+     * The URL and the protocols are fixed for the controller's life, so a socket
+     * that authenticates by cookie re-handshakes as whoever is signed in at
+     * reconnect time. Without this, a frame buffered by one account during the
+     * backoff was sent on the reconnect under the next account's cookie when the
+     * app did not `close()` the socket on logout (#531).
+     *
+     * Read synchronously. A non-string, non-number value (the `Promise` of an
+     * `async` getter) or a getter that throws reads as nobody. Default: no
+     * owner check.
+     */
+    getPrincipal?: () => string | number | null | undefined;
     /** Parse incoming frames. Default: JSON with raw-string fallback. */
     parser?: (raw: string) => T;
     /**
@@ -281,6 +300,7 @@ export function createWebSocket<T = unknown>(
         onLost,
     } = options;
 
+    const { getPrincipal } = options;
     let socket: WebSocket | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let pingTimer: ReturnType<typeof setInterval> | null = null;
@@ -292,7 +312,7 @@ export function createWebSocket<T = unknown>(
     let status: WebSocketStatus = "idle";
     let closed = false;
     let everOpened = false;
-    const outbox: Array<string | Blob | BufferSource> = [];
+    const outbox: Array<{ payload: string | Blob | BufferSource; owner: string | null }> = [];
 
     let settleOpen: (() => void) | null = null;
     let failOpen: ((error: Error) => void) | null = null;
@@ -335,10 +355,34 @@ export function createWebSocket<T = unknown>(
         }
     }
 
-    /** Send everything buffered while the socket was down, oldest first. */
+    /**
+     * Fingerprint whoever `getPrincipal` says is signed in.
+     *
+     * @returns The fingerprint, or `null` without `getPrincipal`, for nobody, for
+     *   a non-identity value or for a getter that throws.
+     */
+    function currentOwner(): string | null {
+        if (!getPrincipal) return null;
+        try {
+            return ownerFingerprint("p", getPrincipal());
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Send everything buffered while the socket was down, oldest first.
+     *
+     * With `getPrincipal`, a payload buffered under another principal — or by a
+     * signed-in user when nobody is signed in now — is dropped instead of sent:
+     * the new handshake carries the current session, not the one that queued it.
+     */
     function flushOutbox(ws: WebSocket): void {
+        const owner = currentOwner();
         while (outbox.length > 0 && ws.readyState === WebSocket.OPEN) {
-            ws.send(outbox.shift()!);
+            const queued = outbox.shift()!;
+            if (getPrincipal && queued.owner !== owner) continue;
+            ws.send(queued.payload);
         }
     }
 
@@ -607,7 +651,7 @@ export function createWebSocket<T = unknown>(
         }
         if (!queueWhileClosed || closed) return false;
         if (outbox.length >= maxQueuedMessages) outbox.shift();
-        outbox.push(payload);
+        outbox.push({ payload, owner: currentOwner() });
         return true;
     }
 

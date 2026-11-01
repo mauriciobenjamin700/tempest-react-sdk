@@ -1012,7 +1012,13 @@ async function ownerFingerprint(principal: string | null | undefined): Promise<s
  *
  * Pass `getPrincipal` to bind each entry to whoever queued it: the worker asks
  * the issuing tab right after queueing, asks every tab again before replaying,
- * and drops the entry when no signed-in tab is its owner.
+ * and drops the entry when no signed-in tab is its owner. Without it every
+ * entry is `"unbound"` and replays with whichever session answers — the next
+ * account's bearer included, unless `clearSessionData()` ran on logout — so a
+ * development build warns once per call (#531). Treating an unbound
+ * credentialed entry as `"unknown"` instead would change nothing: an
+ * `"unknown"` entry replays when no answering tab reports a principal, which is
+ * exactly the page that omits `getPrincipal`.
  *
  * @param getHeaders - Resolves the headers for one queued request at replay.
  * @param options - `getPrincipal` binds entries to their owner.
@@ -1036,6 +1042,14 @@ export function provideBackgroundSyncCredentials(
     if (typeof navigator === "undefined" || !navigator.serviceWorker) return () => undefined;
     const container = navigator.serviceWorker;
     const { getPrincipal } = options;
+    if (!getPrincipal && isDevBuild()) {
+        console.warn(
+            "[tempest-react-sdk/sw] provideBackgroundSyncCredentials() without `getPrincipal`: " +
+                "queued mutations are not bound to the account that made them and replay with " +
+                "whichever session answers next, unless clearSessionData() runs on logout. " +
+                "Pass { getPrincipal: () => currentUserId } to bind them.",
+        );
+    }
     const onMessage = (event: MessageEvent): void => {
         const data = event.data as Partial<BackgroundSyncCredentialsRequest> & { type?: unknown };
         const port = event.ports[0];

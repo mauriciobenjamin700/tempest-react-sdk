@@ -250,6 +250,7 @@ Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flu
 - **To persist the next session, create a new handle on login**: the old handle never writes again. In a dev build, the first `restore()`, `flush()` or new query on an ended handle logs **one** `console.warn` saying so.
 - **Handles from different sessions don't trample each other.** While a `clear()` is running, a new handle's `restore()` and writes on the same `databaseName` + `key` wait for it to finish — even when the logout was not awaited.
 - If the IndexedDB delete fails, `resetClient` still clears the `QueryClient`, and the error reaches the caller.
+- **A session that ends without `clear()`** (expired token, crash, tab closed while signed in) never goes through logout. For it, pass `getPrincipal: () => userId`: every write stamps the snapshot with a fingerprint of whoever is signed in, and `restore()` only hydrates a snapshot of the **same** owner. Another person's is skipped, not deleted — a cookie app that learns the user only after `/me` does not lose its own cache — and the next write replaces it. A snapshot written before the option carries no stamp and is not restored: one cold start, once.
 
 !!! warning "Changed in 0.77.0: the handle ends at `clear()`"
     Before, the same handle kept writing after `clear()`. If your app keeps `persistence` at module scope and reuses it after login, it **stops persisting** from 0.77.0 on. Create the handle inside the session:

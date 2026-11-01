@@ -4,6 +4,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`TempestSessionEnd` ganha `elsewhere: boolean` e `TempestAuth` ganha `dispose()`** (ver
+  Corrigido, #524). Só quebra tipo, e só para quem monta esses objetos à mão — tipicamente um mock
+  de teste. **Migração:** acrescente `elsewhere: false` ao objeto passado ao seu `onSessionEnd` e
+  `dispose: () => {}` ao objeto que finge ser o preset. Quem usa `createTempestAuth` não muda nada.
+
+### Corrigido
+
+- **Aba deixada aberta depois do logout resgatava o refresh token da conta seguinte (#524).** Com
+  `storage: "local"`, cada aba de `createTempestAuth` guardava `{ user, token }` só em memória e relia
+  o refresh token compartilhado a cada refresh, sem nunca reagir ao que outra aba gravava. Medido
+  antes da correção (em `dcf99b1`, duas instâncias sobre o mesmo `localStorage` do jsdom, backend
+  que rotaciona e revoga o par anterior — `src/auth/create-tempest-auth.cross-tab.test.ts`):
+
+  | Cenário                                                           | Antes                                                                                                                                                         | Depois                                                                                  |
+  | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+  | aba 1: `logout()` + `login(B)`; aba 2 (ainda A) faz request → 401 | aba 2 manda `B-ref-1`, fica com `{ user: A, token: "B-tok-2" }` e grava isso no storage                                                                       | aba 2 não manda refresh nenhum, adota B, a request rejeita com `SessionSupersededError` |
+  | o mesmo em modo cookie (`withCredentials`)                        | refresh com o cookie de B, `{ user: A, token: "B-tok-2" }` persistido                                                                                         | nenhum refresh, B adotado                                                               |
+  | aba 1 renova A; aba 2 faz request → 401                           | aba 2 renova de novo com `A-ref-2` e derruba o token da aba 1 (um refresh extra por aba por rotação) — **não** deslogava, ao contrário do que a issue supunha | aba 2 adota `A-tok-2` e repete a request; um refresh só                                 |
+  | aba 1 faz `logout()`                                              | aba 2 seguia logada como A                                                                                                                                    | aba 2 limpa o store no evento `storage`; `onSessionEnd` com `elsewhere: true`           |
+
+  Agora cada aba segue a sessão guardada: no evento `storage` das chaves dela e antes de todo refresh,
+  `logout()` ou encerramento automático, compara o `{ user, token }` e o refresh token guardados com
+  os que tem. Mesma conta renovada em outra aba → adota o token novo; logout ou outra conta → avança
+  a época, adota o estado guardado e roda `onSessionEnd` com `reason: "logout"`/`"switch"` e
+  `elsewhere: true`. Nunca chama o encerramento normal nesse caminho — ele limparia as chaves e
+  apagaria a sessão nova da outra aba. Um refresh que já estava em voo quando a outra aba trocou de
+  conta é descartado ao voltar, e um `logout()` numa aba atrasada não revoga nem limpa a sessão de
+  quem entrou depois. Leitura direta do storage em vez de `persist.rehydrate()`: conferido no código do zustand
+  5.0.15, um rehydrate sem entrada (`localStorage.clear()` em outra aba) mantém o estado em memória.
+  `storage: "session"` continua igual. 16 testes novos, 13 deles reprovando em `dcf99b1` (os de
+  `sessionStorage`, de chave alheia e de `dispose()` passam nos dois). **Migração:** no `onSessionEnd`, pule o teardown do que é
+  compartilhado pela origem (IndexedDB, Cache Storage, push, chamada ao servidor) quando
+  `session.elsewhere` for `true` — a outra aba já fez, e no `"switch"` refazer apagaria os dados da
+  conta nova. Estado em memória da aba continua sendo limpo em toda aba.
+
+### Budgets
+
+- Teto do barrel ESM 146.6 → 147 KB e CJS 175.1 → 175.3 KB. Medido com
+  `npm run build && npx size-limit --json` em `dcf99b1` e na árvore com #524: barrel ESM
+  146539 → 146893 B (+354) e CJS 175014 → 175164 B (+150), o seguimento da sessão entre abas. As
+  fatias passam sem mudança de limite: `slice: http client` 4733 → 4781 B e `slice: typical app`
+  12052 → 12084 B.
+
 ## [0.80.0] — 2026-10-26
 
 ### Breaking

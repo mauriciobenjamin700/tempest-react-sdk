@@ -42,6 +42,22 @@ export interface TempestSessionEnd<TUser> {
      * call to fail and keep the local half of the teardown independent of it.
      */
     api: ApiClient;
+    /**
+     * Whether another tab of the origin ended or replaced the session, and this
+     * tab is only catching up (#524). With `storage: "local"` the session's
+     * keys are shared by every tab, so a `logout()` or a `login()` in one tab
+     * ends the session in all of them: `reason` is `"logout"` when the other
+     * tab left no session behind and `"switch"` when it installed another
+     * account.
+     *
+     * The other tab already ran this hook for the same session. Teardown that
+     * lives in this tab's memory (an in-memory cache, an open socket) still has
+     * to run here; teardown of state the origin shares (IndexedDB, Cache
+     * Storage, a push subscription) was done there, and on `"switch"` redoing
+     * it here would wipe what the new account already wrote — skip it when
+     * this is `true`.
+     */
+    elsewhere: boolean;
 }
 
 export interface CreateTempestAuthOptions<TUser> {
@@ -226,6 +242,17 @@ export interface TempestAuth<TUser, TCredentials> {
     refresh: () => Promise<void>;
     /** The current access token, or null. */
     getToken: () => string | null;
+    /**
+     * Stop following the other tabs: removes the `storage` listener this
+     * preset adds to `window`. Idempotent.
+     *
+     * An app keeps one preset for the page's lifetime and never needs it; it
+     * exists for tests and hot-module reload, which build several presets in
+     * one window. A disposed preset still compares the shared storage with
+     * its session before every refresh, so it never redeems another tab's
+     * refresh token.
+     */
+    dispose: () => void;
 }
 
 /**
@@ -294,6 +321,17 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * without a working revocation, that boot `refresh()` restores the previous
  * account for whoever uses the browser next.
  *
+ * With `storage: "local"` the session belongs to the **origin**, not the tab:
+ * every tab reads and writes the same keys and follows what another tab wrote
+ * — on the `storage` event and, before any refresh, `logout()` or ending of
+ * the session, by comparing the stored session with the one it holds. A
+ * rotation elsewhere is adopted; a logout or another account's login
+ * elsewhere ends the session here too, with `onSessionEnd` told it happened
+ * `elsewhere`. Before 0.81.0 a tab left open after logout kept account A and,
+ * on its next `401`, redeemed account B's refresh token from the shared
+ * storage, persisting `{ user: A, token: B }` (#524). `storage: "session"` is
+ * per tab and behaves as before.
+ *
  * Refreshes are collapsed per rotation, not just per overlap: a `401` whose
  * request left with a token that has since been replaced in the same session
  * replays with the new token and refreshes nothing. Three expired requests take
@@ -346,7 +384,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     function readRefreshToken(): string | null {
         return storageImpl()?.getItem(refreshKey) ?? null;
     }
+    let heldRefreshToken: string | null = readRefreshToken();
     function writeRefreshToken(token: string | null): void {
+        heldRefreshToken = token;
         const s = storageImpl();
         if (!s) return;
         if (token) s.setItem(refreshKey, token);
@@ -513,9 +553,21 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * refresh that fails after `logout()` + `login(B)` must not reach
      * `onUnauthorized` either, or it would end B's session.
      *
-     * @throws {SessionSupersededError} When the epoch changed during the call.
+     * Before the request, and again before installing its result, the stored
+     * session is compared with the one this tab holds, see
+     * `followSharedSession`. When another tab rotated the same account, its
+     * tokens are adopted and nothing is redeemed: the replay goes out with
+     * them. When another tab signed out, or signed in as someone else, nothing
+     * is redeemed either — the refresh token in storage is not this session's
+     * (#524) — and the call rejects as superseded.
+     *
+     * @throws {SessionSupersededError} When the epoch changed during the call,
+     *   or another tab ended or replaced the session.
      */
     async function rotate(): Promise<void> {
+        const before = getToken();
+        if (!followSharedSession().continues) throw new SessionSupersededError();
+        if (getToken() !== before) return;
         const started = epoch;
         rotatingEpochs.add(started);
         try {
@@ -532,7 +584,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
                 throw error;
             }
             const { token, refreshToken } = parseTokens(data);
-            if (epoch !== started) {
+            if (epoch !== started || !followSharedSession().continues) {
                 revokeDiscarded(token ?? null, refreshToken);
                 throw new SessionSupersededError();
             }
@@ -647,14 +699,17 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * session then would sign the new account out. A tokenless `401` with no
      * session installed ends nothing either: there is no session to end, and
      * ending "nothing" used to move the epoch and supersede the boot
-     * `refresh()` in flight.
+     * `refresh()` in flight. Neither does a `401` from a session another tab
+     * already ended or replaced: ending it here would clear that tab's new
+     * session from the shared storage.
      *
      * @param context - The credential and epoch of the attempt that failed.
      * @throws {SessionSupersededError} When that attempt belongs to an ended
-     *   session.
+     *   session, here or in another tab.
      */
     async function onUnauthorized(_response: Response, context: RequestAuthContext): Promise<void> {
         if (context.epoch !== null && context.epoch !== epoch) throw new SessionSupersededError();
+        if (!followSharedSession().continues) throw new SessionSupersededError();
         if (staleWithinSession(context)) return;
         if (context.token === null && signedOut()) return;
         await endSession();
@@ -775,12 +830,27 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             const wait = reason === "switch" || hooksRunning === 0;
             return { live, done: wait ? ending : Promise.resolve() };
         }
-        if (!onSessionEnd) return { live, done: Promise.resolve() };
-        const sessionApi = endedSessionApi(token);
+        return { live, done: runSessionEnd({ reason, user, token, elsewhere: false }) };
+    }
+
+    /**
+     * Run `onSessionEnd` for a session that just ended, tracked in `ending`
+     * and `hooksRunning`.
+     *
+     * The returned promise is a fresh one derived from the hook, not the one
+     * `ending` holds, so a caller that drops it still surfaces the hook's
+     * error as an unhandled rejection instead of losing it.
+     *
+     * @param ended - What ended, minus the client, which is built here.
+     * @returns A promise settling with the hook.
+     */
+    function runSessionEnd(ended: Omit<TempestSessionEnd<TUser>, "api">): Promise<void> {
+        if (!onSessionEnd) return Promise.resolve();
+        const sessionApi = endedSessionApi(ended.token);
         hooksRunning += 1;
         const run = (async () => {
             try {
-                await onSessionEnd({ reason, user, token, api: sessionApi });
+                await onSessionEnd({ ...ended, api: sessionApi });
             } finally {
                 hooksRunning -= 1;
             }
@@ -789,7 +859,97 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             () => undefined,
             () => undefined,
         );
-        return { live, done: run.then(() => undefined) };
+        return run.then(() => undefined);
+    }
+
+    /**
+     * Read the session as the shared storage holds it: the persisted
+     * `{ user, token }` and the stored refresh token.
+     *
+     * Read straight from storage rather than through
+     * `useAuthStore.persist.rehydrate()`: a rehydration that finds no entry —
+     * another tab ran `localStorage.clear()` — merges nothing and keeps the
+     * session this tab holds, which is the stale session this exists to drop.
+     * An entry that does not parse counts as no session.
+     *
+     * @returns The stored session, or null without storage (SSR).
+     */
+    function readSharedSession(): {
+        user: TUser | null;
+        token: string | null;
+        refreshToken: string | null;
+    } | null {
+        const s = storageImpl();
+        if (!s) return null;
+        const refreshToken = s.getItem(refreshKey);
+        const raw = s.getItem(storeName);
+        if (!raw) return { user: null, token: null, refreshToken };
+        try {
+            const parsed = JSON.parse(raw) as {
+                state?: { user?: TUser | null; token?: string | null };
+            };
+            return {
+                user: parsed.state?.user ?? null,
+                token: parsed.state?.token ?? null,
+                refreshToken,
+            };
+        } catch {
+            return { user: null, token: null, refreshToken };
+        }
+    }
+
+    /**
+     * Catch up with what another tab wrote to the shared storage (#524).
+     *
+     * Every write this tab makes reaches the storage synchronously, so the
+     * stored session differs from the held one only when another tab wrote
+     * it. The stored one then wins, without redeeming or clearing anything:
+     *
+     * - the same access token (the other tab only loaded the user), or another
+     *   token for the same user (it rotated): adopted, the session continues;
+     * - no token, or another user: the held session ended elsewhere. The epoch
+     *   moves, so nothing in flight from it can install tokens or end the new
+     *   session; the stored state is adopted; and `onSessionEnd` runs with
+     *   `elsewhere: true` — `"logout"` when no session is left, `"switch"`
+     *   when another account is installed.
+     *
+     * It never calls `finish()`: that clears the shared keys, which here would
+     * erase the other tab's new session — and, with rotating refresh tokens,
+     * sign every tab out whenever any tab rotates. Users are compared by their
+     * JSON, since that is what the storage keeps. Without a user model (no
+     * `parseUser`, no `mePath`) both sides are `null` and another account's
+     * login is adopted like a rotation — harmless, since there is no user to
+     * show next to the wrong token.
+     *
+     * The hook's error reaches only the callers that return `done`; the
+     * automatic paths drop it.
+     *
+     * @returns Whether the held session continues, and a promise settling with
+     *   the hook when one ran.
+     */
+    function followSharedSession(): { continues: boolean; done: Promise<void> } {
+        const shared = readSharedSession();
+        const { user, token } = state();
+        if (shared === null) return { continues: true, done: Promise.resolve() };
+        const sameUser = JSON.stringify(shared.user) === JSON.stringify(user);
+        if (shared.token === token && shared.refreshToken === heldRefreshToken && sameUser) {
+            return { continues: true, done: Promise.resolve() };
+        }
+        const continues =
+            shared.token !== null && (shared.token === token || (token !== null && sameUser));
+        const live = token !== null || user !== null || heldRefreshToken !== null;
+        if (!continues) nextEpoch();
+        heldRefreshToken = shared.refreshToken;
+        useAuthStore.setState({
+            user: shared.user,
+            token: shared.token,
+            isAuthenticated: shared.token !== null,
+        });
+        if (continues || !live) return { continues, done: Promise.resolve() };
+        const reason = shared.token === null ? "logout" : "switch";
+        const done = runSessionEnd({ reason, user, token, elsewhere: true });
+        void done.catch(() => undefined);
+        return { continues, done };
     }
 
     /**
@@ -824,7 +984,21 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         });
     }
 
+    /**
+     * End the session — unless another tab already did.
+     *
+     * A tab that has not caught up yet first follows the shared storage: when
+     * the session it showed ended elsewhere, that is the whole sign-out. The
+     * session live now belongs to another tab's sign-in, and revoking or
+     * clearing it from here would sign that account out — before #524 it
+     * also sent that account's refresh token to `logoutPath` next to the
+     * ended account's bearer.
+     *
+     * @returns A promise settling with `onSessionEnd` and the revocation.
+     */
     function logout(): Promise<void> {
+        const followed = followSharedSession();
+        if (!followed.continues) return followed.done;
         const revocation = revoke();
         const { done } = finish("logout");
         if (!revocation) return done;
@@ -865,5 +1039,22 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 
     const refresh = (): Promise<void> => queue();
 
-    return { useAuthStore, api, login, logout, refresh, getToken };
+    /**
+     * Follow a write another tab made to this session's keys. The browser
+     * fires `storage` only in the tabs that did not write; `key` is null when
+     * the other tab cleared the whole storage.
+     *
+     * @param event - The storage event.
+     */
+    function onStorage(event: StorageEvent): void {
+        if (event.storageArea !== storageImpl()) return;
+        if (event.key !== null && event.key !== storeName && event.key !== refreshKey) return;
+        followSharedSession();
+    }
+
+    const host = typeof window === "undefined" ? null : window;
+    host?.addEventListener("storage", onStorage);
+    const dispose = (): void => host?.removeEventListener("storage", onStorage);
+
+    return { useAuthStore, api, login, logout, refresh, getToken, dispose };
 }

@@ -245,6 +245,8 @@ if (boleto.kind === "banco") {
 
 `parseLinhaDigitavel` goes the other way and accepts both lines (47 or 48). Both parsers **verify every check digit the layout allows checking**: the 3 (bank) or 4 (arrecadação) block digits, plus the general one. Any of them wrong throws `BoletoError` naming which.
 
+The length fixes the layout, and the first digit has to agree with it. A 47-digit line starting with `8` throws `BoletoError` instead of being read: the barcode it rebuilds starts with `8` too, and in the barcode that digit marks arrecadação — any reader that only sees the 44 positions, `parseCodigoBarras` included, would read it as a utility slip. Before 0.81.0, `81600000090000000000000000000190900000000000000` passed the three field check digits and came back as arrecadação with `valor` 900000000, while the cobrança reading of the same digits is bank 816 with `valor` 0 (#529).
+
 Explicit conversion, when you only want the other representation:
 
 ```ts
@@ -270,7 +272,10 @@ formatLinhaDigitavel(input);
 
 To branch the UI before validating (show the right field, pick the icon),
 `boletoKind` reports the layout from the length and the first digit, and returns
-`null` for input that is not a slip — without throwing:
+`null` for input that is not a slip — without throwing. When length and first
+digit disagree (47 digits starting with `8`, 48 starting with anything else), it
+is `null` too: that is the same input the parser rejects, so the two never name
+different layouts for one string:
 
 ```ts
 import { boletoKind } from "tempest-react-sdk/br";

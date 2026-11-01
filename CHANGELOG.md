@@ -17,6 +17,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **Release: o guard não confia mais no commit taggeado nem numa branch `release-*` recém-criada
+  (#527, #472).** Medido em fixture git na `b054c16` (sem rede), com
+  `npx vitest run test/release-workflow.test.ts`: uma `release-0.79` nova com um commit não
+  revisado e a tag `v0.79.50` (`latest` em 0.80.0) passava com código 0 e `dist_tag=release-0.79`,
+  e um commit que reescrevia o próprio `check-release-ref.sh` passava com `dist_tag=latest`, porque
+  o workflow rodava a cópia do commit da tag. A parte de código da #472 já estava resolvida (tag
+  fora da `main` e backport para `latest` saem com código 1 desde a 0.79.0). Agora o job `build`
+  roda o guard e o `release-dist-tag.sh` **copiados de `origin/main`**, e backport só passa para
+  linha aberta na variável de repositório `RELEASE_BACKPORT_LINES`. Os 8 testes novos ou
+  reescritos falhavam contra a `main`. **Limite, escrito em `docs/release.md`:** num tag push o
+  `release-npm.yml` vem do commit da tag, então o guard barra engano, não um ator que empurra tag;
+  a fronteira é o environment `npm-release` com revisor e o Trusted Publisher amarrado a ele —
+  lidos em 01/11/2026 com `gh api`, **desligados**, e o checklist do dono diz o que ligar.
+  **Migração (mantenedor):** para publicar um backport, ponha `release-<maj>.<min>` em
+  `RELEASE_BACKPORT_LINES` (_Settings → Secrets and variables → Actions → Variables_) antes da tag.
+- **Workflows e publish com menos privilégio e código fixado (#532).** O `docs.yml` dava
+  `pages: write` e `id-token: write` ao workflow inteiro, alcançando o job que roda
+  `pip install` sem pin e os plugins do mkdocs; agora começa de `permissions: {}`, o `build` só tem
+  `contents: read` e o `deploy` leva Pages e OIDC. Suas cinco actions saem de tag mutável para SHA
+  (as mesmas versões que as tags resolviam, mais `checkout`/`setup-node` iguais aos do
+  `release-npm.yml`), com `persist-credentials: false`. O `docs/requirements.txt` vira 30 pacotes
+  com hash (`uv pip compile --generate-hashes`, cooldown de 14 dias) e é instalado com
+  `--require-hashes` — instalado e conferido com `mkdocs build --strict` no Python 3.12. O job
+  `publish` baixa o npm 12.2.0 por URL, confere o `sha512` fixado e instala `--offline` (simulado
+  localmente: hash certo instala 12.2.0, hash errado sai 1 antes de instalar). O
+  `make publish` **recusa**: publicava da máquina com token de vida longa, sem guard, smoke,
+  provenance nem Release. Guardas em `test/ci-policy.test.ts` (6 testes que falhavam contra a
+  `main`). **Migração (mantenedor):** não há publish local; publique por `make release` +
+  `make release-tag`, e revogue o secret `NPM_TOKEN` legado (item 5 do checklist).
+
 - **Hardening do `create-tempest-app` e do `tempest gen api` contra spec hostil (#533).** Medido na
   `main` antes da correção, com um spec montado para isso (os testes novos em
   `bin/lib/openapi/generate.hostile.test.mjs`, `bin/tempest-gen.test.mjs` e

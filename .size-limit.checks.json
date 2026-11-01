@@ -93,7 +93,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "4.74 KB",
+    "limit": "4.79 KB",
     "ignore": [
       "react",
       "react-dom",

@@ -75,6 +75,54 @@ describe("createApiClient — logger", () => {
         expect(serialized).toContain("POST /auth/login → 200");
     });
 
+    it("never logs a query or fragment written into the path", async () => {
+        const logger = fakeLogger();
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse({ ok: true }))
+            .mockResolvedValueOnce(jsonResponse({ detail: "nope" }, { status: 403 }));
+        const api = createApiClient({ baseURL: "https://api.example.com", logger, fetcher });
+
+        await api.get("/files?access_token=leaky-path#frag-secret");
+        await expect(api.get("/files/7?token=leaky-warn")).rejects.toThrow("nope");
+
+        expect(fetcher.mock.calls[0]![0]).toContain("access_token=leaky-path");
+        const serialized = JSON.stringify([logger.debug.mock.calls, logger.warn.mock.calls]);
+        expect(serialized).not.toContain("leaky");
+        expect(serialized).not.toContain("frag-secret");
+        expect(logger.debug).toHaveBeenCalledWith("GET /files → 200", expect.anything());
+        expect(logger.warn).toHaveBeenCalledWith("GET /files/7 → 403", expect.anything());
+    });
+
+    it("never logs the signature, fragment or userinfo of an absolute signed URL", async () => {
+        const logger = fakeLogger();
+        const failure = new TypeError("Failed to fetch");
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(jsonResponse({ detail: "expired" }, { status: 403 }))
+            .mockRejectedValueOnce(failure);
+        const api = createApiClient({ baseURL: "https://api.example.com", logger, fetcher });
+        const signed =
+            "https://uploader:pa55word@cdn.example.com/bucket/a.png?X-Amz-Signature=sig-secret#frag-secret";
+
+        await expect(api.put(signed, { body: { a: 1 } })).rejects.toThrow("expired");
+        await expect(api.get(signed)).rejects.toThrow("Failed to fetch");
+
+        const serialized = JSON.stringify(logger.warn.mock.calls);
+        expect(serialized).not.toContain("sig-secret");
+        expect(serialized).not.toContain("frag-secret");
+        expect(serialized).not.toContain("pa55word");
+        expect(serialized).not.toContain("uploader");
+        expect(logger.warn).toHaveBeenCalledWith(
+            "PUT https://cdn.example.com/bucket/a.png → 403",
+            expect.anything(),
+        );
+        expect(logger.warn).toHaveBeenCalledWith(
+            "GET https://cdn.example.com/bucket/a.png → no response",
+            expect.objectContaining({ error: failure }),
+        );
+    });
+
     it("logs a failed status at warn", async () => {
         const logger = fakeLogger();
         const fetcher = vi

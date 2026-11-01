@@ -337,7 +337,9 @@ Cobertura total do caso comum. Pra extremos muito específicos (range requests p
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 ```
 
 O fetch original ainda **rejeita** no momento (seu app mostra estado offline), mas a requisição é replayada depois. `maxRetentionMinutes` descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).

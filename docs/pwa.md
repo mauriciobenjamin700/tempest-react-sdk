@@ -109,7 +109,9 @@ A revalidação que continua depois da resposta — o refresh do `stale-while-re
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 ```
 
 Para reenviar mesmo **sem uma navegação nova**, registre um *periodic sync* na main thread. O SW já escuta o evento `periodicsync`:
@@ -165,7 +167,7 @@ No replay o worker pergunta a **todas** as abas em paralelo, com um único prazo
 
 | Resposta escolhida | Replay |
 | -- | -- |
-| headers com todos os que foram removidos | reenvia com eles — só os **nomes** que a requisição original tinha, então devolver `Authorization` sempre não vaza o token para uma URL que não o recebia |
+| headers com todos os que foram removidos | reenvia com eles — só os **nomes** que a requisição original tinha, e só para a origem do worker ou de `trustedOrigins` ([abaixo](#credencial-so-volta-para-origem-confiavel)) |
 | headers sem algum que foi removido | fica pendente (não sai anônima para levar 401 e sumir) |
 | `null` (sem sessão) | descarta, sem enviar |
 | nenhuma resposta válida | fica pendente até `maxRetentionMinutes` |
@@ -174,13 +176,35 @@ Só a entrada **sem dono** e sem header de credencial é reenviada como estava, 
 
 Medido no Chromium 153 (11/10/2026), com service worker, IndexedDB e duas abas reais: A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST; com a aba de B aberta ao lado, a mutação de A sai com o token renovado de A.
 
+#### Credencial só volta para origem confiável
+
+O nome do header não basta. Uma requisição para um terceiro (`https://pagamentos.exemplo/webhooks`) leva o `Authorization` **daquele terceiro**; o worker o remove antes de gravar, como qualquer credencial. Se o replay pedisse a credencial à página e aplicasse pelo nome, o terceiro receberia o bearer **do app** — e era o que acontecia até a 0.80.0 (#523): medido com o `match` e o provedor do template `--pwa`, o replay de um `POST https://third.party/api/hooks` com `Authorization: Bearer THIRD` saiu com `Authorization: Bearer APP`.
+
+Agora o replay usa a mesma regra do `ApiClient` (`isTrustedCredentialTarget`): credencial só vai para a **origem do próprio worker** e para as origens em `trustedOrigins`.
+
+- Entrada que levava header de credencial para outra origem é **descartada**, sem perguntar à página e antes do `beforeReplay`. Reenviá-la sem a credencial seria uma requisição que o app nunca fez; com a do app, um vazamento.
+- O `Request` que o `beforeReplay` (próprio ou padrão) devolve com header de `credentialHeaders` para outra origem também é descartado, em vez de enviado.
+- Entrada **sem** header de credencial não muda: o navegador anexa os cookies daquela origem, como na tentativa original.
+
+Em build de desenvolvimento, cada descarte avisa uma vez por origem e por replay. Se a sua API mora em outra origem, declare:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({
+  match: (url) => url.origin === "https://api.example.com",
+  trustedOrigins: ["https://api.example.com"],
+});
+```
+
 O replay é um só por fila: `sync`, `periodicsync` e o fallback do Safari disparando juntos compartilham a mesma passada, e a mesma mutação não sai duas vezes. E `clearBackgroundSyncQueue()` alcança o que está em voo: cada entrada é conferida no banco logo antes de sair, e uma requisição que ainda estava falhando quando a fila foi limpa não é gravada depois.
 
-Fora desse caminho, há três controles no `installBackgroundSync`:
+Fora desse caminho, há quatro controles no `installBackgroundSync`:
 
 - **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. O provedor precisa devolver todos eles.
 - **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — substitui o pedido às páginas: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho; `ownerState`/`owner` permitem aplicar a mesma regra de dono.
 - **`ownerPolicy`** — `"strict"` (padrão) ou `"lenient"`; veja [`ownerPolicy`: app sem login](#ownerpolicy-app-sem-login).
+- **`trustedOrigins`** — origens além da do worker que podem receber credencial no replay; veja [acima](#credencial-so-volta-para-origem-confiavel).
 
 !!! warning "Limite: credencial na URL ou no corpo"
     Só **headers** saem da fila. Um token em query string (`?access_token=…`) ou dentro do corpo da mutação é gravado como foi enviado. Mande credencial em header.
@@ -195,7 +219,10 @@ O padrão é `ownerPolicy: "strict"`. App **sem login**, em que nenhuma página 
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: /\/api\//, ownerPolicy: "lenient" });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+  ownerPolicy: "lenient",
+});
 ```
 
 | Entrada | `"strict"` (padrão) | `"lenient"` |

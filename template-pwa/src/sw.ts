@@ -14,12 +14,14 @@ import {
  *
  * Layers, in order:
  *  1. Push + notifications + skip-waiting (the SDK push helpers).
- *  2. Background sync — failed POST/PUT/PATCH/DELETE to `/api` are queued and
- *     replayed online. Credential headers are never stored; on replay the
- *     worker asks the open pages for the current ones and for who is signed in,
- *     which `src/pwa.tsx` answers from the auth store
+ *  2. Background sync — failed POST/PUT/PATCH/DELETE to this origin's `/api`
+ *     are queued and replayed online. Credential headers are never stored; on
+ *     replay the worker asks the open pages for the current ones and for who
+ *     is signed in, which `src/pwa.tsx` answers from the auth store
  *     (`provideBackgroundSyncCredentials`). Remove that and queued
- *     authenticated mutations never replay.
+ *     authenticated mutations never replay. The credential only goes back to
+ *     this origin: an API on another host goes in both the `match` and
+ *     `trustedOrigins`, or its credentialed entries are dropped on replay.
  *  3. Runtime caching: unauthenticated API GETs (network-first) + media
  *     (cache-first with Range support, so audio/video seeking works offline).
  *     Every request the API client sends with a bearer (`Authorization`, or any
@@ -53,7 +55,9 @@ installPushHandler({
 installNotificationClickHandler();
 installSkipWaitingListener();
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+    match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 
 installRuntimeCache([
     {

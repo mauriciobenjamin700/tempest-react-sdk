@@ -16,6 +16,11 @@ Five pieces, all decoupled from one another:
     shape. Five primitives compose freely: you can use the store without the
     guard, the guard without the JWT decoder, and so on.
 
+!!! tip "The sign-in and sign-up screens"
+    This module handles the session. The screen itself — layout, sign-in form,
+    sign-up, "forgot password" — is in
+    [Auth screens](components/auth-screens.md): `AuthPage` + `LoginForm`.
+
 <!-- gallery:recipe-auth -->
 [![Auth & Access Control in the gallery](assets/gallery/recipe-auth.webp)](gallery.md)
 

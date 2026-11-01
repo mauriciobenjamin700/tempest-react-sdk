@@ -116,29 +116,30 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 42 | CodeBlock | `#codeblock` | Componentes |
 | 43 | Material (ListTile · FAB · Rail) | `#material` | Componentes |
 | 44 | Forms (zod) | `#forms` | Componentes |
-| 45 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
-| 46 | Hooks — estado | `#hooks-state` | Hooks |
-| 47 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
-| 48 | Network · Clipboard · Share | `#meta` | Hooks |
-| 49 | Formatters | `#utils` | Hooks |
-| 50 | HTTP client | `#recipe-http` | Receitas |
-| 51 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
-| 52 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
-| 53 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
-| 54 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
-| 55 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
-| 56 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
-| 57 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 58 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 59 | SSE · Push · Audio | `#integrations` | Receitas |
-| 60 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 61 | PWA: Install · Push | `#pwa` | Receitas |
-| 62 | Store (Zustand) | `#foundation` | Fundação |
-| 63 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 64 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 65 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 66 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 67 | Tema + i18n | `#theme-i18n` | Fundação |
+| 45 | Telas de autenticação | `#auth-screens` | Componentes |
+| 46 | BR Forms (CPF/CNPJ/CEP) | `#br-forms` | Componentes |
+| 47 | Hooks — estado | `#hooks-state` | Hooks |
+| 48 | Hooks — DOM & timing | `#hooks-dom` | Hooks |
+| 49 | Network · Clipboard · Share | `#meta` | Hooks |
+| 50 | Formatters | `#utils` | Hooks |
+| 51 | HTTP client | `#recipe-http` | Receitas |
+| 52 | Upload resumível (tus) | `#recipe-resumable-upload` | Receitas |
+| 53 | Passkeys (WebAuthn) | `#recipe-passkeys` | Receitas |
+| 54 | Data fetching (TanStack Query) | `#recipe-query` | Receitas |
+| 55 | Tempo real (WebSocket) | `#recipe-realtime` | Receitas |
+| 56 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
+| 57 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
+| 58 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
+| 59 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 60 | SSE · Push · Audio | `#integrations` | Receitas |
+| 61 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 62 | PWA: Install · Push | `#pwa` | Receitas |
+| 63 | Store (Zustand) | `#foundation` | Fundação |
+| 64 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 65 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 66 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 67 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 68 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -210,7 +211,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 77 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 78 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -279,7 +280,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 67 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 68 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.

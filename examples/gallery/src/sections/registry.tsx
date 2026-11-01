@@ -40,6 +40,7 @@ import { VirtualTableSection } from "./VirtualTableSection";
 import { NotificationCenterSection } from "./NotificationCenterSection";
 import { MaterialSection } from "./MaterialSection";
 import { FormsSection } from "./FormsSection";
+import { AuthScreensSection } from "./AuthScreensSection";
 import { BRFormsSection } from "./BRFormsSection";
 import { FoundationSection } from "./FoundationSection";
 import { ThemeI18nSection } from "./ThemeI18nSection";
@@ -422,6 +423,15 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "form usezodform zod validation",
         group: "Componentes",
         Component: FormsSection,
+    },
+    {
+        id: "auth-screens",
+        label: "Telas de autenticação",
+        keywords:
+            "authpage authform loginform signupform forgotpasswordform resetpasswordform login cadastro " +
+            "default_auth_form_labels login_fields sign_up_fields forgot_password_fields reset_password_fields",
+        group: "Componentes",
+        Component: AuthScreensSection,
     },
     {
         id: "br-forms",

@@ -142,7 +142,7 @@ mais voltam:
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 100 tags publicadas
   (0.1.0 → 0.80.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Superfície**: 41 módulos em `src/` (`ls -d src/*/`), 132 componentes
+- **Superfície**: 41 módulos em `src/` (`ls -d src/*/`), 134 componentes
   (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
   raiz: **656 em 26/10/2026** (70 em `/br`, 21 em `/icons`); o método de
@@ -155,10 +155,10 @@ mais voltam:
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado
   pelo próprio componente (0.63.0); loader `/node-css-loader` para Node cru.
   Budgets do `size-limit` são por **fatia importada**.
-- **Docs**: 99 páginas base (198 com as traduções `.en.md`) + `llms.txt` /
+- **Docs**: 100 páginas base (200 com as traduções `.en.md`) + `llms.txt` /
   `llms-full.txt`. Site MkDocs bilíngue no GitHub Pages; `docs/internal/` fica
   fora dele.
-- **Demo vivo**: `examples/gallery`, app Vite com 67 seções consumindo o SDK via
+- **Demo vivo**: `examples/gallery`, app Vite com 68 seções consumindo o SDK via
   `file:../..`.
 
 Os números acima envelhecem — quando divergirem do repo, o repo está certo e esta

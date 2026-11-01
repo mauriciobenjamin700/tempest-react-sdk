@@ -10,7 +10,8 @@
 // package.json has the Tempest scripts/deps merged in (your name/version are
 // preserved). A symlink already in the destination is never written through:
 // it is skipped and reported, so a link to a folder outside the project cannot
-// redirect the template there. The `--pwa` flag overlays the PWA template
+// redirect the template there. A named destination that is itself a symlink is
+// refused for the same reason. The `--pwa` flag overlays the PWA template
 // (manifest, service worker, push-subscribe wiring) on top of the base.
 import { cp, lstat, mkdir, readdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -239,6 +240,15 @@ async function main() {
             process.exit(1);
         }
         destDir = resolve(process.cwd(), arg);
+        if (await isSymlink(destDir)) {
+            console.error(
+                `${c.red}✗ "${arg}" is a symbolic link; the project would be created where it points.${c.reset}`,
+            );
+            console.error(
+                `${c.dim}  Create the project at the real path, or remove the link.${c.reset}`,
+            );
+            process.exit(1);
+        }
         if (!(await isEmptyDir(destDir))) {
             console.error(`${c.red}✗ Directory "${arg}" exists and is not empty.${c.reset}`);
             console.error(

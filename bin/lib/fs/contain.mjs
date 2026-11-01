@@ -28,6 +28,13 @@ export function lstatOrNull(path) {
  * not skipped over: its `realpath` throws and the path counts as outside, since
  * `mkdir` or `writeFile` would create whatever the link names.
  *
+ * The answer is about the tree as it is now; nothing makes it and the write that
+ * follows one atomic step. A process swapping a folder for a symlink between the
+ * two can still redirect the write, and Node has no `openat`/`O_NOFOLLOW` walk
+ * to close that. Such a process is already writing inside the user's project, so
+ * it could edit the generated files or `package.json` directly: the window is an
+ * accepted risk, the same one `create-tempest-app` documents (#533).
+ *
  * @param {string} root - Project root.
  * @param {string} path - Absolute path, existing or about to be created.
  * @returns {boolean}

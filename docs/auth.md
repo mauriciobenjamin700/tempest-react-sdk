@@ -372,15 +372,19 @@ Os refreshes também colapsam por **rotação**, não só por sobreposição no 
 
 ### Várias abas — a sessão é da origem, não da aba
 
-Com `storage: "local"` (o default), todas as abas do app leem e gravam as **mesmas** chaves: `tempest-auth` (o `{ user, token }`) e `tempest-auth-refresh`. Então a sessão é uma só para a origem inteira, e cada aba **segue** o que outra gravou — no evento `storage` do navegador e, antes de qualquer refresh, `logout()` ou encerramento, comparando a sessão guardada com a que ela tem em memória:
+Com `storage: "local"` (o default), todas as abas do app leem e gravam as **mesmas** chaves: `tempest-auth` (o `{ user, token }`), `tempest-auth-refresh` e `tempest-auth-lineage`. Então a sessão é uma só para a origem inteira, e cada aba **segue** o que outra gravou — no evento `storage` do navegador e, antes de qualquer refresh, `logout()`, encerramento ou gravação do usuário do `mePath`, comparando a sessão guardada com a que ela tem em memória.
+
+A comparação é pela **linhagem** da sessão: um identificador que o `login()` cria e que toda renovação mantém. Mesma linhagem é a mesma sessão, renovada; outra linhagem é outro login — de outra conta ou da mesma:
 
 | Na outra aba | Nesta aba |
 | --- | --- |
-| renovou a mesma conta | adota o token novo; a request que voltou 401 repete com ele, **sem** renovar de novo |
+| renovou a mesma sessão | adota o token novo; a request que voltou 401 repete com ele, **sem** renovar de novo |
 | `logout()` | a sessão acaba aqui também: store limpo, `onSessionEnd` com `reason: "logout"` e `elsewhere: true` |
-| `login()` de outra conta | a sessão de A acaba aqui (`reason: "switch"`, `elsewhere: true`) e a de B é adotada |
+| `login()` — de outra conta ou da mesma | a sessão desta aba acaba aqui (`reason: "switch"`, `elsewhere: true`) e a nova é adotada |
 
-O que esta aba **nunca** faz é resgatar um refresh token que não é o da sessão dela, nem gravar por cima da sessão que outra aba instalou. Uma request em voo da sessão que acabou rejeita com `SessionSupersededError`, como na troca de conta da mesma aba.
+O que esta aba **nunca** faz é resgatar um refresh token que não é o da sessão dela, nem gravar por cima da sessão que outra aba instalou. Uma request em voo da sessão que acabou rejeita com `SessionSupersededError`, como na troca de conta da mesma aba — e um `login()` desta aba que ainda esperava o `mePath` também: o perfil que chega é descartado em vez de ser gravado ao lado do token de outra conta.
+
+Duas abas que renovam juntas — o caso típico é o navegador reabrindo várias abas, cada uma chamando `auth.refresh()` no boot — **não** resgatam o mesmo refresh token duas vezes: o resgate roda sob um [Web Lock](https://developer.mozilla.org/docs/Web/API/Web_Locks_API) da origem, e a aba que esperou adota o token que a outra trouxe. Isso importa com backend que detecta reuso (o tempest-fastapi-sdk detecta): o segundo resgate do mesmo token revoga a família inteira e derruba a sessão em todas as abas. Sem a API (SSR, navegador antigo) ou depois de 10 segundos esperando, o resgate segue sem o lock, como antes.
 
 ```ts
 import { createTempestAuth } from "tempest-react-sdk";
@@ -407,6 +411,8 @@ Repare no `elsewhere`. O cache em memória (`queryClient.clear()`) é desta aba,
 
 !!! info "Por que antes era diferente"
     Até a 0.80.0 cada aba tinha a sessão só em memória e relia o refresh token guardado a cada refresh. Uma aba deixada aberta como A depois do logout, com B logando no mesmo navegador, resgatava no próximo 401 o refresh token de **B** e gravava `{ user: A, token: B }` — a tela mostrava A e toda request saía como B (#524). E uma renovação numa aba fazia a outra renovar de novo no próximo 401, derrubando o token da primeira.
+
+    Até a 0.81.0 a continuidade era decidida comparando o **usuário**. Uma aba cujo `login()` ainda esperava o `mePath` tinha usuário `null`; se outra aba entrasse com outra conta nesse intervalo, o usuário guardado também era `null`, e `null === null` passava por "mesma conta": a aba adotava o token de B como renovação e o `/me` dela gravava `{ user: A, token: B }` (#544). Se o evento `storage` ainda não tinha chegado, era a aba de B que terminava mostrando A ao lado do refresh token de B. Uma sessão gravada antes da linhagem existir continua seguindo a regra antiga até o próximo login.
 
 !!! tip "Com `sessionStorage`, nada muda"
     Com `storage: "session"`, cada aba tem o próprio `sessionStorage` e a própria sessão — nada disso se aplica.
@@ -464,13 +470,15 @@ export async function signOut(): Promise<void> {
 - A promise do `logout()` espera a revogação. Por isso o `await auth.logout()` antes de navegar importa: uma navegação dura aborta a request em voo.
 - A revogação é **best-effort**: falha de rede, `4xx` ou `5xx` é engolida, e o usuário sai do mesmo jeito.
 - Um `login()` que começa com a revogação em voo espera por ela, porque a resposta do logout apaga os cookies de auth e, chegando depois, apagaria os da conta nova.
-- Só o `logout()` explícito revoga. Na troca de conta (`"switch"`) o cookie no navegador já é o da conta nova; no `"expired"` o servidor já recusou a sessão.
+- O `logout()` explícito revoga, e a troca de conta (`"switch"`) também — **só no modo corpo**: o refresh token da sessão substituída ainda está no cliente, e o tempest-fastapi-sdk revoga por família de rotação, então a sessão nova não é afetada nem quando é a mesma conta. No modo cookie a troca não revoga, porque o cookie no navegador já é o da conta nova. No `"expired"` o servidor já recusou a sessão.
 - Dois `logout()` sobrepostos mandam cada um a sua revogação, e o `login()` espera **todas** — no máximo 10 segundos: uma revogação que nunca volta atrasa o login, não o trava.
 - Um `logout()` durante um `login()` ou refresh em voo: no modo cookie, a revogação espera a resposta dele (no mesmo limite de 10 segundos), porque é ela que grava o cookie da sessão que está acabando; no modo corpo, o refresh token que essa resposta superada traz é revogado à parte.
 - Uma revogação que falha chama `onLogoutError(error)` e, em build de dev, avisa no console — o `logout()` resolve do mesmo jeito.
 
 !!! warning "Sem revogação no servidor, a conta que saiu continua restaurável pelo `refresh()` do boot"
     O preset não manda refresh por conta própria depois do `logout()`, mas o cookie HttpOnly de A continua no navegador e válido no servidor quando o `logoutPath` não está configurado (o default), quando a revogação falha (rede, `4xx`, `5xx`) ou quando ela passa dos 10 segundos. Nesse caso, o próximo carregamento que chamar `auth.refresh()` no boot restaura A para quem estiver no navegador — é o mesmo cookie, e nada no cliente distingue "A recarregou a página" de "A saiu e outra pessoa abriu o app". Só o servidor fecha isso: configure o `logoutPath` com a rota que revoga o cookie e trate o `onLogoutError`. Backend com refresh token stateless (JWT), que não tem como revogar, deixa essa janela aberta até o cookie expirar.
+
+    Por isso, em build de dev, `withCredentials: true` sem `logoutPath` avisa no console uma vez por store. É aviso e não exigência: exigir o `logoutPath` quebraria o app cujo backend não tem como revogar — e não fecharia nada para ele, porque uma rota que responde `404` não revoga —, e recusar o `refresh()` do boot depois de um logout quebraria o login que grava o cookie fora do `login()`, como o callback de OAuth.
 
 !!! info "A rota no tempest-fastapi-sdk"
     O `make_auth_router` monta `POST /auth/logout` (`204`, idempotente) quando o serviço guarda refresh token no banco (`refresh_token_model`): no modo corpo ele lê `{ refresh_token }`, no modo cookie lê o cookie e apaga os dois cookies de auth. Com `AUTH_TOKEN_DELIVERY=both`, a rota de cookie fica em `/auth/cookie/logout`. Refresh token stateless (JWT) não tem como ser revogado, e a rota não existe — ali o cookie só morre quando expira.

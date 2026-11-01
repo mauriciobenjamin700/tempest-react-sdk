@@ -4,6 +4,60 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`createTempestAuth`: a troca de conta no modo corpo revoga a sessão substituída, e um novo
+  login da mesma conta em outra aba conta como troca.** Ver Segurança (#544 e notas da run-7). Com
+  `logoutPath` e sem `withCredentials`, um `login()` que substitui uma sessão viva manda
+  `POST logoutPath` com o refresh token dela (e o access token dela no bearer) — antes, nada; o
+  token ficava resgatável até expirar. E como a continuidade entre abas passou a ser a linhagem do
+  login, não o usuário, um `login()` da **mesma** conta numa aba agora encerra a sessão nas outras
+  com `onSessionEnd({ reason: "switch", elsewhere: true })` — antes era adotado como renovação, sem
+  hook. **Migração:** se a sua rota de `logoutPath` revoga **todas** as sessões do usuário (e não
+  só a família do token recebido, como o tempest-fastapi-sdk), um re-login da mesma conta no modo
+  corpo derruba a sessão nova — restrinja a rota ao token recebido. Hook que não pode rodar num
+  re-login da mesma conta compara `session.user` com o usuário novo.
+
+### Segurança
+
+- **Aba sem usuário carregado adotava o token de outra conta que entrou durante o `/me` (#544).**
+  Reproduzido antes da correção em `src/auth/create-tempest-auth.lineage.test.ts`, com
+  `npx vitest run src/auth/create-tempest-auth.lineage.test.ts` (6 dos 11 casos falhavam em
+  `b054c16`): a aba 1 terminava com `{ user: A, token: "B-tok-1" }` no store e no `localStorage`, e
+  `GET /api/orders` respondia `acting_as: "B"`. A issue acertou a causa (`null === null` no
+  `followSharedSession`), mas o defeito era maior: **sem** o evento `storage` ter chegado, o `/me` da
+  aba 1 gravava `{ user: A, token: "A-tok-1" }` ao lado do refresh token `B-ref-1`, e a aba de **B**,
+  ao seguir essa gravação, passava a mostrar A com o refresh token de B. Agora o `login()` cria uma
+  **linhagem de sessão** (`<storeName>-lineage`), mantida em toda renovação e limpa no fim da
+  sessão, e é ela — não o usuário — que decide se a sessão guardada continua a da aba. O
+  `fetchUser` segue o storage compartilhado antes de gravar o perfil e o descarta se a sessão mudou
+  de linhagem. A amarração ao token sugerida na issue **não** foi feita: uma renovação da mesma
+  sessão em outra aba durante o `/me` muda o token e faria um login bem-sucedido rejeitar — o teste
+  "adopts a rotation made by another tab before its own user loaded" fixa isso. Exigir
+  `user !== null` também não: transformaria toda renovação sem modelo de usuário em troca de conta.
+  Sessão gravada antes da linhagem existir segue a regra antiga até o próximo login. Os 16 testes de
+  `create-tempest-auth.cross-tab.test.ts` continuam verdes sem alteração.
+- **Duas abas resgatavam o mesmo refresh token ao mesmo tempo** (nota da run-7). Com backend que
+  detecta reuso — o tempest-fastapi-sdk detecta —, o segundo resgate revoga a família e derruba a
+  sessão em todas as abas; o gatilho comum é o navegador reabrindo várias abas, cada uma chamando
+  `refresh()` no boot. Medido em `src/auth/create-tempest-auth.refresh-lock.test.ts` (o primeiro
+  caso é a linha de base, sem a API): dois presets apresentaram `ref-1`, a família foi revogada e
+  nenhum refresh token ficou vivo. Agora, com `storage: "local"`, o resgate roda sob um Web Lock da
+  origem (`navigator.locks`), e a aba que esperou adota o token que a outra trouxe: um resgate só.
+  Fail-open: sem a API, com erro ao adquirir ou depois de 10 s esperando, resgata sem o lock, como
+  antes.
+- **A troca de conta não revogava o refresh token da sessão substituída** (nota da run-7). Ver
+  Breaking. No modo cookie continua sem revogar: o cookie no navegador já é o da conta nova.
+- **`withCredentials` sem `logoutPath` avisa em build de dev** (item de `src/auth` da #531). Medido
+  com o `cookieBackend` de `create-tempest-auth.cookie.test.ts`: login, `logout()`, preset novo e
+  `refresh()` restauram `A-tok-cookie-1` — o `logout()` não alcança o cookie HttpOnly. **Aviso, não
+  exigência:** exigir `logoutPath` quebraria app cujo backend não revoga (refresh token stateless,
+  sem rota) sem fechar nada para ele, e recusar o `refresh()` do boot depois do logout quebraria o
+  login que grava o cookie fora do `login()` (callback de OAuth). Uma vez por `storeName`.
+- **Tamanho:** os tetos do barrel inteiro sobem — ESM 149,9 → 150,3 kB (149 789 → 150 246 B br) e
+  CJS 178,9 → 179,3 kB (178 824 → 179 225 B), medido com `npm run build && npx size-limit --json`
+  contra `origin/main` (`b054c16`). Nenhuma fatia mudou.
+
 ## [0.81.0] — 2026-11-01
 
 ### Breaking

@@ -309,6 +309,31 @@ function UserList() {
     regex JavaScript falha a **geração**, citando o schema e o caminho da
     propriedade — em vez de quebrar o app no import.
 
+    E o que viraria outra coisa no destino também é recusado antes da primeira
+    escrita:
+
+    - **Path que não começa com `/`** (`https://outro.example/x`) — o cliente
+      repassa URL absoluta como está, então o método chamaria outra origem — e
+      **path com segmento `.` ou `..`** (`/../x`, `/%2e%2e/x`, `/a\..\x`), que
+      sai do prefixo de path do `baseURL` quando a URL é normalizada. Ponto
+      dentro do segmento (`/v1.2/..cache`) e na query continua valendo.
+    - **Propriedade chamada `__proto__`**, ou chave `__proto__` dentro de um
+      `default`: no object literal gerado ela troca o protótipo em vez de
+      declarar o campo, e o Zod 4 a descarta mesmo como chave computada — não
+      existe código que a valide.
+
+    Um `pattern` que **compila** mas tem quantificador aninhado (`^(a+)+$`,
+    `(\w+\s?)*`) gera normalmente e sai como **aviso** (`!`) no terminal: em
+    valor quase-válido ele retrocede de forma exponencial — 28 caracteres
+    levaram 873 ms no Node 24 e cada um a mais dobra — e congela a aba que
+    valida. É uma heurística para esse formato, não prova de segurança:
+    `^([a-z0-9]+-)*[a-z0-9]+$` (cada repetição termina num `-` obrigatório) não
+    é marcado, e alternância sobreposta (`(a|aa)+`) não é analisada.
+
+    O que a CLI imprime vindo do spec — nomes de tag, avisos e mensagens de erro
+    — sai sem caracteres de controle C0/C1: uma tag com `ESC ] 0 ;` não troca o
+    título do terminal nem imprime link OSC 8 escondido.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).

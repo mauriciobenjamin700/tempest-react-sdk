@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+    chmodSync,
+    copyFileSync,
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -75,11 +82,25 @@ describe("release-npm.yml supply chain (#451)", () => {
         expect(WORKFLOW).toMatch(/^permissions: \{\}$/m);
     });
 
-    it("never installs a floating npm CLI", () => {
+    /**
+     * Rewritten, not deleted: this used to accept `npm install -g npm@X.Y.Z`, an
+     * exact version fetched from the registry with no integrity of our own next to
+     * `id-token: write` (#532). The CLI now comes from a tarball whose sha512 is
+     * pinned in the workflow and checked before an offline install.
+     */
+    it("never installs an npm CLI it has not checked against a pinned integrity", () => {
         expect(WORKFLOW).not.toMatch(/npm@latest/);
-        const installs = [...WORKFLOW.matchAll(/npm install -g (\S+)/g)].map((m) => m[1]);
-        expect(installs.length).toBeGreaterThan(0);
-        for (const spec of installs) expect(spec).toMatch(/^npm@\d+\.\d+\.\d+$/);
+        expect(WORKFLOW).not.toMatch(/npm install -g npm@/);
+        const installs = [...WORKFLOW.matchAll(/npm install -g (.+)/g)].map((m) => m[1]);
+        expect(installs).toEqual(['--offline "$RUNNER_TEMP/npm-cli/npm.tgz"']);
+        expect(WORKFLOW).toMatch(/^ {18}NPM_CLI_VERSION: "\d+\.\d+\.\d+"$/m);
+        expect(WORKFLOW).toMatch(/^ {18}NPM_CLI_INTEGRITY: "sha512-[A-Za-z0-9+/]{86}=="$/m);
+        const step = WORKFLOW.slice(WORKFLOW.indexOf("NPM_CLI_INTEGRITY:"));
+        expect(step.indexOf('!= "$NPM_CLI_INTEGRITY"')).toBeGreaterThan(-1);
+        expect(step.indexOf('!= "$NPM_CLI_INTEGRITY"')).toBeLessThan(
+            step.indexOf("npm install -g"),
+        );
+        expect(step).toMatch(/test "\$\(npm --version\)" = "\$NPM_CLI_VERSION"/);
     });
 
     it("pins every action by commit SHA", () => {
@@ -120,7 +141,7 @@ describe("release-npm.yml supply chain (#451)", () => {
         expect(body).not.toMatch(/npm ci|npm run |npx |npm pack|smoke-/);
         expect(body).not.toMatch(/contents: write/);
         const installs = [...body.matchAll(/npm install (.+)/g)].map((m) => m[1]);
-        for (const args of installs) expect(args).toMatch(/^-g npm@\d+\.\d+\.\d+$/);
+        expect(installs).toEqual(['-g --offline "$RUNNER_TEMP/npm-cli/npm.tgz"']);
     });
 
     it("publishes the tarball that was smoked, not a fresh pack", () => {
@@ -168,7 +189,8 @@ describe("release-npm.yml publishes one commit, from a tag (#452)", () => {
     });
 });
 
-const GUARD = resolve(import.meta.dirname, "..", "scripts", "check-release-ref.sh");
+const SCRIPTS = resolve(import.meta.dirname, "..", "scripts");
+const GUARD = join(SCRIPTS, "check-release-ref.sh");
 
 /**
  * A throwaway git repo with one commit and a `package.json` at a given version.
@@ -220,6 +242,7 @@ function runGuard(
     const merged: Record<string, string | undefined> = {
         ...process.env,
         CURRENT_LATEST: "",
+        BACKPORT_LINES: "",
         ...env,
         GITHUB_OUTPUT: outputFile,
     };
@@ -447,6 +470,12 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
         expect(run.written).toBe("");
     });
 
+    /**
+     * Rewritten, not deleted: a backport used to pass on ancestry to
+     * `origin/release-<maj>.<min>` alone, so creating that branch opened the line
+     * (#527). It now also needs the line in `BACKPORT_LINES`, the repository
+     * variable only the owner edits.
+     */
     it("accepts a backport from its own maintenance branch, under its release line", () => {
         const { dir, off } = offMainRepo("0.75.1", "release-0.75");
         const run = runGuard(dir, {
@@ -454,6 +483,7 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
             GITHUB_REF_NAME: "v0.75.1",
             GITHUB_SHA: off,
             CURRENT_LATEST: "0.78.0",
+            BACKPORT_LINES: "release-0.75",
         });
         expect(run.status).toBe(0);
         expect(run.output).toContain("on origin/release-0.75");
@@ -473,13 +503,14 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
         expect(run.written).toBe("");
     });
 
-    it("refuses a backport from another line's maintenance branch", () => {
+    it("refuses a backport from another line's maintenance branch, even with both lines opened", () => {
         const { dir, off } = offMainRepo("0.75.1", "release-0.76");
         const run = runGuard(dir, {
             GITHUB_REF_TYPE: "tag",
             GITHUB_REF_NAME: "v0.75.1",
             GITHUB_SHA: off,
             CURRENT_LATEST: "0.78.0",
+            BACKPORT_LINES: "release-0.75 release-0.76",
         });
         expect(run.status).toBe(1);
         expect(run.output).toContain("may instead come from origin/release-0.75");
@@ -490,6 +521,196 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
         const checkout = build.split("uses: actions/checkout@")[1]?.split(/\n {12}- /)[0] ?? "";
         expect(checkout).toMatch(/fetch-depth: 0/);
         expect(checkout).toMatch(/persist-credentials: false/);
+    });
+});
+
+/**
+ * The body of one step's `run:`, dedented, as the runner hands it to bash.
+ *
+ * @param body - A job body from `JOBS`.
+ * @param name - The step's `name:`.
+ * @returns The shell script of that step.
+ */
+function stepRun(body: string, name: string): string {
+    const lines = body.split("\n");
+    const start = lines.findIndex((line) => line.trim() === `- name: ${name}`);
+    expect(start, `step "${name}"`).toBeGreaterThan(-1);
+    const runAt = lines.findIndex((line, i) => i > start && /^ {14}run:/.test(line));
+    const head = lines[runAt]?.replace(/^ {14}run: ?/, "") ?? "";
+    if (head !== "|") return head;
+    const script: string[] = [];
+    for (const line of lines.slice(runAt + 1)) {
+        if (line.trim() !== "" && !line.startsWith(" ".repeat(18))) break;
+        script.push(line.slice(18));
+    }
+    return script.join("\n");
+}
+
+/**
+ * A fixture whose `main` carries this repo's real guard scripts at `0.78.0`, and
+ * a tagged commit off `main` at `version` whose own `check-release-ref.sh`
+ * approves anything — case C of the #527 audit.
+ *
+ * @param version - The version of the tagged, off-main commit.
+ * @returns The repo path (detached at the tagged commit) and that commit.
+ */
+function selfApprovingTagRepo(version: string): { dir: string; off: string } {
+    const dir = mkdtempSync(join(tmpdir(), "tempest-release-trust-"));
+    gitIn(dir, "init", "-q", "-b", "main");
+    mkdirSync(join(dir, "scripts"));
+    for (const file of ["check-release-ref.sh", "release-dist-tag.sh"]) {
+        copyFileSync(join(SCRIPTS, file), join(dir, "scripts", file));
+    }
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.78.0" }));
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "main");
+    gitIn(dir, "update-ref", "refs/remotes/origin/main", "HEAD");
+    gitIn(dir, "checkout", "-q", "-b", "evil");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version }));
+    writeFileSync(
+        join(dir, "scripts", "check-release-ref.sh"),
+        '#!/usr/bin/env bash\necho "dist_tag=latest" >> "$GITHUB_OUTPUT"\n',
+    );
+    gitIn(dir, "commit", "-q", "-am", "approve myself");
+    const off = gitIn(dir, "rev-parse", "HEAD");
+    gitIn(dir, "tag", `v${version}`, off);
+    gitIn(dir, "checkout", "-q", "--detach", off);
+    return { dir, off };
+}
+
+/**
+ * Run the build job's guard the way the workflow does: the step that copies the
+ * guard out of `origin/main`, then the guard step itself.
+ *
+ * @param dir - The checkout.
+ * @param env - The GitHub variables, `CURRENT_LATEST` and `BACKPORT_LINES`.
+ * @returns Exit status, combined output and what was written to `GITHUB_OUTPUT`.
+ */
+function runWorkflowGuard(
+    dir: string,
+    env: Record<string, string>,
+): { status: number | null; output: string; written: string } {
+    const [, build] = onlyJob(/check-release-ref\.sh/);
+    const script = [
+        stepRun(build, "Take the release guard from origin/main"),
+        stepRun(build, "Check the ref is a release tag for this commit"),
+    ].join("\n");
+    const outputFile = join(dir, "github-output");
+    writeFileSync(outputFile, "");
+    const result = spawnSync("bash", ["-e", "-c", script], {
+        cwd: dir,
+        encoding: "utf8",
+        env: {
+            ...process.env,
+            RUNNER_TEMP: mkdtempSync(join(tmpdir(), "tempest-runner-temp-")),
+            GITHUB_OUTPUT: outputFile,
+            CURRENT_LATEST: "",
+            BACKPORT_LINES: "",
+            ...env,
+        },
+    });
+    return {
+        status: result.status,
+        output: `${result.stdout}${result.stderr}`,
+        written: readFileSync(outputFile, "utf8"),
+    };
+}
+
+/**
+ * Measured on `b054c16` in a fixture (#527): a brand-new `release-0.79` branch
+ * holding an unreviewed `v0.79.50` passed the guard with exit 0 and
+ * `dist_tag=release-0.79`, and a tagged commit that rewrote its own guard passed
+ * with `dist_tag=latest`, because the workflow ran the tagged commit's copy.
+ */
+describe("the release guard trusts neither the tagged commit nor a new branch (#527)", () => {
+    it("runs the guard copied from origin/main, never the tagged commit's own", () => {
+        const [, build] = onlyJob(/check-release-ref\.sh/);
+        expect(build).toMatch(
+            /git show refs\/remotes\/origin\/main:scripts\/check-release-ref\.sh > "\$RUNNER_TEMP\/release-guard\/check-release-ref\.sh"/,
+        );
+        expect(build).toMatch(
+            /git show refs\/remotes\/origin\/main:scripts\/release-dist-tag\.sh > "\$RUNNER_TEMP\/release-guard\/release-dist-tag\.sh"/,
+        );
+        expect(build).not.toMatch(/run: (bash )?\.?\/?scripts\/check-release-ref\.sh/);
+        expect(build).not.toMatch(/\$\(scripts\/release-dist-tag\.sh/);
+    });
+
+    it("refuses a tagged commit that rewrites its own guard to approve itself", () => {
+        const { dir, off } = selfApprovingTagRepo("0.82.0");
+        const run = runWorkflowGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.82.0",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.81.0",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("which is not on main");
+        expect(run.written).toBe("");
+    });
+
+    it("still accepts a tag on main through the copied guard", () => {
+        const { dir } = selfApprovingTagRepo("0.82.0");
+        gitIn(dir, "checkout", "-q", "main");
+        writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.79.0" }));
+        gitIn(dir, "commit", "-q", "-am", "chore: release v0.79.0");
+        const merge = gitIn(dir, "rev-parse", "HEAD");
+        gitIn(dir, "update-ref", "refs/remotes/origin/main", merge);
+        gitIn(dir, "tag", "v0.79.0", merge);
+        const run = runWorkflowGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.0",
+            GITHUB_SHA: merge,
+            CURRENT_LATEST: "0.78.0",
+        });
+        expect(run.status).toBe(0);
+        expect(run.written).toBe(
+            "tag=v0.79.0\nversion=0.79.0\nprerelease=false\ndist_tag=latest\n",
+        );
+    });
+
+    it("refuses a backport from a maintenance branch the owner never opened", () => {
+        const { dir, off } = offMainRepo("0.79.50", "release-0.79");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.50",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.80.0",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("release-0.79 is not an opened backport line");
+        expect(run.output).toContain("RELEASE_BACKPORT_LINES");
+        expect(run.written).toBe("");
+    });
+
+    it("refuses a backport whose line is not among the opened ones", () => {
+        const { dir, off } = offMainRepo("0.79.50", "release-0.79");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.50",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.80.0",
+            BACKPORT_LINES: "release-0.7,release-0.790",
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("not an opened backport line");
+    });
+
+    it("accepts a backport once its line is in a comma-separated BACKPORT_LINES", () => {
+        const { dir, off } = offMainRepo("0.79.50", "release-0.79");
+        const run = runGuard(dir, {
+            GITHUB_REF_TYPE: "tag",
+            GITHUB_REF_NAME: "v0.79.50",
+            GITHUB_SHA: off,
+            CURRENT_LATEST: "0.80.0",
+            BACKPORT_LINES: "release-0.75,release-0.79",
+        });
+        expect(run.status).toBe(0);
+        expect(run.written).toContain("dist_tag=release-0.79\n");
+    });
+
+    it("hands the guard the owner's RELEASE_BACKPORT_LINES repository variable", () => {
+        const [, build] = onlyJob(/check-release-ref\.sh/);
+        expect(build).toMatch(/^ {18}BACKPORT_LINES: \$\{\{ vars\.RELEASE_BACKPORT_LINES \}\}$/m);
     });
 });
 
@@ -772,7 +993,7 @@ describe("release-npm.yml reads the registry's latest for the guard (#472)", () 
             /CURRENT_LATEST: \$\{\{ steps\.registry\.outputs\.current_latest \}\}/,
         );
         expect(build.indexOf("release-dist-tag.sh current-latest")).toBeLessThan(
-            build.indexOf("scripts/check-release-ref.sh"),
+            build.indexOf('run: bash "$RUNNER_TEMP/release-guard/check-release-ref.sh"'),
         );
     });
 
@@ -968,7 +1189,7 @@ describe("release-npm.yml surfaces release-dist-tag.sh errors on stdout (#472)",
         expect(calls.length).toBeGreaterThanOrEqual(4);
         for (const line of calls) {
             expect(line).toMatch(
-                /=\$\((bash )?scripts\/release-dist-tag\.sh [^)]*2>"\$RUNNER_TEMP\/([\w.-]+)"\) \|\| \{ cat "\$RUNNER_TEMP\/\2"; exit 1; \}$/,
+                /=\$\((bash )?(scripts|"\$RUNNER_TEMP"\/release-guard)\/release-dist-tag\.sh [^)]*2>"\$RUNNER_TEMP\/([\w.-]+)"\) \|\| \{ cat "\$RUNNER_TEMP\/\3"; exit 1; \}$/,
             );
         }
     });

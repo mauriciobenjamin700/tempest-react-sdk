@@ -4,6 +4,78 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`tempest gen api` recusa spec que gerava código enganoso, e `create-tempest-app <nome>` recusa
+  destino que é symlink (#533).** Passam a falhar, antes da primeira escrita: path key que não
+  começa com `/` (`https://outro.example/x`) ou que tem segmento `.`/`..` (inclusive `%2e` e `\`);
+  propriedade chamada `__proto__`; chave `__proto__` dentro de `default`; e, no scaffold,
+  `create-tempest-app my-app` com `my-app` sendo link simbólico. **Migração:** nenhuma para spec
+  válido — o OpenAPI exige path relativo começando com `/`. Se o seu falhar, corrija o path no
+  backend (a origem vai no `baseURL` do `createApiClient`) ou renomeie a propriedade
+  (`alias` no Pydantic); no scaffold, passe o caminho real da pasta em vez do link.
+
+### Segurança
+
+- **Release: o guard não confia mais no commit taggeado nem numa branch `release-*` recém-criada
+  (#527, #472).** Medido em fixture git na `b054c16` (sem rede), com
+  `npx vitest run test/release-workflow.test.ts`: uma `release-0.79` nova com um commit não
+  revisado e a tag `v0.79.50` (`latest` em 0.80.0) passava com código 0 e `dist_tag=release-0.79`,
+  e um commit que reescrevia o próprio `check-release-ref.sh` passava com `dist_tag=latest`, porque
+  o workflow rodava a cópia do commit da tag. A parte de código da #472 já estava resolvida (tag
+  fora da `main` e backport para `latest` saem com código 1 desde a 0.79.0). Agora o job `build`
+  roda o guard e o `release-dist-tag.sh` **copiados de `origin/main`**, e backport só passa para
+  linha aberta na variável de repositório `RELEASE_BACKPORT_LINES`. Os 8 testes novos ou
+  reescritos falhavam contra a `main`. **Limite, escrito em `docs/release.md`:** num tag push o
+  `release-npm.yml` vem do commit da tag, então o guard barra engano, não um ator que empurra tag;
+  a fronteira é o environment `npm-release` com revisor e o Trusted Publisher amarrado a ele —
+  lidos em 01/11/2026 com `gh api`, **desligados**, e o checklist do dono diz o que ligar.
+  **Migração (mantenedor):** para publicar um backport, ponha `release-<maj>.<min>` em
+  `RELEASE_BACKPORT_LINES` (_Settings → Secrets and variables → Actions → Variables_) antes da tag.
+- **Workflows e publish com menos privilégio e código fixado (#532).** O `docs.yml` dava
+  `pages: write` e `id-token: write` ao workflow inteiro, alcançando o job que roda
+  `pip install` sem pin e os plugins do mkdocs; agora começa de `permissions: {}`, o `build` só tem
+  `contents: read` e o `deploy` leva Pages e OIDC. Suas cinco actions saem de tag mutável para SHA
+  (as mesmas versões que as tags resolviam, mais `checkout`/`setup-node` iguais aos do
+  `release-npm.yml`), com `persist-credentials: false`. O `docs/requirements.txt` vira 30 pacotes
+  com hash (`uv pip compile --generate-hashes`, cooldown de 14 dias) e é instalado com
+  `--require-hashes` — instalado e conferido com `mkdocs build --strict` no Python 3.12. O job
+  `publish` baixa o npm 12.2.0 por URL, confere o `sha512` fixado e instala `--offline` (simulado
+  localmente: hash certo instala 12.2.0, hash errado sai 1 antes de instalar). O
+  `make publish` **recusa**: publicava da máquina com token de vida longa, sem guard, smoke,
+  provenance nem Release. Guardas em `test/ci-policy.test.ts` (6 testes que falhavam contra a
+  `main`). **Migração (mantenedor):** não há publish local; publique por `make release` +
+  `make release-tag`, e revogue o secret `NPM_TOKEN` legado (item 5 do checklist).
+
+- **Hardening do `create-tempest-app` e do `tempest gen api` contra spec hostil (#533).** Medido na
+  `main` antes da correção, com um spec montado para isso (os testes novos em
+  `bin/lib/openapi/generate.hostile.test.mjs`, `bin/tempest-gen.test.mjs` e
+  `bin/create-tempest-app.e2e.test.mjs` — 17 falhavam, `npx vitest run bin/`):
+  - a tag `"a\u001b]0;PWNED\u0007"` era impressa crua depois de `✓ Generated` — escape OSC que
+    troca o título do terminal; OSC 8 imprimia link com alvo escondido. O `JSON.stringify` das
+    mensagens de erro escapa C0 mas deixa C1 (`\u009b`, CSI de 8 bits) cru. Agora tags, avisos e
+    erros passam por `terminalText`, que remove C0/C1 (menos tab e LF), e o comentário gerado
+    também perde esses caracteres. A dica de uso no fim imprimia `@/api/<tag crua>` — errada para
+    `"Items API"` (a pasta é `items-api`, a classe `ItemsApiService`); agora usa a pasta e a
+    classe geradas.
+  - a path key `https://other.example/x` virava `this.api.get("https://other.example/x")`, que o
+    `buildApiUrl` repassa intacta: o bearer era retido pelo `isTrustedCredentialTarget`, mas body
+    e cookies (com `credentials: "include"`) iam junto. `/../y` virava `get("/../y")`. Recusados.
+  - `properties: { "__proto__": … }` virava `z.object({ "__proto__": z.string() })`, cujo shape
+    ficava sem o campo (`Object.keys(shape)` = `["x"]`), e um `required` aceitava `{}`. Escrever
+    como chave computada não resolve: o Zod 4.6.7 descarta `__proto__` mesmo assim (aceitou `5`
+    para um `z.string()` obrigatório). Recusado.
+  - `pattern: "^(a+)+$"` virava `new RegExp(...)` sem aviso; no V8 ele leva 873 ms em 28
+    caracteres e dobra a cada um (`/^(a+)+$/.test("a".repeat(28) + "!")`, Node 24.15). Agora o
+    gerador marca quantificador aninhado com aviso `!` e gera normalmente — é heurística, não
+    prova, então não reprova a geração.
+  - o scaffold com `my-app -> ../outro` (link para pasta vazia) escrevia o template no alvo do
+    link. Recusado, como o modo merge já fazia com symlink no destino.
+  - A janela check-then-write (TOCTOU) entre a checagem de contenção e a escrita continua: o Node
+    não tem walk `openat`/`O_NOFOLLOW`, e o processo que ganharia a corrida já escreve no projeto
+    do usuário. Fica documentada como risco aceito no `create-tempest-app.mjs` e no
+    `bin/lib/fs/contain.mjs`.
+
 ### Adicionado
 
 - **Aviso em desenvolvimento quando um `gap` numérico parece pixel (#536).** `Stack`, `Grid`,

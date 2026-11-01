@@ -4,6 +4,74 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`installRuntimeCache` deixa passar direto o `fetch` CORS com `credentials: "include"` (#531).**
+  O worker não enxerga `Cookie`, então um `GET` de API com sessão por cookie que casava uma rota
+  era gravado por URL e servido offline para a próxima conta do navegador. O que ele enxerga é o
+  `fetch` que pede cookie explicitamente — `mode: "cors"` + `credentials: "include"`, exatamente o
+  que o `ApiClient` manda com `withCredentials`, inclusive na própria origem —, e agora essa
+  requisição é tratada como credenciada: passa direto para a rede, como a que leva
+  `Authorization`. A sugestão da issue de bloquear todo `credentials: "include"` foi medida e
+  recusada: `<img>`, `<audio>` e `<video>` mandam `include` em modo `no-cors`, então ela desligaria o
+  cache de mídia; o teste existente que fixava isso foi reescrito para o `no-cors` real, e não
+  apagado. `fetch` simples na mesma origem (`credentials: "same-origin"`) continua invisível — a
+  doc diz o que cobre esse caso. Reproduzido antes da correção em `src/sw/cache.test.ts`
+  (`npx vitest run src/sw/cache.test.ts`: o `GET /api/me` com `include` era servido pela rota).
+  **Migração:** rota que **quer** cachear a API por cookie liga `cacheAuthenticated: true` — a
+  entrada fica por URL (não há header para o `Vary`), então chame `clearSessionData()` no logout.
+
+### Segurança
+
+- **Estado local amarrado ao dono da sessão (#531).** Três filas e um snapshot sobreviviam à
+  troca de conta quando o app não limpava no logout (token vencido, crash, aba fechada logada).
+  Cada um ganha `getPrincipal` opcional — o mesmo contrato do `createAppErrorReporter`: id estável e
+  não secreto, lido de forma síncrona, guardado só como impressão de 64 bits (`p:<16 hex>`), e
+  getter que lança ou devolve `Promise` lê como "ninguém". Sem a opção, nada muda.
+  - **`persistQueryClientOffline`**: cada gravação carimba o snapshot; `restore()` só hidrata o do
+    **mesmo** dono. O de outra pessoa é ignorado, não apagado (app com cookie que só conhece o
+    usuário depois do `/me` não perde o próprio cache), e a próxima gravação o substitui.
+  - **`createOfflineSync`**: `OutboxEntry.owner` carimbado no `enqueue`; no flush, entrada do mesmo
+    dono sai, entrada de alguém com ninguém logado fica (`summary.held`) e entrada de outra pessoa
+    é apagada sem envio (`summary.dropped`). Entrada sem carimbo (de antes da opção) sai como antes.
+    A cerca de sessão do #525 cobria só quem chamava `clearOutbox()`.
+  - **`createWebSocket` / `useWebSocket`**: payload bufferizado por `queueWhileClosed` leva o dono, e
+    no `open` seguinte só sai o do mesmo dono. Socket por cookie reabre o handshake como quem
+    estiver logado na reconexão, então o frame de A saía com o cookie de B se o app não fechasse o
+    socket no logout.
+  - **`provideBackgroundSyncCredentials` sem `getPrincipal`** avisa em build de desenvolvimento: as
+    entradas ficam "sem dono" e saem com a sessão de quem responder. A outra sugestão da issue —
+    tratar entrada credenciada sem dono como "desconhecida" — foi descartada por não mudar nada: o
+    "desconhecido" é reenviado justamente quando nenhuma aba reporta principal, que é a página sem
+    `getPrincipal`.
+
+  Reproduzido antes da correção: 13 casos falhavam em `src/query/offline-persistence.owner.test.ts`,
+  `src/offline/create-offline-sync.owner.test.ts`, `src/ws/create-web-socket.owner.test.ts` e
+  `src/sw/background-sync.unbound.test.ts` (`npx vitest run <arquivo>`); o primeiro de cada um
+  hidratava, entregava ou enviava o dado de A na sessão de B.
+
+- **`template-pwa` limpa o dispositivo quando a conta sai (#531).** O `src/sw.ts` do scaffold
+  mandava chamar `clearSessionData()` no logout, e nenhum caminho do scaffold chamava. O
+  `src/pwa.tsx` agora observa o auth store: quando a conta logada some — botão Sair, `401` no
+  `onUnauthorized` ou outra conta entrando por cima —, ele chama `clearSessionData()` e cancela a
+  inscrição de push no navegador, para o próximo usuário do aparelho não receber as notificações
+  do anterior. Refresh de token mantém o usuário e não limpa nada. Guard em
+  `test/scaffold-template.test.ts`. O `template/` sem PWA não tem service worker, então não há
+  cache de runtime nem fila para limpar.
+
+### Corrigido
+
+- **Resposta com `Vary: *` virava falha no cache de runtime (#534).** O Cache API rejeita esse
+  `put` com `TypeError`, e a rejeição escapava da estratégia: o `network-first` caía no fallback
+  offline, o `cache-first` falhava e o `stale-while-revalidate` não respondia — com a resposta da
+  rede em mãos. Agora ela é servida e só não é gravada. Reproduzido com o fake de cache rejeitando
+  como a spec (`npx vitest run src/sw/cache.test.ts`: 4 casos falhavam).
+
+- **Tamanho:** os tetos do barrel inteiro sobem — ESM 149,9 → 150,3 kB (149 789 → 150 142 B br) e
+  CJS 178,9 → 179,3 kB (178 824 → 179 194 B br); a fatia offline + PWA vai de 4 747 para 5 064 B,
+  dentro dos 6 kB. Medido com `npm run build && npx size-limit --json` sobre a `origin/main`
+  (`b054c16`) e sobre esta branch.
+
 ## [0.81.0] — 2026-11-01
 
 ### Breaking

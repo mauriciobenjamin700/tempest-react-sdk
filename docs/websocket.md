@@ -141,6 +141,8 @@ try {
 
     Ligue `queueWhileClosed: true` quando a ação **não pode** sumir: aí o `send()` bufferiza durante o backoff e devolve `true`, e a fila é despejada no `open` seguinte. A fila morre no `close()` — nada sobrevive a um fechamento explícito.
 
+    Socket autenticado por cookie reabre o handshake como quem estiver logado na hora da reconexão. Se o app não fechar o socket no logout, passe `getPrincipal: () => userId`: cada payload guardado leva a impressão de quem o enviou, e no `open` seguinte só sai o que for do **mesmo** dono — o resto é descartado.
+
 !!! danger "Contra o servidor Tempest, não ligue `pingInterval`"
     O `tempest-fastapi-sdk` **manda** o ping e quer o `pong` de volta. Um `{"type":"ping"}` vindo do cliente é frame desconhecido pra ele — um handler estrito recusa. Deixe `pingInterval: 0` (default) e o `respondToPing` cuida do heartbeat.
 

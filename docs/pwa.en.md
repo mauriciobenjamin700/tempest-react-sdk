@@ -67,10 +67,12 @@ installPrecache(); // app shell + offline navigation
 
 Cache Storage is keyed by **URL** and outlives logout. Left alone, account A's `GET /api/me` stays there and is served to account B on the same browser as soon as the network drops — or takes longer than `networkTimeoutSeconds`. Measured in Chromium 153 (11/10/2026), before 0.77.0: B, offline, received A's body.
 
-So `installRuntimeCache` enforces four rules on its own:
+So `installRuntimeCache` enforces six rules on its own:
 
 - **A request carrying a credential header goes straight to the network** — `Authorization`, `X-Api-Key`, `X-Auth-Token` and the rest of `DEFAULT_CREDENTIAL_HEADERS` (override per route with `credentialHeaders`): the route neither reads nor writes the cache, as if the service worker did not exist for it.
+- **A CORS `fetch` with `credentials: "include"` also goes straight through** — it is what `ApiClient` sends under `withCredentials`, even on its own origin. `<img>`, `<audio>` and `<video>` send `include` too, but in `no-cors` mode, so they keep caching (since 0.82.0).
 - **`Cache-Control: no-store` is never stored**, and **`private`** only with the opt-in.
+- **`Vary: *` is never stored**: the Cache API rejects that response on `put`, and up to 0.81.0 the rejection became an error — `network-first` fell back to the offline path and `cache-first` failed, with the network response in hand. Now it is served and just not cached.
 - **`maxAgeSeconds` also applies to the fallback**: an expired entry is a miss, never an offline "last resort". This holds for `network-first` and `stale-while-revalidate`.
 - **Age counts from the write**, not from the `Date` header — which a CORS response does not expose, so for an API on another origin `maxAgeSeconds` never expired anything.
 
@@ -96,8 +98,8 @@ With the opt-in, every entry is stored with `Vary` on each credential header the
 
 The revalidation that keeps going after the response — the `stale-while-revalidate` refresh and the network request that lost to `networkTimeoutSeconds` — is handed to `event.waitUntil`, so the browser does not stop the worker mid-write.
 
-!!! warning "Limit: cookie sessions"
-    The service worker **cannot see** the request's `Cookie`, so it cannot tell a cookie-session API from a public GET. Gating on `request.credentials` does not help: it would switch off caching for every same-origin image and font. For a cookie-session API, cache privacy depends on two things outside the SDK:
+!!! warning "Limit: cookie sessions over a plain `fetch`"
+    The service worker **cannot see** the request's `Cookie`. What it can see is a `fetch` that asks for cookies explicitly (`credentials: "include"` in CORS mode), and that one already goes straight through. A plain same-origin `fetch` (`credentials: "same-origin"`, the default) carries the cookie without saying so — and gating on that mode would switch off caching for every request of the origin. For such an API, cache privacy depends on two things outside the SDK:
 
     - the server sending `Cache-Control: private` (or `no-store`) on personal responses — the SDK honours it;
     - the app calling [`clearSessionData()`](#6-logout-clear-the-session-data) on logout.
@@ -149,7 +151,7 @@ provideBackgroundSyncCredentials(
 ```
 
 !!! warning "Without a provider, no mutation is replayed"
-    The queue does not keep the token, so only the page can hand it back — and only the page can say who is signed in. Without `provideBackgroundSyncCredentials`, the tab does not answer, the entry's owner is **unknown**, and it stays pending until `maxRetentionMinutes` and is gone, whether or not it carried a credential header. In development builds the worker warns in the console (once per replay). A cookie-session API with no token installs the provider all the same: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. An app with no sign-in at all uses [`ownerPolicy: "lenient"`](#ownerpolicy-an-app-without-sign-in).
+    The queue does not keep the token, so only the page can hand it back — and only the page can say who is signed in. Without `provideBackgroundSyncCredentials`, the tab does not answer, the entry's owner is **unknown**, and it stays pending until `maxRetentionMinutes` and is gone, whether or not it carried a credential header. In development builds the worker warns in the console (once per replay), and `provideBackgroundSyncCredentials` called **without** `getPrincipal` warns too: without it every entry is **unbound** and goes out with whichever session answers — B's, if A signed out without `clearSessionData()`. A cookie-session API with no token installs the provider all the same: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. An app with no sign-in at all uses [`ownerPolicy: "lenient"`](#ownerpolicy-an-app-without-sign-in).
 
 #### Every entry has an owner
 

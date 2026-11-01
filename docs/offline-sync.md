@@ -103,6 +103,42 @@ sync.clearOutbox();
     outbox compartilhada não é entregue, mas o pull em andamento noutra aba só para
     quando aquela aba também chamar `resetWatermark()`/`clearOutbox()`.
 
+!!! tip "Cada entrada tem dono: `getPrincipal`"
+    `clearOutbox()` no logout esvazia a fila. Para o app que esquece — ou a sessão que acaba sem logout (token vencido, aba fechada) —, passe `getPrincipal`: cada entrada ganha a impressão de quem estava logado ao enfileirar (`entry.owner`, nunca o id), e o flush confere de novo antes de cada `deliver`:
+
+    | Quem está logado agora | O que acontece com a entrada |
+    | --- | --- |
+    | o mesmo dono | entregue |
+    | ninguém | fica na fila (`summary.held`) e sai quando o dono voltar |
+    | outra pessoa | apagada sem envio (`summary.dropped`) |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let currentUserId: string | null = "user-a";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => currentUserId,
+    });
+
+    await sync.enqueue("update", "n1", { text: "rascunho de A" });
+    currentUserId = "user-b";
+    const summary = await sync.flush();
+    console.log(summary.dropped); // 1 — a edição de A não sai com a sessão de B
+    ```
+
+    Entrada enfileirada antes de você ligar a opção não tem carimbo e é entregue como antes: são edições do próprio usuário, e segurá-las travaria toda fila no upgrade.
+
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
     sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas

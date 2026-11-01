@@ -43,7 +43,7 @@ export interface UseWebSocketResult<T> {
  * for the host component and tears it down on unmount.
  *
  * Every callback is read through a ref, so `onOpen` / `onMessage` / `onClose` /
- * `onError` / `onReconnecting` / `onReconnected` / `onLost` always run the
+ * `onError` / `onReconnecting` / `onReconnected` / `onLost` / `getPrincipal` always run the
  * latest closure — an inline arrow function is fine and never reopens the
  * socket. Connection-shaping options (`protocols`, `maxRetries`,
  * `initialBackoff`, `maxBackoff`, `jitter`, `handshakeTimeout`,
@@ -102,6 +102,7 @@ export function useWebSocket<T = unknown>(
         const hasParser = optionsRef.current.parser !== undefined;
         const hasParseError = optionsRef.current.onParseError !== undefined;
         const hasValidationError = optionsRef.current.onValidationError !== undefined;
+        const hasPrincipal = optionsRef.current.getPrincipal !== undefined;
 
         const controller = createWebSocket<T>(url, {
             protocols: optionsRef.current.protocols,
@@ -118,6 +119,7 @@ export function useWebSocket<T = unknown>(
             pongPayload: optionsRef.current.pongPayload,
             queueWhileClosed,
             maxQueuedMessages,
+            getPrincipal: hasPrincipal ? () => optionsRef.current.getPrincipal?.() : undefined,
             parser: hasParser ? (raw) => optionsRef.current.parser?.(raw) as T : undefined,
             onParseError: hasParseError
                 ? (error, raw) => optionsRef.current.onParseError?.(error, raw)

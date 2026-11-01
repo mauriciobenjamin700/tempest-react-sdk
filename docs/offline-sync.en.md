@@ -103,6 +103,42 @@ sync.clearOutbox();
     the shared outbox is not delivered, but a pull in flight in another tab only
     stops when that tab also calls `resetWatermark()`/`clearOutbox()`.
 
+!!! tip "Every entry has an owner: `getPrincipal`"
+    `clearOutbox()` on logout empties the queue. For the app that forgets it — or a session that ends without a logout (expired token, closed tab) — pass `getPrincipal`: each entry is stamped with a fingerprint of whoever was signed in when it was queued (`entry.owner`, never the id), and the flush checks again before every `deliver`:
+
+    | Signed in now | What happens to the entry |
+    | --- | --- |
+    | the same owner | delivered |
+    | nobody | stays queued (`summary.held`) and goes out when its owner is back |
+    | somebody else | deleted unsent (`summary.dropped`) |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let currentUserId: string | null = "user-a";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => currentUserId,
+    });
+
+    await sync.enqueue("update", "n1", { text: "A's draft" });
+    currentUserId = "user-b";
+    const summary = await sync.flush();
+    console.log(summary.dropped); // 1 — A's edit does not go out under B's session
+    ```
+
+    An entry queued before you turned the option on carries no stamp and is delivered as before: it is the user's own edit, and holding it would strand every queue on upgrade.
+
 !!! danger "Per-record order survives a failure — it did not before"
     When an entry fails, the **remaining entries for that same record** are left
     untried for this pass and come back in their original order on the next one.

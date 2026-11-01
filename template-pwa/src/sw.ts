@@ -28,15 +28,16 @@ import {
  *     other credential header) bypasses this cache and goes to the network: in
  *     an app with accounts, most `/api` GETs. To serve them offline, add
  *     `cacheAuthenticated: true` to the route — entries then vary on the
- *     credential, so another account never reads them — and keep
- *     `clearSessionData()` in the logout flow.
+ *     credential, so another account never reads them. `src/pwa.tsx` already
+ *     calls `clearSessionData()` whenever the signed-in account goes away.
  *  4. Precache of the app shell so the app launches offline (API navigations
  *     excluded). Reads the `precache-manifest.json` emitted by
  *     `tempestPwaManifest()` in `vite.config.ts`.
  *
  * Cache names carry the `tempest-` prefix so `inspectCaches({ filter: "tempest-" })`
- * reports them. On logout, call `clearSessionData()` from the page: it drops
- * the runtime caches and the background-sync queue, keeping the precache.
+ * reports them. On logout `src/pwa.tsx` calls `clearSessionData()` from the
+ * page: it drops the runtime caches and the background-sync queue, keeping the
+ * precache.
  *
  * `installRuntimeCache` is registered BEFORE `installPrecache` so its specific
  * routes win over the precache catch-all. The trailing `activate` listener takes

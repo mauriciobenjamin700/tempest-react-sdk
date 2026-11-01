@@ -84,7 +84,7 @@ esbuild sair 1, export faltando faz o `node` sair 1.
 O `release-npm.yml` é quatro jobs, não um (#451): `build` e `smoke` com
 `contents: read`, `publish` só com `id-token: write`, `release` só com
 `contents: write`. **Nada resolvido do registry na hora roda ao lado de
-`id-token`** — o job de publish instala um npm de versão exata e publica o
+`id-token`** — o job de publish instala um npm de versão e integridade fixadas e publica o
 tarball que o `build` empacotou e o `smoke` testou, conferindo o SHA-256 que
 veio como output do `build`. `test/release-workflow.test.ts` reprova o workflow
 que voltar a juntar as coisas: action sem SHA, checkout sem
@@ -126,6 +126,27 @@ workflow — tag push roda o `release-npm.yml` do commit da tag. Revisor obrigat
 GitHub/npm, não do repo — `docs/release.md` diz como ligar. O guard garante "está
 na `main`"; é a branch protection da `main` (e de `release-*`) que transforma
 isso em "foi revisado".
+
+**O guard barra engano, não ator** (#527). O `build` roda o
+`check-release-ref.sh` e o `release-dist-tag.sh` **copiados de `origin/main`**
+(`git show`), nunca os do commit taggeado: um commit que reescreve o próprio
+guard não se aprova. Mas o `release-npm.yml` em si vem do commit da tag, então
+quem empurra commit + tag controla o workflow — a fronteira de verdade é o
+checklist do dono em `docs/release.md` (estado lido em 01/11/2026: tudo
+desligado, e um secret `NPM_TOKEN` legado ainda no repo). Backport só de linha
+aberta na variável de repositório `RELEASE_BACKPORT_LINES`; criar a branch
+`release-X.Y` não abre a linha.
+
+**Hardening dos dois workflows** (#532), guardado em `test/ci-policy.test.ts`
+para todo arquivo de `.github/workflows/`: `permissions: {}` no topo, action por
+SHA com `# vX.Y.Z` ao lado, checkout com `persist-credentials: false`. No
+`docs.yml`, o `build` (que roda `pip install` e o mkdocs) só tem
+`contents: read`; `pages: write` e `id-token: write` ficam no `deploy`. O
+`docs/requirements.txt` é gerado com hash (`uv pip compile --generate-hashes`,
+cooldown de 14 dias; o comando está no cabeçalho) e instalado com
+`--require-hashes`. O npm do job `publish` é baixado por URL, conferido contra o
+`NPM_CLI_INTEGRITY` fixado e instalado `--offline`. O `make publish` recusa: não
+existe publish local.
 
 ## Release
 

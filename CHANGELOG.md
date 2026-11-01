@@ -152,8 +152,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `drops messages that arrive after close`, que pelo nome já devia descartar mas afirmava uma
   entrega, foi invertido. **Tamanho:** sobre a `main` já com #549, o barrel ESM fica dentro do teto (150 376 → 150 327 B br, ruído
   do brotli) e o CJS sobe 179 534 → 179 659 B (+125, teto 179,6 → 179,7 kB), medido com
-  `npm run build && npx size-limit --json` sobre `origin/main` (`b054c16`) e sobre esta branch;
-  nenhuma fatia por import mudou.
+  `npm run build && npx size-limit --json` na `main` e nesta branch atualizada; nenhuma fatia por
+  import mudou.
 
 ### Adicionado
 

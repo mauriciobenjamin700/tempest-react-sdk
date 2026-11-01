@@ -107,6 +107,7 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 ```
 
 - `enabled: false` desconecta o stream (use enquanto espera o `user` carregar).
+- `sessionKey` (o id do usuário) amarra o stream à sessão: trocar de conta fecha o stream e zera `lastMessage` — ver [troca de conta](#troca-de-conta-na-mesma-aba-sessionkey).
 - Mudar a URL re-abre a conexão; mudar o `onMessage` **não** (callback via ref interna — sem reconexões à toa).
 - `lastMessage` guarda a última mensagem recebida (heartbeats não contam).
 - Cleanup automático no unmount.
@@ -253,6 +254,66 @@ onUrlError(erro)  →  erro.status === 403, erro.code === "ACCOUNT_INACTIVE"
     `ticketParam: "ticket"`. Se o router foi montado em outro lugar, passe os dois.
     Fora de React, `createTicketEventStream({ client: api, ... })` faz o mesmo e
     devolve o controller com `close`/`reconnect`/`status`.
+
+### Troca de conta na mesma aba — `sessionKey`
+
+O ticket abre o canal **do usuário que o pediu**, e o backend confere o ticket
+só na abertura: nem o logout nem a revogação do refresh token derrubam um stream
+já aberto — ele vive até o cliente sair (conferido no `make_sse_router` e no
+`UserAuthService.sse_router` do `tempest-fastapi-sdk`). Se a aba troca do usuário
+A para o B **sem** `enabled` passar por `false`, o stream de A continua entregando
+os eventos de A sob o B.
+
+Passe a identidade da sessão em `sessionKey` e o hook cuida disso:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+
+const api = createApiClient({
+    baseURL: "https://api.exemplo.com",
+    prefix: "/api",
+    getToken: () => localStorage.getItem("token"),
+});
+
+export function Avisos({ usuario }: { usuario: { id: string } | null }) {
+    const { status, lastMessage } = useTicketEventStream<{ texto: string }>({
+        client: api,
+        enabled: usuario !== null,
+        sessionKey: usuario?.id ?? null,
+        onMessage: ({ data }) => console.log("aviso", data.texto),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {lastMessage && <p>{lastMessage.data.texto}</p>}
+        </div>
+    );
+}
+```
+
+Quando `usuario.id` muda de `"a"` para `"b"`:
+
+```text
+EventSource …/sse/stream?ticket=<de a>   fechado
+lastMessage                              null
+POST …/sse/ticket                        200  {"ticket":"<de b>","expires_in":60}
+GET  …/sse/stream?ticket=<de b>          200  text/event-stream
+```
+
+- A troca de chave fecha o stream, zera `lastMessage` e pede ticket novo.
+- Um frame de A que chegue entre o render e o efeito que fecha o stream é
+  **descartado**, não entregue.
+- A chave é um primitivo (`string | number | boolean | null | undefined`): um
+  objeto montado inline reabriria o stream a cada render.
+- Sem `sessionKey`, nada muda: o stream segue só `url` e `enabled`.
+
+Fora de React, `createEventStream` e `createTicketEventStream` aceitam
+`sessionKey` como **função** (`() => store.getState().user?.id ?? null`). A
+chave é lida a cada conexão e antes de cada frame: frame que chega com a chave
+trocada é descartado e o stream reconecta para a sessão atual. Como a conferência
+acontece na chegada de um frame, um stream silencioso só fecha no próximo frame
+ou no `close()`.
 
 ### URL resolvida por conexão
 
@@ -445,6 +506,7 @@ O que a opção garante:
 - `createEventStream(url, options)` abre um SSE com reconnect exponencial; o controller expõe `close`, `reconnect` e `status`.
 - `url` pode ser uma função chamada a cada conexão; `useTicketEventStream({ client })` usa isso para pedir um ticket novo em toda reconexão, sem token na URL.
 - `useEventStream(url, options)` é o wrapper React: amarra o ciclo de vida ao componente, expõe `status`/`lastMessage`/`reconnect` e respeita `enabled`.
+- `sessionKey` amarra o stream à sessão: o servidor não derruba stream aberto no logout, então a troca de conta fecha o stream do usuário anterior no cliente.
 - Heartbeats (default `["ping"]`) mantêm o socket vivo sem disparar `onMessage`.
 - `schema` valida cada frame antes de entregar: o que não casa não chega em `onMessage`, e `onValidationError` diz por quê.
 - Status `"error"` = esgotou tentativas; ofereça `reconnect()` ao usuário.

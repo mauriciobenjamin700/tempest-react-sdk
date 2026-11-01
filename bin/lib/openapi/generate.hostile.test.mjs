@@ -672,3 +672,140 @@ describe("generate — names that collide with what the generator itself declare
         );
     });
 });
+
+describe("generate — spec text that would leave its place in the output (#533)", () => {
+    const ESC_TAG = "items\u001b]0;PWNED\u0007\u009b31m\r";
+    const POST_BODY = {
+        "/a": { post: { tags: ["t"], requestBody: JSON_BODY("Body"), responses: OK } },
+    };
+
+    it("a path key that is an absolute URL is refused, so no method calls another origin", () => {
+        expect(() =>
+            generate(spec({ "https://other.example/x": { get: { tags: ["t"], responses: OK } } })),
+        ).toThrow(/path "https:\/\/other\.example\/x" does not start with "\/"/);
+    });
+
+    it.each(["/../x", "/a/./b", "/a/..", "/%2e%2E/x", "/a\\..\\x", "/./x?y=1"])(
+        "a path key with a dot segment (%s) is refused, so it cannot climb out of the baseURL path",
+        (path) => {
+            expect(() =>
+                generate(spec({ [path]: { get: { tags: ["t"], responses: OK } } })),
+            ).toThrow(/has a "\." or "\.\." segment/);
+        },
+    );
+
+    it("dots inside a segment, dots in the query and a doubled slash still generate", () => {
+        const { files } = generate(
+            spec({
+                "/v1.2/..cache/file.json": { get: { tags: ["t"], responses: OK } },
+                "//double/slash": { get: { tags: ["t"], responses: OK } },
+                "/search?q=..": { get: { tags: ["t"], responses: OK } },
+            }),
+        );
+        expect(files["t/service.ts"]).toContain('"/v1.2/..cache/file.json"');
+        expect(files["t/service.ts"]).toContain('"/search?q=.."');
+    });
+
+    it("a property named __proto__ is refused instead of silently vanishing from the Zod shape", () => {
+        const Body = JSON.parse(
+            '{"type":"object","required":["__proto__"],"properties":{"__proto__":{"type":"string"}}}',
+        );
+        expect(() => generate(spec(POST_BODY, { Body }))).toThrow(
+            /schema "Body" at \(root\): a property named "__proto__" cannot be validated/,
+        );
+    });
+
+    it("a default value with a nested __proto__ key is refused", () => {
+        const Body = JSON.parse(
+            '{"type":"object","properties":{"meta":{"type":"object","default":{"a":{"__proto__":{"admin":true}}}}}}',
+        );
+        expect(() => generate(spec(POST_BODY, { Body }))).toThrow(
+            /schema "Body" at properties\.meta: the default value has a "__proto__" key/,
+        );
+    });
+
+    it("properties called constructor or prototype still generate and are validated", () => {
+        const { files } = generate(
+            spec(POST_BODY, {
+                Body: {
+                    type: "object",
+                    required: ["constructor"],
+                    properties: {
+                        constructor: { type: "string" },
+                        prototype: { type: "string" },
+                    },
+                },
+            }),
+        );
+        const schemas = evaluate(files["t/schemas.ts"], vm.createContext({}), {});
+        expect(schemas.BodySchema.safeParse({ constructor: 1 }).success).toBe(false);
+        expect(schemas.BodySchema.safeParse({ constructor: "x" }).success).toBe(true);
+    });
+
+    it("a nested-quantifier pattern still generates and comes back as a warning naming the schema", () => {
+        const { files, warnings } = generate(
+            spec(POST_BODY, {
+                Body: {
+                    type: "object",
+                    properties: {
+                        slug: { type: "string", pattern: "^([a-z0-9]+-)*[a-z0-9]+$" },
+                        evil: { type: "string", pattern: "^(a+)+$" },
+                    },
+                },
+            }),
+        );
+        expect(files["t/schemas.ts"]).toContain('new RegExp("^(a+)+$")');
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toMatch(/schema "Body" at properties\.evil: pattern "\^\(a\+\)\+\$"/);
+    });
+
+    it("terminal control characters in a tag do not reach the generated doc comment", () => {
+        const { files, tags } = generate(
+            spec({ "/a": { get: { tags: [ESC_TAG], responses: OK } } }),
+        );
+        const service = Object.entries(files).find(([f]) => f.endsWith("/service.ts"))[1];
+        expect(tags).toEqual([ESC_TAG]);
+        expect(service).not.toMatch(/[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/);
+        expect(service).toContain('the "items]0;PWNED31m " routes');
+    });
+
+    it("the folder and class reported for each group are the ones written", () => {
+        const { files, services } = generate(
+            spec({ "/a": { get: { tags: ["Items API"], responses: OK } } }),
+        );
+        expect(services).toEqual([{ slug: "items-api", className: "ItemsApiService" }]);
+        expect(files["items-api/service.ts"]).toContain("export class ItemsApiService");
+    });
+
+    it("the output for a spec with control characters and a flagged pattern typechecks", () => {
+        const { files } = generate(
+            spec(
+                {
+                    "/a/{id}": {
+                        post: {
+                            tags: ["t"],
+                            summary: "x\u001b[2J\u009d8;;https://evil/\u009c",
+                            parameters: [
+                                {
+                                    name: "id",
+                                    in: "path",
+                                    required: true,
+                                    schema: { type: "string" },
+                                },
+                            ],
+                            requestBody: JSON_BODY("Body"),
+                            responses: OK,
+                        },
+                    },
+                },
+                {
+                    Body: {
+                        type: "object",
+                        properties: { evil: { type: "string", pattern: "(\\w+\\s?)*" } },
+                    },
+                },
+            ),
+        );
+        expect(typecheck(files, "t")).toEqual([]);
+    });
+});

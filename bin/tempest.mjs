@@ -28,6 +28,7 @@ import {
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
+import { terminalText } from "./lib/openapi/escape.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
 import { loadSpec } from "./lib/openapi/load.mjs";
 
@@ -1330,7 +1331,7 @@ async function genApi(args) {
     }
     console.log(`${c.dim}→ loading ${source}${c.reset}`);
     const doc = await loadSpec(source);
-    const { files, tags } = generate(doc);
+    const { files, tags, services, warnings } = generate(doc);
 
     const targets = Object.entries(files).map(([rel, contents]) => ({
         dest: join(outDir, rel),
@@ -1349,8 +1350,11 @@ async function genApi(args) {
     }
 
     console.log(
-        `\n${c.green}✓ Generated${c.reset} ${Object.keys(files).length} files for ${tags.length} route group(s): ${c.bold}${tags.join(", ")}${c.reset}`,
+        `\n${c.green}✓ Generated${c.reset} ${Object.keys(files).length} files for ${tags.length} route group(s): ${c.bold}${terminalText(tags.join(", "))}${c.reset}`,
     );
+    for (const warning of warnings) {
+        console.log(`${c.yellow}! ${terminalText(warning)}${c.reset}`);
+    }
     console.log(`  ${c.dim}out: ${outDir}${c.reset}`);
     const prettier = localBin("prettier");
     if (prettier) {
@@ -1359,12 +1363,11 @@ async function genApi(args) {
     }
     console.log(`\n${c.dim}Inject an ApiClient into a service:${c.reset}`);
     console.log(`  import { createApiClient } from "tempest-react-sdk";`);
-    if (tags[0]) {
-        const cls = tags[0].replace(/[^a-zA-Z0-9]+(.)?/g, (_, ch) => (ch ? ch.toUpperCase() : ""));
-        const Cls = cls.charAt(0).toUpperCase() + cls.slice(1) + "Service";
-        console.log(`  import { ${Cls} } from "@/api/${tags[0].toLowerCase()}";`);
+    if (services[0]) {
+        const { slug, className } = services[0];
+        console.log(`  import { ${className} } from "@/api/${slug}";`);
         console.log(
-            `  const svc = new ${Cls}(createApiClient({ baseURL: import.meta.env.VITE_API_URL }));`,
+            `  const svc = new ${className}(createApiClient({ baseURL: import.meta.env.VITE_API_URL }));`,
         );
     }
     return 0;
@@ -1721,7 +1724,7 @@ if (result instanceof Promise) {
         .then((code) => process.exit(code))
         .catch((err) => {
             console.error(
-                `${c.red}✗ ${err instanceof Error ? err.message : String(err)}${c.reset}`,
+                `${c.red}✗ ${terminalText(err instanceof Error ? err.message : String(err))}${c.reset}`,
             );
             process.exit(1);
         });

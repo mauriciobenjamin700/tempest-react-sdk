@@ -634,7 +634,7 @@ são declarados — o caller injeta a instância na factory.
 
 Vite library mode → ESM (`tempest-react-sdk.js`) + CJS (`.cjs`) + `.d.ts`
 rollupado + `styles.css` (CSS Modules num arquivo só, `cssCodeSplit: false`).
-Orçamento monitorado por `size-limit` no CI.
+Orçamento monitorado por `size-limit` no `make check`.
 
 ## Recap
 
@@ -21220,7 +21220,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `headers` — headers default mesclados em toda request.
 - `fetcher` — implementação de `fetch` alternativa (default `globalThis.fetch`) — útil em testes.
 
-Métodos: `get`, `post`, `put`, `patch`, `delete`, `blob`, `arrayBuffer`, `upload`, `request`. Cada um aceita `RequestOptions` (`body`, `params`, e qualquer campo de `RequestInit` exceto `body`):
+Métodos: `get`, `post`, `put`, `patch`, `delete`, `blob`, `arrayBuffer`, `upload`, `request`, mais `url(path, params?)`, que devolve a URL absoluta que uma requisição a `path` atingiria — mesmo `baseURL`, mesmo `prefix` — sem enviar nada e sem credencial, para o que não passa por `fetch` (`EventSource`, `<img src>`, link de download). Os métodos de requisição aceitam `RequestOptions` (`body`, `params`, e qualquer campo de `RequestInit` exceto `body`):
 
 ```ts
 // GET com query params (serializados automaticamente)
@@ -21235,6 +21235,10 @@ const created = await api.post<User>("/users", {
 
 // DELETE
 await api.delete<void>(`/users/${encodeIdSegment(id)}`);
+
+// URL absoluta, sem enviar nada (EventSource, <img src>, link de download)
+api.url("/files/relatorio.pdf", { inline: true });
+// → "<VITE_API_URL>/files/relatorio.pdf?inline=true" — sem Authorization, sem token na query
 ```
 
 Comportamento:
@@ -21280,6 +21284,30 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
 | `".."`        | `TypeError`, sem requisição          |
 
 É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
+
+!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0)"
+    O `url(path, params?)` entrou na interface `ApiClient` como método
+    obrigatório. Quem usa `createApiClient` não muda nada; um objeto que
+    **finge** ser o cliente — o mock de teste mais comum — passa a dar erro de
+    tipo até ganhar o método:
+
+    ```ts
+    import { vi } from "vitest";
+    import type { ApiClient } from "tempest-react-sdk";
+
+    export const apiFalso: ApiClient = {
+        request: vi.fn(),
+        get: vi.fn(),
+        post: vi.fn(),
+        put: vi.fn(),
+        patch: vi.fn(),
+        delete: vi.fn(),
+        blob: vi.fn(),
+        arrayBuffer: vi.fn(),
+        upload: vi.fn(),
+        url: (path) => `https://api.exemplo.com${path}`,
+    };
+    ```
 
 ## Download de binário
 
@@ -21784,6 +21812,98 @@ export function AvatarUpload() {
 
     A opção `csrf` segue o mesmo escopo, com uma diferença: **sem** `credentialOrigin` ela fica presa à origem da própria página, não aberta. O `Authorization` fica aberto só por compatibilidade; o `csrf` é novo e nasce fechado. API em outra origem declara `credentialOrigin` para receber o token.
 
+## Upload direto com teto — `uploadPresignedPost`
+
+Mandar o arquivo **direto para o storage** (S3/MinIO) tira o upload do caminho da
+API. O `PUT` pré-assinado faz isso, mas **não limita tamanho**: quem tem a URL
+manda 5 GB. O `POST` pré-assinado do `tempest-fastapi-sdk` **0.331.0** carrega
+uma política assinada com teto (`max_bytes`), tipo e chave — e o storage recusa o
+que sair dela.
+
+A rota do seu serviço devolve o formulário — no backend, ele sai de `SubjectObjectStorage.presign_post(...)` ou `presigned_post_policy(...)` ([receita do `tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/subject-data/), seção "Teto aplicado pelo próprio store"):
+
+```json
+{ "url": "https://storage.exemplo.com/bucket", "fields": { "key": "...", "Content-Type": "image/jpeg", "policy": "...", "x-amz-signature": "..." }, "max_bytes": 5242880 }
+```
+
+E o front envia:
+
+```tsx
+import { useState } from "react";
+import { createApiClient, describeApiError, uploadPresignedPost } from "tempest-react-sdk";
+import type { PresignedPost } from "tempest-react-sdk";
+
+const api = createApiClient({ baseURL: "https://api.exemplo.com", getToken: () => null });
+
+export function EnviarAvatar() {
+    const [progresso, setProgresso] = useState(0);
+    const [erro, setErro] = useState<string | null>(null);
+
+    async function enviar(arquivo: File) {
+        setErro(null);
+        try {
+            const formulario = await api.post<PresignedPost>("/avatars/upload-form");
+            await uploadPresignedPost(formulario, arquivo, {
+                onProgress: ({ fraction }) => fraction !== null && setProgresso(fraction),
+            });
+        } catch (e) {
+            setErro(
+                describeApiError(e, "Não deu para enviar.", {
+                    codes: {
+                        FILE_TOO_LARGE: "A imagem passa de 5 MB.",
+                        SIGNED_URL_EXPIRED: "O link expirou. Tente de novo.",
+                    },
+                }),
+            );
+        }
+    }
+
+    return (
+        <label>
+            <input type="file" onChange={(e) => e.target.files?.[0] && enviar(e.target.files[0])} />
+            <progress value={progresso} max={1} />
+            {erro && <p role="alert">{erro}</p>}
+        </label>
+    );
+}
+```
+
+O que o usuário vê:
+
+- escolhe uma foto de 6 MB → **"A imagem passa de 5 MB."** na hora, e nenhuma requisição sai para o storage;
+- deixa a tela parada além da validade da política e envia → **"O link expirou. Tente de novo."** (o `403` do S3 virou `SIGNED_URL_EXPIRED`);
+- envia uma foto de 2 MB → a barra vai a 100% e a promessa resolve (`204` do S3).
+
+O que o helper garante:
+
+- **Formulário no formato do S3**: todos os `fields` na ordem e o arquivo **por último**, no campo `file` — o S3 ignora o que vem depois do arquivo.
+- **Nenhuma credencial vai junto**: sem `Authorization`, sem `X-CSRF-Token`, sem `X-Request-ID`, sem cookie. A `url` é o host do storage, fora da origem da API, e a assinatura nos `fields` é toda a autorização. Sem header customizado a requisição também não depende de preflight CORS.
+- **Arquivo acima de `max_bytes` é recusado antes de sair**, com o mesmo `413 FILE_TOO_LARGE` que o servidor daria — sem gastar o upload.
+- **Um erro só, qualquer que seja o backend.** O serviço troca entre S3 e storage local por settings, então o front não sabe quem respondeu:
+
+| Resposta do storage | `TempestApiError` |
+| --- | --- |
+| S3 `400` XML `EntityTooLarge` · local `413 FILE_TOO_LARGE` | `413`, `code: "FILE_TOO_LARGE"` |
+| S3 `400` XML `EntityTooSmall` · local `400 FILE_TOO_SMALL` | `400`, `code: "FILE_TOO_SMALL"` |
+| S3 `403` XML `AccessDenied` (condição da política) · local `403 SIGNED_URL_INVALID` | `403`, `code: "SIGNED_URL_INVALID"` |
+| S3 `403` XML `AccessDenied` "Policy expired" · local `403 SIGNED_URL_EXPIRED` | `403`, `code: "SIGNED_URL_EXPIRED"` |
+| S3 `204` sem corpo | sucesso |
+
+!!! info "De onde vem a tabela"
+    As respostas do S3 foram medidas contra MinIO `RELEASE.2025-04-22T22-12-26Z`,
+    postando do Chrome a partir de outra origem: o corpo XML do erro é legível
+    (o MinIO manda header CORS no erro), e política vencida e condição quebrada são
+    ambas `AccessDenied` — só a mensagem as separa. O código do S3 que não está na
+    tabela (`NoSuchBucket`, …) chega como `code`, com a `Message` em `detail`.
+
+!!! warning "O `PUT` pré-assinado não limita tamanho"
+    Se o arquivo tem teto, use o `POST`. Um `PUT` pré-assinado aceita qualquer
+    tamanho; checar no front é conveniência, não garantia.
+
+!!! tip "Comprimir antes"
+    Imagem grande? Comprima antes de enviar ([Imagens](./imaging.md)) — o teto é
+    conferido sobre o `Blob` que você passar.
+
 ## `retry` — backoff exponencial
 
 Reexecuta uma factory async com delays crescentes (`initialDelay` dobrando a cada tentativa, limitado por `maxDelay`):
@@ -22075,6 +22195,8 @@ const { mutate } = useMutation({
 - `retry: true` liga a retentativa dentro do cliente: só método idempotente, só falha de rede/`408`/`425`/`429`/`5xx`. Escrita nunca repete sozinha.
 - `logger` é opt-in e o client não escreve em console sem ele: uma linha por tentativa (`debug` abaixo de 400, `warn` de 400 pra cima) com `requestId`, `status` e `ms`, nunca body/header/query.
 - `parseResponse(schema, raw, context)` valida o payload com zod e aponta o campo divergente em um build de desenvolvimento; em qualquer outro build, só a frase genérica. Em app **Vite**, chame `setDevBuild(import.meta.env.DEV)` uma vez no bootstrap — sem isso o SDK não tem como saber, e o relatório fica mudo.
+- `uploadPresignedPost(post, file)` manda direto ao storage pelo `POST` pré-assinado: checa `max_bytes` antes, não leva credencial nenhuma e devolve um `code` só (`FILE_TOO_LARGE`, `FILE_TOO_SMALL`, `SIGNED_URL_INVALID`, `SIGNED_URL_EXPIRED`) seja S3 ou storage local.
+- URL absoluta sem `params` sai de `buildApiUrl` exatamente como entrou — link assinado não é reescrito.
 - `uploadWithProgress` usa XHR pra reportar progresso byte a byte; para arquivo grande, `createResumableUpload` divide em chunks e retoma — veja [Upload resumível](./resumable-upload.md).
 - `retry` (backoff exponencial + `shouldRetry`) e `usePoll` (intervalo com guarda de overlap) cobrem operações instáveis e acompanhamento de jobs.
 - `generateIdempotencyKey` — gere uma vez por operação, reutilize nos retries.
@@ -23720,6 +23842,13 @@ interface ApiError {
 !!! tip "Branch por `code`, não por `detail`"
     O `detail` é texto para humanos e pode ser traduzido/mudar. O `code` é estável — use-o para lógica (`if (err.code === "INSUFFICIENT_FUNDS")`).
 
+!!! info "Códigos do storage chegam iguais, qualquer que seja o backend"
+    O `uploadPresignedPost` normaliza o XML do S3 para os códigos do storage
+    local do backend: `FILE_TOO_LARGE` (`413`), `FILE_TOO_SMALL` (`400`),
+    `SIGNED_URL_INVALID` (`403`) e `SIGNED_URL_EXPIRED` (`403`). O branch por
+    `code` acima vale para os dois. Tabela medida em
+    [HTTP → Upload direto com teto](./http.md#upload-direto-com-teto-uploadpresignedpost).
+
 !!! check "Nada para configurar"
     Isso já é o comportamento padrão. Qualquer chamada via `createApiClient` ou pela classe gerada pelo codegen (que usa o `ApiClient` por baixo) entrega o erro nesse formato.
 
@@ -24102,7 +24231,9 @@ usePaginatedQuery / useCursorQuery  ──►  UI tipada, correlação por reque
 
 | Frontend (este SDK) | Backend (`tempest-fastapi-sdk`) |
 | --- | --- |
-| `createEventStream` / `useEventStream` | SSE (Real-time) |
+| `useTicketEventStream` / `createTicketEventStream` | `sse_router` — SSE por ticket (>= 0.331.0). Ver [SSE → migração](./sse.md#migrando-para-o-tempest-fastapi-sdk-03310) |
+| `createEventStream` / `useEventStream` | endpoint SSE próprio (sem o router pronto) |
+| `uploadPresignedPost` | `presign_post` / `presigned_post_policy` — upload direto com teto (>= 0.331.0). Ver [HTTP](./http.md#upload-direto-com-teto-uploadpresignedpost) |
 | `WebPushClient` / `usePushSubscription` | Web Push (VAPID) |
 | `validateCPF` / `validateCNPJ` / `useViaCEP` | Brazilian Helpers |
 | `createApiClient` (retry, idempotency) | HTTP Client (retry/backoff) |
@@ -24115,6 +24246,8 @@ usePaginatedQuery / useCursorQuery  ──►  UI tipada, correlação por reque
 - **`usePaginatedQuery`** (offset) e **`useCursorQuery`** (cursor) consomem os envelopes do backend sem mapeamento manual. ✅
 - **`createTempestAuth`** entrega login + Bearer + refresh/retry em uma chamada. ✅
 - **`tempest gen api`** gera serviços tipados que já falam todos esses contratos. ✅
+- **SSE do backend >= 0.331.0** abre por ticket: `useTicketEventStream({ client: api })`, com sessão em header ou cookie. ✅
+- **Upload direto ao storage** com teto: `uploadPresignedPost(post, file)`, um `code` só para S3 e storage local. ✅
 
 ---
 
@@ -24699,6 +24832,23 @@ sync.clearOutbox();
 !!! info "Entregas que falham ficam na fila"
     Se `deliver` lança, a entrada **permanece** na outbox com `attempts` incrementado e `lastError` gravado — o próximo flush tenta de novo. Combine com `installBackgroundSync` no service worker para reenviar mesmo com o app fechado.
 
+!!! info "Logout encerra o flush que estiver em andamento"
+    `resetWatermark()` e `clearOutbox()` encerram a sessão também para um flush que
+    já começou. Daquele ponto em diante o run **não entrega** mais nenhuma entrada,
+    **não pede** a próxima página, **não aplica** item puxado e **não grava** o
+    watermark — nada do usuário que saiu atravessa para o próximo. O run resolve com
+    `summary.interrupted: true`, e um `sync.flush()` chamado depois do logout
+    começa um run novo em vez de esperar o abandonado.
+
+    O que não dá para desfazer é o `deliver` que **já estava no ar** no instante do
+    logout: ele foi emitido na sessão anterior. A linha dele sai da fila (ou ganha
+    `attempts`), mas `onEntryDelivered`/`onEntryFailed` não disparam, porque agiriam
+    sobre o estado local do próximo usuário.
+
+    Escopo: a cerca é por aba. Com `crossTab`, uma entrada que outra aba apagou da
+    outbox compartilhada não é entregue, mas o pull em andamento noutra aba só para
+    quando aquela aba também chamar `resetWatermark()`/`clearOutbox()`.
+
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
     sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas
@@ -25277,6 +25427,92 @@ Parâmetro tipado como `boolean`, array ou objeto também passa pelo
     Serviços gerados antes desta versão interpolam o parâmetro cru. Rode
     `tempest gen api` de novo — nenhuma assinatura de método muda.
 
+### Parâmetros de header, do path item e por `$ref`
+
+O OpenAPI deixa declarar parâmetro em dois níveis: dentro da operação e no
+**path item** (`paths["/items/{id}"].parameters`), valendo para todas as
+operações daquele path. O gerador lê os dois e junta: quando os dois níveis
+declaram o mesmo par (`name`, `in`), **a operação vence**, como manda a spec. Um
+parâmetro escrito como `$ref` para `components/parameters` também é resolvido.
+
+Parâmetro `in: "header"` vira o último argumento, `headers`, tipado como os de
+query, e vai no `headers` da requisição:
+
+```ts
+import type { ApiClient } from "tempest-react-sdk";
+import { encodeIdSegment } from "tempest-react-sdk";
+
+/** Header parameters as strings, without the ones left out (`fetch` would send `undefined` as text). */
+function headerRecord(
+  values: Record<string, string | number | boolean | null | undefined>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [name, value] of Object.entries(values)) {
+    if (value !== undefined && value !== null) out[name] = String(value);
+  }
+  return out;
+}
+
+export class ItemsService {
+  constructor(private readonly api: ApiClient) {}
+
+  /** `GET /items/{id}` */
+  async getItem(
+    id: string,
+    headers: { "X-Tenant-Id": string; "Retry-Count"?: number },
+  ): Promise<void> {
+    return this.api.get(`/items/${encodeIdSegment(id)}`, { headers: headerRecord(headers) });
+  }
+
+  /** `POST /items` */
+  async createItem(headers: { "Idempotency-Key"?: string } = {}): Promise<void> {
+    return this.api.post("/items", { headers: headerRecord(headers) });
+  }
+}
+```
+
+- **Header obrigatório deixa o argumento obrigatório.** Quando todos são
+  opcionais, `headers` tem default `{}` — um header opcional novo no backend
+  não quebra quem já chamava o método.
+- **Header omitido não é enviado.** O `fetch` mandaria `undefined` como texto;
+  o `headerRecord` descarta o que ficou de fora e passa o resto por `String()`.
+- **`Accept`, `Content-Type` e `Authorization` são ignorados**, como a spec
+  manda: o client já os monta (o `Authorization` vem do `getToken`).
+- **`in: "cookie"` não é gerado.** O browser não deixa o `fetch` definir o
+  header `Cookie` — o cookie chega ao servidor pelo próprio browser, com
+  `withCredentials` no [`createApiClient`](./http.md).
+
+Chamar `await new ItemsService(api).getItem("a/b", { "X-Tenant-Id": "acme" })` manda:
+
+```text
+GET https://api.exemplo.com/items/a%2Fb
+X-Tenant-Id: acme
+```
+
+O `Retry-Count`, omitido, não sai; a barra do id vira `%2F` e fica num segmento só.
+
+Path param declarado só no path item passa pelo mesmo `encodeIdSegment` dos
+demais.
+
+!!! tip "Regenere se o backend declara header ou parâmetro no path item"
+    Antes, o `{id}` declarado só no path item saía **literal** na URL
+    (`"/items/{id}"`), e o header obrigatório simplesmente não era enviado. Rode
+    `tempest gen api` de novo: o método ganha o argumento que faltava.
+
+    **Espere erro de compilação** nos call sites: um método que ganhou header
+    obrigatório (ou um path param que antes ficava de fora) exige um argumento
+    novo, e o `tsc` aponta cada chamada que não o passa. É o comportamento
+    desejado — antes a requisição saía sem ele.
+
+### Schema que nenhuma rota usa fica de fora
+
+Cada grupo só emite os schemas que as rotas dele alcançam (body, resposta e
+parâmetros, seguindo os `$ref` em cadeia). Um schema que nenhum `$ref` alcança
+não vira código — caso do enum órfão que o FastAPI publica para todo campo
+anotado com `Enum` (`ImageMediaType`), mesmo quando o campo traz um enum inline
+mais restrito. O nome dele também não é conferido: um órfão cujo nome colide com
+outro schema (`ImageMediaType` e `Image-Media-Type`) não derruba a geração.
+
 ### Passa no lint e no `tsc` do template como saiu
 
 O código gerado entra num app do `create-tempest-app` sem erro no
@@ -25353,8 +25589,8 @@ function UserList() {
 
 !!! warning "Suporte atual"
     v1 cobre o comum de specs FastAPI: `components.schemas` (object, enum, array,
-    `$ref`, nullable, anyOf/oneOf/allOf), parâmetros de path/query, body e
-    resposta JSON, agrupados pela primeira `tag`. YAML e múltiplos content-types
+    `$ref`, nullable, anyOf/oneOf/allOf), parâmetros de path/query/header (da
+    operação e do path item), body e resposta JSON, agrupados pela primeira `tag`. YAML e múltiplos content-types
     ainda não — aponte para o `/openapi.json` (JSON).
 
 !!! info "Spec de terceiro não vira código"
@@ -25367,17 +25603,19 @@ function UserList() {
     palavra reservada ou dígito inicial (`_string`, `_2fa`). Onde o nome importa
     em runtime, vale o original: a URL monta `{user-id}` com o valor de `userId`,
     e chave de objeto sai como string escapada (`"display-name"`). Nome que já é
-    identificador fica como está. Dois nomes que viram o mesmo identificador
-    (`User-Out` e `user.Out`) são recusados com erro que cita os dois, e um
+    identificador fica como está. Dois schemas emitidos no mesmo grupo que viram
+    o mesmo identificador (`User-Out` e `user.Out`) são recusados com erro que
+    cita os dois, e um
     `{placeholder}` do path que não é parâmetro declarado também — não há
     variável segura para ele.
 
     O mesmo vale para nomes que o próprio gerador já usa. Parâmetro de path que
-    cairia em `body`, `params`, `S` ou `encodeIdSegment` vira
-    `bodyParam`/`paramsParam`/`SParam`/`encodeIdSegmentParam`; `operationId`
+    cairia em `body`, `params`, `headers`, `S`, `encodeIdSegment` ou
+    `headerRecord` vira `bodyParam`/`paramsParam`/`headersParam`/`SParam`/
+    `encodeIdSegmentParam`/`headerRecordParam`; `operationId`
     `constructor` ou `api` vira `constructor2`/`api2`; schema chamado
-    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S` ou
-    `encodeIdSegment` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
+    `ApiClient`, `OffsetPage`, `CursorPage`, `Promise`, `Record`, `z`, `S`,
+    `encodeIdSegment` ou `headerRecord` ganha prefixo `_`; e duas tags cujo nome no barrel coincide (`user 1` e
     `user1`) são recusadas citando as duas. Um `pattern` que não compila como
     regex JavaScript falha a **geração**, citando o schema e o caminho da
     propriedade — em vez de quebrar o app no import.
@@ -25387,6 +25625,8 @@ function UserList() {
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).
 - A classe de serviço recebe um `ApiClient` injetado e **valida o body com Zod** antes de chamar a API.
 - Todo parâmetro de path passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` lançam antes da requisição.
+- Parâmetros do path item entram junto com os da operação (a operação vence no mesmo `name` + `in`); header vira o argumento `headers`, e cookie fica com o browser.
+- Schema que nenhuma rota alcança, como o enum órfão do FastAPI, não é gerado.
 - Trate `src/api/` como artefato gerado — **regenere** quando o contrato mudar.
 - Veja também: [HTTP / `createApiClient`](./http.md) · [Query](./query.md) · [CLI `tempest`](./cli.md).
 
@@ -27482,7 +27722,7 @@ O commit escolhido é o **primeiro** da história first-parent da `main` cujo `p
 
 ### `make release TAG=0.1.5 SKIP_VALIDATE=1`
 
-Pula a validação local (`npm ci`, lint, format-check, typecheck, test, build, pack dry-run). Use apenas em emergências — o CI vai validar novamente do zero.
+Pula o `make check` local — o único lugar onde budgets, cobertura, smokes e o e2e da gallery rodam, porque a CI não testa PR. O workflow da tag ainda roda lint, format-check, typecheck, testes, build e os smokes do tarball antes de publicar, mas não o `size-limit` nem o e2e. Use apenas em emergências.
 
 ### `make validate`
 
@@ -28993,7 +29233,10 @@ Wrapper sobre `EventSource` com reconnect exponencial, heartbeat opt-in e parsin
 
 - Push unilateral servidor → cliente, sem necessidade de envio do cliente.
 - Reconexão automática barata.
-- Autenticação por cookie (`withCredentials: true`).
+- Autenticação por cookie (`withCredentials: true`) num backend que lê o cookie no próprio stream.
+
+!!! warning "Backend `tempest-fastapi-sdk` >= 0.331.0: o stream não lê cookie"
+    O router SSE pronto do backend abre o stream só com `?ticket=` (ou `Authorization: Bearer`, que o `EventSource` não manda). O cookie de sessão vale no pedido do ticket, não no stream. Para esse backend, use [`useTicketEventStream`](#autenticacao-por-ticket-useticketeventstream) — com sessão em header **ou** em cookie.
 
 ## API imperativa — `createEventStream`
 
@@ -29088,6 +29331,208 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 
 !!! warning "`error` significa que esgotou as tentativas"
     Quando o status chega em `"error"`, o stream desistiu sozinho. Ofereça um botão chamando `reconnect()` (que zera o contador) em vez de esperar uma reconexão automática que não vem mais.
+
+## Autenticação por ticket — `useTicketEventStream`
+
+`EventSource` não manda header. Durante muito tempo o jeito de autenticar o
+stream foi pôr o access token na URL (`?access_token=…`), que acaba no log de
+todo proxy no caminho. O `tempest-fastapi-sdk` **0.331.0** trocou isso por um
+**ticket**: uma chamada autenticada normal pede um JWT de vida curta, e só ele
+vai na URL do stream.
+
+| Rota do backend | O que faz |
+| --- | --- |
+| `POST /sse/ticket` | autenticada (header ou cookie). Responde `{ "ticket": "<jwt>", "expires_in": 60 }` |
+| `GET /sse/stream?ticket=<jwt>` | abre o stream; o canal vem de dentro do ticket. Aceita `?ticket=` ou `Authorization: Bearer` — **não lê cookie** |
+
+O helper faz as duas chamadas para você — e as repete a cada reconexão:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({
+    baseURL: "https://api.exemplo.com",
+    prefix: "/api",
+    getToken: () => localStorage.getItem("token"),
+});
+
+const notificacaoSchema = z.object({ id: z.string(), message: z.string() });
+
+type Notificacao = z.infer<typeof notificacaoSchema>;
+
+export function Notificacoes({ logado }: { logado: boolean }) {
+    const { status, lastMessage, reconnect } = useTicketEventStream<Notificacao>({
+        client: api,
+        enabled: logado,
+        schema: notificacaoSchema,
+        onUrlError: (erro) => console.warn("ticket recusado:", erro),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {status === "error" && <button onClick={reconnect}>Reconectar</button>}
+            {lastMessage && <p>{lastMessage.data.message}</p>}
+        </div>
+    );
+}
+```
+
+1. O ticket é pedido pelo **`api`**: sai com `Authorization` (ou com o cookie de
+   sessão e o `X-CSRF-Token`), e um `401` passa pelo refresh do cliente antes de
+   chegar aqui.
+2. A URL do stream é montada com `api.url("/sse/stream", { ticket })` — mesmo
+   `baseURL`, mesmo `prefix`. O access token **nunca** entra nela.
+3. **Toda reconexão pede um ticket novo.** O ticket só abre stream por
+   `expires_in` segundos; reconectar com o antigo depois disso é um `401`.
+
+O que passa na rede, do primeiro stream até uma queda depois do vencimento do ticket:
+
+```text
+POST https://api.exemplo.com/api/sse/ticket                   200  {"ticket":"eyJ…A","expires_in":60}
+GET  https://api.exemplo.com/api/sse/stream?ticket=eyJ…A      200  text/event-stream
+     … 3 min depois a rede cai; backoff de 1 s …
+POST https://api.exemplo.com/api/sse/ticket                   200  {"ticket":"eyJ…B","expires_in":60}
+GET  https://api.exemplo.com/api/sse/stream?ticket=eyJ…B      200  text/event-stream
+```
+
+O stream aberto **não** cai quando o ticket vence — o ticket só vale para abrir.
+Quem precisa de um novo é a reconexão, e é ela que o pede.
+
+!!! warning "Por que `useEventStream` com uma URL fixa não serve aqui"
+    Com `` useEventStream(`${API}/sse/stream?ticket=${ticket}`) `` o primeiro stream
+    abre, mas a reconexão reusa a mesma string. Se a rede cair depois dos 60 s, o
+    backend responde `401` a cada tentativa, o stream gasta as `maxRetries` nisso
+    e termina em `"error"` — com o usuário ainda logado.
+
+### Sessão em cookie
+
+Se o login guarda a sessão em cookie (`AUTH_TOKEN_DELIVERY="cookie"` no backend),
+o ticket sai do mesmo jeito — só o cliente muda. O `POST /ticket` é uma escrita,
+então o cookie precisa do par CSRF:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+
+const api = createApiClient({
+    baseURL: "https://api.exemplo.com",
+    prefix: "/api",
+    withCredentials: true,
+    csrf: true,
+});
+
+export function Pedidos({ logado }: { logado: boolean }) {
+    const { status } = useTicketEventStream<{ id: string; status: string }>({
+        client: api,
+        enabled: logado,
+        onMessage: ({ data }) => console.log("pedido", data.id, data.status),
+    });
+
+    return <span>Stream: {status}</span>;
+}
+```
+
+O cookie vai no `POST /ticket` (com `X-CSRF-Token`, ecoado do cookie `csrf_token`);
+o `GET /stream` leva só o ticket. Detalhes do `csrf` em [HTTP → CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
+
+Com um pedido mudando de status no backend, o console mostra:
+
+```text
+pedido 8f2c pago
+pedido 8f2c enviado
+```
+
+### Quando o ticket é recusado
+
+Um ticket negado com status que nenhuma espera resolve **não é re-tentado**: o
+stream vai direto para `status: "error"` e `onUrlError` recebe o
+`TempestApiError`.
+
+| Falha ao pedir o ticket | O que acontece |
+| --- | --- |
+| rede, timeout, `429`, `5xx` | nova tentativa com o backoff de sempre |
+| `401` (depois do refresh do cliente) | para em `"error"` — a sessão acabou |
+| `403 ACCOUNT_INACTIVE` | para em `"error"` — conta desativada |
+| resposta sem `ticket` | para em `"error"` — contrato diferente do esperado |
+
+A política é `isRetriableTicketError`; passe `shouldRetryUrl` para trocar.
+
+Uma conta desativada, por exemplo, termina assim — uma requisição só, sem stream e sem nova tentativa:
+
+```text
+POST https://api.exemplo.com/api/sse/ticket   403  {"detail":"…","code":"ACCOUNT_INACTIVE"}
+status: "connecting" → "error"
+onUrlError(erro)  →  erro.status === 403, erro.code === "ACCOUNT_INACTIVE"
+```
+
+!!! tip "Prefixo e nome do parâmetro"
+    Os defaults batem com o `make_sse_router` do backend: `prefix: "/sse"` e
+    `ticketParam: "ticket"`. Se o router foi montado em outro lugar, passe os dois.
+    Fora de React, `createTicketEventStream({ client: api, ... })` faz o mesmo e
+    devolve o controller com `close`/`reconnect`/`status`.
+
+### URL resolvida por conexão
+
+O helper se apoia num recurso do `createEventStream`/`useEventStream` que você
+pode usar direto: **`url` pode ser uma função**, chamada antes de cada conexão —
+a primeira e cada reconexão. Ela pode ser `async`. Útil para qualquer credencial
+curta na URL:
+
+```ts
+import { createEventStream } from "tempest-react-sdk";
+
+const stream = createEventStream(
+    async () => {
+        const resposta = await fetch("/api/stream-url", { method: "POST" });
+        const { url } = (await resposta.json()) as { url: string };
+        return url;
+    },
+    {
+        shouldRetryUrl: (erro) => !(erro instanceof TypeError),
+        onUrlError: (erro) => console.error("não deu para montar a URL:", erro),
+    },
+);
+
+stream.close();
+```
+
+Cada conexão chama a função de novo — a reconexão inclusive:
+
+```text
+POST /api/stream-url   200  {"url":"https://eventos.exemplo.com/s?sig=A"}
+GET  https://eventos.exemplo.com/s?sig=A          (aberto; a rede cai)
+POST /api/stream-url   200  {"url":"https://eventos.exemplo.com/s?sig=B"}
+GET  https://eventos.exemplo.com/s?sig=B          (aberto)
+```
+
+- Se a função lança ou rejeita, `onUrlError` é chamado e o stream re-tenta com
+  backoff — a não ser que `shouldRetryUrl` devolva `false`, que leva direto a
+  `"error"`. Essas falhas contam no `maxRetries`.
+- Uma resolução que termina depois de `close()` ou `reconnect()` é descartada.
+- No hook, uma função criada inline **não** reconecta a cada render: a mais
+  recente é a usada na próxima conexão. Chame `reconnect()` para aplicar agora.
+  Uma URL `string` continua reabrindo quando muda.
+
+### Migrando para o `tempest-fastapi-sdk` >= 0.331.0
+
+Atualizar o backend troca a rota de stream. Ache a sua linha:
+
+| Como o seu front abre o stream hoje | O que acontece depois de atualizar o backend | O que fazer |
+| --- | --- | --- |
+| `` useEventStream(`${API}/sse/stream?access_token=${token}`) `` | `401` — `allow_access_token_query` é `False` por padrão | trocar por `useTicketEventStream({ client: api })` |
+| `useEventStream(url, { withCredentials: true })` com sessão em cookie | `401` — o stream não lê cookie | trocar por `useTicketEventStream` com o cliente em `withCredentials` + `csrf` ([acima](#sessao-em-cookie)) |
+| `createEventStream(url, ...)` fora de React | o mesmo das linhas acima | `createTicketEventStream({ client: api, ... })` |
+| endpoint SSE próprio, sem o router pronto do backend | nada muda | nada — `useEventStream` continua igual |
+
+As opções (`schema`, `namedEvents`, `onMessage`, `enabled`, …) são as mesmas; sai
+só a URL, que o helper monta com o `baseURL` e o `prefix` do cliente.
+
+!!! tip "Migrar sem janela de quebra"
+    Atualize o backend com `sse_router(..., allow_access_token_query=True)`: ele
+    aceita o ticket **e** o `?access_token=` antigo. Publique o front com o helper,
+    espere os clientes antigos saírem e desligue a opção. Lado do servidor:
+    [receita de SSE do `tempest-fastapi-sdk`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/sse/) (seção "Autenticação").
 
 ## Frame que não é JSON
 
@@ -29216,6 +29661,7 @@ O que a opção garante:
 ## Recap
 
 - `createEventStream(url, options)` abre um SSE com reconnect exponencial; o controller expõe `close`, `reconnect` e `status`.
+- `url` pode ser uma função chamada a cada conexão; `useTicketEventStream({ client })` usa isso para pedir um ticket novo em toda reconexão, sem token na URL.
 - `useEventStream(url, options)` é o wrapper React: amarra o ciclo de vida ao componente, expõe `status`/`lastMessage`/`reconnect` e respeita `enabled`.
 - Heartbeats (default `["ping"]`) mantêm o socket vivo sem disparar `onMessage`.
 - `schema` valida cada frame antes de entregar: o que não casa não chega em `onMessage`, e `onValidationError` diz por quê.

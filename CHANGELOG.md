@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.81.0] — 2026-11-01
+
 ### Breaking
 
 - **`TempestSessionEnd` ganha `elsewhere: boolean` e `TempestAuth` ganha `dispose()`** (ver

@@ -4,6 +4,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Logout no `createOfflineSync` não parava o flush em andamento (#525).** `clearOutbox()` e
+  `resetWatermark()` — o passo de logout documentado — só apagavam a fila e o watermark; o run que
+  já tinha começado seguia com a lista de entradas lida antes. Reproduzido antes da correção, com
+  três entradas `a1..a3`, `deliver` de `a1` travado, logout no meio e o `deliver` liberado:
+  `delivered: ["a1","a2","a3"]`, `applied: ["a-remote"]`, watermark de volta em `"wm-of-a"` e
+  — além do que a issue descrevia — o `flush()` chamado depois do logout **devolvia a promise do run
+  abandonado**, então as entradas do próximo usuário esperavam o run do anterior terminar. Agora as
+  duas chamadas encerram a sessão: o run confere a sessão (e, no push, que a entrada ainda está na
+  outbox) antes de cada `deliver`, `pullPage`, `applyRemote` e da escrita do watermark, resolve com
+  o novo campo opcional `summary.interrupted: true` e deixa de bloquear o próximo `flush()`. Depois
+  da correção: `delivered: ["a1"]`, nada aplicado, watermark `null`. O `deliver` que já estava no
+  ar no logout não tem como ser desfeito: a linha dele sai da fila (ou ganha `attempts`), mas os
+  callbacks `onEntryDelivered`/`onEntryFailed` não disparam. A cerca é por aba. Testes em
+  `src/offline/create-offline-sync.logout.test.ts` (8, todos vermelhos na `main`;
+  `npx vitest run src/offline/create-offline-sync.logout.test.ts`).
+  **Migração:** nenhuma para quem já chama `resetWatermark()`/`clearOutbox()` no logout. Quem
+  aguarda o `flush()` disparado antes do logout passa a receber um summary com
+  `interrupted: true` e contagens parciais; quem implementa `SyncRunSummary` à mão não muda nada
+  (o campo é opcional). Custo: tetos do barrel ESM 146.6 → 146.9 KB e CJS 175.1 → 175.2 KB.
+  Medido com `npm run build && npx size-limit --json` na `main` (`dcf99b1`) e na branch: fatia
+  offline + PWA 4643 → 4749 B (limite 6000, inalterado), barrel ESM 146539 → 146845 B, barrel CJS
+  175014 → 175118 B.
+
 ## [0.80.0] — 2026-10-26
 
 ### Breaking

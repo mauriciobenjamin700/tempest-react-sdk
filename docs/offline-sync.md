@@ -86,6 +86,23 @@ sync.clearOutbox();
 !!! info "Entregas que falham ficam na fila"
     Se `deliver` lança, a entrada **permanece** na outbox com `attempts` incrementado e `lastError` gravado — o próximo flush tenta de novo. Combine com `installBackgroundSync` no service worker para reenviar mesmo com o app fechado.
 
+!!! info "Logout encerra o flush que estiver em andamento"
+    `resetWatermark()` e `clearOutbox()` encerram a sessão também para um flush que
+    já começou. Daquele ponto em diante o run **não entrega** mais nenhuma entrada,
+    **não pede** a próxima página, **não aplica** item puxado e **não grava** o
+    watermark — nada do usuário que saiu atravessa para o próximo. O run resolve com
+    `summary.interrupted: true`, e um `sync.flush()` chamado depois do logout
+    começa um run novo em vez de esperar o abandonado.
+
+    O que não dá para desfazer é o `deliver` que **já estava no ar** no instante do
+    logout: ele foi emitido na sessão anterior. A linha dele sai da fila (ou ganha
+    `attempts`), mas `onEntryDelivered`/`onEntryFailed` não disparam, porque agiriam
+    sobre o estado local do próximo usuário.
+
+    Escopo: a cerca é por aba. Com `crossTab`, uma entrada que outra aba apagou da
+    outbox compartilhada não é entregue, mas o pull em andamento noutra aba só para
+    quando aquela aba também chamar `resetWatermark()`/`clearOutbox()`.
+
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
     sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas

@@ -12,7 +12,7 @@ const galleryReactDom = fileURLToPath(new URL("./node_modules/react-dom", import
  * `file:..` and ships its own `node_modules`, so each of these must be pinned
  * to the gallery's single copy the same way React is.
  */
-const SINGLETONS = ["@tanstack/react-query", "react-hook-form"] as const;
+const SINGLETONS = ["@tanstack/react-query", "react-hook-form", "react-router"] as const;
 
 export default defineConfig({
     plugins: [react()],

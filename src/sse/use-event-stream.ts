@@ -6,14 +6,30 @@ import {
     type EventStreamMessage,
     type EventStreamStatus,
     type EventStreamUrl,
+    type SessionKey,
 } from "./create-event-stream";
 
 export interface UseEventStreamOptions<T> extends Omit<
     CreateEventStreamOptions<T>,
-    "onStatusChange"
+    "onStatusChange" | "sessionKey"
 > {
     /** When false, the stream is not opened. Useful for "wait for auth". Default: true. */
     enabled?: boolean;
+    /**
+     * The session the stream belongs to — the signed-in user's id, typically.
+     *
+     * A change closes the stream, clears `lastMessage` and, while `enabled`,
+     * opens a new connection for the new session (a fresh ticket, for
+     * {@link useTicketEventStream}). Without it, a tab that switches accounts
+     * without passing through `enabled: false` keeps the previous user's
+     * stream open and delivers its events under the new user: the server does
+     * not end an open stream on logout or revocation, so the client has to.
+     *
+     * A frame that arrives between the render that changed the key and the
+     * effect that closes the stream is dropped as well. Default: `undefined`,
+     * which never changes, so the stream follows `url` and `enabled` alone.
+     */
+    sessionKey?: SessionKey;
 }
 
 export interface UseEventStreamResult<T> {
@@ -26,8 +42,12 @@ export interface UseEventStreamResult<T> {
 
 /**
  * React hook wrapper around {@link createEventStream}. Connection lifecycle is
- * tied to the component (and the `url`/`enabled` dependencies); the stream
- * closes on unmount.
+ * tied to the component (and the `url`/`enabled`/`sessionKey` dependencies);
+ * the stream closes on unmount.
+ *
+ * Pass `sessionKey` (the signed-in user's id) whenever the stream carries one
+ * user's data: a change of account then closes the previous user's stream and
+ * clears `lastMessage`, even when `enabled` never went `false` in between.
  *
  * A string `url` reopens the stream when it changes. A function `url` does not:
  * an inline arrow is a new function every render, and keying on its identity
@@ -61,16 +81,22 @@ export function useEventStream<T = unknown>(
     url: EventStreamUrl,
     options: UseEventStreamOptions<T> = {},
 ): UseEventStreamResult<T> {
-    const { enabled = true, onMessage, ...rest } = options;
+    const { enabled = true, sessionKey, onMessage, ...rest } = options;
     const [status, setStatus] = useState<EventStreamStatus>("idle");
     const [lastMessage, setLastMessage] = useState<EventStreamMessage<T> | null>(null);
     const reconnectRef = useRef<(() => void) | null>(null);
+    const lastSessionRef = useRef<SessionKey>(sessionKey);
 
     const onMessageRef = useLatestRef(onMessage);
     const urlRef = useLatestRef(url);
+    const sessionKeyRef = useLatestRef(sessionKey);
     const fixedUrl = typeof url === "string" ? url : null;
 
     useEffect(() => {
+        if (!Object.is(lastSessionRef.current, sessionKey)) {
+            lastSessionRef.current = sessionKey;
+            setLastMessage(null);
+        }
         if (!enabled || fixedUrl === "") {
             setStatus("idle");
             return;
@@ -84,6 +110,7 @@ export function useEventStream<T = unknown>(
             });
         const controller = createEventStream<T>(target, {
             ...rest,
+            sessionKey: () => sessionKeyRef.current,
             onStatusChange: setStatus,
             onMessage: (message) => {
                 setLastMessage(message);
@@ -97,7 +124,7 @@ export function useEventStream<T = unknown>(
             reconnectRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fixedUrl, enabled]);
+    }, [fixedUrl, enabled, sessionKey]);
 
     return {
         status,

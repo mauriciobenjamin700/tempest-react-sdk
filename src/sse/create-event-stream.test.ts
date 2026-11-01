@@ -192,7 +192,10 @@ describe("createEventStream — handlers after close", () => {
 
         controller.close();
         instance.onmessage?.({ data: "{}" } as MessageEvent);
-        expect(onMessage).toHaveBeenCalledTimes(1);
+        expect(
+            onMessage,
+            "inverted in #522: this asserted one delivery after close(), against its own name and the intent of 6b66d2a; a closed stream now ignores frames from its old source, which also keeps the sessionKey check from reopening it",
+        ).not.toHaveBeenCalled();
         vi.unstubAllGlobals();
     });
 });

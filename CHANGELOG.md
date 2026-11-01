@@ -4,6 +4,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **Stream SSE por ticket continuava entregando os eventos do usuário anterior depois de uma troca
+  de conta na mesma aba (#522).** Um stream aberto por `useTicketEventStream` sob o usuário A ficava
+  aberto e entregava os eventos de A ao `onMessage` (e ao `lastMessage`) depois que a aba passava
+  para o usuário B, se `enabled` não passasse por `false` no meio: as deps do efeito eram só
+  `[url, enabled]`. A dúvida da issue sobre o backend foi resolvida lendo o `tempest-fastapi-sdk`
+  (`origin/main` em `31002afa`): o `make_sse_router` confere o ticket **só na abertura**, o
+  `SSEBroker` só desregistra o stream quando o cliente desconecta, e nem o logout nem o
+  `revoke_user_sessions`/`revoke_refresh_token` tocam o broker — o servidor nunca derruba um stream
+  aberto, então quem fecha é o cliente. Nova opção **`sessionKey`**: no `useEventStream` e no
+  `useTicketEventStream` é um valor primitivo (o id do usuário) que entra nas deps — a troca fecha o
+  stream, zera `lastMessage` e pede ticket novo; no `createEventStream` e no
+  `createTicketEventStream` é uma função lida a cada conexão, quando a URL resolve e antes de cada
+  frame — frame que chega com a chave trocada é descartado e o stream reconecta para a sessão atual,
+  e uma URL (ticket) resolvida enquanto a chave mudava é descartada. Novo tipo exportado
+  `SessionKey`. Reproduzido antes da correção em `src/sse/session-key.test.tsx` (9 dos 12 casos
+  falhavam; os 3 restantes fixam que nada muda com a chave estável), com
+  `npx vitest run src/sse/session-key.test.tsx`. Opt-in, sem default automático: o epoch de sessão
+  do `createTempestAuth` não é público (`TempestAuth`/`ApiClient` não o expõem), então o hook não
+  tem de onde ler a sessão sozinho. **Migração:** nenhuma obrigatória; app com login passa
+  `sessionKey: user?.id ?? null` ao hook do stream. De carona, o `createEventStream` passa a ignorar
+  frame de um `EventSource` que já não é o atual (fechado por `close()` ou trocado numa reconexão):
+  sem isso, a conferência de sessão reabriria um controller já fechado. No browser um `EventSource`
+  fechado não dispara, então só muda para quem simula a fonte em teste; o teste
+  `drops messages that arrive after close`, que pelo nome já devia descartar mas afirmava uma
+  entrega, foi invertido. **Tamanho:** os tetos do barrel inteiro sobem — ESM 149,9 → 150 kB
+  (149 789 → 149 917 B br) e CJS 178,9 → 179,3 kB (178 824 → 179 248 B br), medido com
+  `npm run build && npx size-limit --json` sobre `origin/main` (`b054c16`) e sobre esta branch;
+  nenhuma fatia por import mudou.
+
 ## [0.81.0] — 2026-11-01
 
 ### Breaking

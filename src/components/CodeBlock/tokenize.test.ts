@@ -347,17 +347,26 @@ describe("tokenize — a `$` inside an identifier stays one plain token", () => 
 
 describe("tokenize — every token is consumed in one pass, so the scan is linear (#477)", () => {
     /**
-     * Run `work` and return how long it took, in milliseconds.
+     * Run `work` three times and return the fastest run, in milliseconds.
      *
      * The budget sits well above what a single pass over the input costs under
      * coverage instrumentation and far below what rescanning cost before #477:
      * an unterminated string was rescanned from every later opener, quadratic in
      * the input (`"` plus 40 000 escaped quotes took about 2 s for JSON).
+     *
+     * The fastest of three, not one run: load only ever adds time, so the minimum
+     * measures the scan rather than the scheduler. A single run failed at 256 ms
+     * on 2026-11-01 with the machine busy; the quadratic regression stays far
+     * above the budget in every run.
      */
     const elapsed = (work: () => unknown): number => {
-        const start = performance.now();
-        work();
-        return performance.now() - start;
+        let fastest = Number.POSITIVE_INFINITY;
+        for (let run = 0; run < 3; run += 1) {
+            const start = performance.now();
+            work();
+            fastest = Math.min(fastest, performance.now() - start);
+        }
+        return fastest;
     };
 
     /** Ceiling for one tokenize of an adversarial input, in milliseconds. */

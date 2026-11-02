@@ -6,6 +6,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Breaking
 
+- **`createApiClient` não segue redirect numa requisição que leva os `headers` fixos do cliente
+  (#554).** A issue dizia que o Chrome leva o `Authorization` num redirect para outra origem; medido
+  no Chrome 150 (Chromium do Playwright e Google Chrome estável), com `fetch` e XHR, em
+  `301`/`302`/`303`/`307`/`308` de `127.0.0.1:5301` para `localhost:5302`, o header **não chega** —
+  o caniuse/MDN (`version_added: false`) está velho. O vazamento real era outro: o navegador só tira o
+  `Authorization`, e um `X-Api-Key` nos `headers` fixos (credencial desde o #530) chegava ao outro
+  host nos mesmos redirects. Agora uma requisição dentro do escopo com `headers` fixos sai com
+  `redirect: "manual"`, e um redirect como resposta vira `TempestApiError` com
+  `code: "REDIRECT_REFUSED"` (fora da política de retry). Seguir à mão o de mesma origem foi medido e
+  descartado: o `redirect: "manual"` do navegador devolve `opaqueredirect`, status `0`, `Location`
+  `null`. Medição: servidores `http.server` em duas origens + `fetch`/XHR no Playwright MCP; teste em
+  `src/http/api-client.redirect.test.ts` (8 casos falham na `main`). **Migração:** quem tem
+  `headers` no `createApiClient` e depende do `307` de barra final do FastAPI (medido: `Location`
+  absoluto na mesma origem, `http://api.local:8000/items/`) chama a URL final (`/items/`) ou passa
+  `redirect: "follow"` na chamada. Cliente só com `getToken` não muda. `X-CSRF-Token` e o XHR dos
+  uploads continuam seguindo o redirect — o porquê está em `docs/http.md`.
+  Tamanho (`npm run build && npx size-limit --json`, contra a `origin/main` em `cfb92c2`): fatia
+  `http client` 4896 → 5040 B, `typical app` 12426 → 12581 B, e, remedido sobre a `main` já com
+  #559, barril ESM 151 687 → 151 948 B e CJS 181 051 → 181 139 B; tetos subidos para 5,06 KB, 12,6 kB,
+  152 KB e 181,2 KB.
+
 - **`tempest gen api` recusa spec que gerava código enganoso, e `create-tempest-app <nome>` recusa
   destino que é symlink (#533).** Passam a falhar, antes da primeira escrita: path key que não
   começa com `/` (`https://outro.example/x`) ou que tem segmento `.`/`..` (inclusive `%2e` e `\`);

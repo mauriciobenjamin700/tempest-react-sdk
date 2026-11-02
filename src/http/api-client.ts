@@ -51,6 +51,7 @@ const IDEMPOTENT_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD", "OPTIONS
 function isRetriableFailure(error: unknown, method: string): boolean {
     if (!IDEMPOTENT_METHODS.has(method)) return false;
     if (!(error instanceof TempestApiError)) return false;
+    if (error.code === REDIRECT_REFUSED) return false;
     return isRetriableStatus(error.status);
 }
 
@@ -63,6 +64,32 @@ function isRetriableFailure(error: unknown, method: string): boolean {
 function resolveRetry(config: boolean | RetryOptions | undefined): RetryOptions | null {
     if (!config) return null;
     return config === true ? {} : config;
+}
+
+/**
+ * The `code` of the {@link TempestApiError} thrown when a request carrying the
+ * client's static `headers` is answered with a redirect.
+ *
+ * Kept out of the built-in retry policy: the status is `0` in a browser, which
+ * would otherwise read as a network failure, and replaying gets the same
+ * redirect back.
+ */
+const REDIRECT_REFUSED = "REDIRECT_REFUSED";
+
+/**
+ * Whether `response` is a redirect that `redirect: "manual"` stopped.
+ *
+ * Two shapes, measured: a browser hands back an `opaqueredirect` with status
+ * `0` and no readable headers (Chrome 150, #554); a server runtime such as
+ * Node's `fetch` hands back the real `3xx` with its `Location`. `304` is a
+ * cache answer, not a redirect.
+ *
+ * @param response - What the fetcher resolved with.
+ * @returns Whether the request was redirected and not followed.
+ */
+function isStoppedRedirect(response: Response): boolean {
+    if (response.type === "opaqueredirect") return true;
+    return response.status >= 300 && response.status < 400 && response.status !== 304;
 }
 
 /** Default milliseconds before a request is abandoned. */
@@ -153,6 +180,17 @@ async function parseError(response: Response, sentRequestId?: string): Promise<T
  * {@link ApiClientConfig.headers} follow the same scope, and a `401` from
  * outside it is thrown without `refresh` or `onUnauthorized` — it answered a
  * request that never carried this session's credential.
+ *
+ * **Redirects.** The scope is checked against the URL the request starts at;
+ * where a redirect then goes is the transport's call. For `Authorization` that
+ * is safe: browsers strip it on a cross-origin redirect, measured in Chrome 150
+ * for `fetch` and XHR on `301`/`302`/`303`/`307`/`308` (#554). They strip
+ * nothing else, so a request carrying the static {@link ApiClientConfig.headers}
+ * goes out with `redirect: "manual"`, and a redirect answering it is thrown as a
+ * {@link TempestApiError} with `code: "REDIRECT_REFUSED"` instead of being
+ * followed. It cannot be followed by hand: a browser's manual redirect is an
+ * opaque response whose `Location` is unreadable. A `redirect` set on the call
+ * always wins.
  *
  * **CSRF** is off unless you set `csrf`. With it, every unsafe request (anything
  * but `GET`/`HEAD`/`OPTIONS`/`TRACE`) echoes the `csrf_token` cookie in an
@@ -248,9 +286,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             ...callerHeaders,
         };
 
+        const holdRedirects =
+            inScope && rest.redirect === undefined && Object.keys(config.headers ?? {}).length > 0;
         const timed = withTimeout(signal, limit);
         const init: RequestInit = {
             ...rest,
+            ...(holdRedirects ? { redirect: "manual" as const } : {}),
             signal: timed.signal,
             headers: finalHeaders,
             credentials: config.withCredentials ? "include" : rest.credentials,
@@ -262,8 +303,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                       : JSON.stringify(body),
         };
 
+        let response: Response;
         try {
-            return await fetcher(url, init);
+            response = await fetcher(url, init);
         } catch (cause) {
             if (timed.timedOut()) {
                 throw new TempestApiError({
@@ -275,6 +317,15 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         } finally {
             timed.dispose();
         }
+        if (holdRedirects && isStoppedRedirect(response)) {
+            throw new TempestApiError({
+                status: response.status,
+                code: REDIRECT_REFUSED,
+                requestId,
+                detail: "Redirect não seguido: a requisição levava os headers fixos do cliente.",
+            });
+        }
+        return response;
     }
 
     async function send(

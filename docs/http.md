@@ -293,16 +293,29 @@ await api.get("https://cdn.outro.com/arquivo.json");
 // → sem Authorization e sem X-Api-Key; um 401 daqui não chama logout()
 ```
 
-!!! warning "Redirect entre origens: o escopo olha a URL inicial"
-    Quem tira o `Authorization` de um redirect para outra origem é o navegador, pela regra do Fetch (whatwg/fetch#1544). Segundo o [caniuse](https://caniuse.com/mdn-api_fetch_authorization_removed_cross_origin), consultado em 01/11/2026, Firefox 111+ e Safari 16.1+ a seguem; o Chrome **não** consta como suportado. Então, no Chrome, um open redirect numa origem confiável pode levar o token adiante.
+!!! info "Redirect entre origens: o que o navegador tira e o que o SDK segura (0.82.0)"
+    O escopo olha a URL **inicial**; para onde um redirect leva é o navegador quem decide. Medido no Chrome 150 (Chromium do Playwright e Google Chrome estável), com `fetch` e com XHR, em `301`, `302`, `303`, `307` e `308` de uma origem para outra: o `Authorization` **não chega** ao destino. O caniuse e o MDN ainda listam o Chrome como não suportado — o dado deles está velho; Firefox 111+ e Safari 16.1+ constam como suportados. Num redirect de **mesma origem** o header continua indo, e é o que mantém o `307` de barra final do FastAPI funcionando.
 
-    O SDK não muda o default de `redirect` porque o redirect mais comum de um backend Tempest é legítimo e da mesma origem: o `307` de barra final do FastAPI (`redirect_slashes`). `redirect: "manual"` o transformaria numa resposta opaca e `redirect: "error"` numa falha. Numa chamada para uma URL que você não controla, peça você mesmo — a opção passa direto para o `fetch`:
+    O navegador só tira o `Authorization`. Um `X-Api-Key` nos `headers` fixos do cliente atravessava o mesmo redirect e chegava ao outro host — medido nos dois casos acima. Por isso, desde a **0.82.0**, uma requisição dentro do escopo que leva os `headers` fixos sai com `redirect: "manual"`, e um redirect como resposta vira `TempestApiError` com `code: "REDIRECT_REFUSED"` em vez de ser seguido. Seguir à mão o de mesma origem não é possível: no navegador, o redirect parado é uma resposta `opaqueredirect`, com status `0` e o `Location` ilegível (medido).
 
     ```ts
-    await api.get(urlQueVeioDaRede, { redirect: "error" });
+    const api = createApiClient({
+      baseURL: "https://api.exemplo.com",
+      headers: { "X-Api-Key": chave },
+    });
+
+    await api.post("/items", { body }); // o FastAPI responde 307 → /items/
+    // → TempestApiError { status: 0, code: "REDIRECT_REFUSED" }
+
+    await api.post("/items/", { body }); // ✅ chame a URL final
+    await api.post("/items", { body, redirect: "follow" }); // ✅ ou siga de propósito
     ```
 
-    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo equivalente.
+    Um `redirect` passado na chamada sempre vence. Cliente só com `getToken`, sem `headers` fixos, segue redirects como antes.
+
+    O `X-CSRF-Token` também atravessa um redirect para outra origem, e fica de fora de propósito: ele vai em todo `POST` de uma sessão por cookie, que é justamente o caso do `307` de barra final, e sozinho não autentica nada — usá-lo exige o cookie da vítima e um header customizado que o CORS da sua API não libera para outra origem.
+
+    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo `redirect`: ele sempre segue. O `Authorization` que ele leva é tirado pelo navegador como no `fetch` (medido); os `headers` que você passa a ele foram escritos para aquela URL, e o CSRF tem o mesmo raciocínio de cima.
 
 O mesmo predicado está exportado, para quando você monta a requisição por fora:
 

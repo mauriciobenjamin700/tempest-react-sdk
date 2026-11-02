@@ -50,6 +50,16 @@ export interface OfflineQueryPersistenceOptions {
      * the principal after a `/me` round trip would otherwise wipe its own cache
      * on every cold start. The next write replaces it.
      *
+     * The handle is bound to the first signed-in owner it writes or restores.
+     * Once bound, a write under another owner — nobody, because the token
+     * expired without `clear()`, or a second account on the same tab — deletes
+     * the snapshot instead of stamping the bound owner's cached responses with
+     * the new owner (#563); the same owner coming back writes again. Writes
+     * before anyone signs in stay anonymous and are restored while nobody is,
+     * so an app that persists logged-out data keeps doing so. An anonymous
+     * snapshot written by 0.82.0 is not restored (it may hold an expired
+     * session's cache): one cold start, once.
+     *
      * Read synchronously. A non-string, non-number value (the `Promise` of an
      * `async` getter) or a getter that throws reads as nobody. Omit it to restore
      * every snapshot, as before 0.82.0.
@@ -122,10 +132,24 @@ export interface OfflineQueryPersistence {
     clear: (options?: OfflineQueryClearOptions) => Promise<void>;
 }
 
+/**
+ * Owner stamp of a snapshot written while nobody was signed in.
+ *
+ * Not a fingerprint (`ownerFingerprint` only yields `p:` + 16 hex characters),
+ * so it never matches a signed-in owner. It replaces the `null` stamp of 0.82.0
+ * on purpose: a `null` row from 0.82.0 may hold the cache of a session that
+ * expired before the write (#563), and nothing in it tells that row apart from
+ * genuinely anonymous data, so `restore()` skips it — one cold start, once.
+ */
+const ANONYMOUS_SNAPSHOT_OWNER = "p:anonymous";
+
 interface Snapshot {
     id: string;
     state: ReturnType<typeof dehydrate>;
-    /** Owner fingerprint when `getPrincipal` was set at write time; absent otherwise. */
+    /**
+     * Owner fingerprint, or {@link ANONYMOUS_SNAPSHOT_OWNER}, when `getPrincipal`
+     * was set at write time; absent otherwise.
+     */
     owner?: string | null;
 }
 
@@ -186,6 +210,8 @@ export function persistQueryClientOffline(
     const slot = `${databaseName}\u0000${key}`;
     let ended = false;
     let warnedEnded = false;
+    let warnedRebound = false;
+    let boundOwner: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const inFlight = new Set<Promise<unknown>>();
 
@@ -203,13 +229,44 @@ export function persistQueryClientOffline(
         );
     }
 
+    function warnRebound(): void {
+        if (warnedRebound || !isDevBuild()) return;
+        warnedRebound = true;
+        console.warn(
+            "[tempest-react-sdk] persistQueryClientOffline: another account signed in on a " +
+                "handle bound to the previous one; its snapshot is deleted instead of written. " +
+                "Create a new handle after login to keep persisting.",
+        );
+    }
+
+    /**
+     * Write the snapshot, or delete the row when the session it holds is over.
+     *
+     * With `getPrincipal`, the handle is bound to the first signed-in owner it
+     * writes or restores. A write under any other owner — nobody, after a token
+     * expired, or a second account signing in on the same tab — deletes the row
+     * instead of stamping it: the in-memory cache still holds the bound owner's
+     * responses, and stamping them with the new owner is what handed them to the
+     * next account (#563). The same owner coming back writes again.
+     *
+     * A second account (not an expiry) means the app kept the handle across a
+     * login, which stops persistence for that account in silence; a dev build
+     * logs one `console.warn` saying so, as for a handle ended by `clear()`.
+     */
     async function save(): Promise<void> {
         if (ended) return;
         await afterPendingClear();
         if (ended) return;
         const snapshot: Snapshot = { id: key, state: dehydrate(queryClient) };
-        if (getPrincipal) snapshot.owner = currentOwner(getPrincipal);
-        const write = store.put(snapshot);
+        let foreign = false;
+        if (getPrincipal) {
+            const owner = currentOwner(getPrincipal);
+            foreign = boundOwner !== null && owner !== boundOwner;
+            if (foreign && owner !== null) warnRebound();
+            if (owner !== null) boundOwner = boundOwner ?? owner;
+            snapshot.owner = owner ?? ANONYMOUS_SNAPSHOT_OWNER;
+        }
+        const write = foreign ? store.delete(key) : store.put(snapshot);
         inFlight.add(write);
         try {
             await write;
@@ -264,7 +321,11 @@ export function persistQueryClientOffline(
             if (ended) return;
             const snapshot = await store.get(key);
             if (!snapshot || ended) return;
-            if (getPrincipal && snapshot.owner !== currentOwner(getPrincipal)) return;
+            if (getPrincipal) {
+                const owner = currentOwner(getPrincipal);
+                if (snapshot.owner !== (owner ?? ANONYMOUS_SNAPSHOT_OWNER)) return;
+                if (owner !== null) boundOwner = boundOwner ?? owner;
+            }
             hydrate(queryClient, snapshot.state);
         },
         async flush() {

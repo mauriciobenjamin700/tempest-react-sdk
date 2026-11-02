@@ -30,6 +30,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   deste branch): barrel CJS inteiro 181 139 → 181 252 B (+113 B, budget 181,2 → 181,3 kB), barrel
   ESM 151 948 → 151 954 B (+6 B); nenhuma fatia importada mudou.
 
+### Corrigido
+
+- **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de
+  palavra-chave (#562).** O `checkSchema` lia o mapa `properties` como se fosse um schema e pulava as
+  chaves `pattern` e `default` também ali. Medido sobre a `main` (`ca630df`), com uma propriedade de
+  nome N contendo, em quatro specs, um `__proto__` obrigatório, um `default` com `__proto__`, um
+  `pattern` inválido (`"("`) e um `pattern` com quantificador aninhado: `pattern` passava nos quatro
+  (o Zod gerado aceitava `{pattern: {}}` sem validar o campo), `default` passava nos dois de regex e
+  só pegava os de `__proto__` por acaso, com caminho e mensagem errados (`at properties`, "the default
+  value"), e `$ref` derrubava o gerador com `ref.lastIndexOf is not a function` (`collectRefs` lia o
+  schema da propriedade como referência). As outras 12 palavras-chave testadas (`enum`, `items`,
+  `properties`, `additionalProperties`, `allOf`, `anyOf`, `oneOf`, `required`, `type`, `example`,
+  `not`, `const`) já eram conferidas. Agora as entradas de `properties`, `patternProperties`,
+  `dependentSchemas`, `$defs` e `definitions` são sempre percorridas como schema, e só `$ref` string
+  é referência: os 15 nomes dão o mesmo resultado que um nome comum (`x`) nas quatro specs, e uma propriedade chamada `$ref`
+  gera normalmente. Método: script em scratchpad sobre `generate()` + 49 testes novos em
+  `bin/lib/openapi/generate.hostile.test.mjs` (13 falham na `main`;
+  `npx vitest run bin/lib/openapi/generate.hostile.test.mjs`). Spec que já gerava continua gerando
+  igual; passa a falhar só o que escondia um destes defeitos — o contrato já anunciado no #533.
+
 ## [0.82.0] — 2026-11-02
 
 ### Breaking

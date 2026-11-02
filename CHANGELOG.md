@@ -4,6 +4,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`persistQueryClientOffline` com `getPrincipal` prende o handle ao primeiro dono logado e apaga o
+  snapshot quando outro dono grava (#563).** O vínculo de dono da 0.82.0 (#531) carimbava cada
+  gravação com quem estivesse logado _naquele momento_, mas o snapshot é o cache em memória inteiro:
+  um token que vencia sem `clear()` fazia a próxima gravação carimbar as respostas de A com dono
+  `null`, que o `restore()` sem ninguém logado aceitava (`null === null`) e o B lia depois de entrar.
+  O defeito é maior que o da issue: a troca direta A → B no mesmo handle carimbava os dados de A como
+  de B, e B os hidratava no boot seguinte. Reproduzido em 4 testes de
+  `src/query/offline-persistence.owner.test.ts` que falham sobre a `main` (`ca630df`) e passam com a
+  correção (`npx vitest run src/query/offline-persistence.owner.test.ts` → 5 failed | 14 passed na
+  `main`, 19 passed aqui; o quinto é o aviso de dev novo). Agora o handle se prende ao primeiro dono
+  logado que ele grava ou restaura, e uma gravação com outro dono — ninguém ou outra conta —
+  **apaga** a linha; o mesmo dono voltando grava de novo. Recusar no `restore()` todo snapshot sem
+  dono foi descartado: quebraria app que persiste dado de visitante. Gravação antes de alguém logar
+  continua anônima e restaurável; sem `getPrincipal`, nada muda. Os outros stores com dono do #551
+  (outbox do `createOfflineSync`, buffer do `createWebSocket`) não têm a mesma brecha: carimbam cada
+  item na criação, e item sem dono só sai enquanto ninguém está logado — outra conta o descarta.
+  **Migração:** (1) app que troca de conta sem `clear()` e reaproveita o handle para de persistir
+  para a conta nova — crie um handle novo no login (em build de dev, um `console.warn` avisa); (2)
+  snapshot anônimo gravado pela 0.82.0 não é restaurado (não dá para separá-lo de uma sessão vencida;
+  agora o anônimo leva o carimbo `"p:anonymous"`): um boot frio, uma vez. Tamanho
+  (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` da `main` contra o
+  deste branch): barrel CJS inteiro 181 139 → 181 252 B (+113 B, budget 181,2 → 181,3 kB), barrel
+  ESM 151 948 → 151 954 B (+6 B); nenhuma fatia importada mudou.
+
 ### Corrigido
 
 - **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de

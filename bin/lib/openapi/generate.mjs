@@ -176,6 +176,23 @@ function hasProtoKey(value) {
 }
 
 /**
+ * Keywords whose value maps a name the spec author picked to a sub-schema.
+ *
+ * Their keys are data, not keywords: a property may be called `pattern`,
+ * `default` or `$ref`. {@link checkSchema} walks into every entry as a schema
+ * and never reads the map itself as one — it used to, so a property named
+ * `pattern` or `default` was skipped as if it were the keyword, and its schema
+ * escaped every check below (#562).
+ */
+const SCHEMA_MAPS = new Set([
+    "properties",
+    "patternProperties",
+    "dependentSchemas",
+    "$defs",
+    "definitions",
+]);
+
+/**
  * Check a component schema before it is turned into Zod source.
  *
  * - Every `pattern` must compile as a JavaScript regex. The generated schema
@@ -193,6 +210,11 @@ function hasProtoKey(value) {
  *   the spec is refused (#533).
  *
  * Every failure names the schema and where in it the problem sits.
+ *
+ * The walk reaches every sub-schema. Only a schema's own `pattern` string and
+ * `default` value are not walked as schemas — the checks above read them — and
+ * the entries of a {@link SCHEMA_MAPS} keyword are always walked, whatever the
+ * property is called (#562).
  *
  * @param {unknown} node - The schema (sub)node.
  * @param {string} schema - The component schema name, for the messages.
@@ -233,15 +255,32 @@ function checkSchema(node, schema, warnings, at = []) {
         );
     }
     for (const [key, value] of Object.entries(node)) {
-        if (key !== "pattern" && key !== "default")
+        if (SCHEMA_MAPS.has(key) && value && typeof value === "object" && !Array.isArray(value)) {
+            for (const [name, sub] of Object.entries(value)) {
+                checkSchema(sub, schema, warnings, [...at, key, name]);
+            }
+        } else if (key !== "pattern" && key !== "default") {
             checkSchema(value, schema, warnings, [...at, key]);
+        }
     }
 }
 
-/** Collect component-schema names referenced (transitively) by a schema node. */
+/**
+ * Collect component-schema names referenced (transitively) by a schema node.
+ *
+ * Only a string `$ref` is a reference: inside `properties`, `$ref` can be a
+ * property name whose value is a schema, and reading it as a reference crashed
+ * the run with `ref.lastIndexOf is not a function` (#562).
+ *
+ * @param {unknown} node - The schema (sub)node.
+ * @param {Record<string, object>} schemas - `components.schemas`.
+ * @param {Set<string>} [acc] - Collects the referenced names.
+ * @param {Set<string>} [seen] - Names already expanded, against cycles.
+ * @returns {Set<string>} `acc`.
+ */
 function collectRefs(node, schemas, acc = new Set(), seen = new Set()) {
     if (!node || typeof node !== "object") return acc;
-    if (node.$ref) {
+    if (typeof node.$ref === "string") {
         const name = refName(node.$ref);
         if (!acc.has(name)) {
             acc.add(name);

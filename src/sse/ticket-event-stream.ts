@@ -1,3 +1,5 @@
+import { useCallback, useSyncExternalStore } from "react";
+import { sessionIdentityOf, type SessionIdentity } from "../auth/session-identity";
 import { isApiError, isRetriableStatus } from "../http/errors";
 import type { ApiClient } from "../http/types";
 import {
@@ -25,6 +27,10 @@ export interface TicketEventStreamSource {
      * Authenticated client the ticket is requested through, so it carries the
      * `Authorization` header or the session cookie, the CSRF header, and the
      * 401 refresh-and-replay that a hand-rolled `fetch` would lose.
+     *
+     * The `api` of `createTempestAuth` also carries the session it acts for,
+     * and the stream binds to it when `sessionKey` is not passed — see
+     * {@link useTicketEventStream}.
      */
     client: Pick<ApiClient, "post" | "url">;
     /** Router prefix, relative to the client's base URL. Default: `"/sse"`. */
@@ -96,7 +102,20 @@ function ticketStreamUrl(source: TicketEventStreamSource): () => Promise<string>
  * cookie) on the ticket request, and the ticket in the URL opens that stream
  * and nothing else.
  *
+ * With the `api` of `createTempestAuth` as `client` and no `sessionKey`, the
+ * stream follows that preset's session (since 0.82.0): it closes the moment
+ * the session is replaced or ends, reopens with a fresh ticket for the next
+ * one, stays closed while nobody is signed in, and ignores token rotation.
+ * Any other client binds only through `sessionKey`, checked per frame.
+ *
  * @example
+ * const stream = createTicketEventStream<Notification>({
+ *     client: auth.api,
+ *     onMessage: ({ data }) => addNotification(data),
+ * });
+ *
+ * @example
+ * // A client createTempestAuth did not build
  * const stream = createTicketEventStream<Notification>({
  *     client: api,
  *     sessionKey: () => useAuthStore.getState().user?.id ?? null,
@@ -114,13 +133,77 @@ export function createTicketEventStream<T = unknown>(
         client,
         prefix,
         ticketParam,
+        sessionKey,
         shouldRetryUrl = isRetriableTicketError,
         ...rest
     } = options;
-    return createEventStream<T>(ticketStreamUrl({ client, prefix, ticketParam }), {
+    const identity = sessionKey === undefined ? sessionIdentityOf(client) : undefined;
+    const controller = createEventStream<T>(ticketStreamUrl({ client, prefix, ticketParam }), {
         ...rest,
+        sessionKey: sessionKey ?? identity?.current,
         shouldRetryUrl,
     });
+    return identity ? followSession(controller, identity) : controller;
+}
+
+/**
+ * Close the stream the moment the session it opened under ends, instead of
+ * at its next frame, and reopen it for the session that follows.
+ *
+ * Signed out, the stream stays closed: a ticket request with no session only
+ * comes back `401`. Following stops at `close()`; `reconnect()` resumes it.
+ *
+ * @param controller - The stream, already bound to `identity` frame by frame.
+ * @param identity - The session of the client the tickets go through.
+ * @returns A controller whose `close()` also stops following.
+ */
+function followSession(
+    controller: EventStreamController,
+    identity: SessionIdentity,
+): EventStreamController {
+    let bound = identity.current();
+    let unsubscribe: (() => void) | null = null;
+    function follow(): void {
+        unsubscribe ??= identity.subscribe(() => {
+            const next = identity.current();
+            if (Object.is(next, bound)) return;
+            bound = next;
+            if (next === null) controller.close();
+            else controller.reconnect();
+        });
+    }
+    follow();
+    if (bound === null) controller.close();
+    return {
+        close: () => {
+            unsubscribe?.();
+            unsubscribe = null;
+            controller.close();
+        },
+        reconnect: () => {
+            bound = identity.current();
+            follow();
+            controller.reconnect();
+        },
+        get status() {
+            return controller.status;
+        },
+    };
+}
+
+/**
+ * Read the session key of a client `createTempestAuth` built, as React state.
+ *
+ * @param identity - The client's session, or `undefined` for any other client.
+ * @returns The key, or `undefined` when the client carries no session.
+ */
+function useClientSession(identity: SessionIdentity | undefined): string | null | undefined {
+    const subscribe = useCallback(
+        (listener: () => void) => identity?.subscribe(listener) ?? (() => undefined),
+        [identity],
+    );
+    const read = (): string | null | undefined => identity?.current();
+    return useSyncExternalStore(subscribe, read, read);
 }
 
 /**
@@ -132,18 +215,33 @@ export function createTicketEventStream<T = unknown>(
  * Reopening on identity would reconnect on every render for a client built
  * inline.
  *
- * Pass `sessionKey` (the signed-in user's id): the ticket names the channel of
- * the user who asked for it, the server never ends an open stream on logout,
- * and a tab that switches accounts without `enabled` going `false` would
- * otherwise keep delivering the previous user's events. A change of key closes
- * that stream and asks a ticket for the new session.
+ * The stream is bound to a session: the ticket names the channel of the user
+ * who asked for it, the server never ends an open stream on logout, and a tab
+ * that switches accounts without `enabled` going `false` would otherwise keep
+ * delivering the previous user's events. A change of session closes that
+ * stream and asks a ticket for the new one.
+ *
+ * With the `api` of `createTempestAuth` as `client`, that binding is automatic
+ * (since 0.82.0): the session is read from the client — `auth.sessionKey()`,
+ * the lineage `login()` mints — so a switch closes the stream, a token
+ * rotation of the same session does not, and while nobody is signed in the
+ * stream stays `idle` without asking for a ticket. Any other client keeps the
+ * behaviour it had: pass `sessionKey` (the signed-in user's id). A
+ * `sessionKey` passed explicitly always wins over the client's.
  *
  * @example
+ * const { status } = useTicketEventStream<Notification>({
+ *     client: auth.api,
+ *     schema: notificationSchema,
+ *     onMessage: ({ data }) => addNotification(data),
+ * });
+ *
+ * @example
+ * // A client createTempestAuth did not build
  * const { status } = useTicketEventStream<Notification>({
  *     client: api,
  *     enabled: isAuthenticated,
  *     sessionKey: user?.id ?? null,
- *     schema: notificationSchema,
  *     onMessage: ({ data }) => addNotification(data),
  * });
  *
@@ -157,11 +255,17 @@ export function useTicketEventStream<T = unknown>(
         client,
         prefix,
         ticketParam,
+        enabled = true,
+        sessionKey,
         shouldRetryUrl = isRetriableTicketError,
         ...rest
     } = options;
+    const identity = sessionKey === undefined ? sessionIdentityOf(client) : undefined;
+    const clientSession = useClientSession(identity);
     return useEventStream<T>(ticketStreamUrl({ client, prefix, ticketParam }), {
         ...rest,
+        enabled: enabled && clientSession !== null,
+        sessionKey: sessionKey ?? clientSession,
         shouldRetryUrl,
     });
 }

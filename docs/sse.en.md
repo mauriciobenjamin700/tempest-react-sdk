@@ -107,7 +107,7 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 ```
 
 - `enabled: false` disconnects the stream (use it while waiting for `user` to load).
-- `sessionKey` (the user's id) binds the stream to the session: switching accounts closes the stream and clears `lastMessage` — see [switching accounts](#switching-accounts-in-the-same-tab-sessionkey).
+- `sessionKey` (the user's id) binds the stream to the session: switching accounts closes the stream and clears `lastMessage` — see [switching accounts](#switching-accounts-in-the-same-tab-sessionkey). With `client: auth.api` from `createTempestAuth`, `useTicketEventStream` does it on its own.
 - Changing the URL re-opens the connection; changing `onMessage` does **not** (callback held in an internal ref — no pointless reconnects).
 - `lastMessage` holds the last received message (heartbeats don't count).
 - Automatic cleanup on unmount.
@@ -266,6 +266,61 @@ revocation ends a stream already open — it lives until the client leaves
 **without** `enabled` passing through `false`, A's stream keeps delivering A's
 events under B.
 
+#### With `createTempestAuth`'s `api`: automatic
+
+Since 0.82.0, when the `client` is the `api` that `createTempestAuth` built, the
+stream binds itself to that preset's session — you pass neither `sessionKey`
+nor `enabled`:
+
+```tsx
+import { createTempestAuth, useTicketEventStream } from "tempest-react-sdk";
+
+interface User {
+    id: string;
+}
+
+const auth = createTempestAuth<User>({ baseURL: "https://api.example.com" });
+
+export function Notices() {
+    const { status, lastMessage } = useTicketEventStream<{ text: string }>({
+        client: auth.api,
+        onMessage: ({ data }) => console.log("notice", data.text),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {lastMessage && <p>{lastMessage.data.text}</p>}
+        </div>
+    );
+}
+```
+
+The key is `auth.sessionKey()`: the **lineage** `login()` mints, kept across
+every token rotation and cleared when the session ends. What each event does to
+the stream:
+
+| Event | Stream |
+| --- | --- |
+| `login()` into another account (or the same one) in the tab | closes the previous one, clears `lastMessage`, asks a ticket for the new session |
+| login or logout in **another tab** | the same, as soon as the tab follows the storage |
+| token rotation (`refresh()`, 401 → refresh) | **nothing** — same stream, same connection |
+| `logout()` or expired session | closes and stays `idle`, without asking for a ticket |
+| nobody signed in on mount | stays `idle` until the next `login()` |
+
+Measured with the mocked `EventSource` and backend in
+`src/sse/session-auth.test.tsx` (`npx vitest run src/sse/session-auth.test.tsx`):
+on `main` before this change, after `login(B)` A's stream was still the only
+`EventSource`, open.
+
+!!! note "Who keeps the old behaviour"
+    A client `createTempestAuth` did not build — your own `createApiClient`, a
+    wrapper, a spread copy — carries no session, and the stream follows only
+    `url`, `enabled` and the `sessionKey` you pass. An explicit `sessionKey`
+    always wins over the client's.
+
+#### With any other client: `sessionKey`
+
 Pass the session identity as `sessionKey` and the hook takes care of it:
 
 ```tsx
@@ -308,14 +363,18 @@ GET  …/sse/stream?ticket=<of b>          200  text/event-stream
   stream is **dropped**, not delivered.
 - The key is a primitive (`string | number | boolean | null | undefined`): an
   object built inline would reopen the stream on every render.
-- Without `sessionKey`, nothing changes: the stream follows `url` and `enabled` alone.
+- Without `sessionKey`, and with a client that did not come from
+  `createTempestAuth`, nothing changes: the stream follows `url` and `enabled` alone.
 
 Outside React, `createEventStream` and `createTicketEventStream` take
 `sessionKey` as a **function** (`() => store.getState().user?.id ?? null`). The
 key is read on every connection and before every frame: a frame arriving with a
 changed key is dropped and the stream reconnects for the current session. Since
 the check runs when a frame arrives, a quiet stream only closes at its next frame
-or at `close()`.
+or at `close()`. With `client: auth.api` and no `sessionKey`,
+`createTicketEventStream` follows the preset's session **at the moment** of the
+switch, like the hook — and stops following at `close()` (`reconnect()` follows
+again).
 
 ### URL resolved per connection
 
@@ -510,7 +569,7 @@ What the option guarantees:
 - `createEventStream(url, options)` opens an SSE with exponential reconnect; the controller exposes `close`, `reconnect`, and `status`.
 - `url` can be a function called on every connection; `useTicketEventStream({ client })` uses that to request a fresh ticket on every reconnect, with no token in the URL.
 - `useEventStream(url, options)` is the React wrapper: ties the lifecycle to the component, exposes `status`/`lastMessage`/`reconnect`, and respects `enabled`.
-- `sessionKey` binds the stream to the session: the server does not end an open stream on logout, so switching accounts closes the previous user's stream on the client.
+- `sessionKey` binds the stream to the session: the server does not end an open stream on logout, so switching accounts closes the previous user's stream on the client. With `client: auth.api`, the ticket stream reads the session from the client itself — no `sessionKey`, and no reopening on token rotation.
 - Heartbeats (default `["ping"]`) keep the socket alive without firing `onMessage`.
 - `schema` validates each frame before delivering it: what does not match never reaches `onMessage`, and `onValidationError` says why.
 - Status `"error"` = attempts exhausted; offer the user a `reconnect()`.

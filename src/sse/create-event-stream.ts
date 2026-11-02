@@ -156,7 +156,9 @@ export interface EventStreamController {
  *
  * When `url` is a function it is called before every connection, so a
  * reconnect presents a fresh credential instead of the one that expired. A
- * resolution still pending when `close()` or `reconnect()` runs is discarded.
+ * resolution still pending when `close()` or `reconnect()` runs is discarded, and
+ * one that has not started yet is never made: a stream closed in the same tick
+ * it was created asks for no URL — no ticket request, for the ticket stream.
  *
  * Pass `sessionKey` to bind the stream to the session it opened under: once
  * the key changes, no frame of the previous session reaches `onMessage`, and
@@ -278,10 +280,10 @@ export function createEventStream<T = unknown>(
         }
         const current = attempt;
         Promise.resolve()
-            .then(url)
+            .then(() => (closed || current !== attempt ? null : url()))
             .then(
                 (resolved) => {
-                    if (closed || current !== attempt) return;
+                    if (resolved === null || closed || current !== attempt) return;
                     if (sessionChanged()) {
                         connect();
                         return;

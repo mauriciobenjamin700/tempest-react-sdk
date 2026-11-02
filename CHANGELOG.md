@@ -4,7 +4,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### Fixed
+### Corrigido
 
 - **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de
   palavra-chave (#562).** O `checkSchema` lia o mapa `properties` como se fosse um schema e pulava as

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.82.0] — 2026-11-02
+
 ### Breaking
 
 - **`createApiClient` não segue redirect numa requisição que leva os `headers` fixos do cliente

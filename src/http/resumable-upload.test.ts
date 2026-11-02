@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { resetCsrfReports } from "./csrf";
+import { TempestApiError } from "./errors";
 import {
     createLocalUploadStorage,
     createResumableUpload,
@@ -2074,5 +2075,42 @@ describe("createResumableUpload — the principal or the storage changes mid-run
         expect(localStorage.getItem("app:upload")).toBeNull();
         expect(localStorage.getItem("appSettings")).toBe('{"theme":"dark"}');
         expect(localStorage.getItem("appToken")).toBe("abc");
+    });
+
+    it("fails typed instead of looping when a PATCH does not advance the offset (#569)", async () => {
+        // Case 303 from the measurement: a 200/204 whose Upload-Offset equals
+        // the one the request carried. Without the guard the write loop
+        // re-sent the same chunk forever — over 1500 requests in 4 s — with
+        // `retries: 0` included, because nothing ever threw for it to count.
+        const offset = 0;
+        server = new FakeTusServer((request): Reply => {
+            if (request.method === "POST") {
+                return { status: 201, headers: { Location: "/api/uploads/abc" } };
+            }
+            if (request.method === "HEAD") {
+                return { status: 200, headers: { "Upload-Offset": String(offset) } };
+            }
+            if (request.method === "PATCH") {
+                return { status: 204, headers: { "Upload-Offset": String(offset) } };
+            }
+            return { status: 204 };
+        });
+        installXhr();
+
+        const caught = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(10),
+            storage: null,
+        })
+            .start()
+            .then(
+                () => null,
+                (error: unknown) => error,
+            );
+
+        expect(caught).toBeInstanceOf(TempestApiError);
+        expect((caught as TempestApiError).code).toBe("STALLED_OFFSET");
+        // One write attempted, no retry storm.
+        expect(server.countOf("PATCH")).toBe(1);
     });
 });

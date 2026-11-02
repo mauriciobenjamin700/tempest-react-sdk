@@ -23,8 +23,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `redirect: "follow"` na chamada. Cliente só com `getToken` não muda. `X-CSRF-Token` e o XHR dos
   uploads continuam seguindo o redirect — o porquê está em `docs/http.md`.
   Tamanho (`npm run build && npx size-limit --json`, contra a `origin/main` em `cfb92c2`): fatia
-  `http client` 4896 → 5040 B, `typical app` 12426 → 12581 B, barril ESM 151314 → 151643 B, barril
-  CJS 180801 → 180820 B; tetos subidos para 5,06 KB, 12,6 kB e 151,7 KB.
+  `http client` 4896 → 5040 B, `typical app` 12426 → 12581 B, e, remedido sobre a `main` já com
+  #559, barril ESM 151 687 → 151 948 B e CJS 181 051 → 181 139 B; tetos subidos para 5,06 KB, 12,6 kB,
+  152 KB e 181,2 KB.
 
 - **`tempest gen api` recusa spec que gerava código enganoso, e `create-tempest-app <nome>` recusa
   destino que é symlink (#533).** Passam a falhar, antes da primeira escrita: path key que não
@@ -115,6 +116,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   recomeça do zero, e registros gravados antes desta versão (sem carimbo) recomeçam uma vez.
   **Migração:** passe `getPrincipal` para retomar através de refresh do token; sessão por cookie
   (sem `getToken`) continua sem dono e precisa de `getPrincipal` para essa proteção.
+
+- **Stream SSE por ticket e upload resumível se amarram sozinhos à sessão do `createTempestAuth`
+  (#555, #522, #528).** O `sessionKey` do #550 era opt-in: app que não passava continuava recebendo
+  os eventos de A depois de trocar para B na mesma aba. Agora o `api` e o `getToken` que o
+  `createTempestAuth` devolve carregam a sessão do preset (num `WeakMap` interno — nada muda no
+  tipo `ApiClient`), e quem os recebe a lê sozinho. A chave é a **linhagem** do #549
+  (`auth.sessionKey()`): muda no `login()` (mesmo da mesma conta), no login/logout de outra aba e no
+  fim da sessão, e **não** muda na rotação do token. `useTicketEventStream({ client: auth.api })`
+  sem `sessionKey`: a troca fecha o stream de A, zera `lastMessage` e pede ticket para B; a
+  rotação não reabre; deslogado o stream fica `idle` sem pedir ticket. `createTicketEventStream`
+  com o mesmo cliente fecha o stream **na hora** da troca (não só no próximo frame), fica fechado
+  deslogado e para de seguir no `close()`. `createResumableUpload({ getToken: auth.getToken })`
+  usa a sessão como `getPrincipal`: o reload depois de uma rotação retoma, e a troca de conta com o
+  upload rodando rejeita com `ResumableUploadSupersededError("principal")`. Medido na `main` em
+  `cfb92c2` com `npx vitest run src/sse/session-auth.test.tsx` (12 dos 15 casos falhavam; o de troca
+  falhava com o stream de A ainda sendo o único `EventSource`, aberto; o de rotação só falhava por
+  chamar `auth.sessionKey()`, que não existia — a rotação nunca reabriu, e o teste fixa que continue
+  assim; os 3 que passavam fixam o que não muda: cliente próprio, `sessionKey` explícito e `close()`) e
+  `npx vitest run src/http/resumable-upload.session.test.ts` (2 de 4 falhavam: com um `login()` de B
+  entre o 1º e o 2º `PATCH`, o upload **terminava**, os dois `PATCH` seguintes levando
+  `Bearer B-tok-1` para a URL do upload de A; e o reload depois de um refresh recomeçava com `POST`).
+  De quebra, `createEventStream` com `url` função não chama mais a função quando o stream foi
+  fechado no mesmo tick em que nasceu — antes o ticket era pedido e descartado.
+  **Migração:** nada para quem passa `sessionKey` (ele sempre ganha) ou usa cliente próprio. Com
+  `client: auth.api`, um stream montado deslogado passa a ficar `idle` em vez de ir a `"error"` com
+  o `401` do ticket. Com `getToken: auth.getToken`, um upload que precisa sobreviver a uma troca de
+  conta — não deveria — passa a rejeitar; e um novo `login()` na mesma conta recomeça o upload
+  (já recomeçava pelo token novo): para retomar através de logins passe `getPrincipal` com o id do
+  usuário. Um wrapper `() => auth.getToken()` continua amarrado ao token, como antes — e continua
+  **sem** perceber a troca no meio do run. Sessão só por cookie fora do `createTempestAuth` (sem
+  `getToken`) continua sem dono: o SDK não tem de onde ler quem está logado, e `getPrincipal`
+  segue sendo a única amarra (#528 fica aberta por isso).
 
 ### Segurança
 
@@ -303,6 +336,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`auth.sessionKey()` no `createTempestAuth` (#555).** A sessão como chave: a linhagem do login
+  enquanto há alguém logado, `null` quando não há — muda no `login()`, não muda na rotação. É o que o
+  SSE e o upload resumível leem do `auth.api`/`auth.getToken`; para outro recurso por sessão, passe
+  como `sessionKey`/`getPrincipal`. Sessão sem linhagem (gravada antes do #549, ou restaurada do
+  cookie sem `login()` neste storage) responde a constante `"unlineaged"`.
+
 - **Aviso em desenvolvimento quando um `gap` numérico parece pixel (#536).** `Stack`, `Grid`,
   `Form`, `FormSection`, `FormRow` e `FormActions` leem `gap` numérico como passo da escala de 4px
   — `gap={24}` virava um buraco de 96px sem erro nem aviso. Agora, em build de desenvolvimento
@@ -327,6 +366,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 - **`<GoogleSignIn nonce>`** repassa o nonce emitido pelo servidor ao `GoogleLogin`, para o
   backend prender o ID token a ele (#530). Antes o wrapper descartava a prop.
+
+- **`tempest doctor` avisa quando o Vitest vai importar o SDK sem o `tempestVitest()` (#556).**
+  Num projeto com o SDK e o `vitest` instalado, a seção _Integration_ lê a config que o Vitest
+  carrega — a mesma ordem dele, `vitest.config.{ts,mts,cts,js,mjs,cjs}` e depois `vite.config.*`,
+  fixada em teste contra o `node_modules/vitest` instalado — e avisa quando ela não tem
+  `tempestVitest`, `createViteConfig`, `inline: true` nem `"tempest-react-sdk"` numa lista de
+  `inline`, ou quando não há config nenhuma. Heurística de texto (comentário não conta), sem
+  executar a config; `vitest.config` com `mergeConfig` sobre um `vite.config` que usa
+  `createViteConfig` passa. Projeto sem o SDK ou sem Vitest não ganha linha. Aviso, não falha: o
+  exit code não muda. Teste: `npx vitest run bin/lib/doctor` (os 2 casos novos do
+  `doctor.e2e.test.mjs` que esperam a linha falhavam com o `bin/tempest.mjs` da `main`).
+- **O smoke do tarball exige que o Vitest sem plugin falhe (#556).** `scripts/smoke-vitest.sh`
+  ganhou, no projeto sem `@vitejs/plugin-react`, dois cenários antes do `tempestVitest()`: um
+  `vitest.config.ts` sem o plugin e nenhuma config. Os dois precisam cair com
+  `Unknown file extension ".css"`; se passarem, o smoke reprova e a doc (README, Testes com Vitest,
+  `doctor`) é revista. Medido com o tarball da `main` (0.81.0 + `[Unreleased]`), Vitest 4.1.12,
+  Node 24.15.0: `scripts/smoke-vitest.sh tempest-react-sdk-0.81.0.tgz` → 2a e 2b falham como
+  esperado, 1 e 2 passam.
 
 ### Corrigido
 
@@ -383,6 +440,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- Teto do `slice: resumable upload` 4,65 → 4,7 kB, do barrel ESM 151,4 → 151,75 kB e do CJS
+  180,9 → 181,1 kB, pela sessão do `createTempestAuth` no SSE e no upload (#555). Medido com
+  `npm run build && npx size-limit --json` na `main` em `cfb92c2` e na mesma árvore com a mudança:
+  `slice: resumable upload` 4607 → 4657 B (+50, o `WeakMap` da sessão e a leitura dela no
+  `getToken`), barrel ESM 151 314 → 151 687 B (+373) e CJS 180 801 → 181 051 B (+250). Nenhuma outra
+  fatia mudou.
+
 - Teto do barrel ESM 149,9 → 150,1 kB e CJS 178,9 → 179,4 kB, pelo aviso de `gap` (#536). Medido
   com `npm run build && npx size-limit --json` na `main` em `b054c16` e na mesma árvore com a
   mudança: barrel ESM 149 789 → 150 003 B (+214) e CJS 178 824 → 179 282 B (+458);
@@ -407,6 +471,24 @@ app` 12 158 → 12 303 B (+145, teto 12,2 → 12,35 kB), `slice: createPeerMesh`
   do FastAPI é o redirect comum e legítimo. Documentado em `docs/http.md` com `{ redirect: "error" }`
   por chamada para URL que veio da rede (Chrome não consta no caniuse como removendo o header,
   consultado em 01/11/2026).
+
+### Decidido sem mudança de código (#556)
+
+- **Condição `"node"` para as folhas de componente não entra.** Medido sobre a cópia descartável do
+  tarball (`npm pack`, Vitest 4.1.12, Vite 8, Node 24.15.0):
+  - **No `exports`, como a issue propõe, não muda nada**: cada `*.module.js` importa a folha por
+    caminho **relativo** (`import "../../styles/component/Button.css"`), e condição de `exports`
+    só vale para especificador de pacote. Vitest sem plugin e `node` sem loader continuam caindo
+    no `.css`.
+  - **Pelo campo `imports`** (`"#tempest-css/*": { "node": vazio, "default": a folha }`, com as 264
+    importações reescritas): Vitest sem plugin passa, `node`/`require` sem loader passam, SSR
+    externalizado do Vite renderiza, e o build de cliente do Vite sai **byte a byte igual**
+    (5515 B de CSS, mesmo sha256). Mas o Vitest **com** `tempestVitest()` e `css: true` perde
+    todas as folhas (126 `<style>` → 0): o Vitest resolve o pacote inlined com a condição `node`,
+    e teste de estilo computado passa a ver componente sem CSS — sem erro. O mesmo vale para o SSR
+    em dev do Vite, que coleta CSS do grafo SSR (não medido). Troca uma falha barulhenta e
+    documentada por uma silenciosa; fica o plugin, agora vigiado pelo `doctor` e pelo smoke.
+    Registro em `docs/internal/decisions.md`.
 
 ## [0.81.0] — 2026-11-01
 

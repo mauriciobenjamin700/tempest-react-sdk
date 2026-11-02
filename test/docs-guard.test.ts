@@ -80,6 +80,17 @@ const FRAGMENT_CODES: ReadonlySet<number> = new Set([
  */
 const AMBIENT_PATTERNS: readonly RegExp[] = [/ImportMeta/, /waitUntil/];
 
+/**
+ * Time the single compile of every documented example may take.
+ *
+ * One TypeScript program over 400+ blocks takes ~36 s on an idle machine.
+ * `make check` runs on the developer's machine since the CI stopped testing
+ * (#521), alongside other work, and the 120 s it had failed it by timeout with
+ * correct docs: 129.5 s, 158 s and 282 s measured on 2026-11-01/02 with other
+ * suites running. The ceiling only has to separate "slow" from "hung".
+ */
+const COMPILE_TIMEOUT = 600_000;
+
 /** CSS side-effect imports (`tempest-react-sdk/styles.css`), which carry no types. */
 const CSS_IMPORT_CODE = 2882;
 
@@ -267,7 +278,7 @@ describe("docs examples", () => {
         expect(blocks.length).toBeGreaterThan(400);
     });
 
-    it("every example compiles against the SDK", { timeout: 120_000 }, () => {
+    it("every example compiles against the SDK", { timeout: COMPILE_TIMEOUT }, () => {
         expect(compileBlocks(blocks)).toEqual([]);
     });
 });

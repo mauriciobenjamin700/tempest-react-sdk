@@ -1,4 +1,5 @@
 import { createApiClient, SessionSupersededError } from "../http";
+import { bindSessionIdentity, type SessionIdentity } from "./session-identity";
 import { isDevBuild } from "../utils/dev-mode";
 import type { ApiClient, CsrfOptions, RequestAuthContext, RetryOptions } from "../http";
 import { createAuthStore } from "./create-auth-store";
@@ -248,6 +249,23 @@ export interface TempestAuth<TUser, TCredentials> {
     /** The current access token, or null. */
     getToken: () => string | null;
     /**
+     * The key of the session signed in now, or `null` when nobody is.
+     *
+     * It changes when the session is replaced — `login()`, even into the same
+     * account, a sign-in or sign-out in another tab, `logout()` — and stays
+     * the same while that session's tokens rotate: it is the session lineage
+     * `login()` mints, not the token. That is the identity a per-session
+     * resource needs. `useTicketEventStream`/`createTicketEventStream` read it
+     * on their own from `api`, and `createResumableUpload` from `getToken`;
+     * pass it as `sessionKey` or `getPrincipal` anywhere else.
+     *
+     * A session that has no lineage — persisted before lineages existed, or
+     * restored from a refresh cookie without a `login()` in this storage —
+     * answers `"unlineaged"`. Replacing it still takes a
+     * `login()`, which mints one, so the key still changes on a switch.
+     */
+    sessionKey: () => string | null;
+    /**
      * Stop following the other tabs: removes the `storage` listener this
      * preset adds to `window`. Idempotent.
      *
@@ -317,6 +335,13 @@ function newLineage(): string {
     if (typeof host?.randomUUID === "function") return host.randomUUID();
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
+
+/**
+ * The {@link TempestAuth.sessionKey} of a signed-in session that has no
+ * lineage. One constant for all of them, since none can be told apart without
+ * one — and no account switch can produce one.
+ */
+const UNLINEAGED_SESSION_KEY = "unlineaged";
 
 /**
  * The store names already warned about cookie mode without `logoutPath`, so a
@@ -1242,6 +1267,23 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     const refresh = (): Promise<void> => queue();
 
     /**
+     * Read from the store's token and the held lineage. Both move before the
+     * store notifies: `login()` writes the lineage before installing the
+     * token, `finish()` clears the token in the notifying `logout()` call and
+     * the lineage only after — which the token check already reads as `null` —
+     * and following another tab updates the held lineage before `setState`.
+     * So every store listener sees the key of the state it is told about.
+     */
+    const sessionKey = (): string | null =>
+        getToken() === null ? null : (heldLineage ?? UNLINEAGED_SESSION_KEY);
+    const identity: SessionIdentity = {
+        current: sessionKey,
+        subscribe: (listener) => useAuthStore.subscribe(listener),
+    };
+    bindSessionIdentity(api, identity);
+    bindSessionIdentity(getToken, identity);
+
+    /**
      * Follow a write another tab made to this session's keys. The browser
      * fires `storage` only in the tabs that did not write; `key` is null when
      * the other tab cleared the whole storage.
@@ -1265,5 +1307,5 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     host?.addEventListener("storage", onStorage);
     const dispose = (): void => host?.removeEventListener("storage", onStorage);
 
-    return { useAuthStore, api, login, logout, refresh, getToken, dispose };
+    return { useAuthStore, api, login, logout, refresh, getToken, sessionKey, dispose };
 }

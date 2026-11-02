@@ -218,6 +218,21 @@ Measured with `tempest-react-sdk@0.70.0` and a one-line test importing `Button`
     everything), the plugin leaves it alone — merging the two would crash Vitest 4
     with `ex.test is not a function`.
 
+On 0.81.0 with Vitest 4.1.12 the picture is the same for **every** setup without
+the plugin: an own `vitest.config.ts`, a plain `vite.config.ts` and a project with
+no config at all fail on the `.css`. Two things make sure you find out before the
+red test:
+
+- **`npx tempest doctor`** reads the config Vitest is going to load
+  (`vitest.config.*`, else `vite.config.*`) and warns under _Integration_ when it
+  has none of `tempestVitest()`, `createViteConfig`, `inline: true` or
+  `"tempest-react-sdk"` in the `inline` list — or when there is no config at all.
+  A `vitest.config.ts` that does `mergeConfig` over a `vite.config.ts` built with
+  `createViteConfig` passes.
+- **The tarball smoke** (`scripts/smoke-vitest.sh`, in `make check`) runs the
+  consumer suite **without** the plugin and requires the error. If the SDK ever
+  imports under Vitest unaided, the smoke fails and this section gets revisited.
+
 ## Options reference
 
 All options are optional.

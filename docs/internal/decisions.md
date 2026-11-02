@@ -66,6 +66,23 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
   atender um consumidor que a decisão client-side-only já não tem. Em vez disso,
   o pacote ships o loader (`/node-css-loader`) e a exigência de bundler está na
   doc.
+- **Condição `"node"` só para as folhas de componente também foi rejeitada**
+  (#556, medido em 02/11/2026 sobre o tarball da `main`, Vitest 4.1.12, Vite 8,
+  Node 24.15.0). No `exports` não faz nada: o `*.module.js` importa a folha por
+  caminho relativo, e condição de `exports` não se aplica a ele. Pelo campo
+  `imports` (`#tempest-css/*` → vazio sob `node`) resolve Vitest sem plugin, Node
+  sem loader e SSR externalizado, com build de cliente idêntico — mas o Vitest com
+  `tempestVitest()` e `css: true` passa a carregar **zero** folhas (126 → 0
+  `<style>`), sem erro. Trocar a falha barulhenta (`Unknown file extension ".css"`)
+  por estilo sumido em silêncio é pior; o caminho é o plugin, com o `tempest doctor`
+  avisando e o `scripts/smoke-vitest.sh` exigindo a falha sem ele. Reabre se o
+  Vitest deixar de aplicar `node` a dependência inlined em ambiente DOM.
+  Como reproduzir: `npm pack`, instalar o `.tgz` num projeto descartável com
+  `vitest@^4 happy-dom vite@^8`, aplicar o `imports` e reescrever as importações
+  em `node_modules/tempest-react-sdk/dist/**/*.module.{js,cjs}`; contar
+  `document.querySelectorAll("style")` num teste que renderiza `Button` com
+  `css: true`, e comparar o `sha256sum` do CSS de `npx vite build` de um app que
+  importa só `Button`, antes e depois.
 - **`noUncheckedIndexedAccess` fica desligado.** Medido em 29/08/2026: 221 erros
   no `src/`, 168 deles em `components/`; amostrados, são acessos dentro de laço
   limitado pelo próprio `length` ou protegidos por invariante já defendida.

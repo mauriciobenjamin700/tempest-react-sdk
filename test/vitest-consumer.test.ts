@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -81,4 +81,18 @@ describe("a consumer Vitest suite importing the SDK", () => {
             ),
         ).toMatch(/Tests\s+1 passed/);
     }, 30_000);
+});
+
+describe("the tarball smoke keeps the no-plugin failure pinned (#556)", () => {
+    const SMOKE = readFileSync(join(ROOT, "scripts", "smoke-vitest.sh"), "utf8");
+
+    it("requires Vitest to fail on the stylesheet without the plugin", () => {
+        expect(SMOKE).toMatch(/if npx vitest run [^\n]*; then[\s\S]*?exit 1/);
+        expect(SMOKE).toContain("grep -q 'Unknown file extension \".css\"'");
+    });
+
+    it("runs that check with its own config and with no config at all", () => {
+        expect(SMOKE.match(/^expect_css_failure "/gm)).toHaveLength(2);
+        expect(SMOKE).toMatch(/^rm vitest\.config\.ts$/m);
+    });
 });

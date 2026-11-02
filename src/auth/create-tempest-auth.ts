@@ -259,10 +259,15 @@ export interface TempestAuth<TUser, TCredentials> {
      * on their own from `api`, and `createResumableUpload` from `getToken`;
      * pass it as `sessionKey` or `getPrincipal` anywhere else.
      *
-     * A session that has no lineage — persisted before lineages existed, or
-     * restored from a refresh cookie without a `login()` in this storage —
-     * answers `"unlineaged"`. Replacing it still takes a
-     * `login()`, which mints one, so the key still changes on a switch.
+     * A session restored by `refresh()` with none installed — the boot
+     * restore from a refresh cookie, an OAuth callback — is a new sign-in and
+     * gets a lineage of its own, like `login()` (#561). A session persisted
+     * before lineages existed has none in storage; its key is minted by this
+     * preset for as long as that session lasts, so it survives the session's
+     * rotations but no other session ever shares it. Until 0.82.0 both cases
+     * answered one constant for every account, and an upload bound by
+     * `getToken: auth.getToken` was resumed by the next account restored the
+     * same way.
      */
     sessionKey: () => string | null;
     /**
@@ -335,13 +340,6 @@ function newLineage(): string {
     if (typeof host?.randomUUID === "function") return host.randomUUID();
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 }
-
-/**
- * The {@link TempestAuth.sessionKey} of a signed-in session that has no
- * lineage. One constant for all of them, since none can be told apart without
- * one — and no account switch can produce one.
- */
-const UNLINEAGED_SESSION_KEY = "unlineaged";
 
 /**
  * The store names already warned about cookie mode without `logoutPath`, so a
@@ -765,6 +763,15 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * by another tab while it waited: that is the outcome it asked for, so it
      * resolves without redeeming.
      *
+     * A redemption that installs a session where none was held is a sign-in,
+     * not a rotation, so it mints a lineage before the token is installed —
+     * the same order as `login()`, so every store listener reads the new key.
+     * Without it every restored session shared one `sessionKey()` (#561). A
+     * second tab is never told about a switch by it: one restoring at the
+     * same time either finds this session once it holds the refresh lock and
+     * adopts it, lineage included, or — without the lock — holds no session
+     * yet, so following this one ends nothing and runs no `onSessionEnd`.
+     *
      * @param before - The access token held when the rotation was asked for.
      * @throws {SessionSupersededError} See `rotate()`.
      */
@@ -792,6 +799,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             revokeDiscarded(token ?? null, refreshToken);
             throw new SessionSupersededError();
         }
+        if (!held) writeLineage(newLineage());
         state().setToken(token);
         if (refreshToken) writeRefreshToken(refreshToken);
     }
@@ -1273,9 +1281,23 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * the lineage only after — which the token check already reads as `null` —
      * and following another tab updates the held lineage before `setState`.
      * So every store listener sees the key of the state it is told about.
+     *
+     * A session persisted before lineages existed has no lineage to read.
+     * Writing one for it would make every other tab holding the same session
+     * see another lineage — an account switch — so its key is minted here, in
+     * memory, once per epoch: the epoch moves whenever the session ends or is
+     * replaced and never on a rotation, which is exactly the lifetime a
+     * session key needs. A reload mints another, so an upload bound to such a
+     * session starts over instead of resuming; the next `login()` gives it a
+     * lineage and that cost goes away.
      */
-    const sessionKey = (): string | null =>
-        getToken() === null ? null : (heldLineage ?? UNLINEAGED_SESSION_KEY);
+    let unlineaged: { epoch: number; key: string } | null = null;
+    const sessionKey = (): string | null => {
+        if (getToken() === null) return null;
+        if (heldLineage !== null) return heldLineage;
+        if (unlineaged?.epoch !== epoch) unlineaged = { epoch, key: newLineage() };
+        return unlineaged.key;
+    };
     const identity: SessionIdentity = {
         current: sessionKey,
         subscribe: (listener) => useAuthStore.subscribe(listener),

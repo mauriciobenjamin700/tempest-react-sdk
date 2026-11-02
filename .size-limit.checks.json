@@ -247,7 +247,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createResumableUpload, createLocalUploadStorage, uploadFingerprint }"
     },
-    "limit": "4.7 KB",
+    "limit": "5 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -426,7 +426,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "181.3 KB",
+    "limit": "181.5 KB",
     "ignore": [
       "react",
       "react-dom",

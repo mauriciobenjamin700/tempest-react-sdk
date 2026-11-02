@@ -456,7 +456,12 @@ Você quase nunca chama à mão — as peças que dependem dela leem sozinhas do
 
 O vínculo é com o **objeto** que o preset devolveu: `auth.api` e `auth.getToken`. Um wrapper (`() => auth.getToken()`), um cliente seu ou uma cópia com spread não carregam a sessão e continuam com o comportamento de antes — para eles, passe `auth.sessionKey` como `sessionKey`/`getPrincipal`.
 
-Uma sessão sem linhagem — gravada antes da linhagem existir, ou restaurada do cookie por `auth.refresh()` sem nenhum `login()` neste storage — responde a chave constante `"unlineaged"`. Trocar dela para outra conta passa por um `login()`, que cria linhagem, então a chave muda do mesmo jeito.
+Uma sessão **restaurada** por `auth.refresh()` sem nenhuma instalada — o restore do boot por cookie, o callback de OAuth — é um login como outro qualquer e ganha linhagem própria, como o `login()`. Uma segunda aba que restaura ao mesmo tempo adota essa sessão, linhagem incluída, sem ver troca de conta nem rodar o `onSessionEnd`; e um reload na mesma sessão mantém a chave.
+
+Uma sessão gravada **antes** da linhagem existir não tem linhagem no storage; a chave dela é criada pelo preset, em memória, e vale enquanto aquela sessão durar: sobrevive às rotações, muda quando ela termina ou é trocada, e nunca é a de outra sessão. Gravar uma linhagem para ela faria toda outra aba com a mesma sessão enxergar troca de conta, por isso fica em memória — o custo é que um reload cria outra chave, e um upload amarrado a essa sessão recomeça em vez de retomar. O próximo `login()` dá linhagem à sessão e o custo some.
+
+!!! info "Até a 0.82.0: uma chave só para toda sessão sem linhagem (#561)"
+    As duas sessões acima respondiam a mesma constante, `"unlineaged"`, qualquer que fosse a conta. A conta A restaurada do cookie deixava um upload pela metade com `getToken: auth.getToken`, saía, e a conta B restaurada do mesmo jeito tinha a **mesma** chave: o upload de B mandava `HEAD`/`PATCH` para a URL do upload de A com o Bearer de B e reaproveitava a `Idempotency-Key` de A. Reproduzido em `src/auth/create-tempest-auth.restore.test.ts` e `src/http/resumable-upload.session.test.ts` (`npx vitest run src/auth/create-tempest-auth.restore.test.ts src/http/resumable-upload.session.test.ts`).
 
 ### Refresh por cookie e logout no servidor — `logoutPath`
 

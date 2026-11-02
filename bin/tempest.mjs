@@ -27,6 +27,7 @@ import {
 } from "./lib/css/index.mjs";
 import { analyzeDesign } from "./lib/design/index.mjs";
 import { checkLucide } from "./lib/doctor/lucide.mjs";
+import { checkVitest, VITEST_CONFIG_FILES } from "./lib/doctor/vitest.mjs";
 import { generateRegistry, loadIconTables } from "./lib/icons/generate.mjs";
 import { terminalText } from "./lib/openapi/escape.mjs";
 import { generate } from "./lib/openapi/generate.mjs";
@@ -788,6 +789,18 @@ function doctor(args = []) {
                       "@vitejs/plugin-react",
                       "not installed — Vite needs it for JSX/Fast Refresh (npm i -D @vitejs/plugin-react)",
                   ],
+        );
+    }
+    if (usesSdk) {
+        checks.push(
+            ...checkVitest({
+                vitestInstalled: Boolean(installedVersion("vitest")),
+                configs: Object.fromEntries(
+                    VITEST_CONFIG_FILES.filter((name) => existsSync(join(ROOT, name))).map(
+                        (name) => [name, readFileSync(join(ROOT, name), "utf8")],
+                    ),
+                ),
+            }),
         );
     }
     const entry = firstExisting(["src/main.tsx", "src/main.ts", "src/index.tsx", "src/index.ts"]);

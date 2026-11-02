@@ -142,7 +142,7 @@ Tooling
 
 **TypeScript** — `@/*` alias; **`moduleResolution`** ∈ `bundler`/`node16`/`nodenext` (otherwise _subpath exports_ like `tempest-react-sdk/br` won't resolve types — silent!); **`jsx: "react-jsx"`**; **`strict: true`**; **`skipLibCheck`** on; with tests + `vitest`, warns if tsconfig `types` omits `vitest/globals`.
 
-**Integration** — `vite.config.*` using `createViteConfig`; **`@vitejs/plugin-react`** installed (JSX/Fast Refresh); `styles.css` import in the entry (and a warning if imported **more than once**).
+**Integration** — `vite.config.*` using `createViteConfig`; in a project with the SDK and `vitest` installed, the config Vitest loads (`vitest.config.*`, else `vite.config.*`) including `tempestVitest()` — without it every test importing the SDK fails with `Unknown file extension ".css"` ([Testing with Vitest](./vite-config.md#testing-with-vitest)); **`@vitejs/plugin-react`** installed (JSX/Fast Refresh); `styles.css` import in the entry (and a warning if imported **more than once**).
 
 **Stylesheets** — **syntax and semantic** analysis of every `.css` in the project (CSS Modules included): CSS the browser drops, dead declarations, names that do not exist, and a repeated block that wants to be one global class. Detailed in the next section — [CSS analysis](#css-analysis). Here `doctor` shows at most **6 findings per severity** and says how many it left out; the full list comes from `tempest fix --dry-run`.
 

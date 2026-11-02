@@ -19,6 +19,9 @@ interface Recorded {
     url: string;
     headers: Record<string, string>;
     bodySize: number;
+    /** Which transport sent it, and the `redirect` mode of a `fetch`. */
+    transport: "xhr" | "fetch";
+    redirect?: RequestRedirect;
 }
 
 /** How the fake server should answer one request. */
@@ -28,6 +31,8 @@ interface Reply {
     text?: string;
     /** Fail the request at the transport level, as a dropped connection does. */
     networkError?: boolean;
+    /** Answer a `redirect: "manual"` fetch the way a browser does: opaque, status 0. */
+    opaqueRedirect?: boolean;
 }
 
 /**
@@ -112,6 +117,7 @@ function installXhr(): void {
                 url: this.target,
                 headers: this.headers,
                 bodySize: body?.size ?? 0,
+                transport: "xhr",
             });
             server.open = this;
             server.onOpen?.();
@@ -137,6 +143,27 @@ function installXhr(): void {
         }
     }
     vi.stubGlobal("XMLHttpRequest", FakeXhr);
+    vi.stubGlobal("fetch", async (url: string, init: RequestInit): Promise<Response> => {
+        const body = init.body as Blob | undefined;
+        const reply = server.answer({
+            method: String(init.method),
+            url,
+            headers: { ...(init.headers as Record<string, string>) },
+            bodySize: body?.size ?? 0,
+            transport: "fetch",
+            redirect: init.redirect,
+        });
+        await Promise.resolve();
+        if (init.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+        if (reply.networkError) throw new TypeError("Failed to fetch");
+        if (reply.opaqueRedirect) {
+            return { type: "opaqueredirect", status: 0, headers: new Headers() } as Response;
+        }
+        return new Response(reply.text ?? null, {
+            status: reply.status,
+            headers: reply.headers,
+        });
+    });
 }
 
 /** A tus server that accepts everything, tracking the offset per upload. */
@@ -1569,6 +1596,101 @@ describe("createResumableUpload — the resume record belongs to a principal", (
     });
 
     /**
+     * Start a token-bound handle as `tok-A`, pause it after the first chunk,
+     * `abort()` it — what the docs tell `onSessionEnd` to do — and switch the
+     * token to `tok-B`.
+     *
+     * @param storage - The resume storage, or `null` for none.
+     * @returns The handle, the requests made after the switch, and A's key.
+     */
+    async function abortAsAThenSwitchToB(
+        storage: ReturnType<typeof memoryStorage> | null,
+    ): Promise<{
+        upload: ReturnType<typeof createResumableUpload>;
+        afterSwitch: () => typeof server.requests;
+        keyOfA: string | undefined;
+    }> {
+        let token = "tok-A";
+        server = acceptingServer(12, "/api/uploads/R");
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: new File([new Uint8Array(12)], "r.bin", { lastModified: 1 }),
+            chunkSize: 4,
+            getToken: () => token,
+            storage,
+        });
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                server.onOpen = null;
+                upload.pause();
+            }
+        };
+        await upload.start();
+        await upload.abort();
+        const keyOfA = server.requests.find((request) => request.method === "POST")?.headers[
+            "Idempotency-Key"
+        ];
+        const seen = server.requests.length;
+        token = "tok-B";
+        return { upload, afterSwitch: () => server.requests.slice(seen), keyOfA };
+    }
+
+    /**
+     * #561 (C3): the handle's own record was exempt from the owner check, so
+     * after `abort()` and a switch to B, `resume()` sent `HEAD`/`PATCH` to A's
+     * upload URL with B's token. Failed against ca630df: B's first request
+     * was the `HEAD` to A's upload.
+     */
+    it("does not resume the previous token's upload after abort() and a switch (C3)", async () => {
+        const { upload, afterSwitch, keyOfA } = await abortAsAThenSwitchToB(memoryStorage());
+
+        await upload.resume();
+
+        const requests = afterSwitch();
+        expect(requests[0]?.method).toBe("POST");
+        expect(requests.filter((request) => request.method === "HEAD")).toEqual([]);
+        expect(requests[0]?.headers["Idempotency-Key"]).not.toBe(keyOfA);
+    });
+
+    it("does not replay the previous token's Idempotency-Key after abort() without storage (C3)", async () => {
+        const { upload, afterSwitch, keyOfA } = await abortAsAThenSwitchToB(null);
+
+        await upload.start();
+
+        const creation = afterSwitch().find((request) => request.method === "POST");
+        expect(creation?.headers.Authorization).toBe("Bearer tok-B");
+        expect(creation?.headers["Idempotency-Key"]).not.toBe(keyOfA);
+    });
+
+    it("still resumes its own upload after abort() while the token is the same", async () => {
+        let token = "tok-A";
+        server = acceptingServer(12, "/api/uploads/R");
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: new File([new Uint8Array(12)], "r.bin", { lastModified: 1 }),
+            chunkSize: 4,
+            getToken: () => token,
+            storage: memoryStorage(),
+        });
+        server.onOpen = () => {
+            if (server.countOf("PATCH") === 1) {
+                server.onOpen = null;
+                upload.pause();
+            }
+        };
+        await upload.start();
+        await upload.abort();
+        token = "tok-A";
+
+        await expect(upload.resume()).resolves.toMatchObject({
+            url: "http://localhost:3000/api/uploads/R",
+        });
+        expect(server.countOf("POST")).toBe(1);
+    });
+
+    /**
      * Leave an anonymous upload half-done: no token and no principal.
      */
     async function abandonUploadAsAnonymous(): Promise<void> {
@@ -1657,6 +1779,145 @@ describe("createResumableUpload — the Location and the headers follow the endp
         expect(
             server.requests.find((request) => request.method === "PATCH")?.headers["X-Api-Key"],
         ).toBe("secret");
+    });
+});
+
+/**
+ * #564: an `XMLHttpRequest` follows every redirect, and measured in Chrome 150
+ * with the packaged upload (`127.0.0.1:5340` answering `301`/`302`/`303`/
+ * `307`/`308` towards `localhost:5341`) `X-Api-Key` reached the other origin on
+ * the creation `POST` and on the chunk `PATCH`. A request carrying the static
+ * headers now goes out over `fetch` with `redirect: "manual"`. The tests that
+ * refuse a redirect failed against ca630df: the double's XHR has no redirect
+ * mode, so the request was sent with the headers and nothing was refused.
+ */
+describe("createResumableUpload — the static headers never follow a redirect", () => {
+    it("sends a request carrying the static headers with redirect: manual", async () => {
+        server = acceptingServer(4);
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            headers: { "X-Api-Key": "secret" },
+            storage: null,
+        }).start();
+
+        expect(server.requests.map((request) => [request.method, request.transport])).toEqual([
+            ["POST", "fetch"],
+            ["PATCH", "fetch"],
+        ]);
+        expect(server.requests.every((request) => request.redirect === "manual")).toBe(true);
+    });
+
+    it("refuses a chunk answered with a redirect, without retrying it", async () => {
+        server = acceptingServer(4);
+        server.queue("PATCH", { status: 0, opaqueRedirect: true });
+        installXhr();
+
+        const failure = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            headers: { "X-Api-Key": "secret" },
+            storage: null,
+            retry: { initialDelay: 1 },
+        })
+            .start()
+            .catch((error: unknown) => error);
+
+        expect(failure).toMatchObject({ code: "REDIRECT_REFUSED", status: 0 });
+        expect(server.countOf("PATCH")).toBe(1);
+    });
+
+    it("refuses a creation answered with a server runtime's real 307", async () => {
+        server = acceptingServer(4);
+        server.queue("POST", {
+            status: 307,
+            headers: { Location: "https://elsewhere.test/api/uploads" },
+        });
+        installXhr();
+
+        await expect(
+            createResumableUpload({
+                endpoint: "/api/uploads",
+                file: blobOf(4),
+                headers: { "X-Api-Key": "secret" },
+                storage: null,
+            }).start(),
+        ).rejects.toMatchObject({ code: "REDIRECT_REFUSED", status: 307 });
+        expect(server.countOf("PATCH")).toBe(0);
+    });
+
+    it("keeps the XMLHttpRequest, and its progress inside a chunk, without static headers", async () => {
+        server = acceptingServer(4);
+        installXhr();
+        const ticks: number[] = [];
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            getToken: () => "tok",
+            storage: null,
+            onProgress: ({ loaded }) => ticks.push(loaded),
+        }).start();
+
+        expect(server.requests.every((request) => request.transport === "xhr")).toBe(true);
+        expect(ticks.filter((loaded) => loaded === 4).length).toBeGreaterThan(1);
+    });
+
+    it("keeps the XMLHttpRequest for a Location outside the scope, which gets no static headers", async () => {
+        server = acceptingServer(4, "https://storage.other/u/abc");
+        installXhr();
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(4),
+            headers: { "X-Api-Key": "secret" },
+            storage: null,
+        }).start();
+
+        expect(server.requests.find((request) => request.method === "PATCH")?.transport).toBe(
+            "xhr",
+        );
+    });
+
+    it("still pauses a chunk sent over fetch", async () => {
+        server = acceptingServer(12);
+        installXhr();
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file: blobOf(12),
+            chunkSize: 4,
+            headers: { "X-Api-Key": "secret" },
+            storage: null,
+        });
+        const answer = server.answer.bind(server);
+        server.answer = (request) => {
+            const reply = answer(request);
+            if (request.method === "PATCH" && server.countOf("PATCH") === 1) upload.pause();
+            return reply;
+        };
+
+        await expect(upload.start()).resolves.toBeNull();
+        expect(upload.state).toBe("paused");
+        await expect(upload.resume()).resolves.toMatchObject({ size: 12 });
+    });
+
+    it("surfaces a dropped connection over fetch as a retriable network failure", async () => {
+        server = acceptingServer(4);
+        server.queue("PATCH", { status: 0, networkError: true });
+        installXhr();
+
+        await expect(
+            createResumableUpload({
+                endpoint: "/api/uploads",
+                file: blobOf(4),
+                headers: { "X-Api-Key": "secret" },
+                storage: null,
+                retry: { initialDelay: 1 },
+            }).start(),
+        ).resolves.toMatchObject({ size: 4 });
+        expect(server.countOf("PATCH")).toBe(2);
     });
 });
 

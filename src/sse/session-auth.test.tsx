@@ -330,14 +330,22 @@ describe("auth.sessionKey", () => {
         auth.dispose();
     });
 
-    it("answers a constant key for a signed-in session persisted without a lineage", () => {
+    /**
+     * Until #561 this asserted the constant `"unlineaged"`. That constant was
+     * the key of every session without a lineage — of any account — so two of
+     * them could not be told apart, and an upload bound to one was resumed by
+     * the next. The key is now minted per session.
+     */
+    it("answers a key of its own for a signed-in session persisted without a lineage", () => {
         localStorage.setItem(
             "tempest-auth",
             JSON.stringify({ state: { user: { id: "A" }, token: "A-tok-0" }, version: 0 }),
         );
         const auth = preset(server.fetcher);
 
-        expect(auth.sessionKey()).toBe("unlineaged");
+        expect(auth.sessionKey()).not.toBeNull();
+        expect(auth.sessionKey()).not.toBe("unlineaged");
+        expect(auth.sessionKey()).toBe(auth.sessionKey());
         auth.dispose();
     });
 });

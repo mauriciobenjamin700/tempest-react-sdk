@@ -457,7 +457,12 @@ You rarely call it by hand — the pieces that depend on it read it on their own
 
 The binding is to the **object** the preset returned: `auth.api` and `auth.getToken`. A wrapper (`() => auth.getToken()`), a client of your own or a spread copy carries no session and keeps the previous behaviour — for those, pass `auth.sessionKey` as `sessionKey`/`getPrincipal`.
 
-A session without a lineage — persisted before lineages existed, or restored from the cookie by `auth.refresh()` with no `login()` in this storage — answers the constant key `"unlineaged"`. Switching from it to another account goes through a `login()`, which mints a lineage, so the key still changes.
+A session **restored** by `auth.refresh()` with none installed — the boot restore from the cookie, an OAuth callback — is a sign-in like any other and gets a lineage of its own, as `login()` does. A second tab restoring at the same time adopts that session, lineage included, without seeing an account switch or running `onSessionEnd`; and a reload on the same session keeps the key.
+
+A session persisted **before** lineages existed has no lineage in storage; its key is minted by the preset, in memory, and lasts as long as that session: it survives rotations, changes when the session ends or is replaced, and is never another session's. Writing a lineage for it would make every other tab holding the same session see an account switch, so it stays in memory — the cost is that a reload mints another key, and an upload bound to that session starts over instead of resuming. The next `login()` gives the session a lineage and the cost goes away.
+
+!!! info "Up to 0.82.0: one key for every session without a lineage (#561)"
+    Both sessions above answered the same constant, `"unlineaged"`, whatever the account. Account A, restored from the cookie, left an upload half-done with `getToken: auth.getToken` and signed out; account B, restored the same way, had the **same** key: B's upload sent `HEAD`/`PATCH` to A's upload URL with B's Bearer and reused A's `Idempotency-Key`. Reproduced in `src/auth/create-tempest-auth.restore.test.ts` and `src/http/resumable-upload.session.test.ts` (`npx vitest run src/auth/create-tempest-auth.restore.test.ts src/http/resumable-upload.session.test.ts`).
 
 ### Cookie refresh and server-side logout — `logoutPath`
 

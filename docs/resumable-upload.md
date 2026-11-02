@@ -191,6 +191,8 @@ O preço é que token **gira**. O carimbo é refeito a cada gravação do regist
 | só `getToken`, qualquer outro getter (padrão 0.82.0) | apagado | só se um chunk foi gravado depois do refresh | **continua**, com o token novo na URL do upload anterior |
 | nenhum dos dois (anônimo, sessão por cookie) | **retomado** | sim | **continua** |
 
+Com um getter qualquer, o handle não distingue um refresh de um login de outra conta — os dois são só um token novo. Por isso o `abort()` encerra também a exceção do registro próprio: um `start()`/`resume()` depois dele se comporta como um handle novo, que só retoma o registro se o dono atual o carimbou e, senão, cria outro upload com `Idempotency-Key` nova. Até a 0.82.0, o `resume()` depois do `abort()` que esta página manda chamar no `onSessionEnd` continuava "o próprio upload" com o token de quem estivesse logado — o de B, na URL de A, com a `Idempotency-Key` de A (#561). Sem `abort()`, a linha acima continua valendo: troque o getter por `auth.getToken` ou passe `getPrincipal`.
+
 #### `getToken: auth.getToken` — o registro é da sessão
 
 Quando o `getToken` é o **próprio** getter que o `createTempestAuth` devolveu, o upload lê dele a sessão do preset ([`auth.sessionKey()`](./auth.md#a-sessao-como-chave-authsessionkey)) e a usa como `getPrincipal`. A sessão não gira no refresh, então o reload depois de uma rotação retoma; e ela muda no `login()` de outra conta, então o run para antes de o token novo chegar à URL do upload anterior:
@@ -208,6 +210,8 @@ export function enviarGravacao(gravacao: File) {
   }).start();
 }
 ```
+
+Vale também para sessão **restaurada** por `auth.refresh()` — o restore do boot por cookie, o callback de OAuth: desde a 0.83.0 ela ganha sessão própria, e a conta seguinte restaurada do mesmo jeito não retoma o upload da anterior (até a 0.82.0 as duas respondiam a mesma chave, ver [`auth.sessionKey()`](./auth.md#a-sessao-como-chave-authsessionkey)).
 
 Medido em `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/resumable-upload.session.test.ts`): na `main` antes desta mudança, um `login()` de B entre o primeiro e o segundo `PATCH` fazia o upload **terminar**, com os `PATCH` seguintes levando `Bearer B-tok-1` para a URL do upload de A; e o reload depois de um refresh recomeçava com um `POST` novo. Agora o run rejeita com `ResumableUploadSupersededError` e o reload retoma com `HEAD`.
 
@@ -317,8 +321,16 @@ const upload = createResumableUpload({
 
     A opção `csrf` segue a mesma regra: o token CSRF vai no `POST` de criação, em cada `PATCH` e no `DELETE` do descarte — nunca no `HEAD` de offset — e só para a origem do `endpoint` e as `trustedOrigins`. Ver [CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
 
-!!! warning "`XMLHttpRequest`, não `fetch`"
+!!! warning "`XMLHttpRequest`, não `fetch` — menos quando há `headers` fixos"
     Como em `uploadWithProgress`: `fetch` ainda não reporta progresso de **upload** em navegador nenhum. Aqui há um segundo motivo — o tus devolve o novo offset num **header de resposta**, e `uploadWithProgress` só entrega corpo parseado, então não dava pra reaproveitar.
+
+    A exceção é a requisição que leva os `headers` fixos (desde a **0.83.0**, #564). O `XMLHttpRequest` segue todo redirect e não tem modo de recusar. Medido no Chrome 150 com o `createResumableUpload` empacotado (tarball do `npm pack` empacotado com esbuild), servidor em `127.0.0.1:5340` respondendo `301`/`302`/`303`/`307`/`308` para `localhost:5341`, que ecoa os headers com CORS: o `X-Api-Key` chegou à outra origem nos 5 códigos, no `POST` de criação e no `PATCH` do chunk, junto com os bytes; o `X-CSRF-Token` também; só o `Authorization` o navegador tirou. O `responseURL` do XHR mostra onde a requisição terminou (`http://localhost:5341/files/1`, medido), mas quando dá para lê-lo o header já foi.
+
+    Então essa requisição sai por `fetch` com `redirect: "manual"`, e um redirect como resposta vira `TempestApiError` com `code: "REDIRECT_REFUSED"`, sem retentativa — a mesma regra do `createApiClient` ([HTTP](./http.md)). Remedido depois da mudança: **nenhuma** requisição chegou à outra origem nos 10 casos (5 códigos × redirect no `PATCH` e na criação), e um `endpoint` em outra origem sem redirect continua funcionando.
+
+    O preço é o progresso **dentro** do chunk: com `headers` fixos, o `onProgress` avança uma vez por chunk confirmado. Para uma barra mais fina, baixe o `chunkSize`; ou mande a credencial pelo `getToken`, que mantém o `XMLHttpRequest` — o `Authorization` o navegador tira sozinho num redirect para outra origem. O `X-CSRF-Token` sozinho não troca o transporte, pelo motivo que o [HTTP](./http.md) documenta para o `createApiClient`.
+
+    **Migração:** um servidor que responde a criação ou o chunk com redirect — inclusive de mesma origem, como o `307` de barra final do FastAPI — passa a falhar com `REDIRECT_REFUSED` quando há `headers` fixos. Aponte o `endpoint` para a URL final (`/api/uploads/`).
 
 ## Resumo
 

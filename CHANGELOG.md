@@ -4,6 +4,64 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`createResumableUpload` com `headers` fixos não segue redirect (#564).** A issue era
+  `needs_validation`; validado no Chrome 150 (Chromium do Playwright MCP) com o
+  `createResumableUpload` do tarball (`npm pack` + esbuild), servidor `http.server` em
+  `127.0.0.1:5340` respondendo `301`/`302`/`303`/`307`/`308` para `localhost:5341`, que ecoa os
+  headers com CORS: o `X-Api-Key` dos `headers` fixos **chegou** à outra origem nos 5 códigos, no
+  `POST` de criação e no `PATCH` do chunk (junto com os bytes); o `X-CSRF-Token` também; o
+  `Authorization` o navegador tirou. O XHR não tem modo `redirect`, e o `responseURL`
+  (legível, medido: `http://localhost:5341/files/1`) só diz para onde a requisição foi depois que o
+  header já saiu — não serve de correção. Agora a requisição que leva os `headers` fixos (dentro do
+  escopo) sai por `fetch` com `redirect: "manual"`, e um redirect vira `TempestApiError` com
+  `code: "REDIRECT_REFUSED"`, sem retentativa, como no `createApiClient` (#554). Remedido: **0** das
+  10 combinações (5 códigos × redirect no `PATCH` e na criação) chegou à outra origem. Sem `headers`
+  fixos nada muda (XHR). O `X-CSRF-Token` sozinho não troca o transporte, seguindo a decisão do
+  #554. Testes em `src/http/resumable-upload.test.ts` ("the static headers never follow a
+  redirect"; 3 falham na `main`). **Migração:** com `headers` fixos, (1) o `onProgress` avança uma
+  vez por chunk confirmado, não durante o chunk — baixe o `chunkSize` para uma barra mais fina, ou
+  mande a credencial pelo `getToken`, que mantém o XHR; (2) servidor que responde criação ou chunk
+  com redirect, mesmo de mesma origem (o `307` de barra final do FastAPI), passa a falhar com
+  `REDIRECT_REFUSED` — aponte o `endpoint` para a URL final.
+  Tamanho (`npm run build && npx size-limit --json`, contra a `origin/main` em `ca630df`): fatia
+  `resumable upload` 4657 → 4948 B, barril ESM 151 948 → 152 243 B, CJS 181 139 → 181 594 B; tetos
+  subidos para 5 KB, 152,3 KB e 181,7 KB.
+
+### Segurança
+
+- **Sessão restaurada por `refresh()` ganha `sessionKey()` própria (#561, C2).** O restore do boot
+  por cookie e o callback de OAuth não criavam linhagem, e toda sessão assim respondia a constante
+  `"unlineaged"`. Reproduzido: a conta A restaurada deixava um upload com
+  `getToken: auth.getToken` pela metade, saía, e a conta B restaurada do mesmo jeito mandava
+  `HEAD`/`PATCH` para a URL de A com o Bearer de B e a `Idempotency-Key` de A. Agora a redenção
+  que instala sessão onde não havia nenhuma cria linhagem antes do token, como o `login()`; a
+  constante sumiu, e a sessão gravada antes da linhagem existir ganha uma chave em memória, por
+  epoch (sobrevive à rotação, muda no fim/troca, nunca é a de outra sessão) — gravar linhagem para
+  ela faria as outras abas enxergarem troca de conta. Cross-tab medido com dois presets sobre o
+  mesmo `localStorage`: restore em sequência, juntos sob o Web Lock e juntos sem lock — mesma
+  chave nas duas abas e **nenhum** `onSessionEnd` (o comportamento sem lock é o mesmo da `main`).
+  Testes em `src/auth/create-tempest-auth.restore.test.ts` e
+  `src/http/resumable-upload.session.test.ts` (4 falham na `main`;
+  `npx vitest run src/auth/create-tempest-auth.restore.test.ts src/http/resumable-upload.session.test.ts`).
+  O teste que fixava `"unlineaged"` em `src/sse/session-auth.test.tsx` foi invertido, com o porquê.
+  **Migração:** quem comparava `sessionKey()` com `"unlineaged"` não acha mais a constante; uma
+  sessão antiga sem linhagem troca de chave a cada reload, então um upload amarrado a ela recomeça
+  em vez de retomar até o próximo `login()`.
+
+- **`abort()` encerra a exceção do registro próprio no upload resumível (#561, C3).** Um handle
+  amarrado a token (getter próprio, sem `getPrincipal`) retomava o próprio registro mesmo com outro
+  token — inclusive depois do `abort()` que a doc manda chamar no `onSessionEnd`: o `resume()`
+  levava o Bearer de B à URL de A, com a `Idempotency-Key` de A. A correção sugerida na issue
+  (isentar só quando o fingerprint do dono não mudou) não fecha nada: o fingerprint de um registro
+  amarrado a token muda a cada refresh, então a exceção não cobriria nem a rotação que ela existe
+  para cobrir (o teste "survives a token refresh inside one handle" quebraria). Agora um
+  `start()`/`resume()` depois de `abort()` anexa como um handle novo: descarta URL e
+  `Idempotency-Key` da memória e só retoma o registro carimbado pelo dono atual. Testes em
+  `src/http/resumable-upload.test.ts` (2 falham na `main`). **Migração:** nenhuma — retomar depois
+  do `abort()` com o mesmo token continua funcionando.
+
 ## [0.82.0] — 2026-11-02
 
 ### Breaking

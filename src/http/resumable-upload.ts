@@ -193,6 +193,16 @@ export interface ResumableUploadOptions {
      * Extra headers on every request inside the credential scope — the
      * `endpoint`'s origin plus {@link trustedOrigins}. A `Location` on another
      * host gets only the tus headers, never these (since 0.82.0).
+     *
+     * A request that carries them never follows a redirect (since 0.83.0): it
+     * goes out over `fetch` with `redirect: "manual"`, and a redirect rejects
+     * with a `TempestApiError` of `code: "REDIRECT_REFUSED"`. An
+     * `XMLHttpRequest` follows every redirect, and these headers went with it
+     * to the other origin (#564). The cost: `fetch` reports no upload
+     * progress, so `onProgress` then ticks once per confirmed chunk — lower
+     * `chunkSize` for a finer bar, or send the credential through `getToken`,
+     * which keeps the `XMLHttpRequest` (the browser strips `Authorization` on
+     * a cross-origin redirect).
      */
     headers?: Record<string, string>;
     /** Returns the current bearer token, read before each request. */
@@ -294,6 +304,13 @@ export interface ResumableUpload {
     resume(): Promise<ResumableUploadResult | null>;
     /**
      * Stop for good.
+     *
+     * A later `start()`/`resume()` on the same handle attaches as a new handle
+     * would (since 0.83.0): it resumes the stored record only when the current
+     * owner stamped it, and otherwise creates a new upload with a fresh
+     * `Idempotency-Key`. Until then a token-bound handle resumed its own upload
+     * with whatever token was current — after an account switch, the next
+     * account's (#561).
      *
      * @param options - `discard: true` also sends `DELETE` (tus termination) and
      *   forgets the persisted record, so the next `start()` uploads from zero.
@@ -420,8 +437,37 @@ export function createLocalUploadStorage(prefix = "tempest-upload:"): LocalUploa
     return storage;
 }
 
+/** Something a run can cancel: the open `XMLHttpRequest`, or a `fetch`'s controller. */
+interface InFlightRequest {
+    abort(): void;
+}
+
+/** One tus request, as the transports take it. */
+interface TusRequest {
+    method: "POST" | "HEAD" | "PATCH" | "DELETE";
+    url: string;
+    headers: Record<string, string>;
+    body?: Blob;
+    withCredentials: boolean;
+    onProgress?: (loaded: number) => void;
+    register: (request: InFlightRequest) => void;
+    /**
+     * Refuse a redirect instead of following it — set when the request carries
+     * the static `headers`, see {@link sendRequest}.
+     */
+    holdRedirects: boolean;
+}
+
 /**
- * Send one request over `XMLHttpRequest`.
+ * The `code` of the {@link TempestApiError} a request carrying the static
+ * `headers` rejects with when the server answers it with a redirect — the same
+ * code `createApiClient` uses for the same refusal (#554). Never retried:
+ * replaying gets the same redirect back.
+ */
+const UPLOAD_REDIRECT_REFUSED = "REDIRECT_REFUSED";
+
+/**
+ * Send one tus request.
  *
  * `XMLHttpRequest` rather than `fetch` for the same reason `uploadWithProgress`
  * uses it — `fetch` still cannot report upload progress in any browser — plus one
@@ -429,18 +475,77 @@ export function createLocalUploadStorage(prefix = "tempest-upload:"): LocalUploa
  * header**, and `uploadWithProgress` only hands back a parsed body, so it could
  * not be reused here.
  *
- * @param init - Method, URL, headers, optional body and progress callback.
+ * Except when the request carries the static `headers` (#564). An
+ * `XMLHttpRequest` always follows a redirect, and measured in Chrome 150 —
+ * the packaged `createResumableUpload` against a server on `127.0.0.1:5340`
+ * that answered `301`/`302`/`303`/`307`/`308` towards `localhost:5341` —
+ * `X-Api-Key` reached the other origin on every one of them, on the creation
+ * `POST` and on the chunk `PATCH`, along with the bytes; only `Authorization`
+ * was stripped by the browser. Reading `responseURL` afterwards tells where
+ * the request ended up, but by then the header is gone. So such a request goes
+ * out over `fetch` with `redirect: "manual"`, and a redirect is refused, as in
+ * `createApiClient`. The cost is the progress inside a chunk: `fetch` reports
+ * none, so `onProgress` ticks once per confirmed chunk for those requests.
+ *
+ * @param init - The request.
  * @returns Status, raw text and a header reader.
  */
-function sendRequest(init: {
-    method: "POST" | "HEAD" | "PATCH" | "DELETE";
-    url: string;
-    headers: Record<string, string>;
-    body?: Blob;
-    withCredentials: boolean;
-    onProgress?: (loaded: number) => void;
-    register: (xhr: XMLHttpRequest) => void;
-}): Promise<RawResponse> {
+function sendRequest(init: TusRequest): Promise<RawResponse> {
+    return init.holdRedirects ? sendWithoutRedirects(init) : sendOverXhr(init);
+}
+
+/**
+ * Send one tus request over `fetch` with `redirect: "manual"`, refusing the
+ * redirect it may be answered with, see {@link sendRequest}.
+ *
+ * A browser hands the stopped redirect back as an `opaqueredirect` with
+ * status `0` (measured for #554); a server runtime hands back the real `3xx`.
+ * Both are refused; `304` is a cache answer, not a redirect.
+ *
+ * @param init - The request.
+ * @returns Status, raw text and a header reader.
+ * @throws {TempestApiError} `code: "REDIRECT_REFUSED"` on a redirect, status
+ *   `0` on a network failure.
+ */
+async function sendWithoutRedirects(init: TusRequest): Promise<RawResponse> {
+    const controller = new AbortController();
+    init.register(controller);
+    let response: Response;
+    try {
+        response = await fetch(init.url, {
+            method: init.method,
+            headers: init.headers,
+            body: init.body,
+            credentials: init.withCredentials ? "include" : "same-origin",
+            redirect: "manual",
+            signal: controller.signal,
+        });
+    } catch {
+        if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
+        throw new TempestApiError({ status: 0, detail: "Falha de rede no upload resumível." });
+    }
+    if (
+        response.type === "opaqueredirect" ||
+        (response.status >= 300 && response.status < 400 && response.status !== 304)
+    ) {
+        throw new TempestApiError({
+            status: response.status,
+            code: UPLOAD_REDIRECT_REFUSED,
+            detail: "Redirect não seguido: a requisição do upload levava os headers fixos.",
+        });
+    }
+    const text = init.method === "HEAD" ? "" : await response.text();
+    return { status: response.status, text, header: (name) => response.headers.get(name) };
+}
+
+/**
+ * Send one tus request over `XMLHttpRequest`, which reports upload progress
+ * and follows redirects, see {@link sendRequest}.
+ *
+ * @param init - The request.
+ * @returns Status, raw text and a header reader.
+ */
+function sendOverXhr(init: TusRequest): Promise<RawResponse> {
     return new Promise<RawResponse>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open(init.method, init.url);
@@ -544,6 +649,7 @@ const RESYNCABLE_STATUSES: ReadonlySet<number> = new Set([409, 412]);
  */
 function isRetriableChunkFailure(error: unknown): boolean {
     if (!isApiError(error)) return true;
+    if (error.code === UPLOAD_REDIRECT_REFUSED) return false;
     if (RESYNCABLE_STATUSES.has(error.status)) return true;
     return isRetriableStatus(error.status);
 }
@@ -660,6 +766,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
     let idempotencyKey: string | null = null;
     let owner: string | null | undefined;
     let attached = false;
+    let abandoned = false;
     const generationOf = storage ? localGenerations.get(storage) : undefined;
     let generation = generationOf?.() ?? 0;
 
@@ -706,7 +813,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         }
     }
     let stopping: "pause" | "abort" | null = null;
-    let inFlight: XMLHttpRequest | null = null;
+    let inFlight: InFlightRequest | null = null;
     let resumedFrom = 0;
 
     function setState(next: ResumableUploadState): void {
@@ -772,8 +879,25 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         return result;
     }
 
-    function register(xhr: XMLHttpRequest): void {
-        inFlight = xhr;
+    function register(request: InFlightRequest): void {
+        inFlight = request;
+    }
+
+    /**
+     * Whether a request to `target` carries the static `headers` — inside the
+     * credential scope, with at least one — and must therefore refuse a
+     * redirect, see {@link sendRequest}. Only those: the bearer token is
+     * stripped by the browser on a cross-origin redirect, and the CSRF token
+     * follows the reasoning `createApiClient` documents for it.
+     *
+     * @param target - The URL the request goes to.
+     * @returns Whether the request goes out over `fetch` without redirects.
+     */
+    function holdsRedirects(target: string): boolean {
+        return (
+            Object.keys(headers).length > 0 &&
+            isTrustedCredentialTarget(target, endpoint, trustedOrigins)
+        );
     }
 
     /**
@@ -808,6 +932,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             headers: baseHeaders(target, "HEAD"),
             withCredentials,
             register,
+            holdRedirects: holdsRedirects(target),
         });
         if (response.status === 404 || response.status === 410) {
             throw new TempestApiError({
@@ -837,8 +962,27 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * Bound by token, the handle's own record is the exception: a `resume()`
      * after a refresh finds the record it wrote itself, stamped with the token
      * of its last write, and continues it instead of starting over.
+     *
+     * The exception ends at `abort()` (#561). A token-bound handle cannot tell
+     * a refresh from another account's sign-in — both are just a new token —
+     * and `abort()` from `onSessionEnd` is what the docs give such a handle to
+     * say the session ended. Until 0.82.0 a `resume()` after it still found
+     * "its own" record and sent the next account's token to the previous
+     * account's upload URL, with the previous account's `Idempotency-Key`.
+     * Exempting only an unchanged owner fingerprint, as the audit suggested,
+     * would not have worked: the fingerprint of a token-bound record changes on
+     * every refresh, so the exception would have covered nothing. So a
+     * `start()`/`resume()` after `abort()` attaches as a new handle would: the
+     * URL and the `Idempotency-Key` kept in memory are dropped, and the stored
+     * record is resumed only when its owner is the current one.
      */
     async function ensureUpload(): Promise<string> {
+        if (abandoned) {
+            abandoned = false;
+            attached = false;
+            url = null;
+            idempotencyKey = null;
+        }
         const current = currentOwner();
         if (attached && getPrincipal && current !== owner) idempotencyKey = null;
         const ownUrl = attached && !getPrincipal ? url : null;
@@ -893,6 +1037,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             headers: creationHeaders,
             withCredentials,
             register,
+            holdRedirects: holdsRedirects(endpoint),
         });
         if (response.status !== 201) throw failed(response, "Criação do upload recusada.");
         const locationHeader = response.header("Location");
@@ -928,6 +1073,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             withCredentials,
             onProgress: (loaded) => report(Math.min(from + loaded, file.size)),
             register,
+            holdRedirects: holdsRedirects(target),
         });
 
         if (response.status === 409 || response.status === 412) {
@@ -1032,6 +1178,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         pause: () => stop("pause"),
         abort: async ({ discard = false } = {}) => {
             stop("abort");
+            abandoned = true;
             setState("aborted");
             if (!discard) return;
             if (url) {
@@ -1041,6 +1188,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                     headers: baseHeaders(url, "DELETE"),
                     withCredentials,
                     register: () => undefined,
+                    holdRedirects: holdsRedirects(url),
                 }).catch(() => undefined);
             }
             if (storage) await storage.delete(key);

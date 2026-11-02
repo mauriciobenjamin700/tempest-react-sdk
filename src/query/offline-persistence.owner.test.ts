@@ -1,6 +1,7 @@
-import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
+import { dehydrate, QueryClient } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createOfflineStore } from "../offline/create-offline-store";
+import { setDevBuild } from "../utils/dev-mode";
 import { persistQueryClientOffline } from "./offline-persistence";
 
 function databaseName(): string {
@@ -122,5 +123,218 @@ describe("persistQueryClientOffline — snapshot bound to its owner", () => {
         const client = await restoreAs(dbName, undefined);
 
         expect(client.getQueryData(["me"])).toEqual({ name: "Ada" });
+    });
+});
+
+function readRow(dbName: string): Promise<{ id: string; owner?: unknown } | undefined> {
+    const store = createOfflineStore<{ id: string; owner?: unknown }, string>({
+        databaseName: dbName,
+        version: 1,
+        tableName: "cache",
+        indexes: "&id",
+        keyPath: "id",
+    });
+    return store.get("tanstack-query");
+}
+
+describe("persistQueryClientOffline — a session that ends without clear() (#563)", () => {
+    it("does not leave the previous user's data for whoever boots next once the session expired before the write", async () => {
+        const dbName = databaseName();
+        let principal: string | null = "user-a";
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            getPrincipal: () => principal,
+        });
+        client.setQueryData(["me"], { name: "Ada" });
+        await persistence.flush();
+        principal = null;
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        const anonymous = await restoreAs(dbName, () => null);
+        const next = await restoreAs(dbName, () => "user-b");
+
+        expect(anonymous.getQueryData(["me"])).toBeUndefined();
+        expect(next.getQueryData(["me"])).toBeUndefined();
+        expect(await readRow(dbName)).toBeUndefined();
+    });
+
+    it("does not stamp the previous user's cache as the next user's when another account signs in on the same handle", async () => {
+        const dbName = databaseName();
+        let principal: string | null = "user-a";
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            getPrincipal: () => principal,
+        });
+        client.setQueryData(["me"], { name: "Ada" });
+        await persistence.flush();
+        principal = "user-b";
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        const next = await restoreAs(dbName, () => "user-b");
+
+        expect(next.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("binds the handle to the owner of the snapshot it restored, so a session that expires before its first write leaves nothing", async () => {
+        const dbName = databaseName();
+        await persistAs(dbName, "user-a", { name: "Ada" });
+        let principal: string | null = "user-a";
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            getPrincipal: () => principal,
+        });
+        await persistence.restore();
+        principal = null;
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        const anonymous = await restoreAs(dbName, () => null);
+
+        expect(anonymous.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("keeps persisting when the same user comes back on the handle after a gap", async () => {
+        const dbName = databaseName();
+        let principal: string | null = "user-a";
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            getPrincipal: () => principal,
+        });
+        client.setQueryData(["me"], { name: "Ada" });
+        await persistence.flush();
+        principal = null;
+        await persistence.flush();
+        principal = "user-a";
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        const back = await restoreAs(dbName, () => "user-a");
+
+        expect(back.getQueryData(["me"])).toEqual({ name: "Ada" });
+    });
+
+    it("keeps persisting anonymous data for an app where nobody ever signs in", async () => {
+        const dbName = databaseName();
+        await persistAs(dbName, null, { name: "public" });
+
+        const client = await restoreAs(dbName, () => null);
+
+        expect(client.getQueryData(["me"])).toEqual({ name: "public" });
+    });
+
+    it("keeps persisting when the principal arrives after anonymous writes, as in a cookie app after /me", async () => {
+        const dbName = databaseName();
+        let principal: string | null = null;
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            getPrincipal: () => principal,
+        });
+        client.setQueryData(["catalog"], ["a"]);
+        await persistence.flush();
+        principal = "user-a";
+        client.setQueryData(["me"], { name: "Ada" });
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        const restored = await restoreAs(dbName, () => "user-a");
+
+        expect(restored.getQueryData(["me"])).toEqual({ name: "Ada" });
+        expect(restored.getQueryData(["catalog"])).toEqual(["a"]);
+    });
+
+    it("does not hydrate an anonymous snapshot written by 0.82.0, which cannot be told apart from an expired session's", async () => {
+        const dbName = databaseName();
+        const store = createOfflineStore<{ id: string; owner?: unknown; state: unknown }, string>({
+            databaseName: dbName,
+            version: 1,
+            tableName: "cache",
+            indexes: "&id",
+            keyPath: "id",
+        });
+        const leaked = new QueryClient();
+        leaked.setQueryData(["me"], { name: "Ada" });
+        await store.put({ id: "tanstack-query", owner: null, state: dehydrate(leaked) });
+
+        const client = await restoreAs(dbName, () => null);
+
+        expect(client.getQueryData(["me"])).toBeUndefined();
+    });
+
+    it("keeps the unbound path unchanged when getPrincipal is not given", async () => {
+        const dbName = databaseName();
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+        });
+        client.setQueryData(["me"], { name: "Ada" });
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        const restored = await restoreAs(dbName, undefined);
+
+        expect(restored.getQueryData(["me"])).toEqual({ name: "Ada" });
+        expect(await readRow(dbName)).not.toHaveProperty("owner");
+    });
+
+    describe("dev warning", () => {
+        afterEach(() => {
+            vi.restoreAllMocks();
+            setDevBuild(undefined);
+        });
+
+        async function switchAccounts(next: string | null): Promise<void> {
+            let principal: string | null = "user-a";
+            const client = new QueryClient();
+            const persistence = persistQueryClientOffline({
+                queryClient: client,
+                databaseName: databaseName(),
+                getPrincipal: () => principal,
+            });
+            client.setQueryData(["me"], { name: "Ada" });
+            await persistence.flush();
+            principal = next;
+            await persistence.flush();
+            await persistence.flush();
+            persistence.unsubscribe();
+        }
+
+        it("warns once in dev when another account signs in on a bound handle", async () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+            await switchAccounts("user-b");
+
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(String(warn.mock.calls[0]?.[0])).toContain("Create a new handle after login");
+        });
+
+        it("stays silent when the session merely expires", async () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+            await switchAccounts(null);
+
+            expect(warn).not.toHaveBeenCalled();
+        });
+
+        it("stays silent on an account switch outside a dev build", async () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+            setDevBuild(false);
+
+            await switchAccounts("user-b");
+
+            expect(warn).not.toHaveBeenCalled();
+        });
     });
 });

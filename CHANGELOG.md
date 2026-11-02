@@ -6,6 +6,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Breaking
 
+- **`persistQueryClientOffline` com `getPrincipal` prende o handle ao primeiro dono logado e apaga o
+  snapshot quando outro dono grava (#563).** O vínculo de dono da 0.82.0 (#531) carimbava cada
+  gravação com quem estivesse logado _naquele momento_, mas o snapshot é o cache em memória inteiro:
+  um token que vencia sem `clear()` fazia a próxima gravação carimbar as respostas de A com dono
+  `null`, que o `restore()` sem ninguém logado aceitava (`null === null`) e o B lia depois de entrar.
+  O defeito é maior que o da issue: a troca direta A → B no mesmo handle carimbava os dados de A como
+  de B, e B os hidratava no boot seguinte. Reproduzido em 4 testes de
+  `src/query/offline-persistence.owner.test.ts` que falham sobre a `main` (`ca630df`) e passam com a
+  correção (`npx vitest run src/query/offline-persistence.owner.test.ts` → 5 failed | 14 passed na
+  `main`, 19 passed aqui; o quinto é o aviso de dev novo). Agora o handle se prende ao primeiro dono
+  logado que ele grava ou restaura, e uma gravação com outro dono — ninguém ou outra conta —
+  **apaga** a linha; o mesmo dono voltando grava de novo. Recusar no `restore()` todo snapshot sem
+  dono foi descartado: quebraria app que persiste dado de visitante. Gravação antes de alguém logar
+  continua anônima e restaurável; sem `getPrincipal`, nada muda. Os outros stores com dono do #551
+  (outbox do `createOfflineSync`, buffer do `createWebSocket`) não têm a mesma brecha: carimbam cada
+  item na criação, e item sem dono só sai enquanto ninguém está logado — outra conta o descarta.
+  **Migração:** (1) app que troca de conta sem `clear()` e reaproveita o handle para de persistir
+  para a conta nova — crie um handle novo no login (em build de dev, um `console.warn` avisa); (2)
+  snapshot anônimo gravado pela 0.82.0 não é restaurado (não dá para separá-lo de uma sessão vencida;
+  agora o anônimo leva o carimbo `"p:anonymous"`): um boot frio, uma vez. Tamanho
+  (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` da `main` contra o
+  deste branch): barrel CJS inteiro 181 139 → 181 252 B (+113 B, budget 181,2 → 181,3 kB), barrel
+  ESM 151 948 → 151 954 B (+6 B); nenhuma fatia importada mudou.
+
 - **`createResumableUpload` com `headers` fixos não segue redirect (#564).** A issue era
   `needs_validation`; validado no Chrome 150 (Chromium do Playwright MCP) com o
   `createResumableUpload` do tarball (`npm pack` + esbuild), servidor `http.server` em
@@ -26,8 +50,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   com redirect, mesmo de mesma origem (o `307` de barra final do FastAPI), passa a falhar com
   `REDIRECT_REFUSED` — aponte o `endpoint` para a URL final.
   Tamanho (`npm run build && npx size-limit --json`, contra a `origin/main` em `ca630df`): fatia
-  `resumable upload` 4657 → 4948 B, barril ESM 151 948 → 152 243 B, CJS 181 139 → 181 594 B; tetos
-  subidos para 5 KB, 152,3 KB e 181,7 KB.
+  `resumable upload` 4657 → 4948 B, e, remedido sobre a `main` já com #566 e
+  #567, barril ESM 151 902 B (dentro do teto de 152 KB, ruído do brotli) e CJS 181 252 → 181 410 B;
+  tetos subidos para 5 KB (resumable) e 181,5 KB (CJS).
 
 ### Segurança
 
@@ -61,6 +86,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `Idempotency-Key` da memória e só retoma o registro carimbado pelo dono atual. Testes em
   `src/http/resumable-upload.test.ts` (2 falham na `main`). **Migração:** nenhuma — retomar depois
   do `abort()` com o mesmo token continua funcionando.
+
+### Corrigido
+
+- **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de
+  palavra-chave (#562).** O `checkSchema` lia o mapa `properties` como se fosse um schema e pulava as
+  chaves `pattern` e `default` também ali. Medido sobre a `main` (`ca630df`), com uma propriedade de
+  nome N contendo, em quatro specs, um `__proto__` obrigatório, um `default` com `__proto__`, um
+  `pattern` inválido (`"("`) e um `pattern` com quantificador aninhado: `pattern` passava nos quatro
+  (o Zod gerado aceitava `{pattern: {}}` sem validar o campo), `default` passava nos dois de regex e
+  só pegava os de `__proto__` por acaso, com caminho e mensagem errados (`at properties`, "the default
+  value"), e `$ref` derrubava o gerador com `ref.lastIndexOf is not a function` (`collectRefs` lia o
+  schema da propriedade como referência). As outras 12 palavras-chave testadas (`enum`, `items`,
+  `properties`, `additionalProperties`, `allOf`, `anyOf`, `oneOf`, `required`, `type`, `example`,
+  `not`, `const`) já eram conferidas. Agora as entradas de `properties`, `patternProperties`,
+  `dependentSchemas`, `$defs` e `definitions` são sempre percorridas como schema, e só `$ref` string
+  é referência: os 15 nomes dão o mesmo resultado que um nome comum (`x`) nas quatro specs, e uma propriedade chamada `$ref`
+  gera normalmente. Método: script em scratchpad sobre `generate()` + 49 testes novos em
+  `bin/lib/openapi/generate.hostile.test.mjs` (13 falham na `main`;
+  `npx vitest run bin/lib/openapi/generate.hostile.test.mjs`). Spec que já gerava continua gerando
+  igual; passa a falhar só o que escondia um destes defeitos — o contrato já anunciado no #533.
 
 ## [0.82.0] — 2026-11-02
 

@@ -724,6 +724,97 @@ describe("generate — spec text that would leave its place in the output (#533)
         );
     });
 
+    const KEYWORD_NAMES = [
+        "pattern",
+        "default",
+        "enum",
+        "items",
+        "properties",
+        "additionalProperties",
+        "allOf",
+        "anyOf",
+        "oneOf",
+        "required",
+        "type",
+        "$ref",
+    ];
+
+    /**
+     * A `Body` schema with one property, named `name`, whose schema is `inner`.
+     *
+     * @param {string} name - The property name, often a JSON Schema keyword.
+     * @param {object} inner - The property's schema.
+     * @returns {object} The spec.
+     */
+    function keywordNamedProperty(name, inner) {
+        return spec(POST_BODY, {
+            Body: { type: "object", required: [name], properties: { [name]: inner } },
+        });
+    }
+
+    it.each(KEYWORD_NAMES)(
+        "a property named %s holding a required __proto__ is refused, naming where it sits (#562)",
+        (name) => {
+            const inner = JSON.parse(
+                '{"type":"object","required":["__proto__"],"properties":{"__proto__":{"type":"string"}}}',
+            );
+            expect(() => generate(keywordNamedProperty(name, inner))).toThrow(
+                `schema "Body" at properties.${name}: a property named "__proto__" cannot be validated`,
+            );
+        },
+    );
+
+    it.each(KEYWORD_NAMES)(
+        "a property named %s whose schema has a __proto__ default is refused at that property (#562)",
+        (name) => {
+            const inner = JSON.parse('{"type":"object","default":{"__proto__":{"admin":true}}}');
+            expect(() => generate(keywordNamedProperty(name, inner))).toThrow(
+                `schema "Body" at properties.${name}: the default value has a "__proto__" key`,
+            );
+        },
+    );
+
+    it.each(KEYWORD_NAMES)(
+        "an invalid regex under a property named %s fails generation (#562)",
+        (name) => {
+            const inner = {
+                type: "object",
+                properties: { code: { type: "string", pattern: "(" } },
+            };
+            expect(() => generate(keywordNamedProperty(name, inner))).toThrow(
+                `schema "Body" at properties.${name}.properties.code: pattern "(" is not a valid`,
+            );
+        },
+    );
+
+    it.each(KEYWORD_NAMES)(
+        "a nested-quantifier pattern under a property named %s comes back as a warning (#562)",
+        (name) => {
+            const inner = { type: "string", pattern: "^(a+)+$" };
+            const { warnings } = generate(keywordNamedProperty(name, inner));
+            expect(warnings).toHaveLength(1);
+            expect(warnings[0]).toContain(`schema "Body" at properties.${name}: pattern`);
+        },
+    );
+
+    it("properties named after keywords generate, typecheck and are each validated (#562)", () => {
+        const properties = Object.fromEntries(
+            KEYWORD_NAMES.map((name) => [name, { type: "string", minLength: 2 }]),
+        );
+        const generated = spec(POST_BODY, {
+            Body: { type: "object", required: KEYWORD_NAMES, properties },
+        });
+        const { files, warnings } = generate(generated);
+        expect(warnings).toEqual([]);
+        expect(typecheck(files, "t")).toEqual([]);
+        const schemas = evaluate(files["t/schemas.ts"], vm.createContext({}), {});
+        const valid = Object.fromEntries(KEYWORD_NAMES.map((name) => [name, "ok"]));
+        expect(schemas.BodySchema.safeParse(valid).success).toBe(true);
+        for (const name of KEYWORD_NAMES) {
+            expect(schemas.BodySchema.safeParse({ ...valid, [name]: {} }).success).toBe(false);
+        }
+    });
+
     it("properties called constructor or prototype still generate and are validated", () => {
         const { files } = generate(
             spec(POST_BODY, {

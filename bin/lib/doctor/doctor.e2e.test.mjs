@@ -98,6 +98,11 @@ describe("tempest doctor — a third-party project that does not use the SDK", (
         expect(out).not.toContain('add import "tempest-react-sdk/styles.css"');
     });
 
+    it("does not judge the Vitest config of a project without the SDK", () => {
+        installed("vitest", "4.1.12");
+        expect(doctor().out).not.toContain("inline the SDK");
+    });
+
     it("does not demand a src/main.tsx it has no reason to expect", () => {
         const { out } = doctor();
         expect(out).not.toContain("app entry");
@@ -334,6 +339,30 @@ describe("tempest doctor — a project that does use the SDK", () => {
                 'export const T = () => <TrajectoryMap points={[]} tileUrl="https://t/{z}/{x}/{y}.png" />;',
         );
         expect(doctor().out).toContain("leaflet missing");
+    });
+
+    it("warns when Vitest would load the SDK without the plugin", () => {
+        installed("vitest", "4.1.12");
+        const { out, code } = doctor();
+        expect(out).toContain("vite.config.ts does not inline the SDK for Vitest");
+        expect(out).toContain("tempestVitest()");
+        expect(code).toBe(0);
+    });
+
+    it("accepts a vitest.config that adds tempestVitest", () => {
+        installed("vitest", "4.1.12");
+        write(
+            "vitest.config.ts",
+            'import { tempestVitest } from "tempest-react-sdk/vite";\n' +
+                "export default defineConfig({ plugins: [tempestVitest()] });",
+        );
+        const { out } = doctor();
+        expect(out).toContain("vitest.config.ts lets Vitest load the SDK");
+        expect(out).not.toContain("does not inline the SDK");
+    });
+
+    it("says nothing about Vitest in a project that does not install it", () => {
+        expect(doctor().out).not.toContain("Vitest");
     });
 
     it("warns when the SDK is installed but undeclared", () => {

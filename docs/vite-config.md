@@ -218,6 +218,20 @@ Medido com `tempest-react-sdk@0.70.0` e um teste de uma linha que importa `Butto
     tudo), o plugin não mexe — juntar os dois quebraria o Vitest 4 com
     `ex.test is not a function`.
 
+Na 0.81.0, com o Vitest 4.1.12, o quadro é o mesmo para **todo** arranjo sem o
+plugin: `vitest.config.ts` próprio, `vite.config.ts` simples e projeto sem config
+nenhuma caem no `.css`. Duas coisas garantem que você descubra antes do teste
+vermelho:
+
+- **`npx tempest doctor`** lê a config que o Vitest vai carregar (`vitest.config.*`,
+  senão `vite.config.*`) e avisa na seção _Integration_ quando ela não tem
+  `tempestVitest()`, `createViteConfig`, `inline: true` nem `"tempest-react-sdk"`
+  na lista de `inline` — ou quando não há config nenhuma. Um `vitest.config.ts`
+  que faz `mergeConfig` sobre um `vite.config.ts` com `createViteConfig` passa.
+- **O smoke do tarball** (`scripts/smoke-vitest.sh`, no `make check`) roda a
+  suíte de consumidor **sem** o plugin e exige o erro. Se um dia o SDK importar no
+  Vitest sem ajuda, o smoke reprova e esta seção é revista.
+
 ## Referência das opções
 
 Todas as opções são opcionais.

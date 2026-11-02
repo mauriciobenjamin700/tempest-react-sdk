@@ -308,6 +308,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`<GoogleSignIn nonce>`** repassa o nonce emitido pelo servidor ao `GoogleLogin`, para o
   backend prender o ID token a ele (#530). Antes o wrapper descartava a prop.
 
+- **`tempest doctor` avisa quando o Vitest vai importar o SDK sem o `tempestVitest()` (#556).**
+  Num projeto com o SDK e o `vitest` instalado, a seção _Integration_ lê a config que o Vitest
+  carrega — a mesma ordem dele, `vitest.config.{ts,mts,cts,js,mjs,cjs}` e depois `vite.config.*`,
+  fixada em teste contra o `node_modules/vitest` instalado — e avisa quando ela não tem
+  `tempestVitest`, `createViteConfig`, `inline: true` nem `"tempest-react-sdk"` numa lista de
+  `inline`, ou quando não há config nenhuma. Heurística de texto (comentário não conta), sem
+  executar a config; `vitest.config` com `mergeConfig` sobre um `vite.config` que usa
+  `createViteConfig` passa. Projeto sem o SDK ou sem Vitest não ganha linha. Aviso, não falha: o
+  exit code não muda. Teste: `npx vitest run bin/lib/doctor` (os 2 casos novos do
+  `doctor.e2e.test.mjs` que esperam a linha falhavam com o `bin/tempest.mjs` da `main`).
+- **O smoke do tarball exige que o Vitest sem plugin falhe (#556).** `scripts/smoke-vitest.sh`
+  ganhou, no projeto sem `@vitejs/plugin-react`, dois cenários antes do `tempestVitest()`: um
+  `vitest.config.ts` sem o plugin e nenhuma config. Os dois precisam cair com
+  `Unknown file extension ".css"`; se passarem, o smoke reprova e a doc (README, Testes com Vitest,
+  `doctor`) é revista. Medido com o tarball da `main` (0.81.0 + `[Unreleased]`), Vitest 4.1.12,
+  Node 24.15.0: `scripts/smoke-vitest.sh tempest-react-sdk-0.81.0.tgz` → 2a e 2b falham como
+  esperado, 1 e 2 passam.
+
 ### Corrigido
 
 - **README dizia "Vitest needs nothing." (#535).** Só vale quando o Vitest lê o `createViteConfig`,
@@ -387,6 +405,24 @@ app` 12 158 → 12 303 B (+145, teto 12,2 → 12,35 kB), `slice: createPeerMesh`
   do FastAPI é o redirect comum e legítimo. Documentado em `docs/http.md` com `{ redirect: "error" }`
   por chamada para URL que veio da rede (Chrome não consta no caniuse como removendo o header,
   consultado em 01/11/2026).
+
+### Decidido sem mudança de código (#556)
+
+- **Condição `"node"` para as folhas de componente não entra.** Medido sobre a cópia descartável do
+  tarball (`npm pack`, Vitest 4.1.12, Vite 8, Node 24.15.0):
+  - **No `exports`, como a issue propõe, não muda nada**: cada `*.module.js` importa a folha por
+    caminho **relativo** (`import "../../styles/component/Button.css"`), e condição de `exports`
+    só vale para especificador de pacote. Vitest sem plugin e `node` sem loader continuam caindo
+    no `.css`.
+  - **Pelo campo `imports`** (`"#tempest-css/*": { "node": vazio, "default": a folha }`, com as 264
+    importações reescritas): Vitest sem plugin passa, `node`/`require` sem loader passam, SSR
+    externalizado do Vite renderiza, e o build de cliente do Vite sai **byte a byte igual**
+    (5515 B de CSS, mesmo sha256). Mas o Vitest **com** `tempestVitest()` e `css: true` perde
+    todas as folhas (126 `<style>` → 0): o Vitest resolve o pacote inlined com a condição `node`,
+    e teste de estilo computado passa a ver componente sem CSS — sem erro. O mesmo vale para o SSR
+    em dev do Vite, que coleta CSS do grafo SSR (não medido). Troca uma falha barulhenta e
+    documentada por uma silenciosa; fica o plugin, agora vigiado pelo `doctor` e pelo smoke.
+    Registro em `docs/internal/decisions.md`.
 
 ## [0.81.0] — 2026-11-01
 

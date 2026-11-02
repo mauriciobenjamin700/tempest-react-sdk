@@ -19,6 +19,13 @@
 #    plugin React no topo, e esse projeto nem carregava a config
 #    (`ERR_MODULE_NOT_FOUND`, #401). O cenário 1 instala o plugin, então não via isso.
 #
+# Antes do cenário 2, no mesmo projeto, roda a suíte **sem** o plugin — com um
+# `vitest.config.ts` que não o inclui e sem config nenhuma — e exige que ela caia com
+# `Unknown file extension ".css"` (#556). É a afirmação do README e do
+# `tempest doctor`: se um dia o SDK passar a importar no Vitest sem o plugin, este
+# cenário reprova e a doc é revista em vez de continuar mandando instalar algo
+# desnecessário.
+#
 # A instalação roda no npm 11 mesmo sob Node 22: o npm 10.9.8 que vem com ele cai
 # com `Cannot read properties of null (reading 'edgesOut')` em
 # `npm install vitest@^4` num projeto vazio, sem o SDK no meio. `--loglevel=error`
@@ -32,7 +39,8 @@ trap 'rm -rf "$WORK"' EXIT
 
 write_test() {
     mkdir -p src
-    cat > src/sdk.test.tsx <<'TEST'
+    printf '%s\n' "${1:-}" > src/sdk.test.tsx
+    cat >> src/sdk.test.tsx <<'TEST'
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, test } from "vitest";
@@ -68,7 +76,7 @@ CONFIG
 write_test
 npx vitest run
 
-echo "→ cenário 2: tempestVitest(), sem @vitejs/plugin-react"
+echo "→ projeto sem @vitejs/plugin-react (cenários 2a, 2b e 2)"
 mkdir "$WORK/no-react-plugin" && cd "$WORK/no-react-plugin"
 npm init -y >/dev/null
 npm pkg set type=module >/dev/null
@@ -80,6 +88,40 @@ if [ -d node_modules/@vitejs/plugin-react ]; then
     exit 1
 fi
 
+write_test
+
+expect_css_failure() {
+    local label="$1"
+    local log="$WORK/no-plugin.log"
+    if npx vitest run >"$log" 2>&1; then
+        cat "$log"
+        echo "::error::Vitest passed $label without tempestVitest(); the docs and \`tempest doctor\` say it fails — revise them"
+        exit 1
+    fi
+    if ! grep -q 'Unknown file extension ".css"' "$log"; then
+        cat "$log"
+        echo "::error::Vitest failed $label, but not with the .css error this scenario pins"
+        exit 1
+    fi
+    echo "  falhou como esperado ($label): Unknown file extension \".css\""
+}
+
+echo "→ cenário 2a: vitest.config.ts sem o plugin cai em .css"
+cat > vitest.config.ts <<'CONFIG'
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+    test: { environment: "happy-dom" },
+});
+CONFIG
+expect_css_failure "with its own vitest.config.ts"
+
+echo "→ cenário 2b: sem config nenhuma cai em .css"
+rm vitest.config.ts
+write_test "// @vitest-environment happy-dom"
+expect_css_failure "with no config at all"
+
+echo "→ cenário 2: tempestVitest(), sem @vitejs/plugin-react"
 cat > vitest.config.ts <<'CONFIG'
 import { defineConfig } from "vitest/config";
 import { tempestVitest } from "tempest-react-sdk/vite";

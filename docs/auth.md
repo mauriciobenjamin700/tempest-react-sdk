@@ -300,7 +300,7 @@ E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `
 !!! tip "Limpe aqui todo estado por usuário"
     O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria, os registros de upload resumível. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
 
-    Os registros de upload resumível guardam a URL de upload e a `Idempotency-Key` da conta que saiu, e só somem quando o upload completa ou num `abort({ discard: true })`. Limpe com `createLocalUploadStorage().clear()` (apaga tudo sob o prefixo `tempest-upload:`) e passe `getPrincipal` ao `createResumableUpload` — detalhes em [Upload resumível → Um registro por usuário](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear):
+    Os registros de upload resumível guardam a URL de upload e a `Idempotency-Key` da conta que saiu, e só somem quando o upload completa ou num `abort({ discard: true })`. Limpe com `createLocalUploadStorage().clear()` (apaga tudo sob o prefixo `tempest-upload:`) e passe ao `createResumableUpload` o próprio `getToken: auth.getToken` (que amarra o registro à sessão, ver [`auth.sessionKey()`](#a-sessao-como-chave-authsessionkey)) ou `getPrincipal` — detalhes em [Upload resumível → Um registro por usuário](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear):
 
     ```ts
     import { createLocalUploadStorage, createTempestAuth } from "tempest-react-sdk";
@@ -418,6 +418,45 @@ Repare no `elsewhere`. O cache em memória (`queryClient.clear()`) é desta aba,
     Com `storage: "session"`, cada aba tem o próprio `sessionStorage` e a própria sessão — nada disso se aplica.
 
 Em teste, ou com hot reload, quando vários presets nascem na mesma janela, `auth.dispose()` remove o listener de `storage`. Um app tem um preset para a vida da página e não precisa chamar.
+
+### A sessão como chave — `auth.sessionKey()`
+
+Recurso que pertence a **uma** sessão — um stream SSE, um upload em andamento — precisa saber quando a sessão trocou, e não quando o token trocou: o token roda a cada refresh, a sessão não. `auth.sessionKey()` responde exatamente isso. É a linhagem da seção anterior quando há alguém logado, e `null` quando não há:
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+await auth.login({ email: "a@exemplo.com", password: "segredo" });
+const sessaoDeA = auth.sessionKey();
+
+await auth.refresh();
+console.log(auth.sessionKey() === sessaoDeA);
+
+await auth.login({ email: "b@exemplo.com", password: "segredo" });
+console.log(auth.sessionKey() === sessaoDeA);
+
+await auth.logout();
+console.log(auth.sessionKey());
+```
+
+```text
+true
+false
+null
+```
+
+Você quase nunca chama à mão — as peças que dependem dela leem sozinhas do que o preset devolveu (desde a 0.82.0):
+
+| Você passa | Quem lê a sessão | O que muda |
+| --- | --- | --- |
+| `client: auth.api` em `useTicketEventStream` / `createTicketEventStream` | o stream SSE | fecha o stream de A no `login()` de B, não reabre na rotação, fica parado deslogado — ver [SSE → troca de conta](./sse.md#troca-de-conta-na-mesma-aba-sessionkey) |
+| `getToken: auth.getToken` em `createResumableUpload` | o upload resumível | o registro sobrevive à rotação e a troca de conta para o upload — ver [Upload resumível](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear) |
+
+O vínculo é com o **objeto** que o preset devolveu: `auth.api` e `auth.getToken`. Um wrapper (`() => auth.getToken()`), um cliente seu ou uma cópia com spread não carregam a sessão e continuam com o comportamento de antes — para eles, passe `auth.sessionKey` como `sessionKey`/`getPrincipal`.
+
+Uma sessão sem linhagem — gravada antes da linhagem existir, ou restaurada do cookie por `auth.refresh()` sem nenhum `login()` neste storage — responde a chave constante `"unlineaged"`. Trocar dela para outra conta passa por um `login()`, que cria linhagem, então a chave muda do mesmo jeito.
 
 ### Refresh por cookie e logout no servidor — `logoutPath`
 
@@ -569,6 +608,7 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
 - **Várias abas** — com `storage: "local"` a sessão é da origem: logout, troca de conta e renovação numa aba chegam nas outras, com `elsewhere: true` no hook.
 - **`logoutPath`** — revoga o refresh token (ou o cookie) no servidor no `logout()`; restaure a sessão no boot com `auth.refresh()`.
+- **`auth.sessionKey()`** — a sessão como chave: muda no `login()`, não muda na rotação; `auth.api` e `auth.getToken` a carregam para o SSE e o upload resumível.
 
 ### Veja também
 

@@ -184,14 +184,38 @@ Até a 0.81.0, quem não passava `getPrincipal` retomava qualquer registro com a
 
 O preço é que token **gira**. O carimbo é refeito a cada gravação do registro, e o próprio handle continua o seu upload depois de um refresh (`pause()` → `resume()`). Mas um reload depois de um refresh em que nenhum chunk foi gravado encontra o carimbo do token velho e **recomeça do zero**. O `getPrincipal` não tem esse custo — o usuário não gira —, então continua sendo o recomendado:
 
-| Configuração | Registro de outro usuário | Retoma depois de refresh + reload |
-| --- | --- | --- |
-| `getPrincipal` | apagado | sim |
-| só `getToken` (padrão 0.82.0) | apagado | só se um chunk foi gravado depois do refresh |
-| nenhum dos dois (anônimo, sessão por cookie) | **retomado** | sim |
+| Configuração | Registro de outro usuário | Retoma depois de refresh + reload | Troca de conta com o upload rodando |
+| --- | --- | --- | --- |
+| `getPrincipal` | apagado | sim | para com `ResumableUploadSupersededError` |
+| `getToken: auth.getToken` do `createTempestAuth` (0.82.0) | apagado | sim | para com `ResumableUploadSupersededError` |
+| só `getToken`, qualquer outro getter (padrão 0.82.0) | apagado | só se um chunk foi gravado depois do refresh | **continua**, com o token novo na URL do upload anterior |
+| nenhum dos dois (anônimo, sessão por cookie) | **retomado** | sim | **continua** |
+
+#### `getToken: auth.getToken` — o registro é da sessão
+
+Quando o `getToken` é o **próprio** getter que o `createTempestAuth` devolveu, o upload lê dele a sessão do preset ([`auth.sessionKey()`](./auth.md#a-sessao-como-chave-authsessionkey)) e a usa como `getPrincipal`. A sessão não gira no refresh, então o reload depois de uma rotação retoma; e ela muda no `login()` de outra conta, então o run para antes de o token novo chegar à URL do upload anterior:
+
+```ts
+import { createResumableUpload, createTempestAuth } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export function enviarGravacao(gravacao: File) {
+  return createResumableUpload({
+    endpoint: "/api/uploads",
+    file: gravacao,
+    getToken: auth.getToken,
+  }).start();
+}
+```
+
+Medido em `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/resumable-upload.session.test.ts`): na `main` antes desta mudança, um `login()` de B entre o primeiro e o segundo `PATCH` fazia o upload **terminar**, com os `PATCH` seguintes levando `Bearer B-tok-1` para a URL do upload de A; e o reload depois de um refresh recomeçava com um `POST` novo. Agora o run rejeita com `ResumableUploadSupersededError` e o reload retoma com `HEAD`.
+
+!!! note "O getter, não um wrapper"
+    `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário.
 
 !!! warning "Sessão por cookie precisa de `getPrincipal`"
-    Sem `getToken` o SDK não enxerga quem está logado: o registro fica sem dono e é retomado por quem vier depois, como antes. Com sessão por cookie e mais de uma conta por navegador, passe `getPrincipal` e limpe no fim de sessão — e, sem o getter, chame `abort()` nos uploads em andamento dentro do `onSessionEnd`, porque um run em andamento só percebe a troca de conta pelo `getPrincipal`.
+    Sem `getToken` — sessão só por cookie, fora do `createTempestAuth`, que sempre tem token — o SDK não enxerga quem está logado: o registro fica sem dono e é retomado por quem vier depois, como antes. Com sessão por cookie e mais de uma conta por navegador, passe `getPrincipal` e limpe no fim de sessão — e, sem o getter, chame `abort()` nos uploads em andamento dentro do `onSessionEnd`, porque um run em andamento só percebe a troca de conta pelo `getPrincipal`.
 
 ## A falha que realmente acontece
 
@@ -301,7 +325,7 @@ const upload = createResumableUpload({
 - **`createResumableUpload({ endpoint, file })`** — chunks de 5 MiB, retomada por rede e por reload, protocolo tus 1.0.0.
 - **`start()` / `pause()` / `resume()` / `abort({ discard })`**; `start()` resolve `null` quando você parou de propósito.
 - O ponto de retomada mora em `localStorage` por padrão; troque por `storage`, desligue com `null`.
-- **`getPrincipal`** prende o registro ao usuário; sem ele, desde a 0.82.0, o registro é do token de `getToken`. **`createLocalUploadStorage().clear()`** no `onSessionEnd` apaga os que sobraram.
+- **`getPrincipal`** prende o registro ao usuário; sem ele, desde a 0.82.0, o registro é do token de `getToken` — ou da sessão, quando o getter é o `auth.getToken` do `createTempestAuth`. **`createLocalUploadStorage().clear()`** no `onSessionEnd` apaga os que sobraram.
 - Resposta perdida é resolvida por **offset endereçado + `HEAD` antes de cada retentativa**, e a criação por **`Idempotency-Key`**.
 - Backoff é o `retry` do SDK — não existe um segundo.
 

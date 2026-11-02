@@ -5,6 +5,7 @@
  * throughout. Every stage reads the same cursor and the same abort signal, and
  * createResumableUpload is the closure that owns them.
  */
+import { sessionIdentityOf } from "@/auth/session-identity";
 import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { bytesToBase64 } from "@/utils/base64";
 import {
@@ -212,6 +213,12 @@ export interface ResumableUploadOptions {
      * chunk landed under starts the upload over. Pass `getPrincipal` to keep
      * resuming across refreshes, and always with a cookie session, where there
      * is no token to bind to and the record stays unbound.
+     *
+     * `getToken: auth.getToken` — the getter of `createTempestAuth` itself, not
+     * an arrow around it — binds to that preset's session instead, as if
+     * `getPrincipal: auth.sessionKey` were passed: the record survives token
+     * rotation, a switch of account stops the run, and a new `login()`, even
+     * into the same account, starts over.
      *
      * It is read again before every chunk and every record write: when it
      * names someone else mid-run, the run stops with
@@ -635,7 +642,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         metadata,
         headers = {},
         getToken,
-        getPrincipal,
+        getPrincipal: principalOption,
         trustedOrigins,
         withCredentials = false,
         csrf,
@@ -645,6 +652,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         onProgress,
         onStateChange,
     } = options;
+    const getPrincipal = principalOption ?? sessionIdentityOf(getToken)?.current;
 
     let state: ResumableUploadState = "idle";
     let offset = 0;
@@ -659,7 +667,9 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * Who the resume record belongs to right now, as the fingerprint it is
      * stamped with.
      *
-     * `getPrincipal` wins when given (`"p:…"`). Without it, a `getToken` getter
+     * `getPrincipal` wins when given (`"p:…"`), and so does the session of a
+     * `getToken` that `createTempestAuth` handed out, read as its principal.
+     * Without either, a `getToken` getter
      * still names the credential every request carries, so the record is bound
      * to a fingerprint of the token (`"t:…"`) — never the token itself. Until
      * 0.82.0 a record written without `getPrincipal` had no owner at all and

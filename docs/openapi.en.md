@@ -324,6 +324,12 @@ function UserList() {
       declaring the field, and Zod 4 drops it even as a computed key — there is
       no code that validates it.
 
+    These checks (and the `pattern` one) reach every sub-schema, including the
+    schema of a property whose name is a JSON Schema keyword — `pattern`,
+    `default`, `$ref`, `items`, `enum`. Before, a property named `pattern` or
+    `default` was skipped as if it were the keyword, and whatever sat inside it
+    was generated unchecked.
+
     A `pattern` that **compiles** but has a nested quantifier (`^(a+)+$`,
     `(\w+\s?)*`) is generated as usual and printed as a **warning** (`!`) in the
     terminal: on a near-miss value it backtracks exponentially — 28 characters

@@ -322,6 +322,12 @@ function UserList() {
       declarar o campo, e o Zod 4 a descarta mesmo como chave computada — não
       existe código que a valide.
 
+    Essas verificações (e a do `pattern`) alcançam todo sub-schema, inclusive
+    o de uma propriedade cujo nome é palavra-chave do JSON Schema — `pattern`,
+    `default`, `$ref`, `items`, `enum`. Antes, uma propriedade chamada
+    `pattern` ou `default` era pulada como se fosse a palavra-chave, e o que
+    estava dentro dela gerava sem conferência.
+
     Um `pattern` que **compila** mas tem quantificador aninhado (`^(a+)+$`,
     `(\w+\s?)*`) gera normalmente e sai como **aviso** (`!`) no terminal: em
     valor quase-válido ele retrocede de forma exponencial — 28 caracteres

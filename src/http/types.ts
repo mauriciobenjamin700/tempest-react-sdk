@@ -308,7 +308,20 @@ export interface ApiClientConfig {
      * without it, and is exposed the same way.
      */
     csrf?: boolean | CsrfOptions;
-    /** Default headers merged into every request. */
+    /**
+     * Default headers merged into every request inside the credential scope.
+     *
+     * Treated as a credential since 0.82.0 — an `X-Api-Key` set once here is as
+     * much a secret as the bearer — so they go only to `baseURL`'s origin and
+     * {@link trustedOrigins}. A redirect would move them past that check, and
+     * unlike `Authorization` no browser strips them on a cross-origin hop
+     * (measured in Chrome 150, #554). So while this is non-empty, an in-scope
+     * request goes out with `redirect: "manual"`, and a redirect answering it
+     * is thrown as a `TempestApiError` with `code: "REDIRECT_REFUSED"` — the
+     * browser hides the `Location`, so the same-origin case cannot be told
+     * apart and followed by hand. Call the final URL (FastAPI's trailing-slash
+     * `307` is the usual source), or pass `redirect: "follow"` on the call.
+     */
     headers?: Record<string, string>;
     /** Optional fetch implementation (defaults to globalThis.fetch). */
     fetcher?: typeof fetch;

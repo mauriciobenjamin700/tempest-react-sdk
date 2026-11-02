@@ -293,16 +293,29 @@ await api.get("https://cdn.other.com/file.json");
 // → no Authorization and no X-Api-Key; a 401 from here does not call logout()
 ```
 
-!!! warning "Cross-origin redirects: the scope looks at the initial URL"
-    Stripping `Authorization` from a redirect to another origin is the browser's job, under the Fetch rule (whatwg/fetch#1544). According to [caniuse](https://caniuse.com/mdn-api_fetch_authorization_removed_cross_origin), checked on 01/11/2026, Firefox 111+ and Safari 16.1+ follow it; Chrome is **not** listed as supporting it. So in Chrome, an open redirect on a trusted origin can carry the token onward.
+!!! info "Cross-origin redirects: what the browser strips and what the SDK holds back (0.82.0)"
+    The scope looks at the **initial** URL; where a redirect leads is the browser's call. Measured in Chrome 150 (Playwright's Chromium and stable Google Chrome), with `fetch` and with XHR, on `301`, `302`, `303`, `307` and `308` from one origin to another: `Authorization` **does not reach** the destination. caniuse and MDN still list Chrome as unsupported — their data is stale; Firefox 111+ and Safari 16.1+ are listed as supported. On a **same-origin** redirect the header still goes, which is what keeps FastAPI's trailing-slash `307` working.
 
-    The SDK does not change the `redirect` default because the most common redirect from a Tempest backend is legitimate and same-origin: FastAPI's trailing-slash `307` (`redirect_slashes`). `redirect: "manual"` would turn it into an opaque response and `redirect: "error"` into a failure. On a call to a URL you do not control, ask for it yourself — the option goes straight to `fetch`:
+    The browser strips only `Authorization`. An `X-Api-Key` in the client's static `headers` crossed the same redirect and reached the other host — measured in both cases above. So since **0.82.0**, an in-scope request carrying the static `headers` goes out with `redirect: "manual"`, and a redirect in response becomes a `TempestApiError` with `code: "REDIRECT_REFUSED"` instead of being followed. Following the same-origin one by hand is not possible: in a browser, the stopped redirect is an `opaqueredirect` response, with status `0` and an unreadable `Location` (measured).
 
     ```ts
-    await api.get(urlFromTheNetwork, { redirect: "error" });
+    const api = createApiClient({
+      baseURL: "https://api.example.com",
+      headers: { "X-Api-Key": key },
+    });
+
+    await api.post("/items", { body }); // FastAPI answers 307 → /items/
+    // → TempestApiError { status: 0, code: "REDIRECT_REFUSED" }
+
+    await api.post("/items/", { body }); // ✅ call the final URL
+    await api.post("/items", { body, redirect: "follow" }); // ✅ or follow on purpose
     ```
 
-    The uploads' XHR (`uploadWithProgress`, `createResumableUpload`) has no equivalent mode.
+    A `redirect` passed on the call always wins. A client with only `getToken` and no static `headers` follows redirects as before.
+
+    `X-CSRF-Token` also crosses a redirect to another origin, and is left out on purpose: it goes on every `POST` of a cookie session, which is exactly the trailing-slash `307` case, and on its own it authenticates nothing — using it takes the victim's cookie and a custom header your API's CORS does not allow from another origin.
+
+    The uploads' XHR (`uploadWithProgress`, `createResumableUpload`) has no `redirect` mode: it always follows. The `Authorization` it carries is stripped by the browser just as with `fetch` (measured); the `headers` you pass it were written for that URL, and CSRF follows the same reasoning as above.
 
 The predicate itself is exported, for when you build the request yourself:
 

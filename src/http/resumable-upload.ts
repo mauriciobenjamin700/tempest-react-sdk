@@ -467,6 +467,16 @@ interface TusRequest {
 const UPLOAD_REDIRECT_REFUSED = "REDIRECT_REFUSED";
 
 /**
+ * The `code` of the {@link TempestApiError} a chunk `PATCH` rejects with when
+ * the server answers 200/204 with an `Upload-Offset` that does not advance
+ * past the one the request carried (#569). tus answers every write with the
+ * new offset, so a stalled one is a protocol error, not a slow server — and
+ * the write loop would hammer the same chunk forever, because nothing ever
+ * "failed" to retry on.
+ */
+const UPLOAD_STALLED_OFFSET = "STALLED_OFFSET";
+
+/**
  * Send one tus request.
  *
  * `XMLHttpRequest` rather than `fetch` for the same reason `uploadWithProgress`
@@ -1084,7 +1094,18 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             throw failed(response, "Chunk recusado pelo servidor.");
         }
 
-        offset = parseOffset(response) ?? end;
+        // A write that does not advance the offset cannot be retried into
+        // working: the loop would re-send the same chunk forever, because no
+        // error ever reaches `shouldRetry`. Fail typed and non-retriable.
+        const confirmed = parseOffset(response);
+        if (confirmed !== null && confirmed <= from) {
+            throw new TempestApiError({
+                status: response.status,
+                code: UPLOAD_STALLED_OFFSET,
+                detail: "O servidor respondeu com um Upload-Offset que não avança.",
+            });
+        }
+        offset = confirmed ?? end;
         report(offset);
         await persist();
     }

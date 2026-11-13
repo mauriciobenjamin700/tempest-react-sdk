@@ -232,6 +232,74 @@ vermelho:
   suíte de consumidor **sem** o plugin e exige o erro. Se um dia o SDK importar no
   Vitest sem ajuda, o smoke reprova e esta seção é revista.
 
+## PWA: o service worker no build de produção
+
+Um app PWA usa dois plugins do mesmo subpath: o `tempestPwaManifest()` emite o
+`precache-manifest.json` que o `installPrecache` lê, e o `tempestPwaDevSw()`
+compila o seu `src/sw.ts`. Com os dois, o `vite build` entrega o worker junto:
+
+```ts
+// vite.config.ts
+import { createViteConfig, tempestPwaDevSw, tempestPwaManifest } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+    plugins: [
+        tempestPwaManifest({ additionalUrls: ["/icon.svg"] }),
+        tempestPwaDevSw({ swSrc: "src/sw.ts", swUrl: "/sw.js" }),
+    ],
+});
+```
+
+O que sai em `dist/`:
+
+| Arquivo                  | Quem emite             | O que é                                                        |
+| ------------------------ | ---------------------- | -------------------------------------------------------------- |
+| `precache-manifest.json` | `tempestPwaManifest()` | Lista dos assets do build + `version` (hash da lista)          |
+| `sw.js`                  | `tempestPwaDevSw()`    | `src/sw.ts` empacotado como worker clássico (IIFE), minificado |
+
+- **Em dev**, o `tempestPwaDevSw()` serve `/sw.js` compilado na hora e um manifesto
+  vazio. **No build**, empacota o mesmo `swSrc` com o `build()` do próprio Vite —
+  não precisa de `esbuild` instalado nem de um `vite.sw.config.ts` separado.
+- O `import.meta.env` do worker enxerga os mesmos `VITE_*` da página (mesmo `mode`,
+  `envDir` e `envPrefix` do app).
+- A primeira linha do `sw.js` é `/* tempest-precache-version: <version> */`. O
+  navegador só reinstala um service worker quando os bytes do `sw.js` mudam; sem
+  isso, um deploy que mexe no app mas não no `sw.ts` deixaria o precache antigo
+  servindo a versão anterior offline.
+
+### O build falha em vez de entregar um PWA quebrado
+
+Até a 0.82.0 o `tempestPwaDevSw()` só rodava em dev, e um app com os dois plugins
+terminava o `vite build` com código 0 **sem** `dist/sw.js` (#573): em produção o
+registro dava 404, `navigator.serviceWorker.ready` nunca resolvia e push, update e
+offline travavam sem mensagem. Agora três erros derrubam o build, com a correção
+na mensagem:
+
+| Situação                                                                             | Mensagem começa com                                    |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| `precache-manifest.json` emitido e nenhum arquivo em `/sw.js` (ou no `swUrl`)         | `[tempest-pwa-manifest] the build emitted …`           |
+| `swSrc` não existe ou não compila                                                    | `[tempest-pwa-dev-sw] could not bundle …`              |
+| Item de `additionalUrls` que não está em `public/` nem no bundle                     | `[tempest-pwa-manifest] additionalUrls lists …`        |
+
+O terceiro pega a armadilha vizinha: um `manifest.webmanifest` linkado do
+`index.html` mas guardado fora de `public/` sai com hash em
+`assets/manifest-*.webmanifest` (e já entra no precache sozinho). Listar
+`/manifest.webmanifest` em `additionalUrls` fazia o precache guardar o `index.html`
+do fallback da SPA no lugar dele. URLs absolutas `http(s):` não são conferidas.
+
+!!! note "Worker empacotado por outro passo"
+    Se um segundo `vite build --config vite.sw.config.ts` (ou o `vite-plugin-pwa`)
+    gera o `sw.js` **depois** deste build, diga isso explicitamente: use
+    `tempestPwaDevSw({ build: false })` (continua servindo em dev) ou, sem o plugin
+    de dev, `tempestPwaManifest({ serviceWorker: false })`. Com o `tempestPwaDevSw()`
+    no build padrão, o `build:sw` separado fica redundante e pode sair do
+    `package.json`.
+
+| Opção                                  | Default                                      | O que faz                                                         |
+| -------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| `tempestPwaDevSw({ build })`           | `true`                                       | Empacota `swSrc` no build de produção em `swUrl`                  |
+| `tempestPwaManifest({ serviceWorker })` | `swUrl` do `tempestPwaDevSw`, senão `/sw.js` | URL do worker exigido no build; `false` desliga a conferência     |
+
 ## Referência das opções
 
 Todas as opções são opcionais.
@@ -266,3 +334,5 @@ Todas as opções são opcionais.
   `Unknown file extension ".css"`; com `vitest.config.ts` próprio, adicione-o.
 - `overrides` é o escape hatch: deep-merge por último, mesclando `plugins`/`resolve`/`server`
   em vez de substituí-los.
+- PWA: `tempestPwaManifest()` + `tempestPwaDevSw()` entregam `dist/sw.js` no `vite build`, e o
+  build falha quando o manifesto sai sem worker ou `additionalUrls` aponta para o nada.

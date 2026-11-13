@@ -89,6 +89,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`installPrecache` volta a servir o app offline depois que o navegador reinicia o service worker
+  (#572).** O nome do cache e os caminhos pré-cacheados eram variáveis do módulo preenchidas só no
+  `install`, que o restart não repete. Reproduzido em `src/sw/cache.restart.test.ts` (o restart é
+  `vi.resetModules()` + reimport com a mesma Cache Storage, sem `install`): sobre a `main`
+  (`2df6e4b`), `npx vitest run src/sw/cache.restart.test.ts` dá 9 failed | 2 passed; aqui, 11
+  passed. O defeito é maior que o da issue: além da navegação offline ("offline and no cached app
+  shell") e dos assets indo para a rede, um `activate` numa execução sem `install` — worker em espera
+  ativado depois de um restart — apagava **todos** os `tempest-precache-*`, inclusive o da versão que
+  estava ativando, e um caminho pré-cacheado que uma rota de `installRuntimeCache` também atendia
+  disparava um segundo `respondWith` (`InvalidStateError`) já na execução que instalou.
+  Medido no Chrome 150 (Playwright, `ServiceWorker.stopAllWorkers` pelo CDP)
+  com um `sw.js` de `installPrecache()` empacotado por esbuild a partir de `src/sw/cache.ts`, servido
+  por `http.server` e com o servidor derrubado para simular offline: antes do stop a navegação
+  offline abre o shell nas duas versões; depois do stop, a da `main` falha com `net::ERR_FAILED` (e
+  deixa um cache de nome `""` criado pelo `caches.open("")`), a deste branch abre o shell com o
+  `app.js` pré-cacheado. Agora o `install` e o `activate` gravam, numa entrada
+  `/__tempest-precache-state__` dentro do cache versionado, quando aquela versão foi instalada e
+  ativada; o worker reiniciado lê de volta a versão ativa e os caminhos dela da Cache Storage, o
+  `activate` só apaga versões antigas quando sabe qual está ativando, e o precache ignora o evento
+  que uma rota de runtime já respondeu. Na primeira requisição depois do restart, enquanto os
+  caminhos ainda estão sendo lidos, um `GET` da mesma origem fora do precache vai para a rede por
+  `fetch(request)` dentro do worker. **Migração:** nenhuma; o primeiro `activate` com esta versão
+  apaga os precaches gravados pela 0.82.0, como já fazia na troca de versão. As rotas de
+  `installRuntimeCache` não têm o problema: chegam por argumento no topo do `sw.js` e são refeitas a
+  cada avaliação.
+  Tamanho (`npm run build && npx size-limit --json`, `src/sw/cache.ts` da `main` contra o deste
+  branch): barrel ESM inteiro 151 902 → 152 470 B (+568 B, budget 152 → 152,5 kB), barrel CJS
+  inteiro 181 410 → 181 894 B (+484 B, budget 181,5 → 181,9 kB); nenhuma fatia importada mudou.
+
 - **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de
   palavra-chave (#562).** O `checkSchema` lia o mapa `properties` como se fosse um schema e pulava as
   chaves `pattern` e `default` também ali. Medido sobre a `main` (`ca630df`), com uma propriedade de

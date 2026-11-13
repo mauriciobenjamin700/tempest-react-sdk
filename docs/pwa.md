@@ -48,6 +48,13 @@ installPrecache(); // app shell + navegação offline
 
 `installPrecache` liga a **Navigation Preload API** no `activate` por padrão (`navigationPreload: true`): o navegador começa a buscar a navegação em paralelo com o boot do worker e o handler serve `event.preloadResponse`, cortando a latência da primeira navegação depois que o worker sobe.
 
+!!! info "O worker pode ser parado a qualquer hora, e o precache continua valendo"
+    O navegador encerra o service worker ocioso em segundos ou minutos e o sobe de novo no próximo evento, **sem** repetir o `install`. Por isso o `installPrecache` não guarda nada só em memória: o `install` e o `activate` gravam, numa entrada dentro do próprio cache versionado (`/__tempest-precache-state__`), quando aquela versão foi instalada e ativada, e o worker reiniciado lê de volta da Cache Storage qual versão está ativa e quais caminhos ela tem. Navegação offline e assets pré-cacheados continuam saindo do cache depois do restart, e o `activate` só apaga as versões antigas quando sabe qual está ativando — nunca a atual.
+
+    Até a 0.82.0 o nome do cache e os caminhos viviam em variáveis do módulo preenchidas só no `install`: depois do primeiro restart, a navegação offline caía em "offline and no cached app shell" e um `activate` sem `install` na mesma execução apagava todos os precaches (#572).
+
+    Na primeira requisição depois de um restart, enquanto o worker ainda lê quais caminhos estão no precache, um `GET` da mesma origem que nenhuma rota de runtime respondeu vai para a rede por `fetch(request)` dentro do worker, em vez de passar direto — a decisão de chamar `respondWith` não pode esperar a Cache Storage. Daí em diante, o que não está no precache volta a passar direto.
+
 !!! note "De onde vem o manifest"
     `installPrecache` lê `precache-manifest.json`, emitido pelo plugin `tempestPwaManifest()` do subpath `tempest-react-sdk/vite`. Veja [Vite config](./vite-config.md).
 

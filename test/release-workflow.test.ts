@@ -1073,14 +1073,40 @@ describe(
         it("resumes a version the registry already serves: no second publish, tag and Release still made", () => {
             const fixture = mergedReleaseRepo();
             setState(fixture, {
-                versions: { "0.78.0": "sha512-old", "0.79.0": integrityOf(`tarball of x\n`) },
+                versions: {
+                    "0.78.0": "sha512-old",
+                    "0.79.0": integrityOf(`tarball of ${fixture.merge}\n`),
+                },
                 latest: ["0.79.0"],
             });
             gitIn(fixture.origin, "tag", "v0.79.0", fixture.merge);
             const run = runReleaseTag(fixture, "0.79.0", {});
+            expect(run.status, run.output).toBe(0);
             expect(callsOf(fixture, "npm", "publish")).toEqual([]);
             expect(run.output).toContain("retomando a publicação");
             expect(callsOf(fixture, "gh", "release").map((args) => args[1])).toContain("create");
+        });
+
+        /**
+         * Audit run-9, finding 1: a version the registry already served was taken as a
+         * resume without comparing its bytes, and the tag and the GitHub Release — the
+         * only attestation left without provenance — were made for whatever npm served.
+         * A served version that is not the smoked tarball must stop the run before any
+         * tag or Release.
+         */
+        it("refuses to resume a version npm serves with other bytes: no tag, no Release", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, {
+                versions: { "0.78.0": "sha512-old", "0.79.0": "sha512-someone-else" },
+                latest: ["0.79.0"],
+            });
+            const run = runReleaseTag(fixture, "0.79.0", {});
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("Nenhuma tag nem Release foi criada");
+            expect(run.output).not.toContain("npm pack tempest-react-sdk@0.79.0");
+            expect(callsOf(fixture, "npm", "publish")).toEqual([]);
+            expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+            expect(callsOf(fixture, "gh", "release")).toEqual([]);
         });
 
         it("creates the Release with --verify-tag and --latest when npm's latest is this version", () => {
@@ -1126,19 +1152,22 @@ describe(
             expect(upload).toContain("--clobber");
         });
 
-        it("attaches only the bytes npm serves, and says how to attach the registry's", () => {
+        /**
+         * Rewritten, not deleted (audit run-9, finding 1). It pinned that a published
+         * artifact other than the smoked tarball still got the tag and a Release without
+         * the attachment, with advice to attach the registry's own tarball — which made
+         * the Release attest bytes this flow never tested. Now the run fails closed after
+         * the read-back, before pushing the tag or touching the Release.
+         */
+        it("stops before the tag and the Release when npm serves other bytes after the publish", () => {
             const fixture = mergedReleaseRepo();
             setState(fixture, { integrityOverride: { "0.79.0": "sha512-different" } });
             const run = runReleaseTag(fixture, "0.79.0");
             expect(run.status).toBe(1);
-            expect(run.output).toContain("npm pack tempest-react-sdk@0.79.0");
-            const create =
-                callsOf(fixture, "gh", "release").find((args) => args[1] === "create") ?? [];
-            expect(create.some((arg) => arg.endsWith(".tgz"))).toBe(false);
-            expect(create).toContain("--verify-tag");
-            expect(callsOf(fixture, "gh", "release").map((args) => args[1])).not.toContain(
-                "upload",
-            );
+            expect(run.output).toContain("Nenhuma tag nem Release foi criada");
+            expect(run.output).not.toContain("npm pack tempest-react-sdk@0.79.0");
+            expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+            expect(callsOf(fixture, "gh", "release")).toEqual([]);
         });
     },
 );

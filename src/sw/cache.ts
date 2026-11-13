@@ -150,8 +150,32 @@ interface PrecacheManifest {
     urls: string[];
 }
 
-let precacheName = "";
-const precachedPaths = new Set<string>();
+/**
+ * Fetch events a runtime route already answered. The precache listener skips
+ * them: a second `respondWith` on the same event throws `InvalidStateError`,
+ * which a precached path also matched by a runtime route used to raise.
+ */
+const answeredByRuntime = new WeakSet<object>();
+
+/**
+ * Synthetic key, inside each versioned precache, of the entry that records when
+ * that version was installed and activated. It never collides with a built
+ * asset, and living inside the versioned cache means it is deleted with it and
+ * survives `clearSessionData()`, which keeps the precache.
+ */
+const PRECACHE_STATE_PATH = "/__tempest-precache-state__";
+
+/** What {@link PRECACHE_STATE_PATH} holds for one precache version. */
+interface PrecacheState {
+    installedAt: number;
+    activatedAt?: number;
+}
+
+/** The precache a worker serves: its cache name and the pathnames it holds. */
+interface ActivePrecache {
+    name: string;
+    paths: Set<string>;
+}
 
 /**
  * Header stamped on every runtime-cache entry with the epoch milliseconds of the
@@ -455,6 +479,7 @@ export function installRuntimeCache(routes: RuntimeRoute[]): void {
         const route = routes.find((candidate) => routeMatches(candidate, url, request));
         if (!route) return;
         if (!route.cacheAuthenticated && isCredentialed(request, route)) return;
+        answeredByRuntime.add(event);
         const extend = (promise: Promise<unknown>): void => event.waitUntil(promise);
 
         if (route.rangeRequests && request.headers.has("range")) {
@@ -482,6 +507,58 @@ function stripRange(headers: Headers): Headers {
     return out;
 }
 
+/** Read the {@link PrecacheState} a versioned precache recorded, if any. */
+async function readPrecacheState(cache: Cache): Promise<PrecacheState | undefined> {
+    const response = await cache.match(PRECACHE_STATE_PATH);
+    if (!response) return undefined;
+    try {
+        return (await response.json()) as PrecacheState;
+    } catch {
+        return undefined;
+    }
+}
+
+async function writePrecacheState(cache: Cache, state: PrecacheState): Promise<void> {
+    await cache.put(
+        PRECACHE_STATE_PATH,
+        new Response(JSON.stringify(state), { headers: { "content-type": "application/json" } }),
+    );
+}
+
+/**
+ * The name of the precache version whose `pick` timestamp is the latest, among
+ * the `${cacheName}-*` caches that recorded a {@link PrecacheState}.
+ */
+async function latestPrecache(
+    cacheName: string,
+    pick: (state: PrecacheState) => number | undefined,
+): Promise<string | undefined> {
+    let latest: { name: string; at: number } | undefined;
+    for (const name of await caches.keys()) {
+        if (!name.startsWith(`${cacheName}-`)) continue;
+        const state = await readPrecacheState(await caches.open(name));
+        const at = state ? pick(state) : undefined;
+        if (at !== undefined && (!latest || at > latest.at)) latest = { name, at };
+    }
+    return latest?.name;
+}
+
+/** The pathnames a precache holds, read back from the cache itself. */
+async function describePrecache(name: string): Promise<ActivePrecache> {
+    const keys = await (await caches.open(name)).keys();
+    const paths = new Set(
+        keys
+            .map((request) => new URL(request.url).pathname)
+            .filter((path) => path !== PRECACHE_STATE_PATH),
+    );
+    return { name, paths };
+}
+
+async function fromPrecache(name: string, request: Request): Promise<Response> {
+    const cached = await (await caches.open(name)).match(request);
+    return cached ?? fetch(request);
+}
+
 /**
  * Precache the app shell at `install` and serve it offline:
  *  - reads `precache-manifest.json` (emitted by `tempestPwaManifest()`),
@@ -490,7 +567,27 @@ function stripRange(headers: Headers): Headers {
  *  - on `fetch`, serves precached assets cache-first and falls back to the
  *    `navigateFallback` document for offline navigations (SPA routing).
  *
- * Same-origin only. Register this LAST, after any {@link installRuntimeCache}.
+ * Survives the browser stopping and restarting the worker, which it does
+ * whenever the worker sits idle and which never repeats `install`. Nothing the
+ * fetch handler needs lives only in memory: `install` and `activate` record, in
+ * an entry inside the versioned cache, when that version was installed and
+ * activated, and a restarted worker reads back the activated version and its
+ * pathnames from Cache Storage. Before 0.83.0 the cache name and the precached
+ * paths were module variables filled only by `install`, so after the first
+ * restart offline navigations failed with "offline and no cached app shell",
+ * precached assets went to the network, and an `activate` in a run without
+ * `install` deleted every precache, the current one included (#572).
+ *
+ * `activate` deletes the other `${cacheName}-*` caches only once it knows which
+ * version it is activating; when no version recorded an install it deletes
+ * nothing. In the first request after a restart, while the worker is still
+ * reading which paths are precached, a same-origin `GET` that a runtime route
+ * did not answer is answered with `fetch(request)` when it is not precached —
+ * the decision to call `respondWith` cannot wait for Cache Storage. From then on
+ * a non-precached request is left to the browser, as before.
+ *
+ * Same-origin only. Register this LAST, after any {@link installRuntimeCache}:
+ * a request a runtime route answered is never answered again here.
  */
 export function installPrecache(options: InstallPrecacheOptions = {}): void {
     const sw = getSwScope();
@@ -503,18 +600,39 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
         navigationPreload = true,
     } = options;
 
+    let installedName: string | undefined;
+    let active: ActivePrecache | undefined;
+    let known = false;
+    let loading: Promise<ActivePrecache | undefined> | undefined;
+
+    const loadActive = (): Promise<ActivePrecache | undefined> => {
+        if (known) return Promise.resolve(active);
+        loading ??= (async () => {
+            const name = await latestPrecache(cacheName, (state) => state.activatedAt);
+            const found = name ? await describePrecache(name) : undefined;
+            if (!known) {
+                active = found;
+                known = true;
+            }
+            return active;
+        })().finally(() => {
+            loading = undefined;
+        });
+        return loading;
+    };
+
     sw.addEventListener("install", (event) => {
         event.waitUntil(
             (async () => {
                 const response = await fetch(manifestUrl, { cache: "no-cache" });
                 const manifest = (await response.json()) as PrecacheManifest;
-                precacheName = `${cacheName}-${manifest.version}`;
+                const name = `${cacheName}-${manifest.version}`;
 
-                const cache = await caches.open(precacheName);
+                const cache = await caches.open(name);
                 await cache.addAll(manifest.urls);
-                for (const url of manifest.urls) {
-                    precachedPaths.add(new URL(url, sw.location.origin).pathname);
-                }
+                const previous = await readPrecacheState(cache);
+                await writePrecacheState(cache, { ...previous, installedAt: Date.now() });
+                installedName = name;
                 if (skipWaiting) await sw.skipWaiting();
             })(),
         );
@@ -523,12 +641,30 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
     sw.addEventListener("activate", (event) => {
         event.waitUntil(
             (async () => {
-                const keys = await caches.keys();
-                await Promise.all(
-                    keys
-                        .filter((key) => key.startsWith(`${cacheName}-`) && key !== precacheName)
-                        .map((key) => caches.delete(key)),
-                );
+                const name =
+                    installedName ??
+                    (await latestPrecache(cacheName, (state) =>
+                        state.installedAt > (state.activatedAt ?? -Infinity)
+                            ? state.installedAt
+                            : undefined,
+                    ));
+                if (name) {
+                    const cache = await caches.open(name);
+                    const previous = await readPrecacheState(cache);
+                    await writePrecacheState(cache, {
+                        installedAt: Date.now(),
+                        ...previous,
+                        activatedAt: Date.now(),
+                    });
+                    active = await describePrecache(name);
+                    known = true;
+                    const keys = await caches.keys();
+                    await Promise.all(
+                        keys
+                            .filter((key) => key.startsWith(`${cacheName}-`) && key !== name)
+                            .map((key) => caches.delete(key)),
+                    );
+                }
                 if (navigationPreload && sw.registration?.navigationPreload) {
                     await sw.registration.navigationPreload.enable();
                 }
@@ -540,11 +676,11 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
     sw.addEventListener("fetch", (event) => {
         const request = event.request;
         if (request.method !== "GET") return;
+        if (answeredByRuntime.has(event)) return;
 
         const url = new URL(request.url);
         if (url.origin !== sw.location.origin) return;
 
-        // SPA navigations: serve the cached app shell when offline.
         if (request.mode === "navigate") {
             if (navigateFallbackDenylist.some((re) => re.test(url.pathname))) return;
             event.respondWith(
@@ -554,8 +690,10 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
                         if (preloaded) return preloaded;
                         return await fetch(request);
                     } catch {
-                        const cache = await caches.open(precacheName);
-                        const shell = await cache.match(navigateFallback);
+                        const precache = await loadActive();
+                        const shell = precache
+                            ? await (await caches.open(precache.name)).match(navigateFallback)
+                            : undefined;
                         if (shell) return shell;
                         throw new Error("offline and no cached app shell");
                     }
@@ -564,15 +702,21 @@ export function installPrecache(options: InstallPrecacheOptions = {}): void {
             return;
         }
 
-        // Precached static assets: cache-first.
-        if (precachedPaths.has(url.pathname)) {
-            event.respondWith(
-                (async () => {
-                    const cache = await caches.open(precacheName);
-                    const cached = await cache.match(request);
-                    return cached ?? fetch(request);
-                })(),
-            );
+        if (known) {
+            if (active?.paths.has(url.pathname)) {
+                event.respondWith(fromPrecache(active.name, request));
+            }
+            return;
         }
+
+        event.respondWith(
+            loadActive()
+                .catch(() => undefined)
+                .then((precache) =>
+                    precache?.paths.has(url.pathname)
+                        ? fromPrecache(precache.name, request)
+                        : fetch(request),
+                ),
+        );
     });
 }

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { execFileSync, spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
     chmodSync,
     copyFileSync,
+    existsSync,
     mkdirSync,
     mkdtempSync,
     readFileSync,
@@ -12,347 +14,49 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 /**
- * Supply-chain guards for `.github/workflows/release-npm.yml`.
+ * Guards for the release pipeline, which runs on the maintainer's machine since
+ * 2026-11-13 (`make release` → merge → `make release-tag`).
  *
- * The publish job holds `id-token: write`, which is all npm Trusted Publishing needs
- * to publish `tempest-react-sdk`. Any code that runs inside that job can publish, so
- * the job may only run code that is pinned and reviewed: an exact npm CLI and the
- * tarball an unprivileged job already built and smoked. Everything resolved from the
- * registry at release time (smoke installs, `npm ci`, the test suite, the build)
- * runs in jobs without `id-token` or `contents: write` (#451).
+ * The owner's rule that day: GitHub Actions only in repositories of the `7rc` org.
+ * `release-npm.yml` left the repository and `scripts/release-tag.sh` now does what it
+ * did after a tag push, in the same order: the ref guard (from `origin/main`), the
+ * build and the smokes of the tagged tree, `npm publish` of the smoked tarball under a
+ * monotonic dist-tag, the registry read-back, the tag push and the GitHub Release.
  *
- * The workflow is read as text and split by job, because the repo carries no YAML
- * parser of its own; Prettier keeps the indentation this split relies on stable.
- * Full-line comments are dropped first, so prose explaining a rule never trips it.
+ * Every guard that still has a subject was rewritten against the local scripts, run in
+ * fixture repositories with a bare `origin`, a fake `npm` and a fake `gh` first on the
+ * `PATH`, and a stub `scripts/release-pack.sh` committed into the fixture, so no test
+ * reaches the network or the real registry. The guards of #451, #495 and #532 that
+ * pinned the runner itself — the job split by permission, the npm CLI checked against
+ * a pinned integrity next to `id-token: write`, the artifact named per attempt, the
+ * `concurrency` group, the `::error::` annotations on stdout — had no subject left
+ * once no runner exists, and went with the workflow (last version in `2df6e4b`).
  */
-const WORKFLOW = readFileSync(
-    resolve(import.meta.dirname, "..", ".github", "workflows", "release-npm.yml"),
-    "utf8",
-)
-    .split("\n")
-    .filter((line) => !line.trimStart().startsWith("#"))
-    .join("\n");
-
-/**
- * Split the workflow's `jobs:` mapping into one text block per job.
- *
- * @param text - The workflow source.
- * @returns The body of each job, keyed by job id.
- */
-function jobBlocks(text: string): Map<string, string> {
-    const lines = text.split("\n");
-    const start = lines.indexOf("jobs:");
-    const jobs = new Map<string, string>();
-    let current: string | null = null;
-    let body: string[] = [];
-    for (const line of lines.slice(start + 1)) {
-        const header = /^ {4}([A-Za-z0-9_-]+):\s*$/.exec(line);
-        if (header) {
-            if (current) jobs.set(current, body.join("\n"));
-            current = header[1] ?? null;
-            body = [];
-        } else if (current) {
-            body.push(line);
-        }
-    }
-    if (current) jobs.set(current, body.join("\n"));
-    return jobs;
-}
-
-const JOBS = jobBlocks(WORKFLOW);
-
-/**
- * Find the single job whose body matches a pattern.
- *
- * @param pattern - What the job must contain.
- * @returns The job id and body.
- */
-function onlyJob(pattern: RegExp): [string, string] {
-    const hits = [...JOBS].filter(([, body]) => pattern.test(body));
-    expect(hits.map(([id]) => id)).toHaveLength(1);
-    return hits[0] as [string, string];
-}
-
-describe("release-npm.yml supply chain (#451)", () => {
-    it("splits into more than one job", () => {
-        expect(JOBS.size).toBeGreaterThan(1);
-    });
-
-    it("starts every job from no permissions", () => {
-        expect(WORKFLOW).toMatch(/^permissions: \{\}$/m);
-    });
-
-    /**
-     * Rewritten, not deleted: this used to accept `npm install -g npm@X.Y.Z`, an
-     * exact version fetched from the registry with no integrity of our own next to
-     * `id-token: write` (#532). The CLI now comes from a tarball whose sha512 is
-     * pinned in the workflow and checked before an offline install.
-     */
-    it("never installs an npm CLI it has not checked against a pinned integrity", () => {
-        expect(WORKFLOW).not.toMatch(/npm@latest/);
-        expect(WORKFLOW).not.toMatch(/npm install -g npm@/);
-        const installs = [...WORKFLOW.matchAll(/npm install -g (.+)/g)].map((m) => m[1]);
-        expect(installs).toEqual(['--offline "$RUNNER_TEMP/npm-cli/npm.tgz"']);
-        expect(WORKFLOW).toMatch(/^ {18}NPM_CLI_VERSION: "\d+\.\d+\.\d+"$/m);
-        expect(WORKFLOW).toMatch(/^ {18}NPM_CLI_INTEGRITY: "sha512-[A-Za-z0-9+/]{86}=="$/m);
-        const step = WORKFLOW.slice(WORKFLOW.indexOf("NPM_CLI_INTEGRITY:"));
-        expect(step.indexOf('!= "$NPM_CLI_INTEGRITY"')).toBeGreaterThan(-1);
-        expect(step.indexOf('!= "$NPM_CLI_INTEGRITY"')).toBeLessThan(
-            step.indexOf("npm install -g"),
-        );
-        expect(step).toMatch(/test "\$\(npm --version\)" = "\$NPM_CLI_VERSION"/);
-    });
-
-    it("pins every action by commit SHA", () => {
-        const uses = [...WORKFLOW.matchAll(/uses: (\S+)/g)].map((m) => m[1]);
-        expect(uses.length).toBeGreaterThan(0);
-        for (const ref of uses) expect(ref).toMatch(/^[\w.-]+\/[\w.-]+@[0-9a-f]{40}$/);
-    });
-
-    it("never leaves the token in .git/config after a checkout", () => {
-        const checkouts = WORKFLOW.split("uses: actions/checkout@").slice(1);
-        expect(checkouts.length).toBeGreaterThan(0);
-        for (const step of checkouts) {
-            expect(step.split(/\n {12}- /)[0]).toMatch(/persist-credentials: false/);
-        }
-    });
-
-    it("grants id-token to the publishing job only", () => {
-        const [id, body] = onlyJob(/id-token: write/);
-        expect(body).toMatch(/npm publish/);
-        for (const [other, otherBody] of JOBS) {
-            if (other !== id) expect(otherBody).not.toMatch(/npm publish/);
-        }
-    });
-
-    /**
-     * Rewritten, not deleted: this used to forbid any checkout in the publishing job,
-     * which is what made the dist-tag script travel in the artifact from a workspace
-     * that had already run `npm ci`, the tests and the build (#495). The job now checks
-     * out the commit itself, sparse, for that one file and with no install after it.
-     */
-    it("runs nothing resolved at release time inside the publishing job", () => {
-        const [, body] = onlyJob(/id-token: write/);
-        const checkouts = body.split("uses: actions/checkout@").slice(1);
-        expect(checkouts).toHaveLength(1);
-        expect(checkouts[0]?.split(/\n {12}- /)[0]).toMatch(
-            /\n {18}sparse-checkout: scripts\/release-dist-tag\.sh\n {18}sparse-checkout-cone-mode: false/,
-        );
-        expect(body).not.toMatch(/npm ci|npm run |npx |npm pack|smoke-/);
-        expect(body).not.toMatch(/contents: write/);
-        const installs = [...body.matchAll(/npm install (.+)/g)].map((m) => m[1]);
-        expect(installs).toEqual(['-g --offline "$RUNNER_TEMP/npm-cli/npm.tgz"']);
-    });
-
-    it("publishes the tarball that was smoked, not a fresh pack", () => {
-        const [, body] = onlyJob(/id-token: write/);
-        expect(body).toMatch(/npm publish "\$\{TARBALL\}"/);
-        expect(body).toMatch(/sha256sum (--check|-c)/);
-    });
-
-    it("keeps the floating smoke installs out of every privileged job", () => {
-        const [, smoke] = onlyJob(/smoke-vitest\.sh/);
-        expect(smoke).not.toMatch(/id-token|contents: write/);
-        expect(smoke).toMatch(/react@\^19/);
-    });
-
-    it("grants contents: write to a job that runs no install", () => {
-        const [, body] = onlyJob(/contents: write/);
-        expect(body).not.toMatch(/id-token/);
-        expect(body).not.toMatch(/npm (ci|install)|npx |npm run /);
-    });
-});
-
-describe("release-npm.yml publishes one commit, from a tag (#452)", () => {
-    it("guards the ref before installing anything", () => {
-        const [, build] = onlyJob(/scripts\/check-release-ref\.sh/);
-        expect(build.indexOf("scripts/check-release-ref.sh")).toBeLessThan(build.indexOf("npm ci"));
-        expect(WORKFLOW).not.toMatch(/tag=v\$\{PKG_VERSION\}/);
-    });
-
-    it("puts the publishing job behind an environment", () => {
-        const [, body] = onlyJob(/id-token: write/);
-        expect(body).toMatch(/^ {8}environment: npm-release$/m);
-    });
-
-    it("never lets gh create the tag somewhere else", () => {
-        const creates = [...WORKFLOW.matchAll(/gh release create .+/g)].map((m) => m[0]);
-        expect(creates.length).toBeGreaterThan(0);
-        for (const line of creates) expect(line).toMatch(/--verify-tag/);
-    });
-
-    it("attaches only the bytes npm serves, on the commit that was published", () => {
-        const [, body] = onlyJob(/gh release/);
-        expect(body).toMatch(/dist\.integrity/);
-        expect(body).toMatch(/commits\/\$\{TAG\}/);
-        expect(body.indexOf("dist.integrity")).toBeLessThan(body.indexOf("gh release upload"));
-    });
-});
-
 const SCRIPTS = resolve(import.meta.dirname, "..", "scripts");
 const GUARD = join(SCRIPTS, "check-release-ref.sh");
+const RELEASE_TAG = join(SCRIPTS, "release-tag.sh");
+const DIST_TAG_SCRIPT = join(SCRIPTS, "release-dist-tag.sh");
+const RELEASE_SH = readFileSync(join(SCRIPTS, "release.sh"), "utf8");
 
 /**
- * A throwaway git repo with one commit and a `package.json` at a given version.
- *
- * Both commits are on `refs/remotes/origin/main`, the way the build job's
- * `fetch-depth: 0` checkout has them, so the guard's main-ancestry check (#472)
- * passes; `offMainRepo` builds the case where it must not.
- *
- * @param version - The `version` written to `package.json`.
- * @returns The repo path and the commit SHA.
+ * Per-test budget for a full `release-tag.sh` run in a fixture: a clone, a worktree
+ * and a few dozen fake `npm`/`gh` processes take 1–2 s alone and over 5 s when the
+ * suite runs every file in parallel.
  */
-function fixtureRepo(version: string): { dir: string; sha: string } {
-    const dir = mkdtempSync(join(tmpdir(), "tempest-release-ref-"));
-    const git = (...args: string[]): string =>
-        execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...args], {
-            cwd: dir,
-            encoding: "utf8",
-        }).trim();
-    git("init", "-q");
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ version }));
-    git("add", ".");
-    git("commit", "-q", "-m", "one");
-    const sha = git("rev-parse", "HEAD");
-    writeFileSync(join(dir, "other.txt"), "x");
-    git("add", ".");
-    git("commit", "-q", "-m", "two");
-    git("tag", "v-later", "HEAD");
-    git("tag", `v${version}`, sha);
-    git("update-ref", "refs/remotes/origin/main", "HEAD");
-    return { dir, sha };
-}
+const FLOW_TIMEOUT = 60_000;
 
 /**
- * Run the guard the way the build job does, with the GitHub ref variables set.
+ * Drop full-line comments, so prose explaining a rule never satisfies it.
  *
- * `CURRENT_LATEST` defaults to empty (a package with no `latest` yet), the way
- * the workflow passes it; pass `undefined` to leave it unset.
- *
- * @param dir - The checkout to run in.
- * @param env - `GITHUB_REF_TYPE`, `GITHUB_REF_NAME`, `GITHUB_SHA` and `CURRENT_LATEST`.
- * @returns Exit status, combined output, and what was written to `GITHUB_OUTPUT`.
+ * @param text - Script source.
+ * @returns The source without comment lines.
  */
-function runGuard(
-    dir: string,
-    env: Record<string, string | undefined>,
-): { status: number | null; output: string; written: string } {
-    const outputFile = join(dir, "github-output");
-    writeFileSync(outputFile, "");
-    const merged: Record<string, string | undefined> = {
-        ...process.env,
-        CURRENT_LATEST: "",
-        BACKPORT_LINES: "",
-        ...env,
-        GITHUB_OUTPUT: outputFile,
-    };
-    const childEnv: Record<string, string> = {};
-    for (const [key, value] of Object.entries(merged)) {
-        if (value !== undefined) childEnv[key] = value;
-    }
-    const result = spawnSync("bash", [GUARD], {
-        cwd: dir,
-        encoding: "utf8",
-        env: childEnv,
-    });
-    return {
-        status: result.status,
-        output: `${result.stdout}${result.stderr}`,
-        written: readFileSync(outputFile, "utf8"),
-    };
+function code(text: string): string {
+    return text
+        .split("\n")
+        .filter((line) => !line.trimStart().startsWith("#"))
+        .join("\n");
 }
-
-describe("scripts/check-release-ref.sh (#452)", () => {
-    it("refuses a dispatch from a branch, and says how to dispatch a tag", () => {
-        const { dir, sha } = fixtureRepo("1.2.3");
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "branch",
-            GITHUB_REF_NAME: "main",
-            GITHUB_SHA: sha,
-        });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("--ref v1.2.3");
-        expect(run.written).toBe("");
-    });
-
-    it("refuses a tag that does not describe package.json", () => {
-        const { dir, sha } = fixtureRepo("1.2.3");
-        execFileSync("git", ["tag", "v1.2.4", sha], { cwd: dir });
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v1.2.4",
-            GITHUB_SHA: sha,
-        });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("does not match package.json version 1.2.3");
-    });
-
-    it("refuses a tag that is not vX.Y.Z", () => {
-        const { dir, sha } = fixtureRepo("1.2.3");
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v-later",
-            GITHUB_SHA: sha,
-        });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("is not vX.Y.Z");
-    });
-
-    it("refuses a tag that points at another commit than the run's", () => {
-        const { dir } = fixtureRepo("1.2.3");
-        const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: dir, encoding: "utf8" });
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v1.2.3",
-            GITHUB_SHA: head.trim(),
-        });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("but this run checked out");
-    });
-
-    it("accepts the tag of the checked-out commit and writes the outputs", () => {
-        const { dir, sha } = fixtureRepo("1.2.3");
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v1.2.3",
-            GITHUB_SHA: sha,
-        });
-        expect(run.status).toBe(0);
-        expect(run.written).toBe("tag=v1.2.3\nversion=1.2.3\nprerelease=false\ndist_tag=latest\n");
-    });
-
-    it("marks a prerelease and peels an annotated tag to its commit", () => {
-        const { dir, sha } = fixtureRepo("2.0.0-rc.1");
-        execFileSync(
-            "git",
-            [
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@t",
-                "tag",
-                "-f",
-                "-a",
-                "-m",
-                "rc",
-                "v2.0.0-rc.1",
-                sha,
-            ],
-            {
-                cwd: dir,
-            },
-        );
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v2.0.0-rc.1",
-            GITHUB_SHA: sha,
-        });
-        expect(run.status).toBe(0);
-        expect(run.written).toBe(
-            "tag=v2.0.0-rc.1\nversion=2.0.0-rc.1\nprerelease=true\ndist_tag=next\n",
-        );
-    });
-});
 
 /**
  * Run a git command in a fixture repo with a fixed identity.
@@ -369,6 +73,121 @@ function gitIn(dir: string, ...args: string[]): string {
 }
 
 /**
+ * A throwaway git repo with two commits on `origin/main`; the first one, at a given
+ * `package.json` version, carries the tag `v<version>`.
+ *
+ * @param version - The `version` written to `package.json`.
+ * @returns The repo path and the tagged commit.
+ */
+function fixtureRepo(version: string): { dir: string; sha: string } {
+    const dir = mkdtempSync(join(tmpdir(), "tempest-release-ref-"));
+    gitIn(dir, "init", "-q");
+    writeFileSync(join(dir, "package.json"), JSON.stringify({ version }));
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "one");
+    const sha = gitIn(dir, "rev-parse", "HEAD");
+    writeFileSync(join(dir, "other.txt"), "x");
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "two");
+    gitIn(dir, "tag", `v${version}`, sha);
+    gitIn(dir, "update-ref", "refs/remotes/origin/main", "HEAD");
+    return { dir, sha };
+}
+
+/** What one guard run printed, and the `key=value` lines it handed back. */
+interface GuardRun {
+    status: number | null;
+    output: string;
+    written: string;
+}
+
+/**
+ * Run the guard the way `release-tag.sh` does.
+ *
+ * `CURRENT_LATEST` defaults to empty (a package with no `latest` yet); pass
+ * `undefined` to leave it unset.
+ *
+ * @param dir - The repo to run in.
+ * @param env - `RELEASE_TAG`, `RELEASE_SHA`, `CURRENT_LATEST` and `BACKPORT_LINES`.
+ * @returns Exit status, the messages on stderr, and the `key=value` lines on stdout.
+ */
+function runGuard(dir: string, env: Record<string, string | undefined>): GuardRun {
+    const merged: Record<string, string | undefined> = {
+        ...process.env,
+        CURRENT_LATEST: "",
+        BACKPORT_LINES: "",
+        ...env,
+    };
+    const childEnv: Record<string, string> = {};
+    for (const [key, value] of Object.entries(merged)) {
+        if (value !== undefined) childEnv[key] = value;
+    }
+    const result = spawnSync("bash", [GUARD], { cwd: dir, encoding: "utf8", env: childEnv });
+    return {
+        status: result.status,
+        output: `${result.stdout}${result.stderr}`,
+        written: result.stdout,
+    };
+}
+
+describe("scripts/check-release-ref.sh (#452)", () => {
+    it("refuses to run without the tag and the commit it checks", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, { RELEASE_SHA: sha });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("RELEASE_TAG and RELEASE_SHA are required");
+        expect(run.written).toBe("");
+    });
+
+    it("refuses a tag that does not describe package.json", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, { RELEASE_TAG: "v1.2.4", RELEASE_SHA: sha });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("does not match package.json version 1.2.3");
+    });
+
+    it("reads package.json from the commit, not from the working tree", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "9.9.9" }));
+        const run = runGuard(dir, { RELEASE_TAG: "v1.2.3", RELEASE_SHA: sha });
+        expect(run.status).toBe(0);
+        expect(run.written).toContain("version=1.2.3\n");
+    });
+
+    it("refuses a tag that is not vX.Y.Z", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, { RELEASE_TAG: "v-later", RELEASE_SHA: sha });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("is not vX.Y.Z");
+    });
+
+    it("refuses a tag that already points at another commit than the release", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        gitIn(dir, "tag", "-f", "v1.2.3", "HEAD");
+        const run = runGuard(dir, { RELEASE_TAG: "v1.2.3", RELEASE_SHA: sha });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("but the release is");
+    });
+
+    it("accepts the tag of the commit and writes the outputs", () => {
+        const { dir, sha } = fixtureRepo("1.2.3");
+        const run = runGuard(dir, { RELEASE_TAG: "v1.2.3", RELEASE_SHA: sha });
+        expect(run.status).toBe(0);
+        expect(run.written).toBe("tag=v1.2.3\nversion=1.2.3\nprerelease=false\ndist_tag=latest\n");
+    });
+
+    it("marks a prerelease and peels an annotated tag to its commit", () => {
+        const { dir, sha } = fixtureRepo("2.0.0-rc.1");
+        gitIn(dir, "tag", "-f", "-a", "-m", "rc", "v2.0.0-rc.1", sha);
+        const run = runGuard(dir, { RELEASE_TAG: "v2.0.0-rc.1", RELEASE_SHA: sha });
+        expect(run.status).toBe(0);
+        expect(run.written).toBe(
+            "tag=v2.0.0-rc.1\nversion=2.0.0-rc.1\nprerelease=true\ndist_tag=next\n",
+        );
+    });
+});
+
+/**
  * A fixture repo where `main` is at `0.78.0` and the tag `v<version>` sits on a
  * commit of another branch, not reachable from `origin/main` — the commit
  * `scripts/release.sh` used to tag before its PR was merged (#472).
@@ -376,8 +195,7 @@ function gitIn(dir: string, ...args: string[]): string {
  * @param version - The version of the off-main commit, tagged `v<version>`.
  * @param branch - The branch that holds the off-main commit; it is also published
  *   as `refs/remotes/origin/<branch>`.
- * @returns The repo path, the off-main commit (checked out, detached, the way the
- *   workflow checks out a tag) and the `main` commit.
+ * @returns The repo path, the off-main commit and the `main` commit.
  */
 function offMainRepo(
     version: string,
@@ -404,18 +222,17 @@ function offMainRepo(
 /**
  * Up to 0.78.0 the guard accepted a tag on any commit whose `package.json`
  * matched, and `scripts/release.sh` pushed the tag from the release branch before
- * the PR was merged, so publishing unreviewed code was the normal flow. Measured
- * against the old guard: a `v0.79.0` tag on a commit `git merge-base
- * --is-ancestor` says is not on main exited 0 with `dist_tag=latest`. The tag is
- * now cut after the merge (`make release-tag`) and the guard refuses the rest.
+ * the PR was merged. Measured against the old guard: a `v0.79.0` tag on a commit
+ * `git merge-base --is-ancestor` says is not on main exited 0 with
+ * `dist_tag=latest`. The tag is now cut after the merge (`make release-tag`) and the
+ * guard refuses the rest.
  */
 describe("scripts/check-release-ref.sh publishes only what is on main (#472)", () => {
     it("refuses a tag on a commit that is not on main", () => {
         const { dir, off } = offMainRepo("0.79.0");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.0",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.79.0",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.78.0",
         });
         expect(run.status).toBe(1);
@@ -432,9 +249,8 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
         gitIn(dir, "update-ref", "refs/remotes/origin/main", merge);
         gitIn(dir, "tag", "-f", "v0.79.0", merge);
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.0",
-            GITHUB_SHA: merge,
+            RELEASE_TAG: "v0.79.0",
+            RELEASE_SHA: merge,
             CURRENT_LATEST: "0.78.0",
         });
         expect(run.status).toBe(0);
@@ -447,9 +263,8 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
     it("refuses an off-main prerelease, which would go to next", () => {
         const { dir, off } = offMainRepo("0.79.0-rc.1");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.0-rc.1",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.79.0-rc.1",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.78.0",
         });
         expect(run.status).toBe(1);
@@ -457,31 +272,25 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
         expect(run.written).toBe("");
     });
 
-    it("fails closed when the checkout has no origin/main", () => {
+    /**
+     * Rewritten, not deleted: the workflow's checkout needed `fetch-depth: 0` to bring
+     * `origin/main`. Locally `release-tag.sh` fetches it, and the guard still fails
+     * closed when it is missing instead of skipping the ancestry check.
+     */
+    it("fails closed when the repository has no origin/main", () => {
         const { dir, sha } = fixtureRepo("1.2.3");
         gitIn(dir, "update-ref", "-d", "refs/remotes/origin/main");
-        const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v1.2.3",
-            GITHUB_SHA: sha,
-        });
+        const run = runGuard(dir, { RELEASE_TAG: "v1.2.3", RELEASE_SHA: sha });
         expect(run.status).toBe(1);
-        expect(run.output).toContain("fetch-depth: 0");
+        expect(run.output).toContain("git fetch origin main");
         expect(run.written).toBe("");
     });
 
-    /**
-     * Rewritten, not deleted: a backport used to pass on ancestry to
-     * `origin/release-<maj>.<min>` alone, so creating that branch opened the line
-     * (#527). It now also needs the line in `BACKPORT_LINES`, the repository
-     * variable only the owner edits.
-     */
     it("accepts a backport from its own maintenance branch, under its release line", () => {
         const { dir, off } = offMainRepo("0.75.1", "release-0.75");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.75.1",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.75.1",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.78.0",
             BACKPORT_LINES: "release-0.75",
         });
@@ -493,10 +302,10 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
     it("never lets a maintenance branch publish to latest", () => {
         const { dir, off } = offMainRepo("0.79.0", "release-0.79");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.0",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.79.0",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.78.0",
+            BACKPORT_LINES: "release-0.79",
         });
         expect(run.status).toBe(1);
         expect(run.output).toContain("which is not on main");
@@ -506,188 +315,41 @@ describe("scripts/check-release-ref.sh publishes only what is on main (#472)", (
     it("refuses a backport from another line's maintenance branch, even with both lines opened", () => {
         const { dir, off } = offMainRepo("0.75.1", "release-0.76");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.75.1",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.75.1",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.78.0",
             BACKPORT_LINES: "release-0.75 release-0.76",
         });
         expect(run.status).toBe(1);
         expect(run.output).toContain("may instead come from origin/release-0.75");
     });
-
-    it("keeps the full-history checkout the guard reads origin/main from", () => {
-        const [, build] = onlyJob(/scripts\/check-release-ref\.sh/);
-        const checkout = build.split("uses: actions/checkout@")[1]?.split(/\n {12}- /)[0] ?? "";
-        expect(checkout).toMatch(/fetch-depth: 0/);
-        expect(checkout).toMatch(/persist-credentials: false/);
-    });
 });
-
-/**
- * The body of one step's `run:`, dedented, as the runner hands it to bash.
- *
- * @param body - A job body from `JOBS`.
- * @param name - The step's `name:`.
- * @returns The shell script of that step.
- */
-function stepRun(body: string, name: string): string {
-    const lines = body.split("\n");
-    const start = lines.findIndex((line) => line.trim() === `- name: ${name}`);
-    expect(start, `step "${name}"`).toBeGreaterThan(-1);
-    const runAt = lines.findIndex((line, i) => i > start && /^ {14}run:/.test(line));
-    const head = lines[runAt]?.replace(/^ {14}run: ?/, "") ?? "";
-    if (head !== "|") return head;
-    const script: string[] = [];
-    for (const line of lines.slice(runAt + 1)) {
-        if (line.trim() !== "" && !line.startsWith(" ".repeat(18))) break;
-        script.push(line.slice(18));
-    }
-    return script.join("\n");
-}
-
-/**
- * A fixture whose `main` carries this repo's real guard scripts at `0.78.0`, and
- * a tagged commit off `main` at `version` whose own `check-release-ref.sh`
- * approves anything — case C of the #527 audit.
- *
- * @param version - The version of the tagged, off-main commit.
- * @returns The repo path (detached at the tagged commit) and that commit.
- */
-function selfApprovingTagRepo(version: string): { dir: string; off: string } {
-    const dir = mkdtempSync(join(tmpdir(), "tempest-release-trust-"));
-    gitIn(dir, "init", "-q", "-b", "main");
-    mkdirSync(join(dir, "scripts"));
-    for (const file of ["check-release-ref.sh", "release-dist-tag.sh"]) {
-        copyFileSync(join(SCRIPTS, file), join(dir, "scripts", file));
-    }
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.78.0" }));
-    gitIn(dir, "add", ".");
-    gitIn(dir, "commit", "-q", "-m", "main");
-    gitIn(dir, "update-ref", "refs/remotes/origin/main", "HEAD");
-    gitIn(dir, "checkout", "-q", "-b", "evil");
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ version }));
-    writeFileSync(
-        join(dir, "scripts", "check-release-ref.sh"),
-        '#!/usr/bin/env bash\necho "dist_tag=latest" >> "$GITHUB_OUTPUT"\n',
-    );
-    gitIn(dir, "commit", "-q", "-am", "approve myself");
-    const off = gitIn(dir, "rev-parse", "HEAD");
-    gitIn(dir, "tag", `v${version}`, off);
-    gitIn(dir, "checkout", "-q", "--detach", off);
-    return { dir, off };
-}
-
-/**
- * Run the build job's guard the way the workflow does: the step that copies the
- * guard out of `origin/main`, then the guard step itself.
- *
- * @param dir - The checkout.
- * @param env - The GitHub variables, `CURRENT_LATEST` and `BACKPORT_LINES`.
- * @returns Exit status, combined output and what was written to `GITHUB_OUTPUT`.
- */
-function runWorkflowGuard(
-    dir: string,
-    env: Record<string, string>,
-): { status: number | null; output: string; written: string } {
-    const [, build] = onlyJob(/check-release-ref\.sh/);
-    const script = [
-        stepRun(build, "Take the release guard from origin/main"),
-        stepRun(build, "Check the ref is a release tag for this commit"),
-    ].join("\n");
-    const outputFile = join(dir, "github-output");
-    writeFileSync(outputFile, "");
-    const result = spawnSync("bash", ["-e", "-c", script], {
-        cwd: dir,
-        encoding: "utf8",
-        env: {
-            ...process.env,
-            RUNNER_TEMP: mkdtempSync(join(tmpdir(), "tempest-runner-temp-")),
-            GITHUB_OUTPUT: outputFile,
-            CURRENT_LATEST: "",
-            BACKPORT_LINES: "",
-            ...env,
-        },
-    });
-    return {
-        status: result.status,
-        output: `${result.stdout}${result.stderr}`,
-        written: readFileSync(outputFile, "utf8"),
-    };
-}
 
 /**
  * Measured on `b054c16` in a fixture (#527): a brand-new `release-0.79` branch
  * holding an unreviewed `v0.79.50` passed the guard with exit 0 and
- * `dist_tag=release-0.79`, and a tagged commit that rewrote its own guard passed
- * with `dist_tag=latest`, because the workflow ran the tagged commit's copy.
+ * `dist_tag=release-0.79`. Opening a line now takes `BACKPORT_LINES` on the command
+ * line of whoever publishes; the branch alone opens nothing.
  */
-describe("the release guard trusts neither the tagged commit nor a new branch (#527)", () => {
-    it("runs the guard copied from origin/main, never the tagged commit's own", () => {
-        const [, build] = onlyJob(/check-release-ref\.sh/);
-        expect(build).toMatch(
-            /git show refs\/remotes\/origin\/main:scripts\/check-release-ref\.sh > "\$RUNNER_TEMP\/release-guard\/check-release-ref\.sh"/,
-        );
-        expect(build).toMatch(
-            /git show refs\/remotes\/origin\/main:scripts\/release-dist-tag\.sh > "\$RUNNER_TEMP\/release-guard\/release-dist-tag\.sh"/,
-        );
-        expect(build).not.toMatch(/run: (bash )?\.?\/?scripts\/check-release-ref\.sh/);
-        expect(build).not.toMatch(/\$\(scripts\/release-dist-tag\.sh/);
-    });
-
-    it("refuses a tagged commit that rewrites its own guard to approve itself", () => {
-        const { dir, off } = selfApprovingTagRepo("0.82.0");
-        const run = runWorkflowGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.82.0",
-            GITHUB_SHA: off,
-            CURRENT_LATEST: "0.81.0",
-        });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("which is not on main");
-        expect(run.written).toBe("");
-    });
-
-    it("still accepts a tag on main through the copied guard", () => {
-        const { dir } = selfApprovingTagRepo("0.82.0");
-        gitIn(dir, "checkout", "-q", "main");
-        writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.79.0" }));
-        gitIn(dir, "commit", "-q", "-am", "chore: release v0.79.0");
-        const merge = gitIn(dir, "rev-parse", "HEAD");
-        gitIn(dir, "update-ref", "refs/remotes/origin/main", merge);
-        gitIn(dir, "tag", "v0.79.0", merge);
-        const run = runWorkflowGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.0",
-            GITHUB_SHA: merge,
-            CURRENT_LATEST: "0.78.0",
-        });
-        expect(run.status).toBe(0);
-        expect(run.written).toBe(
-            "tag=v0.79.0\nversion=0.79.0\nprerelease=false\ndist_tag=latest\n",
-        );
-    });
-
-    it("refuses a backport from a maintenance branch the owner never opened", () => {
+describe("a backport line opens only on the publisher's command line (#527)", () => {
+    it("refuses a backport from a maintenance branch nobody opened", () => {
         const { dir, off } = offMainRepo("0.79.50", "release-0.79");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.50",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.79.50",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.80.0",
         });
         expect(run.status).toBe(1);
         expect(run.output).toContain("release-0.79 is not an opened backport line");
-        expect(run.output).toContain("RELEASE_BACKPORT_LINES");
+        expect(run.output).toContain("BACKPORT_LINES=release-0.79");
         expect(run.written).toBe("");
     });
 
     it("refuses a backport whose line is not among the opened ones", () => {
         const { dir, off } = offMainRepo("0.79.50", "release-0.79");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.50",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.79.50",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.80.0",
             BACKPORT_LINES: "release-0.7,release-0.790",
         });
@@ -698,9 +360,8 @@ describe("the release guard trusts neither the tagged commit nor a new branch (#
     it("accepts a backport once its line is in a comma-separated BACKPORT_LINES", () => {
         const { dir, off } = offMainRepo("0.79.50", "release-0.79");
         const run = runGuard(dir, {
-            GITHUB_REF_TYPE: "tag",
-            GITHUB_REF_NAME: "v0.79.50",
-            GITHUB_SHA: off,
+            RELEASE_TAG: "v0.79.50",
+            RELEASE_SHA: off,
             CURRENT_LATEST: "0.80.0",
             BACKPORT_LINES: "release-0.75,release-0.79",
         });
@@ -708,217 +369,26 @@ describe("the release guard trusts neither the tagged commit nor a new branch (#
         expect(run.written).toContain("dist_tag=release-0.79\n");
     });
 
-    it("hands the guard the owner's RELEASE_BACKPORT_LINES repository variable", () => {
-        const [, build] = onlyJob(/check-release-ref\.sh/);
-        expect(build).toMatch(/^ {18}BACKPORT_LINES: \$\{\{ vars\.RELEASE_BACKPORT_LINES \}\}$/m);
-    });
-});
-
-const RELEASE_SH = readFileSync(
-    resolve(import.meta.dirname, "..", "scripts", "release.sh"),
-    "utf8",
-);
-const RELEASE_TAG = resolve(import.meta.dirname, "..", "scripts", "release-tag.sh");
-
-/**
- * A bare `origin` plus a clone whose `main` went through a release PR: `0.78.0`,
- * then the merge of `release/v0.79.0` (bump + RELEASES.md line), then an
- * unrelated PR merged after it, still at `0.79.0`. No network: `origin` is a
- * directory.
- *
- * @returns The clone path, the bare origin path and the two `main` commits.
- */
-function mergedReleaseRepo(): { dir: string; origin: string; merge: string; after: string } {
-    const root = mkdtempSync(join(tmpdir(), "tempest-release-tag-"));
-    const origin = join(root, "origin.git");
-    const dir = join(root, "clone");
-    execFileSync("git", ["init", "-q", "--bare", "-b", "main", origin]);
-    execFileSync("git", ["clone", "-q", origin, dir], { stdio: "ignore" });
-    gitIn(dir, "checkout", "-q", "-b", "main");
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.78.0" }));
-    writeFileSync(join(dir, "RELEASES.md"), "| v0.78.0 | 2026-10-12 | aaaaaaa |\n");
-    gitIn(dir, "add", ".");
-    gitIn(dir, "commit", "-q", "-m", "0.78.0");
-    gitIn(dir, "checkout", "-q", "-b", "release/v0.79.0");
-    writeFileSync(join(dir, "package.json"), JSON.stringify({ version: "0.79.0" }));
-    writeFileSync(
-        join(dir, "RELEASES.md"),
-        "| v0.79.0 | 2026-10-25 | bbbbbbb |\n| v0.78.0 | 2026-10-12 | aaaaaaa |\n",
-    );
-    gitIn(dir, "add", ".");
-    gitIn(dir, "commit", "-q", "-m", "chore: release v0.79.0");
-    gitIn(dir, "checkout", "-q", "main");
-    gitIn(dir, "merge", "-q", "--no-ff", "-m", "Merge release/v0.79.0", "release/v0.79.0");
-    const merge = gitIn(dir, "rev-parse", "HEAD");
-    writeFileSync(join(dir, "other.txt"), "after");
-    gitIn(dir, "add", ".");
-    gitIn(dir, "commit", "-q", "-m", "fix: merged after the release");
-    const after = gitIn(dir, "rev-parse", "HEAD");
-    gitIn(dir, "push", "-q", "origin", "main", "release/v0.79.0");
-    return { dir, origin, merge, after };
-}
-
-/**
- * Run `scripts/release-tag.sh` in a fixture clone.
- *
- * @param dir - The clone to run in.
- * @param tag - The version argument.
- * @param env - Extra environment (`DRY_RUN`, `REF`).
- * @returns Exit status and combined output.
- */
-function runReleaseTag(
-    dir: string,
-    tag: string,
-    env: Record<string, string> = {},
-): { status: number | null; output: string } {
-    const result = spawnSync("bash", [RELEASE_TAG, tag], {
-        cwd: dir,
-        encoding: "utf8",
-        env: { ...process.env, DRY_RUN: "", REF: "", BASE_BRANCH: "", ...env },
-    });
-    return { status: result.status, output: `${result.stdout}${result.stderr}` };
-}
-
-describe("the tag is cut after the release PR is merged (#472)", () => {
-    it("never pushes the tag from scripts/release.sh", () => {
-        const code = RELEASE_SH.split("\n")
-            .filter((line) => !line.trimStart().startsWith("#"))
-            .join("\n");
-        expect(code).not.toMatch(/git push[^\n]*GIT_TAG/);
-        expect(code).toMatch(/git tag -d "\$GIT_TAG"/);
-        expect(code).toMatch(/make release-tag TAG=/);
-    });
-
-    it("tags the merge commit of the release PR, not the tip of main, and pushes it", () => {
-        const { dir, origin, merge } = mergedReleaseRepo();
-        const run = runReleaseTag(dir, "0.79.0");
-        expect(run.status).toBe(0);
-        expect(gitIn(origin, "rev-parse", "refs/tags/v0.79.0^{commit}")).toBe(merge);
-    });
-
-    it("creates nothing on a dry run", () => {
-        const { dir, origin } = mergedReleaseRepo();
-        const run = runReleaseTag(dir, "0.79.0", { DRY_RUN: "1" });
-        expect(run.status).toBe(0);
-        expect(run.output).toContain("DRY_RUN");
-        expect(gitIn(dir, "tag", "-l")).toBe("");
-        expect(gitIn(origin, "tag", "-l")).toBe("");
-    });
-
-    it("refuses a version main is not at, which is a release PR not merged yet", () => {
-        const { dir, origin } = mergedReleaseRepo();
-        const run = runReleaseTag(dir, "0.80.0");
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("não em 0.80.0");
-        expect(gitIn(origin, "tag", "-l")).toBe("");
-    });
-
-    it("refuses REF on a commit that is not on main", () => {
-        const { dir, origin } = mergedReleaseRepo();
-        const branchTip = gitIn(dir, "rev-parse", "release/v0.79.0");
-        gitIn(dir, "checkout", "-q", "release/v0.79.0");
-        writeFileSync(join(dir, "extra.txt"), "unreviewed");
-        gitIn(dir, "add", ".");
-        gitIn(dir, "commit", "-q", "-m", "unreviewed");
-        const unreviewed = gitIn(dir, "rev-parse", "HEAD");
-        expect(unreviewed).not.toBe(branchTip);
-        const run = runReleaseTag(dir, "0.79.0", { REF: unreviewed });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("não está em origin/main");
-        expect(gitIn(origin, "tag", "-l")).toBe("");
-    });
-
-    it("refuses a tag that already exists on origin", () => {
-        const { dir, origin, merge } = mergedReleaseRepo();
-        gitIn(origin, "tag", "v0.79.0", merge);
-        const run = runReleaseTag(dir, "0.79.0");
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("já existe no origin");
-    });
-
-    it("refuses a commit whose RELEASES.md lacks the version's row", () => {
-        const { dir, origin, after } = mergedReleaseRepo();
-        writeFileSync(join(dir, "RELEASES.md"), "| v0.78.0 | 2026-10-12 | aaaaaaa |\n");
-        gitIn(dir, "commit", "-q", "-am", "drop the row");
-        gitIn(dir, "push", "-q", "origin", "main");
-        const run = runReleaseTag(dir, "0.79.0", { REF: gitIn(dir, "rev-parse", "HEAD") });
-        expect(run.status).toBe(1);
-        expect(run.output).toContain("RELEASES.md");
-        expect(after).not.toBe("");
-        expect(gitIn(origin, "tag", "-l")).toBe("");
-    });
-});
-
-describe("release-npm.yml recovery and prereleases (review of #451/#452)", () => {
-    it("labels every pinned action with the tag its SHA came from", () => {
-        const pins = [...WORKFLOW.matchAll(/uses: \S+@[0-9a-f]{40}(.*)$/gm)].map((m) => m[1]);
-        expect(pins.length).toBeGreaterThan(0);
-        for (const comment of pins) expect(comment).toMatch(/^ # v\d+\.\d+\.\d+$/);
-    });
-
-    it("never runs two releases at once, of any tag, nor cancels one", () => {
-        expect(WORKFLOW).toMatch(
-            /^concurrency:\n {4}group: release-npm\n {4}cancel-in-progress: false$/m,
-        );
-    });
-
-    it("publishes a prerelease under its own dist-tag and reads that tag back", () => {
-        const [, body] = onlyJob(/id-token: write/);
-        expect(body).toMatch(/DIST_TAG: \$\{\{ steps\.publish\.outputs\.dist_tag \}\}/);
-        expect(body).toMatch(/npm publish "\$\{TARBALL\}" .*--tag "\$\{DIST_TAG\}"/);
-        expect(body).toMatch(/release-dist-tag\.sh get "\$\{PKG_NAME\}" "\$\{DIST_TAG\}"/);
-    });
-
-    it("gives every registry read-back the same 30-minute window", () => {
-        const readBacks = [...JOBS]
-            .filter(([id]) => id !== "build")
-            .map(([, body]) => body)
-            .join("\n");
-        const windows = [...readBacks.matchAll(/seq 1 (\d+)/g)].map((m) => m[1]);
-        expect(windows.length).toBeGreaterThanOrEqual(3);
-        for (const n of windows) expect(n).toBe("120");
-    });
-
-    it("retries dist.integrity and fails with an annotation, not a bare exit", () => {
-        const [, body] = onlyJob(/dist\.integrity/);
-        expect(body).toMatch(/SERVED=\$\(npm view [^\n]*dist\.integrity[^\n]*\|\| true\)/);
-        expect(body).toMatch(/::error::npm did not report dist\.integrity/);
-    });
-
-    it("names the tarball artifact per attempt, so a full re-run does not collide", () => {
-        expect(WORKFLOW).toMatch(/artifact: npm-tarball-\$\{\{ github\.run_attempt \}\}/);
-        const upload = /upload-artifact@\S+[^\n]*\n {14}with:\n {18}name: (.+)/.exec(WORKFLOW);
-        expect(upload?.[1]).toBe("npm-tarball-${{ github.run_attempt }}");
-        const downloads = [
-            ...WORKFLOW.matchAll(/download-artifact@\S+[^\n]*\n {14}with:\n {18}name: (.+)/g),
-        ].map((m) => m[1]);
-        expect(downloads).toHaveLength(3);
-        for (const name of downloads) expect(name).toBe("${{ needs.build.outputs.artifact }}");
-    });
-
-    it("points a byte mismatch at a recovery that exists", () => {
-        const line = /::error::\$\{TARBALL\}[^\n]*/.exec(WORKFLOW)?.[0] ?? "";
-        expect(line).toContain("make releases-sync");
-        expect(line).not.toContain("Re-run failed jobs");
+    it("hands BACKPORT_LINES from make release-tag to the script", () => {
+        const makefile = readFileSync(resolve(SCRIPTS, "..", "Makefile"), "utf8");
+        const target = makefile.slice(makefile.indexOf("\nrelease-tag:")).split("\n\n")[0] ?? "";
+        expect(target).toContain('BACKPORT_LINES="$(BACKPORT_LINES)"');
+        expect(target).toContain("./scripts/release-tag.sh");
     });
 });
 
 /**
  * Run the guard on a fixture tag of `version`, against a registry whose `latest` is `current`.
  *
- * @param version - The `package.json` version, tagged `v<version>` on the run's commit.
- * @param current - The `CURRENT_LATEST` the workflow read from the registry, or `undefined` for unset.
+ * @param version - The `package.json` version, tagged `v<version>` on the commit.
+ * @param current - The registry's `latest`, or `undefined` for unset.
  * @returns The guard run.
  */
-function guardAgainst(
-    version: string,
-    current: string | undefined,
-): { status: number | null; output: string; written: string } {
+function guardAgainst(version: string, current: string | undefined): GuardRun {
     const repo = fixtureRepo(version);
     return runGuard(repo.dir, {
-        GITHUB_REF_TYPE: "tag",
-        GITHUB_REF_NAME: `v${version}`,
-        GITHUB_SHA: repo.sha,
+        RELEASE_TAG: `v${version}`,
+        RELEASE_SHA: repo.sha,
         CURRENT_LATEST: current,
     });
 }
@@ -928,10 +398,8 @@ function guardAgainst(
  * (review of #451/#452), which is exactly what let a backport `v0.75.1` cut after
  * 0.77.0 move `latest` backwards. Only a version above the registry's `latest` gets
  * it now; the rest go to `release-<major>.<minor>`. A version equal to the registry's
- * `latest` first went to its release line too, and was flipped to `latest` in review:
- * equal only happens on a re-run of the already-published version, and sending it to
- * `release-<major>.<minor>` made the re-run create its GitHub Release without the
- * Latest mark.
+ * `latest` stays on `latest`: equal only happens when a run resumes the
+ * already-published version.
  */
 describe("scripts/check-release-ref.sh dist-tag is monotonic (#472)", () => {
     it("sends a stable version above the registry's latest to latest", () => {
@@ -984,58 +452,6 @@ describe("scripts/check-release-ref.sh dist-tag is monotonic (#472)", () => {
         expect(run.written).toBe("");
     });
 });
-
-describe("release-npm.yml reads the registry's latest for the guard (#472)", () => {
-    it("reads the registry's latest through the shared script and hands it to the guard", () => {
-        const [, build] = onlyJob(/scripts\/check-release-ref\.sh/);
-        expect(build).toMatch(/release-dist-tag\.sh current-latest/);
-        expect(build).toMatch(
-            /CURRENT_LATEST: \$\{\{ steps\.registry\.outputs\.current_latest \}\}/,
-        );
-        expect(build.indexOf("release-dist-tag.sh current-latest")).toBeLessThan(
-            build.indexOf('run: bash "$RUNNER_TEMP/release-guard/check-release-ref.sh"'),
-        );
-    });
-
-    it("never reads a dist-tag as a dotted npm view path, which drops release-0.75", () => {
-        expect(WORKFLOW).not.toMatch(/dist-tags\.[$A-Za-z]/);
-    });
-
-    it("re-reads latest and re-picks the dist-tag right before npm publish", () => {
-        const [, body] = onlyJob(/id-token: write/);
-        const reread = body.indexOf("release-dist-tag.sh current-latest");
-        const pick = body.indexOf("release-dist-tag.sh pick");
-        expect(reread).toBeGreaterThan(-1);
-        expect(pick).toBeGreaterThan(reread);
-        expect(body.indexOf("npm publish")).toBeGreaterThan(pick);
-    });
-
-    it("waits for the dist-tag only when this run is the one that published", () => {
-        const [, body] = onlyJob(/id-token: write/);
-        expect(body).toMatch(/PUBLISHED_NOW: \$\{\{ steps\.publish\.outputs\.published \}\}/);
-        expect(body).toMatch(/echo "published=true" >> "\$GITHUB_OUTPUT"/);
-    });
-});
-
-describe("release-npm.yml marks the GitHub Release Latest like the npm dist-tag (#472)", () => {
-    it("passes --latest when the registry's latest is this version, on create only", () => {
-        const [, body] = onlyJob(/contents: write/);
-        expect(body).not.toMatch(/DIST_TAG/);
-        expect(body).toMatch(
-            /REGISTRY_LATEST=\$\(scripts\/release-dist-tag\.sh current-latest "\$PKG_NAME" 2>/,
-        );
-        expect(body).toMatch(
-            /if \[ "\$REGISTRY_LATEST" = "\$VERSION" \]; then\n\s+LATEST_FLAG=--latest\n\s+else\n\s+LATEST_FLAG=--latest=false\n\s+fi/,
-        );
-        const create = /gh release create [^\n]*/.exec(body)?.[0] ?? "";
-        expect(create).toContain('"$LATEST_FLAG"');
-        const edit = /gh release edit [^\n]*/.exec(body)?.[0] ?? "";
-        expect(edit).not.toMatch(/latest/i);
-        expect(body).toMatch(/FLAGS\+=\(--prerelease\)/);
-    });
-});
-
-const DIST_TAG_SCRIPT = resolve(import.meta.dirname, "..", "scripts", "release-dist-tag.sh");
 
 /**
  * Run `release-dist-tag.sh` with a fake `npm` first on the PATH.
@@ -1125,7 +541,7 @@ describe("scripts/release-dist-tag.sh (#472)", () => {
         const run = runDistTag(["current-latest", "p"], [[0, "", ""]]);
         expect(run.status).toBe(1);
         expect(run.stdout).toBe("");
-        expect(run.stderr).toContain("::error::");
+        expect(run.stderr).toContain("ERROR:");
     });
 
     it("fails when the package exists but has no latest dist-tag", () => {
@@ -1134,7 +550,7 @@ describe("scripts/release-dist-tag.sh (#472)", () => {
             [[0, JSON.stringify({ next: "1.0.0-rc.1" }), ""]],
         );
         expect(run.status).toBe(1);
-        expect(run.stderr).toContain("::error::");
+        expect(run.stderr).toContain("ERROR:");
     });
 
     it("retries a transient failure, then fails the run if it never answers", () => {
@@ -1154,10 +570,10 @@ describe("scripts/release-dist-tag.sh (#472)", () => {
     });
 
     /**
-     * npm 12.2.0, the CLI the publish job pins, prints `npm view <pkg> dist-tags
-     * --json` wrapped in a one-element array; npm 10 prints the bare object. The
-     * v0.78.0 publish read `[{"latest":"0.77.0"}]` as "no latest" and stopped
-     * before publishing. An array that does not hold exactly one object is
+     * npm 12.2.0, the CLI that published v0.74.0 through v0.82.0, prints `npm view
+     * <pkg> dist-tags --json` wrapped in a one-element array; npm 10 prints the bare
+     * object. The v0.78.0 publish read `[{"latest":"0.77.0"}]` as "no latest" and
+     * stopped before publishing. An array that does not hold exactly one object is
      * still refused, since it cannot be told apart from several versions.
      */
     it("reads the dist-tags npm 12 wraps in a one-element array", () => {
@@ -1179,71 +595,619 @@ describe("scripts/release-dist-tag.sh (#472)", () => {
         expect(runDistTag(["pick", "1.0.0", ""]).stdout.trim()).toBe("latest");
         expect(runDistTag(["pick", "1.0.0", "garbage"]).status).toBe(1);
     });
-});
 
-describe("release-npm.yml surfaces release-dist-tag.sh errors on stdout (#472)", () => {
-    it("captures stderr to a file and prints it before failing, on every fallible call", () => {
-        const calls = WORKFLOW.split("\n").filter((line) =>
-            /release-dist-tag\.sh (current-latest|pick)/.test(line),
-        );
-        expect(calls.length).toBeGreaterThanOrEqual(4);
-        for (const line of calls) {
-            expect(line).toMatch(
-                /=\$\((bash )?(scripts|"\$RUNNER_TEMP"\/release-guard)\/release-dist-tag\.sh [^)]*2>"\$RUNNER_TEMP\/([\w.-]+)"\) \|\| \{ cat "\$RUNNER_TEMP\/\3"; exit 1; \}$/,
+    it("never reads a dist-tag as a dotted npm view path, which drops release-0.75", () => {
+        for (const file of ["release-tag.sh", "release-dist-tag.sh", "check-release-ref.sh"]) {
+            expect(code(readFileSync(join(SCRIPTS, file), "utf8"))).not.toMatch(
+                /dist-tags\.[$A-Za-z]/,
             );
         }
     });
 });
 
 /**
- * The steps of one job, split on the twelve-space `- ` that opens each step.
+ * The fake registry and GitHub both fakes read and write, one JSON file per fixture.
  *
- * @param body - The job body.
- * @returns Each step's text, in order.
+ * `latest` is a queue: each `npm view <pkg> dist-tags` reads the next entry and the
+ * last one repeats, so a registry whose `latest` moves between two reads is
+ * expressible. A publish under `latest` overrides the queue.
  */
-function steps(body: string): string[] {
-    return body.split(/\n {12}- /).slice(1);
+interface FakeState {
+    user: string | null;
+    ghUser: boolean;
+    latest: string[];
+    latestOverride: string | null;
+    tags: Record<string, string>;
+    versions: Record<string, string>;
+    integrityOverride: Record<string, string>;
+    hiddenReads: number;
+    versionReads: Record<string, number>;
+    tagReads: number;
+    publishVersion: string;
+    releases: Record<string, string[]>;
+    calls: string[][];
 }
 
-describe("release-npm.yml runs scripts from the commit, never from the build's workspace (#495)", () => {
-    const privileged = [...JOBS].filter(([, body]) => /id-token: write|contents: write/.test(body));
+const FAKE_NPM = `#!/usr/bin/env node
+const fs = require("fs");
+const crypto = require("crypto");
+const file = process.env.FAKE_STATE;
+const state = JSON.parse(fs.readFileSync(file, "utf8"));
+const args = process.argv.slice(2);
+state.calls.push(["npm", ...args]);
+const save = () => fs.writeFileSync(file, JSON.stringify(state));
+const positional = args.filter((a, i) => !a.startsWith("--") && args[i - 1] !== "--tag");
+const done = (code, out = "", err = "") => {
+    save();
+    process.stdout.write(out);
+    process.stderr.write(err);
+    process.exit(code);
+};
+const latest = () =>
+    state.latestOverride ?? state.latest[Math.min(state.tagReads, state.latest.length - 1)];
+if (args[0] === "whoami") {
+    if (state.user) done(0, state.user + "\\n");
+    done(1, "", "npm error code E401\\n");
+}
+if (args[0] === "view") {
+    const [, spec, field] = positional;
+    if (field === "dist-tags") {
+        const current = latest();
+        state.tagReads += 1;
+        done(0, JSON.stringify({ ...state.tags, latest: current }));
+    }
+    const version = spec.split("@").pop();
+    if (field === "version") {
+        if (!state.versions[version]) done(1, "", "npm error code E404\\n");
+        state.versionReads[version] = (state.versionReads[version] ?? 0) + 1;
+        if (state.versionReads[version] <= state.hiddenReads) done(1, "", "npm error code E404\\n");
+        done(0, version + "\\n");
+    }
+    if (field === "dist.integrity") {
+        done(0, (state.integrityOverride[version] ?? state.versions[version] ?? "") + "\\n");
+    }
+    done(1, "", "fake npm: unknown view " + args.join(" ") + "\\n");
+}
+if (args[0] === "publish") {
+    if (args.includes("--dry-run")) done(0);
+    const tarball = positional[1];
+    const integrity =
+        "sha512-" + crypto.createHash("sha512").update(fs.readFileSync(tarball)).digest("base64");
+    const tag = args[args.indexOf("--tag") + 1];
+    state.versions[state.publishVersion] = integrity;
+    state.tags[tag] = state.publishVersion;
+    if (tag === "latest") state.latestOverride = state.publishVersion;
+    done(0);
+}
+done(1, "", "fake npm: unknown command " + args.join(" ") + "\\n");
+`;
 
-    it("finds both privileged jobs", () => {
-        expect(privileged.map(([id]) => id).sort()).toEqual(["publish", "release"]);
+const FAKE_GH = `#!/usr/bin/env node
+const fs = require("fs");
+const { execFileSync } = require("child_process");
+const file = process.env.FAKE_STATE;
+const state = JSON.parse(fs.readFileSync(file, "utf8"));
+const args = process.argv.slice(2);
+state.calls.push(["gh", ...args]);
+const done = (code, out = "") => {
+    fs.writeFileSync(file, JSON.stringify(state));
+    process.stdout.write(out);
+    process.exit(code);
+};
+if (args[0] === "auth") done(state.ghUser ? 0 : 1);
+if (args[0] === "api") {
+    const tag = args[1].split("/commits/")[1];
+    const lines = execFileSync("git", ["ls-remote", "origin", "refs/tags/" + tag], {
+        encoding: "utf8",
     });
+    done(lines ? 0 : 1, lines.split("\\t")[0] + "\\n");
+}
+if (args[0] === "release") {
+    const tag = args[2];
+    if (args[1] === "view") done(state.releases[tag] ? 0 : 1);
+    if (args[1] === "create") state.releases[tag] = args.slice(3);
+    done(0);
+}
+done(1);
+`;
 
-    it("uploads the tarball alone, so no script travels in the artifact", () => {
-        const upload = steps(JOBS.get("build") ?? "").find((step) =>
-            step.includes("actions/upload-artifact@"),
-        );
-        expect(upload).toBeDefined();
-        expect(upload).toMatch(/\n {18}path: \$\{\{ steps\.pack\.outputs\.tarball \}\}$/m);
-        expect(upload).not.toMatch(/scripts\//);
-        expect(WORKFLOW).not.toMatch(/release_script_sha256|RELEASE_SCRIPT_SHA256/);
-    });
+const PACK_STUB = `#!/usr/bin/env bash
+set -euo pipefail
+mkdir -p "$1"
+VERSION=$(node -p 'require("./package.json").version')
+echo "tarball of $(git rev-parse HEAD)" > "$1/tempest-react-sdk-$VERSION.tgz"
+git rev-parse HEAD >> "$PACK_LOG"
+`;
 
-    it.each(privileged)(
-        "%s checks out github.sha before it runs anything from scripts/",
-        (_id, body) => {
-            const list = steps(body);
-            const checkout = list.findIndex((step) => step.startsWith("uses: actions/checkout@"));
-            expect(checkout).toBeGreaterThan(-1);
-            expect(list[checkout]).toMatch(/\n {18}ref: \$\{\{ github\.sha \}\}/);
-            const firstScript = list.findIndex((step) => /\n {14}run: [\s\S]*scripts\//.test(step));
-            expect(firstScript).toBeGreaterThan(checkout);
-        },
+/** A fixture clone, its bare origin, the fakes' state file and the commits that matter. */
+interface PublishFixture {
+    dir: string;
+    origin: string;
+    bin: string;
+    state: string;
+    packLog: string;
+    merge: string;
+    after: string;
+}
+
+/**
+ * A bare `origin` plus a clone whose `main` went through a release PR: `0.78.0`
+ * (with the real guard scripts and `changelog.mjs`, and a stub `release-pack.sh`
+ * that writes a fake tarball and logs the commit it packed), then the merge of
+ * `release/v0.79.0`, then an unrelated PR merged after it, still at `0.79.0`. A fake
+ * `npm` (registry `latest` at `0.78.0`, logged in) and a fake `gh` (logged in) wait
+ * in `bin`. No network: `origin` is a directory and the registry is a JSON file.
+ *
+ * @returns The fixture.
+ */
+function mergedReleaseRepo(): PublishFixture {
+    const root = mkdtempSync(join(tmpdir(), "tempest-release-tag-"));
+    const origin = join(root, "origin.git");
+    const dir = join(root, "clone");
+    const bin = join(root, "bin");
+    execFileSync("git", ["init", "-q", "--bare", "-b", "main", origin]);
+    execFileSync("git", ["clone", "-q", origin, dir], { stdio: "ignore" });
+    gitIn(dir, "checkout", "-q", "-b", "main");
+    mkdirSync(join(dir, "scripts"));
+    for (const script of ["check-release-ref.sh", "release-dist-tag.sh", "changelog.mjs"]) {
+        copyFileSync(join(SCRIPTS, script), join(dir, "scripts", script));
+    }
+    writeFileSync(join(dir, "scripts", "release-pack.sh"), PACK_STUB);
+    const pkg = (version: string): string => JSON.stringify({ name: "tempest-react-sdk", version });
+    writeFileSync(join(dir, "package.json"), pkg("0.78.0"));
+    writeFileSync(join(dir, "RELEASES.md"), "| v0.78.0 | 2026-10-12 | aaaaaaa |\n");
+    writeFileSync(join(dir, "CHANGELOG.md"), "# Changelog\n\n## [0.78.0] — 2026-10-12\n\n- a\n");
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "0.78.0");
+    gitIn(dir, "checkout", "-q", "-b", "release/v0.79.0");
+    writeFileSync(join(dir, "package.json"), pkg("0.79.0"));
+    writeFileSync(
+        join(dir, "RELEASES.md"),
+        "| v0.79.0 | 2026-10-25 | bbbbbbb |\n| v0.78.0 | 2026-10-12 | aaaaaaa |\n",
     );
+    writeFileSync(
+        join(dir, "CHANGELOG.md"),
+        "# Changelog\n\n## [0.79.0] — 2026-10-25\n\n- notas da 0.79.0\n\n## [0.78.0] — 2026-10-12\n\n- a\n",
+    );
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "chore: release v0.79.0");
+    gitIn(dir, "checkout", "-q", "main");
+    gitIn(dir, "merge", "-q", "--no-ff", "-m", "Merge release/v0.79.0", "release/v0.79.0");
+    const merge = gitIn(dir, "rev-parse", "HEAD");
+    writeFileSync(join(dir, "other.txt"), "after");
+    gitIn(dir, "add", ".");
+    gitIn(dir, "commit", "-q", "-m", "fix: merged after the release");
+    const after = gitIn(dir, "rev-parse", "HEAD");
+    gitIn(dir, "push", "-q", "origin", "main", "release/v0.79.0");
+    mkdirSync(bin);
+    writeFileSync(join(bin, "npm"), FAKE_NPM);
+    writeFileSync(join(bin, "gh"), FAKE_GH);
+    chmodSync(join(bin, "npm"), 0o755);
+    chmodSync(join(bin, "gh"), 0o755);
+    const state = join(root, "state.json");
+    const initial: FakeState = {
+        user: "maintainer",
+        ghUser: true,
+        latest: ["0.78.0"],
+        latestOverride: null,
+        tags: {},
+        versions: { "0.78.0": "sha512-old" },
+        integrityOverride: {},
+        hiddenReads: 0,
+        versionReads: {},
+        tagReads: 0,
+        publishVersion: "0.79.0",
+        releases: {},
+        calls: [],
+    };
+    writeFileSync(state, JSON.stringify(initial));
+    const packLog = join(root, "packed.log");
+    writeFileSync(packLog, "");
+    return { dir, origin, bin, state, packLog, merge, after };
+}
 
-    it.each(privileged)("%s downloads the artifact outside the checkout", (_id, body) => {
-        const downloads = steps(body).filter((step) =>
-            step.startsWith("uses: actions/download-artifact@"),
+/**
+ * Change the fake registry and GitHub before a run.
+ *
+ * @param fixture - The fixture.
+ * @param patch - The fields to replace.
+ */
+function setState(fixture: PublishFixture, patch: Partial<FakeState>): void {
+    const current = JSON.parse(readFileSync(fixture.state, "utf8")) as FakeState;
+    writeFileSync(fixture.state, JSON.stringify({ ...current, ...patch }));
+}
+
+/**
+ * Read the fake registry and GitHub after a run.
+ *
+ * @param fixture - The fixture.
+ * @returns The state, with every `npm` and `gh` call in order.
+ */
+function readState(fixture: PublishFixture): FakeState {
+    return JSON.parse(readFileSync(fixture.state, "utf8")) as FakeState;
+}
+
+/**
+ * The calls one fake received.
+ *
+ * @param fixture - The fixture.
+ * @param tool - `npm` or `gh`.
+ * @param sub - The subcommand to keep, such as `publish` or `release`.
+ * @returns The argument lists, without the tool name.
+ */
+function callsOf(fixture: PublishFixture, tool: "npm" | "gh", sub: string): string[][] {
+    return readState(fixture)
+        .calls.filter((call) => call[0] === tool && call[1] === sub)
+        .map((call) => call.slice(1));
+}
+
+/**
+ * Run `scripts/release-tag.sh` in a fixture clone, with the fakes first on the PATH.
+ *
+ * @param fixture - The fixture.
+ * @param tag - The version argument.
+ * @param env - Extra environment (`DRY_RUN`, `REF`, `BASE_BRANCH`, `BACKPORT_LINES`).
+ * @returns Exit status and combined output.
+ */
+function runReleaseTag(
+    fixture: PublishFixture,
+    tag: string,
+    env: Record<string, string> = {},
+): { status: number | null; output: string } {
+    const result = spawnSync("bash", [RELEASE_TAG, tag], {
+        cwd: fixture.dir,
+        encoding: "utf8",
+        env: {
+            ...process.env,
+            PATH: `${fixture.bin}:${process.env["PATH"] ?? ""}`,
+            FAKE_STATE: fixture.state,
+            PACK_LOG: fixture.packLog,
+            DRY_RUN: "",
+            REF: "",
+            BASE_BRANCH: "",
+            BACKPORT_LINES: "",
+            RELEASE_READBACK_ATTEMPTS: "3",
+            RELEASE_READBACK_SECONDS: "0",
+            RELEASE_RETRY_SECONDS: "0",
+            ...env,
+        },
+    });
+    return { status: result.status, output: `${result.stdout}${result.stderr}` };
+}
+
+/**
+ * The commits the stub `release-pack.sh` packed, in order.
+ *
+ * @param fixture - The fixture.
+ * @returns One SHA per pack.
+ */
+function packed(fixture: PublishFixture): string[] {
+    return readFileSync(fixture.packLog, "utf8").split("\n").filter(Boolean);
+}
+
+/**
+ * The sha512 integrity npm would compute for a file's bytes.
+ *
+ * @param text - The file content.
+ * @returns `sha512-<base64>`.
+ */
+function integrityOf(text: string): string {
+    return `sha512-${createHash("sha512").update(text).digest("base64")}`;
+}
+
+describe("the tag is cut after the release PR is merged (#472)", { timeout: FLOW_TIMEOUT }, () => {
+    it("never pushes the tag from scripts/release.sh", () => {
+        const release = code(RELEASE_SH);
+        expect(release).not.toMatch(/git push[^\n]*GIT_TAG/);
+        expect(release).toMatch(/git tag -d "\$GIT_TAG"/);
+        expect(release).toMatch(/make release-tag TAG=/);
+    });
+
+    it("publishes the merge commit of the release PR, not the tip of main, and pushes its tag", () => {
+        const fixture = mergedReleaseRepo();
+        const run = runReleaseTag(fixture, "0.79.0");
+        expect(run.status, run.output).toBe(0);
+        expect(packed(fixture)).toEqual([fixture.merge]);
+        expect(gitIn(fixture.origin, "rev-parse", "refs/tags/v0.79.0^{commit}")).toBe(
+            fixture.merge,
         );
-        expect(downloads).toHaveLength(1);
-        expect(downloads[0]).toMatch(/\n {18}path: \$\{\{ runner\.temp \}\}\/npm-tarball/);
-        for (const line of body.split("\n").filter((l) => /^\s+TARBALL: /.test(l))) {
-            expect(line).toMatch(
-                /TARBALL: \$\{\{ runner\.temp \}\}\/npm-tarball\/\$\{\{ needs\.build\.outputs\.tarball \}\}$/,
-            );
-        }
+    });
+
+    it("refuses a version main is not at, which is a release PR not merged yet", () => {
+        const fixture = mergedReleaseRepo();
+        const run = runReleaseTag(fixture, "0.80.0");
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("não em 0.80.0");
+        expect(packed(fixture)).toEqual([]);
+        expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+    });
+
+    it("refuses REF on a commit that is not on main", () => {
+        const fixture = mergedReleaseRepo();
+        gitIn(fixture.dir, "checkout", "-q", "release/v0.79.0");
+        writeFileSync(join(fixture.dir, "extra.txt"), "unreviewed");
+        gitIn(fixture.dir, "add", ".");
+        gitIn(fixture.dir, "commit", "-q", "-m", "unreviewed");
+        const run = runReleaseTag(fixture, "0.79.0", {
+            REF: gitIn(fixture.dir, "rev-parse", "HEAD"),
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("não está em origin/main");
+        expect(packed(fixture)).toEqual([]);
+        expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+    });
+
+    /**
+     * Rewritten, not deleted: a tag already on origin used to be refused outright,
+     * because pushing it again would have re-run the workflow. Locally the same tag on
+     * the same commit is a run that stopped half-way (the npm publish and the tag push
+     * are separate steps), so it resumes; on another commit it is still refused.
+     */
+    it("refuses a tag that already exists on origin at another commit", () => {
+        const fixture = mergedReleaseRepo();
+        gitIn(fixture.origin, "tag", "v0.79.0", fixture.after);
+        const run = runReleaseTag(fixture, "0.79.0");
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("já existe no origin");
+        expect(callsOf(fixture, "npm", "publish")).toEqual([]);
+    });
+
+    it("refuses a commit whose RELEASES.md lacks the version's row", () => {
+        const fixture = mergedReleaseRepo();
+        writeFileSync(join(fixture.dir, "RELEASES.md"), "| v0.78.0 | 2026-10-12 | aaaaaaa |\n");
+        gitIn(fixture.dir, "commit", "-q", "-am", "drop the row");
+        gitIn(fixture.dir, "push", "-q", "origin", "main");
+        const run = runReleaseTag(fixture, "0.79.0", {
+            REF: gitIn(fixture.dir, "rev-parse", "HEAD"),
+        });
+        expect(run.status).toBe(1);
+        expect(run.output).toContain("RELEASES.md");
+        expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
     });
 });
+
+/**
+ * The local publish (2026-11-13). What the four jobs of `release-npm.yml` guaranteed
+ * is asserted here against the script that replaced them, end to end in a fixture.
+ */
+describe(
+    "make release-tag publishes from the maintainer's machine",
+    { timeout: FLOW_TIMEOUT },
+    () => {
+        it("refuses without npm login before building anything", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { user: null });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("npm login");
+            expect(packed(fixture)).toEqual([]);
+            expect(callsOf(fixture, "npm", "publish")).toEqual([]);
+            expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+        });
+
+        it("refuses without gh login, which the GitHub Release needs", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { ghUser: false });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("gh auth login");
+            expect(packed(fixture)).toEqual([]);
+        });
+
+        it("refuses a dirty working tree", () => {
+            const fixture = mergedReleaseRepo();
+            writeFileSync(join(fixture.dir, "other.txt"), "dirty");
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("working tree sujo");
+            expect(packed(fixture)).toEqual([]);
+        });
+
+        it("publishes the tarball the pack step built and smoked, under its dist-tag, without provenance", () => {
+            const fixture = mergedReleaseRepo();
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status, run.output).toBe(0);
+            const publishes = callsOf(fixture, "npm", "publish");
+            expect(publishes).toHaveLength(1);
+            const args = publishes[0] ?? [];
+            expect(args[1]).toMatch(/\/pack\/tempest-react-sdk-0\.79\.0\.tgz$/);
+            expect(args.slice(2)).toEqual(["--access", "public", "--tag", "latest"]);
+            expect(args).not.toContain("--provenance");
+            expect(readState(fixture).versions["0.79.0"]).toBe(
+                integrityOf(`tarball of ${fixture.merge}\n`),
+            );
+        });
+
+        it("leaves no worktree behind", () => {
+            const fixture = mergedReleaseRepo();
+            runReleaseTag(fixture, "0.79.0");
+            expect(gitIn(fixture.dir, "worktree", "list").split("\n")).toHaveLength(1);
+        });
+
+        it("creates nothing on a dry run, after packing and a publish --dry-run", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { user: null, ghUser: false });
+            const run = runReleaseTag(fixture, "0.79.0", { DRY_RUN: "1" });
+            expect(run.status, run.output).toBe(0);
+            expect(run.output).toContain("DRY_RUN");
+            expect(packed(fixture)).toEqual([fixture.merge]);
+            expect(
+                callsOf(fixture, "npm", "publish").map((args) => args.includes("--dry-run")),
+            ).toEqual([true]);
+            expect(readState(fixture).versions["0.79.0"]).toBeUndefined();
+            expect(gitIn(fixture.dir, "tag", "-l")).toBe("");
+            expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+            expect(callsOf(fixture, "gh", "release")).toEqual([]);
+        });
+
+        it("re-reads latest and re-picks the dist-tag right before npm publish", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { latest: ["0.78.0", "0.80.0"] });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.output).toContain("publicando sob release-0.79, não latest");
+            expect(callsOf(fixture, "npm", "publish")[0]?.slice(-2)).toEqual([
+                "--tag",
+                "release-0.79",
+            ]);
+        });
+
+        it("waits for the registry to serve the version before pushing the tag", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { hiddenReads: 2 });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status, run.output).toBe(0);
+            expect(run.output).toContain("o registry ainda não serve 0.79.0");
+            expect(gitIn(fixture.origin, "tag", "-l")).toBe("v0.79.0");
+        });
+
+        it("pushes no tag and creates no Release when the registry never serves the version", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { hiddenReads: 99 });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("rode de novo `make release-tag TAG=0.79.0`");
+            expect(gitIn(fixture.origin, "tag", "-l")).toBe("");
+            expect(callsOf(fixture, "gh", "release")).toEqual([]);
+        });
+
+        it("resumes a version the registry already serves: no second publish, tag and Release still made", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, {
+                versions: { "0.78.0": "sha512-old", "0.79.0": integrityOf(`tarball of x\n`) },
+                latest: ["0.79.0"],
+            });
+            gitIn(fixture.origin, "tag", "v0.79.0", fixture.merge);
+            const run = runReleaseTag(fixture, "0.79.0", {});
+            expect(callsOf(fixture, "npm", "publish")).toEqual([]);
+            expect(run.output).toContain("retomando a publicação");
+            expect(callsOf(fixture, "gh", "release").map((args) => args[1])).toContain("create");
+        });
+
+        it("creates the Release with --verify-tag and --latest when npm's latest is this version", () => {
+            const fixture = mergedReleaseRepo();
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status, run.output).toBe(0);
+            const create =
+                callsOf(fixture, "gh", "release").find((args) => args[1] === "create") ?? [];
+            expect(create[2]).toBe("v0.79.0");
+            expect(create[3]).toMatch(/tempest-react-sdk-0\.79\.0\.tgz$/);
+            expect(create).toContain("--verify-tag");
+            expect(create).toContain("--latest");
+            expect(create).not.toContain("--prerelease");
+            const notes = create[create.indexOf("--notes-file") + 1] ?? "";
+            expect(notes).not.toBe("");
+        });
+
+        it("marks a release that is not npm's latest with --latest=false", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { latest: ["0.80.0"] });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status, run.output).toBe(0);
+            const create =
+                callsOf(fixture, "gh", "release").find((args) => args[1] === "create") ?? [];
+            expect(create).toContain("--latest=false");
+            expect(callsOf(fixture, "npm", "publish")[0]?.slice(-2)).toEqual([
+                "--tag",
+                "release-0.79",
+            ]);
+        });
+
+        it("edits an existing Release without touching its Latest mark", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { releases: { "v0.79.0": ["existing"] } });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status, run.output).toBe(0);
+            const release = callsOf(fixture, "gh", "release").map((args) => args[1]);
+            expect(release).toEqual(["view", "edit", "upload"]);
+            const edit = callsOf(fixture, "gh", "release").find((args) => args[1] === "edit") ?? [];
+            expect(edit.join(" ")).not.toMatch(/latest/);
+            const upload =
+                callsOf(fixture, "gh", "release").find((args) => args[1] === "upload") ?? [];
+            expect(upload).toContain("--clobber");
+        });
+
+        it("attaches only the bytes npm serves, and says how to attach the registry's", () => {
+            const fixture = mergedReleaseRepo();
+            setState(fixture, { integrityOverride: { "0.79.0": "sha512-different" } });
+            const run = runReleaseTag(fixture, "0.79.0");
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("npm pack tempest-react-sdk@0.79.0");
+            const create =
+                callsOf(fixture, "gh", "release").find((args) => args[1] === "create") ?? [];
+            expect(create.some((arg) => arg.endsWith(".tgz"))).toBe(false);
+            expect(create).toContain("--verify-tag");
+            expect(callsOf(fixture, "gh", "release").map((args) => args[1])).not.toContain(
+                "upload",
+            );
+        });
+    },
+);
+
+/**
+ * A fixture for #527 case C, locally: `origin/main` carries the real guard, and the
+ * maintenance branch `release-0.79` carries a release commit at `0.79.50` whose own
+ * `check-release-ref.sh` approves anything.
+ *
+ * @returns The fixture, with `release-0.79` pushed to origin.
+ */
+function selfApprovingBackport(): PublishFixture {
+    const fixture = mergedReleaseRepo();
+    gitIn(fixture.dir, "checkout", "-q", "-b", "release-0.79", fixture.merge);
+    writeFileSync(
+        join(fixture.dir, "package.json"),
+        JSON.stringify({ name: "tempest-react-sdk", version: "0.79.50" }),
+    );
+    writeFileSync(join(fixture.dir, "RELEASES.md"), "| v0.79.50 | 2026-11-13 | ccccccc |\n");
+    writeFileSync(
+        join(fixture.dir, "scripts", "check-release-ref.sh"),
+        '#!/usr/bin/env bash\necho "dist_tag=latest"\n',
+    );
+    gitIn(fixture.dir, "commit", "-q", "-am", "approve myself");
+    gitIn(fixture.dir, "push", "-q", "origin", "release-0.79");
+    gitIn(fixture.dir, "checkout", "-q", "main");
+    setState(fixture, { latest: ["0.80.0"], publishVersion: "0.79.50" });
+    return fixture;
+}
+
+describe(
+    "the guard trusts neither the released commit nor a new branch (#527)",
+    { timeout: FLOW_TIMEOUT },
+    () => {
+        it("runs the guard copied from origin/main, never the released commit's own", () => {
+            const fixture = selfApprovingBackport();
+            const run = runReleaseTag(fixture, "0.79.50", { BASE_BRANCH: "release-0.79" });
+            expect(run.status).toBe(1);
+            expect(run.output).toContain("release-0.79 is not an opened backport line");
+            expect(packed(fixture)).toEqual([]);
+            expect(callsOf(fixture, "npm", "publish")).toEqual([]);
+        });
+
+        it("publishes the backport under its release line once the publisher opens it", () => {
+            const fixture = selfApprovingBackport();
+            const run = runReleaseTag(fixture, "0.79.50", {
+                BASE_BRANCH: "release-0.79",
+                BACKPORT_LINES: "release-0.79",
+            });
+            expect(run.status, run.output).toBe(0);
+            expect(callsOf(fixture, "npm", "publish")[0]?.slice(-2)).toEqual([
+                "--tag",
+                "release-0.79",
+            ]);
+            const create =
+                callsOf(fixture, "gh", "release").find((args) => args[1] === "create") ?? [];
+            expect(create).toContain("--latest=false");
+        });
+
+        it("copies both guard scripts out of origin/main", () => {
+            const script = code(readFileSync(RELEASE_TAG, "utf8"));
+            expect(script).toContain(
+                'git show refs/remotes/origin/main:scripts/check-release-ref.sh >"$WORK/guard/check-release-ref.sh"',
+            );
+            expect(script).toContain(
+                'git show refs/remotes/origin/main:scripts/release-dist-tag.sh >"$WORK/guard/release-dist-tag.sh"',
+            );
+            expect(script).not.toMatch(/bash scripts\/check-release-ref\.sh/);
+            expect(existsSync(join(SCRIPTS, "release-pack.sh"))).toBe(true);
+        });
+    },
+);

@@ -54,6 +54,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   #567, barril ESM 151 902 B (dentro do teto de 152 KB, ruído do brotli) e CJS 181 252 → 181 410 B;
   tetos subidos para 5 KB (resumable) e 181,5 KB (CJS).
 
+- **`tempestPwaDevSw()` passa a empacotar o service worker no `vite build`, e o build falha quando
+  o PWA sairia quebrado (#573).** Medido num app mínimo com `tempestPwaManifest()` +
+  `tempestPwaDevSw()` sobre a `main` (`2df6e4b`), `npx vite build`: exit 0, `dist/` com
+  `precache-manifest.json` e **sem** `sw.js` — o registro dá 404 em produção e
+  `navigator.serviceWorker.ready` nunca resolve. O mesmo build listava `/manifest.webmanifest` (de
+  `additionalUrls`) no precache sem o arquivo existir: o manifesto real saiu com hash em
+  `assets/manifest-*.webmanifest`. Agora o plugin (antes `apply: "serve"`) também roda no build e
+  emite `swSrc` em `swUrl` como worker clássico (IIFE), com o `build()` do próprio Vite — o esbuild
+  é peer opcional no Vite 8 — e o `import.meta.env` do app. A primeira linha do `sw.js` carrega a
+  `version` do precache, para cada deploy que muda o precache gerar um worker byte a byte diferente
+  e o navegador reinstalar. O `tempestPwaManifest()` derruba o build quando nenhum worker sai no
+  `swUrl` (ou `/sw.js`) e quando um item de `additionalUrls` não está em `public/` nem no bundle
+  (URLs `http(s):` ficam fora). 14 dos 15 testes novos de `src/vite/pwa-worker-build.test.ts` (8 com
+  `vite build` real) falham sobre a `main` e passam aqui (`npx vitest run src/vite`).
+  **Migração:** (1) quem gera o worker num passo separado depois do build (`build:sw` do
+  `template-pwa`, `vite-plugin-pwa`) passa `tempestPwaDevSw({ build: false })` ou, sem o plugin de
+  dev, `tempestPwaManifest({ serviceWorker: false })` — ou apaga o `build:sw`, agora redundante;
+  (2) item de `additionalUrls` que não existe sai da lista. Só o subpath `/vite` (Node) mudou;
+  nenhuma fatia do `size-limit` o importa.
+
 ### Segurança
 
 - **Sessão restaurada por `refresh()` ganha `sessionKey()` própria (#561, C2).** O restore do boot
@@ -87,6 +107,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `src/http/resumable-upload.test.ts` (2 falham na `main`). **Migração:** nenhuma — retomar depois
   do `abort()` com o mesmo token continua funcionando.
 
+- **Release e docs saem da máquina do mantenedor, sem GitHub Actions; versões novas vão para o npm
+  sem provenance.** Regra do dono desde 13/11/2026: Actions só em repositório da org `7rc` (a conta
+  foi travada por cobrança em 09/11 e nada publicava). `release-npm.yml` e `docs.yml` foram
+  apagados — desligados, voltavam com um clique. `make release-tag TAG=X.Y.Z` agora publica: confere
+  `npm whoami` (sem login, para antes de buildar) e `gh auth status`, acha o commit do merge na
+  `main`, roda o guard de ref e a regra do dist-tag **copiados de `origin/main`** (#472, #527) contra
+  o `latest` do registry, builda/testa/smoka o commit num worktree descartável
+  (`scripts/release-pack.sh`), relê o `latest`, roda `npm publish <tarball> --tag <dist-tag>` com a
+  credencial npm local, faz o read-back (30 min), empurra a tag e cria o GitHub Release com
+  `gh release create --verify-tag`, anexando o tarball só se o sha512 dele é o `dist.integrity` do
+  npm. Rodar de novo retoma uma run que parou no meio. `make docs-deploy` builda a `origin/main` com
+  `docs/requirements.txt --require-hashes` num venv descartável, `mkdocs build --strict`, confere as
+  duas línguas e empurra esse build para a `gh-pages` (`ghp-import`); medido: `time DRY_RUN=1 make
+docs-deploy` → ~13 s, deploy real conferido contra um `origin` bare local. O smoke de bundler +
+  Node cru virou `scripts/smoke-bundle.sh` e entrou no `make check`. Provenance exige OIDC de CI e
+  não existe localmente: a procedência passa a se conferir pelo GitHub Release (commit da tag +
+  tarball com o `dist.integrity` do npm). `BACKPORT_LINES` (#527) deixa de ser variável do
+  repositório e vira opção da linha de comando de quem publica. `test/release-workflow.test.ts`
+  (81 testes com o `test/ci-policy.test.ts`) roda o fluxo inteiro numa fixture com `origin` bare,
+  `npm` e `gh` falsos; sobre a `main` (`2df6e4b`), 46 deles falham
+  (`npx vitest run test/release-workflow.test.ts test/ci-policy.test.ts`). **Migração (dono):**
+  trocar a fonte do Pages para a branch `gh-pages` depois do primeiro `make docs-deploy`, remover o
+  Trusted Publisher e o secret `NPM_TOKEN`, ligar 2FA de publish no npm e desligar Actions no
+  repositório — checklist em `docs/release.md`. Consumidor: nada muda.
+
 - **`uploadWithProgress` não entrega mais a resposta de outra origem como resultado, e ganha
   `redirect: "error"` (#570).** Validado no Chrome 150 (Chromium do Playwright MCP) com o
   `uploadWithProgress` empacotado por esbuild a partir de `src/`: página e `url` em
@@ -111,6 +156,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   FastAPI) segue funcionando no padrão.
 
 ### Corrigido
+
+- **`installPrecache` volta a servir o app offline depois que o navegador reinicia o service worker
+  (#572).** O nome do cache e os caminhos pré-cacheados eram variáveis do módulo preenchidas só no
+  `install`, que o restart não repete. Reproduzido em `src/sw/cache.restart.test.ts` (o restart é
+  `vi.resetModules()` + reimport com a mesma Cache Storage, sem `install`): sobre a `main`
+  (`2df6e4b`), `npx vitest run src/sw/cache.restart.test.ts` dá 9 failed | 2 passed; aqui, 11
+  passed. O defeito é maior que o da issue: além da navegação offline ("offline and no cached app
+  shell") e dos assets indo para a rede, um `activate` numa execução sem `install` — worker em espera
+  ativado depois de um restart — apagava **todos** os `tempest-precache-*`, inclusive o da versão que
+  estava ativando, e um caminho pré-cacheado que uma rota de `installRuntimeCache` também atendia
+  disparava um segundo `respondWith` (`InvalidStateError`) já na execução que instalou.
+  Medido no Chrome 150 (Playwright, `ServiceWorker.stopAllWorkers` pelo CDP)
+  com um `sw.js` de `installPrecache()` empacotado por esbuild a partir de `src/sw/cache.ts`, servido
+  por `http.server` e com o servidor derrubado para simular offline: antes do stop a navegação
+  offline abre o shell nas duas versões; depois do stop, a da `main` falha com `net::ERR_FAILED` (e
+  deixa um cache de nome `""` criado pelo `caches.open("")`), a deste branch abre o shell com o
+  `app.js` pré-cacheado. Agora o `install` e o `activate` gravam, numa entrada
+  `/__tempest-precache-state__` dentro do cache versionado, quando aquela versão foi instalada e
+  ativada; o worker reiniciado lê de volta a versão ativa e os caminhos dela da Cache Storage, o
+  `activate` só apaga versões antigas quando sabe qual está ativando, e o precache ignora o evento
+  que uma rota de runtime já respondeu. Na primeira requisição depois do restart, enquanto os
+  caminhos ainda estão sendo lidos, um `GET` da mesma origem fora do precache vai para a rede por
+  `fetch(request)` dentro do worker. **Migração:** nenhuma; o primeiro `activate` com esta versão
+  apaga os precaches gravados pela 0.82.0, como já fazia na troca de versão. As rotas de
+  `installRuntimeCache` não têm o problema: chegam por argumento no topo do `sw.js` e são refeitas a
+  cada avaliação.
+  Tamanho (`npm run build && npx size-limit --json`, `src/sw/cache.ts` da `main` contra o deste
+  branch): barrel ESM inteiro 151 902 → 152 470 B (+568 B, budget 152 → 152,5 kB), barrel CJS
+  inteiro 181 410 → 181 894 B (+484 B, budget 181,5 → 181,9 kB); nenhuma fatia importada mudou.
 
 - **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de
   palavra-chave (#562).** O `checkSchema` lia o mapa `properties` como se fosse um schema e pulava as
@@ -150,8 +224,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **#569 e #570** (`npm run build && npx size-limit --json`, `src/http/resumable-upload.ts` e
   `src/http/upload-with-progress.ts` da `origin/main` em `2df6e4b` contra os deste branch): fatia
   `http client` 5040 → 5349 B (+309 B, o caminho `fetch` do `redirect: "error"`; teto 5,06 → 5,4 KB),
-  `resumable upload` 4948 → 5046 B (+98 B; teto 5 → 5,1 KB), barril ESM 151 902 → 152 444 B (teto
-  152 → 152,5 KB), barril CJS 181 410 → 181 750 B (teto 181,5 → 181,8 KB).
+  `resumable upload` 4948 → 5046 B (+98 B; teto 5 → 5,1 KB), e, remedido sobre a `main` já com #575 e
+  #576, barril ESM 152 470 → 152 588 B (teto 152,5 → 152,6 KB) e CJS 181 894 → 181 937 B (teto 181,9 →
+  182 KB).
 
 ## [0.82.0] — 2026-11-02
 

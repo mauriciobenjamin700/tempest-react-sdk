@@ -4,14 +4,15 @@
 # Uso:
 #   scripts/release.sh <TAG>
 #
-# Este script NÃO taggeia (#472). A tag `vX.Y.Z` é o que publica no npm, e o
-# guard do `release-npm.yml` só aceita tag em commit que já está na `main`.
-# Depois do merge do PR, o passo seguinte é `make release-tag TAG=<TAG>`
-# (`scripts/release-tag.sh`), que taggeia o commit do merge e faz o push.
+# Este script NÃO taggeia nem publica (#472). Depois do merge do PR, o passo
+# seguinte é `make release-tag TAG=<TAG>` (`scripts/release-tag.sh`), que roda o
+# guard de ref (só aceita commit que já está na `main`), builda e testa a árvore
+# do commit do merge, publica no npm com a credencial local, empurra a tag e cria
+# o GitHub Release. Nada disso passa por GitHub Actions desde 2026-11-13.
 #
 # Variáveis de ambiente:
 #   DRY_RUN=1         cria branch + commits locais mas pula push e PR
-#   SKIP_VALIDATE=1   pula o make check local (o único gate: a CI não testa)
+#   SKIP_VALIDATE=1   pula o make check local (o único gate antes do merge)
 #   BASE_BRANCH=main  branch alvo do PR (default: main)
 
 set -euo pipefail
@@ -27,7 +28,7 @@ Uso: $0 <TAG>
 
 Variáveis:
   DRY_RUN=1         cria branch + commits locais mas pula push e PR
-  SKIP_VALIDATE=1   pula o make check local (o único gate: a CI não testa)
+  SKIP_VALIDATE=1   pula o make check local (o único gate antes do merge)
   BASE_BRANCH=main  branch alvo do PR (default: main)
 EOF
 }
@@ -44,7 +45,6 @@ fi
 
 GIT_TAG="v$TAG"
 REGISTRY="npm"
-WORKFLOW_FILE="release-npm.yml"
 
 CHANGELOG="CHANGELOG.md"
 RELEASE_BRANCH="release/$GIT_TAG"
@@ -86,7 +86,7 @@ echo "→ Bump de versão para $TAG"
 npm version "$TAG" --no-git-tag-version --allow-same-version >/dev/null
 VERSION_PATHSPEC=("package.json" "package-lock.json")
 
-# Fecha o [Unreleased] numa seção datada da versão. O workflow de release usa
+# Fecha o [Unreleased] numa seção datada da versão. O `make release-tag` usa
 # exatamente essa seção como corpo do GitHub Release, então sem isso o Release
 # sai com as notas do ciclo seguinte.
 echo "→ Fechando o CHANGELOG em [$TAG]"
@@ -109,7 +109,7 @@ fi
 #
 # O RELEASES.md com a linha nova tem de estar no commit que vai ser taggeado:
 # `test/docs-counts.test.ts` exige que toda versão com seção no CHANGELOG
-# apareça nele, e é essa árvore, e só ela, que o `release-npm.yml` vê.
+# apareça nele, e é essa árvore, e só ela, que o `make release-tag` builda e publica.
 echo "→ Regenerando RELEASES.md (com tag local provisória $GIT_TAG)"
 git tag "$GIT_TAG"
 if ! make releases-md >/dev/null; then
@@ -145,7 +145,7 @@ fi
 #
 # Validar aqui também é mais correto: a árvore aferida é exatamente a que vai
 # para o PR e, depois do merge, para a tag. Desde 2026-10-26 é o `make check`
-# inteiro (scripts/check.sh): a CI não roda mais suíte em PR, então este é o
+# inteiro (scripts/check.sh): não existe CI que rode a suíte em PR, então este é o
 # último gate antes da tag.
 #
 # Os passos vão encadeados com `&&`, não com `set -e` no subshell: dentro de
@@ -184,8 +184,8 @@ Tem Script? | Novas Env Vars
 Não | Não
 
 > :warning: **NOTA**
-> - **Nada foi publicado ainda.** A tag \`$GIT_TAG\` nasce depois do merge, no commit que entrar na \`$BASE_BRANCH\`: \`make release-tag TAG=$TAG\`. O push dela dispara o [\`$WORKFLOW_FILE\`](.github/workflows/$WORKFLOW_FILE).
-> - O guard do workflow reprova tag em commit que não está na \`$BASE_BRANCH\` (#472).
+> - **Nada foi publicado ainda.** Depois do merge, \`make release-tag TAG=$TAG\` builda o commit que entrou na \`$BASE_BRANCH\`, publica no npm com a credencial local de quem roda, empurra a tag \`$GIT_TAG\` e cria o GitHub Release. Sem GitHub Actions.
+> - O guard de ref reprova commit que não está na \`$BASE_BRANCH\` (#472).
 
 ## Problema
 
@@ -209,7 +209,7 @@ Não se aplica — release de SDK (sem mudança de UI).
 ## Notas sobre deploy
 
 1. Merge deste PR.
-2. \`make release-tag TAG=$TAG\` — taggeia o commit do merge na \`$BASE_BRANCH\` e faz o push da tag, que dispara o \`$WORKFLOW_FILE\`.
+2. \`make release-tag TAG=$TAG\` — guard de ref, build + testes + smokes do commit do merge, publish no npm (pede \`npm login\`), read-back do registry, push da tag e GitHub Release.
 
 **Validação local executada**:
 - \`make check\` (ícones + format + lint + typecheck + cobertura + build + size-limit + gallery + smokes do tarball + e2e) + pack dry-run

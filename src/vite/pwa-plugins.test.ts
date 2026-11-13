@@ -186,10 +186,17 @@ describe("tempestPwaIcons", () => {
 });
 
 describe("tempestPwaDevSw", () => {
-    it("is a serve-only plugin", () => {
+    it("runs in build as well as serve, so the production build gets the worker (#573)", () => {
+        /**
+         * Until 0.82.0 this asserted `apply: "serve"`. That was the defect: an app
+         * with this plugin and `tempestPwaManifest` worked in dev and shipped a
+         * build with no `sw.js`, exit code 0. The plugin now bundles the worker in
+         * `vite build` too; `pwa-worker-build.test.ts` runs that build for real.
+         */
         const plugin = tempestPwaDevSw() as any;
         expect(plugin.name).toBe("tempest-pwa-dev-sw");
-        expect(plugin.apply).toBe("serve");
+        expect(plugin.apply).toBeUndefined();
+        expect(plugin.api).toEqual({ swUrl: "/sw.js", build: true });
     });
 
     it("serves an empty dev manifest and passes other requests through", async () => {

@@ -13,7 +13,7 @@ PT-BR, conventional commits, workaround do `gh pr edit`) vêm de
 | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | criar arquivo, módulo, export ou subpath; mexer em barrel; medir bundle | [`docs/internal/architecture.md`](./docs/internal/architecture.md)           |
 | escrever código, teste, docstring ou CSS; validar pixel                 | [`docs/internal/conventions.md`](./docs/internal/conventions.md)             |
-| abrir PR, mexer em CI ou docs, cortar release                           | [`docs/internal/workflow.md`](./docs/internal/workflow.md)                   |
+| abrir PR, mexer em release ou docs, cortar release                      | [`docs/internal/workflow.md`](./docs/internal/workflow.md)                   |
 | propor algo que contraria uma decisão já tomada                         | [`docs/internal/decisions.md`](./docs/internal/decisions.md)                 |
 | confiar num número, num gate ou numa frase da doc                       | [`docs/internal/lessons.md`](./docs/internal/lessons.md)                     |
 | pegar uma issue                                                         | [`docs/internal/working-on-issues.md`](./docs/internal/working-on-issues.md) |
@@ -77,13 +77,18 @@ seção na gallery (ou isenção escrita em `scripts/docs-gallery.mjs`).
 **`make check`** (`scripts/check.sh`, ~6 min medido em 26/10/2026, e2e incluso):
 `npm ci` · ícones × lucide · `format:check` · `lint` · `typecheck` ·
 `test:coverage` (pisos) · `build` · `size-limit` · `docs:gallery -- --check` ·
-smokes do tarball (Vitest do consumidor + CLI) · e2e da gallery (Playwright + axe).
+smokes do tarball (bundler + Node cru, Vitest do consumidor, CLI) · e2e da gallery
+(Playwright + axe).
 `SKIP_E2E=1` só para iterar. `make test-matrix` repete a suíte no node 22.
 
-**A CI não testa PR** (decisão de 26/10/2026, #521): `ci.yml`, `size-limit.yml` e
-`e2e.yml` saíram; ficam só `docs.yml` (Pages) e `release-npm.yml` (publish). O
-`make check` local é o gate de merge e o último passo do `make release` antes do
-push. Guard: `test/ci-policy.test.ts`.
+**Não existe CI** (26/10/2026 a suíte saiu, #521; 13/11/2026 saiu o resto). Regra
+global: GitHub Actions só em repositório da org `7rc` — nenhum workflow, nenhum
+`gh run rerun`/`gh workflow run`. O `make check` local é o gate de merge e o último
+passo do `make release` antes do push; publicar é `make release-tag` (build + smokes
+
+- `npm publish` com a credencial npm local, sem provenance + tag + GitHub Release) e
+  o site é `make docs-deploy` (build `--strict` em venv descartável → `gh-pages`).
+  Guards: `test/ci-policy.test.ts` e `test/release-workflow.test.ts`.
 
 Além deles, cinco guards que reprovam o que o compilador não vê:
 `test/public-surface.test.ts` (todo export de runtime está documentado),
@@ -140,7 +145,8 @@ mais voltam:
 ## Estado atual (snapshot pós-v0.82.0 — `[Unreleased]` abre o ciclo 0.83.0)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 102 tags publicadas
-  (0.1.0 → 0.82.0) com provenance assinada via OIDC. Histórico em `RELEASES.md`
+  (0.1.0 → 0.82.0); até a 0.82.0 com provenance via OIDC, depois publicadas da
+  máquina do mantenedor, sem provenance. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 41 módulos em `src/` (`ls -d src/*/`), 134 componentes
   (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths
@@ -190,7 +196,8 @@ SKIP_E2E=1 make check             # iteração rápida, sem o e2e da gallery
 make test-matrix                  # a suíte também no node 22
 make validate                     # subconjunto rápido, sem budgets/smokes/e2e
 make release TAG=0.64.0           # branch + bump + validate + push + PR (sem tag)
-make release-tag TAG=0.64.0       # depois do merge: tag no commit do merge + push (publica)
+make release-tag TAG=0.64.0       # depois do merge: build + smokes + npm publish + tag + Release
+make docs-deploy                  # site da main na gh-pages (DRY_RUN=1 só builda)
 make releases-check               # audita tag ↔ npm ↔ GitHub Release
 ```
 

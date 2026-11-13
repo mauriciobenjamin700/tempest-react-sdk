@@ -210,6 +210,7 @@ describe("installPrecache", () => {
         );
         installPrecache();
         await dispatch("install");
+        await dispatch("activate");
 
         // Seed the shell content, then go offline.
         (await cacheStorage.open("tempest-precache-v1")).store.set(
@@ -517,6 +518,7 @@ describe("installPrecache — options and fetch edges", () => {
         );
         installPrecache();
         await dispatchLifecycle("install");
+        await dispatchLifecycle("activate");
 
         const hit = (await dispatchFetch(
             new Request("https://app.test/assets/app.js"),

@@ -48,6 +48,13 @@ installPrecache(); // app shell + offline navigation
 
 `installPrecache` enables the **Navigation Preload API** on `activate` by default (`navigationPreload: true`): the browser fetches the navigation request in parallel with the worker boot and the handler serves `event.preloadResponse`, cutting first-navigation latency after the worker starts.
 
+!!! info "The worker can be stopped at any time, and the precache keeps working"
+    The browser terminates an idle service worker within seconds or minutes and starts it again on the next event, **without** repeating `install`. That is why `installPrecache` keeps nothing in memory only: `install` and `activate` record, in an entry inside the versioned cache itself (`/__tempest-precache-state__`), when that version was installed and activated, and the restarted worker reads back from Cache Storage which version is active and which paths it holds. Offline navigation and precached assets keep coming from the cache after the restart, and `activate` deletes old versions only once it knows which one it is activating — never the current one.
+
+    Up to 0.82.0 the cache name and the paths lived in module variables filled only by `install`: after the first restart, offline navigation failed with "offline and no cached app shell", and an `activate` without `install` in the same run deleted every precache (#572).
+
+    In the first request after a restart, while the worker is still reading which paths are precached, a same-origin `GET` that no runtime route answered goes to the network through `fetch(request)` inside the worker instead of bypassing it — the decision to call `respondWith` cannot wait for Cache Storage. From then on, what is not precached bypasses the worker again.
+
 !!! note "Where the manifest comes from"
     `installPrecache` reads `precache-manifest.json`, emitted by the `tempestPwaManifest()` plugin from the `tempest-react-sdk/vite` subpath. See [Vite config](./vite-config.md).
 

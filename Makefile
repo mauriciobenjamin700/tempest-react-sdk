@@ -6,14 +6,17 @@
 #   make validate                   # roda typecheck + lint + format-check + test + build + pack dry-run
 #   make release TAG=0.1.1          # branch + bump + validate + commit + push + PR (sem tag)
 #   make release TAG=0.1.1 DRY_RUN=1
-#   make release-tag TAG=0.1.1      # depois do merge: tag no commit do merge + push (publica)
+#   make release-tag TAG=0.1.1      # depois do merge: build + smokes + npm publish + tag + GitHub Release
 #   make release-tag TAG=0.1.1 DRY_RUN=1
+#   make docs-deploy                # builda o site da main e o empurra para a gh-pages
 #
 # Variáveis aceitas:
 #   TAG              número de versão sem prefixo (ex.: 0.1.1)
 #   DRY_RUN=1        release: cria branch + commits locais, sem push nem PR
-#                    release-tag: mostra o commit que seria taggeado, sem criar tag
-#   REF=<sha>        release-tag: commit a taggear, quando a main já andou de versão
+#                    release-tag: guard + build + smokes + publish --dry-run, sem tag
+#                    docs-deploy: build + conferências, sem push
+#   REF=<sha>        release-tag: commit a publicar, quando a main já andou de versão
+#   BACKPORT_LINES=  release-tag: linha de backport aberta nesta run (ex.: release-0.75)
 #   SKIP_VALIDATE=1  pula passo de validação (lint/typecheck/build)
 #   BASE_BRANCH=...  branch alvo do PR (default: main)
 
@@ -26,6 +29,7 @@ DRY_RUN       ?= 0
 SKIP_VALIDATE ?= 0
 BASE_BRANCH   ?= main
 REF           ?=
+BACKPORT_LINES ?=
 
 RELEASES_FILE  := RELEASES.md
 VERSION_FILES  := package.json package-lock.json
@@ -99,8 +103,9 @@ bump: _require-tag ## Atualiza versão em package.json + package-lock.json (use 
 	@echo "✓ tempest-react-sdk bumped → $(TAG)"
 
 # ---------------------------------------------------------------------------
-# Validação local. A CI só publica (desde 2026-10-26): `make check` é o gate
-# de merge e de release, e `scripts/check.sh` é a lista de passos.
+# Validação local. Sem GitHub Actions desde 2026-11-13 (a CI já não testava
+# desde 2026-10-26): `make check` é o gate de merge e de release, e
+# `scripts/check.sh` é a lista de passos.
 # ---------------------------------------------------------------------------
 
 .PHONY: validate check test-matrix install clean
@@ -139,12 +144,13 @@ release: _require-tag ## Abre o PR de release, sem taggear: make release TAG=0.1
 	@DRY_RUN=$(DRY_RUN) SKIP_VALIDATE=$(SKIP_VALIDATE) BASE_BRANCH=$(BASE_BRANCH) \
 	  ./scripts/release.sh "$(TAG)"
 
-release-tag: _require-tag ## Depois do merge: tag no commit do merge + push (publica): make release-tag TAG=0.1.1
-	@DRY_RUN=$(DRY_RUN) BASE_BRANCH=$(BASE_BRANCH) REF=$(REF) \
+release-tag: _require-tag ## Depois do merge: guard + build + smokes + npm publish + tag + GitHub Release: make release-tag TAG=0.1.1
+	@DRY_RUN=$(DRY_RUN) BASE_BRANCH=$(BASE_BRANCH) REF=$(REF) BACKPORT_LINES="$(BACKPORT_LINES)" \
 	  ./scripts/release-tag.sh "$(TAG)"
 
 # ---------------------------------------------------------------------------
-# Publish: só pelo release-npm.yml (#532). Não existe publish local.
+# Publish: só pelo make release-tag, que leva o guard de ref, o build e os smokes
+# da árvore taggeada, o read-back do registry e o GitHub Release (#532).
 # ---------------------------------------------------------------------------
 
 .PHONY: publish publish-dry
@@ -152,12 +158,21 @@ release-tag: _require-tag ## Depois do merge: tag no commit do merge + push (pub
 publish-dry: ## Roda npm publish --dry-run (não publica)
 	npm publish --dry-run --access public
 
-publish: ## Recusa: publicar é só pelo workflow (make release + make release-tag)
-	@echo "ERROR: não há publish local. Publicar daqui pula o guard de tag, a conferência"
-	@echo "       com a main, os smokes do tarball, a provenance e o GitHub Release, e"
-	@echo "       exige um token npm de vida longa. Use: make release TAG=X.Y.Z, merge do"
-	@echo "       PR, make release-tag TAG=X.Y.Z. Veja docs/release.md."
+publish: ## Recusa: publicar é só pelo make release-tag, depois do merge do PR de release
+	@echo "ERROR: publicar fora do release-tag pula o guard de tag, a conferência com a main, os"
+	@echo "       smokes do tarball, o read-back do registry e o GitHub Release. Use:"
+	@echo "       make release TAG=X.Y.Z, merge do PR, make release-tag TAG=X.Y.Z."
+	@echo "       Veja docs/release.md."
 	@exit 1
+
+# ---------------------------------------------------------------------------
+# Docs: site MkDocs na gh-pages, buildado na máquina local (sem GitHub Actions)
+# ---------------------------------------------------------------------------
+
+.PHONY: docs-deploy
+
+docs-deploy: ## Builda o site da origin/main (strict, venv descartável, requirements com hash) e o empurra para a gh-pages
+	@DRY_RUN=$(DRY_RUN) ./scripts/docs-deploy.sh
 
 # ---------------------------------------------------------------------------
 # Guards (uso interno)

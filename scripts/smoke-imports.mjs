@@ -2,7 +2,7 @@
  * Entry point of the release smoke check: imports the packed tarball the way a
  * real consumer does and asserts the barrel still carries its core surface.
  *
- * This file is copied into a throwaway project by `release-npm.yml`, where
+ * This file is copied into a throwaway project by `scripts/smoke-bundle.sh`, where
  * `tempest-react-sdk` resolves to the freshly packed tarball, and is bundled
  * with esbuild before it runs. It is not bundled for speed: since 0.63.0 every
  * component module imports its own stylesheet, and `.css` is not a format Node

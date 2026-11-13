@@ -87,6 +87,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `src/http/resumable-upload.test.ts` (2 falham na `main`). **Migração:** nenhuma — retomar depois
   do `abort()` com o mesmo token continua funcionando.
 
+- **Release e docs saem da máquina do mantenedor, sem GitHub Actions; versões novas vão para o npm
+  sem provenance.** Regra do dono desde 13/11/2026: Actions só em repositório da org `7rc` (a conta
+  foi travada por cobrança em 09/11 e nada publicava). `release-npm.yml` e `docs.yml` foram
+  apagados — desligados, voltavam com um clique. `make release-tag TAG=X.Y.Z` agora publica: confere
+  `npm whoami` (sem login, para antes de buildar) e `gh auth status`, acha o commit do merge na
+  `main`, roda o guard de ref e a regra do dist-tag **copiados de `origin/main`** (#472, #527) contra
+  o `latest` do registry, builda/testa/smoka o commit num worktree descartável
+  (`scripts/release-pack.sh`), relê o `latest`, roda `npm publish <tarball> --tag <dist-tag>` com a
+  credencial npm local, faz o read-back (30 min), empurra a tag e cria o GitHub Release com
+  `gh release create --verify-tag`, anexando o tarball só se o sha512 dele é o `dist.integrity` do
+  npm. Rodar de novo retoma uma run que parou no meio. `make docs-deploy` builda a `origin/main` com
+  `docs/requirements.txt --require-hashes` num venv descartável, `mkdocs build --strict`, confere as
+  duas línguas e empurra esse build para a `gh-pages` (`ghp-import`); medido: `time DRY_RUN=1 make
+docs-deploy` → ~13 s, deploy real conferido contra um `origin` bare local. O smoke de bundler +
+  Node cru virou `scripts/smoke-bundle.sh` e entrou no `make check`. Provenance exige OIDC de CI e
+  não existe localmente: a procedência passa a se conferir pelo GitHub Release (commit da tag +
+  tarball com o `dist.integrity` do npm). `BACKPORT_LINES` (#527) deixa de ser variável do
+  repositório e vira opção da linha de comando de quem publica. `test/release-workflow.test.ts`
+  (81 testes com o `test/ci-policy.test.ts`) roda o fluxo inteiro numa fixture com `origin` bare,
+  `npm` e `gh` falsos; sobre a `main` (`2df6e4b`), 46 deles falham
+  (`npx vitest run test/release-workflow.test.ts test/ci-policy.test.ts`). **Migração (dono):**
+  trocar a fonte do Pages para a branch `gh-pages` depois do primeiro `make docs-deploy`, remover o
+  Trusted Publisher e o secret `NPM_TOKEN`, ligar 2FA de publish no npm e desligar Actions no
+  repositório — checklist em `docs/release.md`. Consumidor: nada muda.
+
 ### Corrigido
 
 - **`tempest gen api`: o guard de `__proto__` do #533 era contornado por propriedade com nome de

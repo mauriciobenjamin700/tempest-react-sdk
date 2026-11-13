@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # scripts/check.sh — todo gate que a CI rodava, na máquina local (`make check`).
 #
-# Desde 2026-10-26 a CI só publica: `ci.yml`, `size-limit.yml` e `e2e.yml` saíram,
-# e este script é o único lugar onde a suíte, os budgets, os smokes do tarball e o
-# e2e da gallery rodam antes de um merge ou de uma tag. `scripts/release.sh` o
-# chama antes de empurrar o PR de release; `test/ci-policy.test.ts` reprova quem
-# tirar um passo daqui ou devolver teste para a CI.
+# Desde 2026-10-26 a CI não testa (`ci.yml`, `size-limit.yml` e `e2e.yml` saíram), e
+# desde 2026-11-13 o repositório não tem GitHub Actions nenhum: este script é o
+# único lugar onde a suíte, os budgets, os smokes do tarball e o e2e da gallery
+# rodam antes de um merge ou de uma tag. `scripts/release.sh` o chama antes de
+# empurrar o PR de release; `test/ci-policy.test.ts` reprova quem tirar um passo
+# daqui ou devolver um workflow ao repositório.
 #
 # Os tarballs dos smokes vão para um diretório temporário: `npm pack` sem destino
 # deixa o `.tgz` na raiz, onde o `prettier --check .` e o `git status` o veem.
@@ -39,6 +40,7 @@ pack() {
 smoke_tarball() {
   local tarball
   tarball="$PACK_DIR/$(pack)"
+  scripts/smoke-bundle.sh "$tarball"
   scripts/smoke-vitest.sh "$tarball"
   scripts/smoke-cli.sh "$tarball"
 }
@@ -58,7 +60,7 @@ step "testes + pisos de cobertura" npm run test:coverage
 step "build" npm run build
 step "size-limit" npx size-limit
 step "capturas da gallery" npm run docs:gallery -- --check
-step "smokes do tarball (Vitest do consumidor + CLI)" smoke_tarball
+step "smokes do tarball (bundler + Node cru, Vitest do consumidor, CLI)" smoke_tarball
 if [[ "$SKIP_E2E" == "1" ]]; then
   echo ""
   echo "→ e2e da gallery: PULADO (SKIP_E2E=1)"

@@ -343,7 +343,7 @@ Every module is re-exported from the package root — `import { Button, useDebou
 
 Full per-module docs are published as a bilingual MkDocs site on GitHub Pages — **[Português (BR)](https://mauriciobenjamin700.github.io/tempest-react-sdk/)** / **[English (US)](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/)** (one page per module + draw.io diagrams in [`docs/diagrams/`](./docs/diagrams)). The source markdown lives in [`docs/`](./docs) (PT-BR base files + `.en.md` translations).
 
-> **Local preview:** `pip install -r docs/requirements.txt && mkdocs serve` (the published site is built and deployed automatically by `.github/workflows/docs.yml`).
+> **Local preview:** `pip install -r docs/requirements.txt && mkdocs serve` (the published site is built and pushed to `gh-pages` by `make docs-deploy`, from the maintainer's machine).
 
 A demo app exercising every module lives in [`examples/gallery`](./examples/gallery) — `cd examples/gallery && npm install && npm run dev`.
 
@@ -1999,10 +1999,10 @@ Two commands, with the release PR's review in between:
 
 ```bash
 make release TAG=X.Y.Z       # opens the release PR (no tag, no publish)
-make release-tag TAG=X.Y.Z   # after the merge: tags the merge commit and pushes it
+make release-tag TAG=X.Y.Z   # after the merge: build + smokes + npm publish + tag + GitHub Release
 ```
 
-The tag push runs `.github/workflows/release-npm.yml`, which publishes through npm Trusted Publishing (OIDC, with provenance) — no npm token anywhere, and no local publish (`make publish` refuses). Pipeline and the repository owner's settings checklist: [Release pipeline](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/release/).
+There is no GitHub Actions in this repository: `make release-tag` runs the ref guard, builds and smokes the merged commit, publishes the smoked tarball with the maintainer's npm credential (no provenance — that needs a CI runner's OIDC), pushes the tag and creates the GitHub Release. A bare `npm publish` is refused (`make publish` exits 1). Pipeline and the repository owner's settings checklist: [Release pipeline](https://mauriciobenjamin700.github.io/tempest-react-sdk/en/release/).
 
 Tags follow `vMAJOR.MINOR.PATCH`. CSS tokens (`--tempest-*`) are treated as public API — renames bump the minor (or major, on removal).
 

@@ -1,49 +1,43 @@
 #!/usr/bin/env bash
-# scripts/check-release-ref.sh — guard de ref do release-npm.yml (#452).
+# scripts/check-release-ref.sh — guard de ref do publish local (#452, #472, #527).
 #
-# O workflow só publica a partir de uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`) que:
+# Chamado pelo `scripts/release-tag.sh` (`make release-tag`) antes de instalar,
+# buildar ou publicar qualquer coisa. Só publica a tag `vX.Y.Z` (ou
+# `vX.Y.Z-pre`) que:
 #
-# 1. é o ref da run — em `workflow_dispatch` também, então o disparo manual é
-#    `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca `--ref main`;
-# 2. descreve o `version` do `package.json` do commit em checkout;
-# 3. aponta para o commit da run (`GITHUB_SHA`), que é o que vai para o npm;
-# 4. aponta para um commit que já está na `main` (#472) — ancestral de
-#    `origin/main`, ou seja, revisado e mergeado. A tag nasce depois do merge
-#    (`make release-tag`), nunca na branch de release.
+# 1. descreve o `version` do `package.json` **do commit** (lido com `git show`,
+#    não do working tree, então o guard vale de qualquer checkout);
+# 2. se já existe como tag local, aponta para esse mesmo commit — tag, npm e
+#    GitHub Release ficam num SHA só;
+# 3. aponta para um commit que já está na `main` (#472) — ancestral de
+#    `origin/main`, ou seja, revisado e mergeado. A tag nasce depois do merge,
+#    nunca na branch de release.
 #
-# A única exceção ao item 4 é o backport: um commit fora da `main` passa só se é
+# A única exceção ao item 3 é o backport: um commit fora da `main` passa só se é
 # ancestral de `origin/release-<maj>.<min>` (a branch de manutenção da linha da
 # própria versão), **se** o dist-tag escolhido é esse mesmo `release-<maj>.<min>`
-# **e se** a linha está em BACKPORT_LINES (#527). BACKPORT_LINES vem da variável
-# de repositório `RELEASE_BACKPORT_LINES` (lista separada por espaço ou vírgula,
-# por exemplo `release-0.75`), que só o dono do repositório edita: criar uma
-# branch `release-0.79` não abre a linha 0.79 sozinho. Vazia ou ausente, nenhum
-# backport passa. Assim uma branch de manutenção nunca publica em `latest` nem em
-# `next`: esses dois saem só da `main`. Proteger `release-*` (PR obrigatório) é
-# configuração do repositório, como proteger a `main`.
+# **e se** a linha está em BACKPORT_LINES (#527). BACKPORT_LINES é passada por
+# quem publica, na linha de comando (`make release-tag ... BACKPORT_LINES=release-0.75`,
+# separada por espaço ou vírgula): criar a branch `release-0.79` não abre a linha
+# 0.79 sozinho. Vazia ou ausente, nenhum backport passa. Uma branch de manutenção
+# nunca publica em `latest` nem em `next`: esses dois saem só da `main`.
 #
-# O workflow roda a cópia deste script (e do `release-dist-tag.sh`) que está em
-# `origin/main`, não a do commit taggeado (#527): um commit que reescreve o guard
-# não aprova a si mesmo. Isso barra engano, não um ator que empurra tag — num
-# tag push o próprio `release-npm.yml` vem do commit da tag. Quem decide quem
-# publica é o environment `npm-release` (revisor obrigatório) e o Trusted
-# Publisher do npm amarrado a ele; `docs/release.md` lista a configuração.
+# O `release-tag.sh` roda a cópia deste script (e do `release-dist-tag.sh`) que
+# está em `origin/main`, não a do commit taggeado (#527): um commit que reescreve o
+# guard não aprova a si mesmo. Isso barra engano. Quem decide quem publica, desde
+# que o publish saiu do GitHub Actions (2026-11-13), é a credencial npm de quem
+# roda o `make release-tag` — veja `docs/release.md`.
 #
-# O item 4 precisa do histórico das branches: o checkout do job `build` usa
-# `fetch-depth: 0`, que traz `refs/remotes/origin/*`. Sem `origin/main` no
-# checkout o guard falha fechado, em vez de pular a conferência.
+# Sem `origin/main` no repositório o guard falha fechado, em vez de pular a
+# conferência.
 #
-# Antes, um dispatch de branch derivava a tag do `package.json` sem conferir nada,
-# publicava aquela árvore e o `gh release create` criava a tag na HEAD da branch
-# padrão — outro commit. Com o guard, tag, npm e Release apontam para o mesmo SHA.
-#
-# Lê GITHUB_REF_TYPE, GITHUB_REF_NAME, GITHUB_SHA, CURRENT_LATEST e
-# BACKPORT_LINES; escreve tag, version, prerelease e dist_tag em GITHUB_OUTPUT.
-# Roda na raiz do checkout, com as tags buscadas.
+# Lê RELEASE_TAG, RELEASE_SHA, CURRENT_LATEST e BACKPORT_LINES. Escreve
+# `tag=`, `version=`, `prerelease=` e `dist_tag=` na stdout, uma por linha; as
+# mensagens vão para a stderr.
 #
 # O dist-tag é monotônico (#472) e a regra mora em `scripts/release-dist-tag.sh`
-# (`pick`), a mesma que o job publish reaplica logo antes do `npm publish`.
-# CURRENT_LATEST é o `latest` do registry, lido pelo workflow com
+# (`pick`), a mesma que o `release-tag.sh` reaplica logo antes do `npm publish`.
+# CURRENT_LATEST é o `latest` do registry, lido com
 # `release-dist-tag.sh current-latest`; vazio é pacote que ainda não existe.
 # Precisa estar definida, mesmo vazia: ausente, o guard falha em vez de assumir
 # pacote novo e mandar qualquer versão para `latest`.
@@ -52,51 +46,51 @@ set -euo pipefail
 
 DIST_TAG_SCRIPT="$(dirname "$0")/release-dist-tag.sh"
 
-PKG_VERSION=$(node -p "require('./package.json').version")
-
-if [ "${GITHUB_REF_TYPE:-}" != "tag" ]; then
-    echo "::error::release-npm.yml publishes from a tag only, and this run is on the ${GITHUB_REF_TYPE:-unknown} '${GITHUB_REF_NAME:-}'. Dispatch it with: gh workflow run release-npm.yml --ref v${PKG_VERSION}"
+fail() {
+    echo "ERROR: $*" >&2
     exit 1
+}
+
+TAG="${RELEASE_TAG:-}"
+SHA="${RELEASE_SHA:-}"
+
+if [ -z "$TAG" ] || [ -z "$SHA" ]; then
+    fail "RELEASE_TAG and RELEASE_SHA are required: the guard checks one tag against one commit"
 fi
 
-TAG="${GITHUB_REF_NAME}"
 if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
-    echo "::error::tag '${TAG}' is not vX.Y.Z (or vX.Y.Z-prerelease)"
-    exit 1
+    fail "tag '${TAG}' is not vX.Y.Z (or vX.Y.Z-prerelease)"
 fi
+
+COMMIT=$(git rev-parse --verify --quiet "${SHA}^{commit}" || true)
+if [ -z "$COMMIT" ]; then
+    fail "'${SHA}' is not a commit"
+fi
+
+PKG_VERSION=$(git show "${COMMIT}:package.json" | node -e 'let s="";process.stdin.on("data",(c)=>(s+=c)).on("end",()=>process.stdout.write(String(JSON.parse(s).version)))')
 
 if [ "${TAG#v}" != "$PKG_VERSION" ]; then
-    echo "::error::tag ${TAG} does not match package.json version ${PKG_VERSION}"
-    exit 1
+    fail "tag ${TAG} does not match package.json version ${PKG_VERSION}"
 fi
 
 TAG_COMMIT=$(git rev-parse --verify --quiet "refs/tags/${TAG}^{commit}" || true)
-if [ "$TAG_COMMIT" != "${GITHUB_SHA:-}" ]; then
-    echo "::error::tag ${TAG} points at '${TAG_COMMIT}', but this run checked out '${GITHUB_SHA:-}'"
-    exit 1
+if [ -n "$TAG_COMMIT" ] && [ "$TAG_COMMIT" != "$COMMIT" ]; then
+    fail "tag ${TAG} points at '${TAG_COMMIT}', but the release is ${COMMIT}"
 fi
 
 if [ -z "${CURRENT_LATEST+set}" ]; then
-    echo "::error::CURRENT_LATEST is not set. Pass the registry's dist-tags.latest (empty when the package has none) so a backport cannot move latest backwards."
-    exit 1
+    fail "CURRENT_LATEST is not set. Pass the registry's latest dist-tag (empty when the package has none) so a backport cannot move latest backwards."
 fi
 case "$PKG_VERSION" in
     *-*) PRERELEASE=true ;;
     *) PRERELEASE=false ;;
 esac
-PICK_ERR=$(mktemp)
-DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST" 2> "$PICK_ERR") || {
-    cat "$PICK_ERR"
-    rm -f "$PICK_ERR"
-    exit 1
-}
-rm -f "$PICK_ERR"
+DIST_TAG=$(bash "$DIST_TAG_SCRIPT" pick "$PKG_VERSION" "$CURRENT_LATEST")
 
 if ! git rev-parse --verify --quiet "refs/remotes/origin/main^{commit}" >/dev/null; then
-    echo "::error::origin/main is not in this checkout, so ${TAG} cannot be checked against it. The build job's checkout needs fetch-depth: 0."
-    exit 1
+    fail "origin/main is not in this repository, so ${TAG} cannot be checked against it. Run: git fetch origin main"
 fi
-if git merge-base --is-ancestor "${GITHUB_SHA}" refs/remotes/origin/main; then
+if git merge-base --is-ancestor "$COMMIT" refs/remotes/origin/main; then
     REACHED_FROM=main
 else
     MAINTENANCE="release-$(echo "$PKG_VERSION" | cut -d. -f1,2)"
@@ -108,23 +102,19 @@ else
         fi
     done
     if [ "$DIST_TAG" = "$MAINTENANCE" ] && [ "$OPENED" = false ]; then
-        echo "::error::${TAG} points at ${GITHUB_SHA}, which is not on main, and ${MAINTENANCE} is not an opened backport line. The repository owner opens one by adding '${MAINTENANCE}' to the RELEASE_BACKPORT_LINES repository variable (currently '${BACKPORT_LINES:-}')."
-        exit 1
+        fail "${TAG} points at ${COMMIT}, which is not on main, and ${MAINTENANCE} is not an opened backport line. Open it for this run with BACKPORT_LINES=${MAINTENANCE} (currently '${BACKPORT_LINES:-}')."
     fi
     if [ "$DIST_TAG" = "$MAINTENANCE" ] &&
         git rev-parse --verify --quiet "refs/remotes/origin/${MAINTENANCE}^{commit}" >/dev/null &&
-        git merge-base --is-ancestor "${GITHUB_SHA}" "refs/remotes/origin/${MAINTENANCE}"; then
+        git merge-base --is-ancestor "$COMMIT" "refs/remotes/origin/${MAINTENANCE}"; then
         REACHED_FROM="$MAINTENANCE"
     else
-        echo "::error::${TAG} points at ${GITHUB_SHA}, which is not on main. Tag the merge commit after the release PR is merged: make release-tag TAG=${PKG_VERSION}. A backport below the registry's latest may instead come from origin/${MAINTENANCE}."
-        exit 1
+        fail "${TAG} points at ${COMMIT}, which is not on main. Tag the merge commit after the release PR is merged: make release-tag TAG=${PKG_VERSION}. A backport below the registry's latest may instead come from origin/${MAINTENANCE}."
     fi
 fi
 
-{
-    echo "tag=${TAG}"
-    echo "version=${PKG_VERSION}"
-    echo "prerelease=${PRERELEASE}"
-    echo "dist_tag=${DIST_TAG}"
-} >> "$GITHUB_OUTPUT"
-echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${GITHUB_SHA} (on origin/${REACHED_FROM}) → dist-tag ${DIST_TAG} (registry latest: '${CURRENT_LATEST}')"
+echo "tag=${TAG}"
+echo "version=${PKG_VERSION}"
+echo "prerelease=${PRERELEASE}"
+echo "dist_tag=${DIST_TAG}"
+echo "✓ ${TAG} == package.json ${PKG_VERSION} @ ${COMMIT} (on origin/${REACHED_FROM}) → dist-tag ${DIST_TAG} (registry latest: '${CURRENT_LATEST}')" >&2

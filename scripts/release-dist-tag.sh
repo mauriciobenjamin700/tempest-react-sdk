@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# scripts/release-dist-tag.sh — dist-tag do release-npm.yml (#472).
+# scripts/release-dist-tag.sh — dist-tag do publish local (#472).
 #
 # Uma fonte só para a regra do dist-tag, chamada pelo guard
-# (check-release-ref.sh, no job build), pelo job publish logo antes do
-# `npm publish` e pelo job release. Subcomandos:
+# (check-release-ref.sh) e pelo `scripts/release-tag.sh` logo antes do
+# `npm publish` e na hora de marcar o GitHub Release. Subcomandos:
 #
 #   pick <versão> <latest-atual>   imprime o dist-tag da versão
 #   current-latest <pacote>        imprime o `latest` do registry, com retry
@@ -13,8 +13,8 @@
 #
 # - prerelease vai para `next`;
 # - estável maior que o `latest` atual, ou sem `latest`, vai para `latest`;
-# - estável igual ao `latest` atual também fica em `latest`: só acontece no
-#   re-run de uma versão já publicada, e o npm não aceita publicar de novo;
+# - estável igual ao `latest` atual também fica em `latest`: só acontece na
+#   retomada de uma versão já publicada, e o npm não aceita publicar de novo;
 # - estável menor vai para `release-<major>.<minor>`. Não `v0.75`, porque o npm
 #   recusa dist-tag que seja range semver (`npm publish --tag v0.75` sai com
 #   "Tag name must not be a valid SemVer range", medido no npm 12.2.0).
@@ -27,9 +27,8 @@
 # Resposta vazia com código 0, ou pacote sem `latest`, falha: tratar como pacote
 # novo mandaria um backport para `latest`. Outra falha do `npm view` é retentada
 # RELEASE_RETRY_ATTEMPTS vezes (10), com RELEASE_RETRY_SECONDS (15) entre elas.
-# Mensagens vão para stderr; stdout leva só o valor. O workflow grava o stderr
-# num arquivo e o imprime na stdout do step, para o `::error::` virar anotação
-# sem depender de o runner ler comandos do stderr.
+# Mensagens vão para stderr, prefixadas com `ERROR:`; stdout leva só o valor.
+# Só leitura: nenhum subcomando escreve no registry.
 
 set -euo pipefail
 
@@ -65,7 +64,7 @@ is_newer_than() {
 
 # Extrai a chave $1 do JSON de dist-tags na stdin; imprime nada sem ela.
 #
-# O npm 12 (o CLI fixado no job de publish) embrulha a resposta num array de um
+# O npm 12 (o CLI que publicou da v0.74.0 à v0.82.0) embrulha a resposta num array de um
 # elemento; o npm 10 imprime o objeto puro. Os dois são aceitos. Array com outro
 # tamanho não é lido: não dá para saber qual objeto vale. Medido na run da
 # v0.78.0, que parou antes do publish lendo `[{"latest":"0.77.0"}]` como "sem
@@ -87,11 +86,11 @@ extract_tag() {
 cmd_pick() {
     local version="$1" current="$2" major minor
     if ! [[ "$version" =~ $SEMVER_RE ]]; then
-        echo "::error::version '${version}' is not a semver version" >&2
+        echo "ERROR: version '${version}' is not a semver version" >&2
         return 1
     fi
     if [ -n "$current" ] && ! [[ "$current" =~ $SEMVER_RE ]]; then
-        echo "::error::the registry's latest '${current}' is not a semver version" >&2
+        echo "ERROR: the registry's latest '${current}' is not a semver version" >&2
         return 1
     fi
     if [ "$version" != "${version%%-*}" ]; then
@@ -112,12 +111,12 @@ cmd_current_latest() {
         if out=$(npm view --prefer-online "$pkg" dist-tags --json 2> "$err"); then
             rm -f "$err"
             if [ -z "$out" ]; then
-                echo "::error::npm view ${pkg} dist-tags answered nothing with exit 0; refusing to read that as a new package" >&2
+                echo "ERROR: npm view ${pkg} dist-tags answered nothing with exit 0; refusing to read that as a new package" >&2
                 return 1
             fi
             latest=$(printf "%s" "$out" | extract_tag latest)
             if [ -z "$latest" ]; then
-                echo "::error::${pkg} is on the registry but has no latest dist-tag (${out}); set it by hand before releasing" >&2
+                echo "ERROR: ${pkg} is on the registry but has no latest dist-tag (${out}); set it by hand before releasing" >&2
                 return 1
             fi
             printf "%s" "$latest"
@@ -133,7 +132,7 @@ cmd_current_latest() {
     done
     cat "$err" >&2
     rm -f "$err"
-    echo "::error::could not read the dist-tags of ${pkg} from the registry" >&2
+    echo "ERROR: could not read the dist-tags of ${pkg} from the registry" >&2
     return 1
 }
 

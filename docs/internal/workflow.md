@@ -1,6 +1,6 @@
 # Fluxo: comandos, docs, PR, CI e release
 
-Leia antes de abrir PR, mexer em CI ou documentação, e antes de cortar release.
+Leia antes de abrir PR, mexer em release ou documentação, e antes de cortar release.
 
 ## Comandos
 
@@ -21,7 +21,8 @@ npx size-limit         # budgets por fatia importada
 make validate          # sanidade completa, sem release
 make release TAG=0.64.0            # branch + bump + validate + push + PR (sem tag)
 make release TAG=0.64.0 DRY_RUN=1  # local, sem push
-make release-tag TAG=0.64.0        # depois do merge: tag no commit do merge + push (publica)
+make release-tag TAG=0.64.0        # depois do merge: build + smokes + npm publish + tag + Release
+make docs-deploy                   # site da main na gh-pages (DRY_RUN=1 só builda)
 make releases-check                # audita tag ↔ npm ↔ GitHub Release
 ```
 
@@ -62,95 +63,68 @@ Screenshots, Outras mudanças, Notas sobre deploy + as três listas finais).
 
 ## CI
 
-**A CI só publica** (decisão de 26/10/2026). Ficam dois workflows: `docs.yml`
-(Pages) e `release-npm.yml` (tag `vX.Y.Z` → guard de ref + lint/test/build +
-smokes + publish OIDC + read-back do registry + GitHub Release). Saíram
-`ci.yml` (format + lint + typecheck + cobertura + build + smokes, node 22/24),
-`size-limit.yml` e `e2e.yml` (gallery + axe): cada PR esperava 8–12 min por
-checks que nenhuma branch protection exigia.
+**Não existe CI** (decisão de 13/11/2026). Regra global do dono: GitHub Actions só
+em repositório da org `7rc` — a conta foi travada por cobrança em 09/11/2026 e o
+release parou. `docs.yml` e `release-npm.yml` foram **apagados** (não só
+desligados: workflow desligado volta com um clique, e os testes de hardening deles
+atestariam código que não roda). A última versão dos dois está em `2df6e4b`. Nada de
+`gh run rerun`, `gh workflow run` nem workflow novo; `test/ci-policy.test.ts`
+reprova `.github/workflows/` com qualquer arquivo e script que chame
+`gh run rerun`/`gh workflow run|enable`.
 
-O que eles rodavam é o `make check` (`scripts/check.sh`), na máquina local — ~6 min
-medido em 26/10/2026, dos quais 169 s são o e2e e 89 s a suíte com cobertura. É o
-gate de merge e o último passo do `make release` antes do push. A matriz de node
-vira `make test-matrix` (suíte no node 22 via `npx`). O `test/ci-policy.test.ts`
-reprova quem tirar um passo do script, desligar a chamada no release ou devolver
-`pull_request` a um workflow.
+Os testes já tinham saído da CI em 26/10/2026 (`ci.yml`, `size-limit.yml`,
+`e2e.yml`: cada PR esperava 8–12 min por checks que nenhuma branch protection
+exigia). O que eles rodavam é o `make check` (`scripts/check.sh`) — ~6 min medido em
+26/10/2026, dos quais 169 s são o e2e e 89 s a suíte com cobertura. É o gate de merge
+e o último passo do `make release` antes do push. A matriz de node vira
+`make test-matrix`. Desde 13/11/2026 o `make check` também roda o smoke de bundler +
+Node cru (`scripts/smoke-bundle.sh`), que antes só existia no workflow de release.
 
-O smoke do release empacota o tarball **com esbuild** e roda o resultado — que é
-o caminho de todo consumidor — e depois roda as mesmas asserções em Node cru com
-o loader publicado. Os dois guards antigos continuam medidos: peer faltando faz o
-esbuild sair 1, export faltando faz o `node` sair 1.
+**Publicar é `make release-tag`, na máquina do mantenedor** (`scripts/release-tag.sh`).
+Ordem: credenciais (`npm whoami` — sem login para antes de buildar —, `gh auth
+status`), working tree limpo, commit do merge na `main`, linha no `RELEASES.md`, tag
+existente só no mesmo commit (retomada), guard de ref + dist-tag **copiados de
+`origin/main`** (#527) contra o `latest` do registry, `scripts/release-pack.sh` do
+commit num `git worktree` descartável (npm ci, lint, format, typecheck, testes,
+build, pack, três smokes), re-pick do dist-tag, `npm publish <tarball>` (o arquivo
+smokado; sem `--provenance`, que exige OIDC de CI), read-back de versão e dist-tag
+(30 min), push da tag, `gh release create --verify-tag` com o tarball só se o sha512
+bate com o `dist.integrity` do npm. Rodar de novo retoma uma run que parou no meio.
+`test/release-workflow.test.ts` exercita isso numa fixture com `origin` bare, `npm` e
+`gh` falsos no `PATH` e um `release-pack.sh` stub no commit.
 
-O `release-npm.yml` é quatro jobs, não um (#451): `build` e `smoke` com
-`contents: read`, `publish` só com `id-token: write`, `release` só com
-`contents: write`. **Nada resolvido do registry na hora roda ao lado de
-`id-token`** — o job de publish instala um npm de versão e integridade fixadas e publica o
-tarball que o `build` empacotou e o `smoke` testou, conferindo o SHA-256 que
-veio como output do `build`. `test/release-workflow.test.ts` reprova o workflow
-que voltar a juntar as coisas: action sem SHA, checkout sem
-`persist-credentials: false`, `npm@latest`, `npm ci`/`npx`/smoke no job com
-`id-token`, publish de diretório. Ao subir o npm ou uma action, troque a versão
-exata/o SHA de propósito — o comentário ao lado diz de onde veio.
-
-**Só uma tag publica, inclusive no disparo manual** (#452). O
-`scripts/check-release-ref.sh` reprova a run cujo ref não é `vX.Y.Z`, cuja tag
-não bate com o `package.json`, não aponta para o `GITHUB_SHA` ou aponta para
+O guard (`scripts/check-release-ref.sh`) lê `RELEASE_TAG`/`RELEASE_SHA`,
+`CURRENT_LATEST` e `BACKPORT_LINES` e escreve `key=value` na stdout. Recusa versão que
+não bate com o `package.json` **do commit** (`git show`), tag local em outro commit,
 commit que não é ancestral de `origin/main` (#472; backport só de
-`origin/release-<maj>.<min>` e só para esse dist-tag) — o checkout do `build`
-com `fetch-depth: 0` é o que traz `origin/main`, e sem ela o guard falha
-fechado. Então o
-re-run manual é `gh workflow run release-npm.yml --ref vX.Y.Z`, nunca
-`--ref main`. O job `release` confere de novo a tag contra o SHA, cria com
-`--verify-tag` e só anexa o tarball cujo sha512 é o `dist.integrity` do npm. Para
-recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**, que
-reaproveita o artifact da tentativa que publicou (o artifact é
-`npm-tarball-<run_attempt>`). O re-run completo reempacota, e o job `release`
-não anexa nada se o pack novo não for byte a byte o publicado — a saída é
-`make releases-sync`. O dist-tag é monotônico (#472), com a regra num script só,
-`scripts/release-dist-tag.sh` (`pick`, `current-latest`, `get`), chamado pelo guard,
-pelo job `publish` logo antes do upload (relê o `latest`; a corrida entre tags
-diferentes) e pelo job `release` (`--latest` do Release só se o `latest` do
-registry é a versão; Release existente não é tocado). `latest` só para versão
-maior ou igual (igual = re-run), prerelease `next`, menor `release-<maj>.<min>` —
-`v0.75` não serve, o npm recusa dist-tag que é range semver. Dist-tag se lê de
-`npm view <pkg> dist-tags --json`: `dist-tags.release-0.75` é lido como caminho e
-volta vazio. Só `E404` é pacote novo; vazio com código 0 reprova. Os jobs `publish`
-e `release` rodam o script de um checkout próprio do `GITHUB_SHA` (no `publish`,
-esparso, só do arquivo); o artifact leva só o tarball e é baixado fora do
-checkout — script que viaja no artifact sai de um workspace que já rodou `npm ci`
-(#495). Um
-release por vez: `concurrency` de grupo único `release-npm` (o GitHub guarda um
-pendente por grupo, o terceiro cancela o segundo). Backport precisa ter este
-workflow — tag push roda o `release-npm.yml` do commit da tag. Revisor obrigatório no environment `npm-release`, ruleset de tag
-`v*` e o vínculo do Trusted Publisher ao environment são configuração do
-GitHub/npm, não do repo — `docs/release.md` diz como ligar. O guard garante "está
-na `main`"; é a branch protection da `main` (e de `release-*`) que transforma
-isso em "foi revisado".
+`origin/release-<maj>.<min>`, só para esse dist-tag e só com a linha em
+`BACKPORT_LINES` na linha de comando, #527), e falha fechado sem `origin/main`. O
+dist-tag é monotônico (#472), regra única em `scripts/release-dist-tag.sh` (`pick`,
+`current-latest`, `get`): `latest` para versão maior ou igual, prerelease `next`,
+menor `release-<maj>.<min>` — `v0.75` não serve, o npm recusa dist-tag que é range
+semver. Dist-tag se lê de `npm view <pkg> dist-tags --json`; só `E404` é pacote
+novo.
 
-**O guard barra engano, não ator** (#527). O `build` roda o
-`check-release-ref.sh` e o `release-dist-tag.sh` **copiados de `origin/main`**
-(`git show`), nunca os do commit taggeado: um commit que reescreve o próprio
-guard não se aprova. Mas o `release-npm.yml` em si vem do commit da tag, então
-quem empurra commit + tag controla o workflow — a fronteira de verdade é o
-checklist do dono em `docs/release.md` (estado lido em 01/11/2026: tudo
-desligado, e um secret `NPM_TOKEN` legado ainda no repo). Backport só de linha
-aberta na variável de repositório `RELEASE_BACKPORT_LINES`; criar a branch
-`release-X.Y` não abre a linha.
+**O guard barra engano, não ator.** Desde que o publish saiu do Actions, empurrar tag
+não publica nada: publicar exige a credencial npm de um mantenedor. A fronteira é a
+conta npm (2FA em _auth-and-writes_), e o perímetro é a máquina de quem publica —
+sem runner, o `npm ci` roda ao lado do token. O checklist do dono (Pages para a
+`gh-pages`, remover Trusted Publisher e `NPM_TOKEN`, desligar Actions no repo) está em
+`docs/release.md`.
 
-**Hardening dos dois workflows** (#532), guardado em `test/ci-policy.test.ts`
-para todo arquivo de `.github/workflows/`: `permissions: {}` no topo, action por
-SHA com `# vX.Y.Z` ao lado, checkout com `persist-credentials: false`. No
-`docs.yml`, o `build` (que roda `pip install` e o mkdocs) só tem
-`contents: read`; `pages: write` e `id-token: write` ficam no `deploy`. O
-`docs/requirements.txt` é gerado com hash (`uv pip compile --generate-hashes`,
-cooldown de 14 dias; o comando está no cabeçalho) e instalado com
-`--require-hashes`. O npm do job `publish` é baixado por URL, conferido contra o
-`NPM_CLI_INTEGRITY` fixado e instalado `--offline`. O `make publish` recusa: não
-existe publish local.
+**Docs: `make docs-deploy`** (`scripts/docs-deploy.sh`): worktree descartável de
+`origin/main`, venv descartável com `uv` + `docs/requirements.txt`
+`--require-hashes` (gerado com hash, cooldown de 14 dias; o comando está no
+cabeçalho), `gen-llms` + `mkdocs build --strict`, confere as duas línguas e empurra
+esse build para a `gh-pages` com `ghp-import`. `DRY_RUN=1` só builda. O Pages ainda
+estava em `build_type: workflow` em 13/11/2026: trocar a fonte para a `gh-pages` é
+ação do dono, depois do primeiro deploy.
+
+O `make publish` recusa: `npm publish` solto pula guard, smokes, read-back e Release.
 
 ## Release
 
-Pipeline **tag-push**, sem Changesets. Três superfícies ficam sincronizadas: a
+Pipeline local, sem Changesets nem CI. Três superfícies ficam sincronizadas: a
 tag git, a versão no npm e o GitHub Release.
 
 O release é **dois comandos**, com a revisão do PR no meio (#472):
@@ -158,10 +132,13 @@ O release é **dois comandos**, com a revisão do PR no meio (#472):
 1. `make release TAG=X.Y.Z` — branch `release/vX.Y.Z`, bump, `[Unreleased]`
    fechado, `RELEASES.md`, validação, push da branch, PR. **Não taggeia.**
 2. Revisão e merge do PR na `main`.
-3. `make release-tag TAG=X.Y.Z` — busca `origin/main`, taggeia o **primeiro**
+3. `make release-tag TAG=X.Y.Z` — busca `origin/main`, escolhe o **primeiro**
    commit first-parent com a versão (o merge do PR; PR mergeado depois fica de
-   fora), confere a linha no `RELEASES.md` e empurra a tag. `DRY_RUN=1` só mostra
-   o commit; `REF=<sha>` quando a `main` já andou de versão.
+   fora), confere a linha no `RELEASES.md`, builda e smoka esse commit, publica no
+   npm com a sua credencial, empurra a tag e cria o GitHub Release. `DRY_RUN=1`
+   roda tudo até um `npm publish --dry-run`; `REF=<sha>` quando a `main` já andou
+   de versão.
+4. `make docs-deploy` quando o site precisa refletir a release.
 
 A ordem dentro do `scripts/release.sh` importa, e custou duas tentativas: o bump e
 o fechamento do `[Unreleased]` vêm primeiro, depois o commit, **o `RELEASES.md`**,
@@ -173,17 +150,17 @@ apaga logo depois — a tag de verdade nasce no merge commit. A coluna Commit da
 linha nova aponta para o `chore: release` da branch; o próximo `releases-md` a
 reescreve.
 
-**A árvore que a tag aponta é a única que a CI de release vê** — validar a branch
-não substitui isso. Na v0.65.0 a tag apontava para o commit anterior ao refresh do
-`RELEASES.md` e o "Run tests" do `release-npm.yml` reprovou; com a tag no merge
-commit, a árvore taggeada é a do PR mergeado, `RELEASES.md` incluído, e o
-`release-tag.sh` recusa commit sem a linha da versão.
+**A árvore que a tag aponta é a única que o publish builda e testa** — validar a
+branch não substitui isso. Na v0.65.0 a tag apontava para o commit anterior ao
+refresh do `RELEASES.md` e o "Run tests" do antigo `release-npm.yml` reprovou; com a
+tag no merge commit, a árvore taggeada é a do PR mergeado, `RELEASES.md` incluído, e
+o `release-tag.sh` recusa commit sem a linha da versão.
 
 A terceira coisa que o pipeline não faz por você: **o snapshot do `CLAUDE.md`
 entra no commit de release**, não depois. `test/docs-counts.test.ts` afere a
 contagem de tags escrita em prosa contra as linhas do `RELEASES.md`, e o
 `RELEASES.md` ganha a linha nova junto com a tag — então a contagem escrita lá
-vira falsa no instante em que a tag existe, e a CI do release reprova. Atualize
+vira falsa no instante em que a tag existe, e a suíte do `make release-tag` reprova. Atualize
 tags, exports de runtime e a linha de testes antes de taggear.
 
 (E não escreva o número de exemplo aqui: o guard varre **esta** página também, e
@@ -209,4 +186,4 @@ CHANGELOG.
 
 Mudança **docs-only** (`docs/`, `README.md`, redação de docstring sem delta de
 assinatura) não bumpa versão, não entra no CHANGELOG e não ganha tag: commit
-`docs:` direto na `main`.
+`docs:` direto na `main`, e `make docs-deploy` para o site refletir.

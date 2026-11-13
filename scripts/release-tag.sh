@@ -197,10 +197,24 @@ TARBALL="${TARBALLS[0]}"
 INTEGRITY=$(sha512_of "$TARBALL")
 echo "→ Tarball: $(basename "$TARBALL") ($INTEGRITY)"
 
+# Falha fechado quando o npm serve, sob esta versão, um artefato que não é o
+# tarball que acabou de passar pelos smokes: numa retomada (outra pessoa ou outra
+# máquina publicou a versão) ou depois do publish. Roda antes de qualquer tag ou
+# GitHub Release, que sem provenance são a única atestação de que o pacote no
+# registry é o que saiu deste commit (achado 1 da auditoria run-9).
+require_registry_integrity() {
+  local served
+  served=$(npm view --prefer-online "$PKG_NAME@$TAG" dist.integrity 2>/dev/null || true)
+  if [[ "$served" != "$INTEGRITY" ]]; then
+    fail "o npm serve $PKG_NAME@$TAG com integridade '$served', mas o tarball testado é '$INTEGRITY'. Nenhuma tag nem Release foi criada. Isso indica uma publicação que não saiu deste fluxo: investigue (npm view $PKG_NAME@$TAG, npm access, tokens da conta) antes de qualquer outra coisa — não anexe o tarball do registry."
+  fi
+}
+
 PUBLISHED_NOW=false
 SERVED=$(npm view --prefer-online "$PKG_NAME@$TAG" version 2>/dev/null || true)
 if [[ "$SERVED" == "$TAG" ]]; then
   echo "· $PKG_NAME@$TAG já está no registry — o publish é pulado (retomada)"
+  require_registry_integrity
 else
   LATEST_NOW=$(bash "$DIST_TAG_SCRIPT" current-latest "$PKG_NAME")
   PICKED=$(bash "$DIST_TAG_SCRIPT" pick "$TAG" "$LATEST_NOW")
@@ -245,7 +259,8 @@ if [[ "$PUBLISHED_NOW" == "true" ]]; then
   done
   [[ "$TAGGED" == "$TAG" ]] || fail "dist-tag $DIST_TAG é '$TAGGED', esperado '$TAG'"
 fi
-echo "✓ npm: $PKG_NAME@$TAG servido"
+require_registry_integrity
+echo "✓ npm: $PKG_NAME@$TAG servido, e é o tarball testado"
 
 if [[ -z "$LOCAL_TAG" ]]; then
   git tag "$GIT_TAG" "$TARGET"
@@ -258,12 +273,6 @@ fi
 TAG_COMMIT=$(gh api "repos/{owner}/{repo}/commits/$GIT_TAG" --jq .sha)
 [[ "$TAG_COMMIT" == "$TARGET" ]] || fail "a tag $GIT_TAG no GitHub aponta para $TAG_COMMIT, mas $TARGET é o que foi publicado"
 
-ATTACH=true
-REGISTRY_INTEGRITY=$(npm view --prefer-online "$PKG_NAME@$TAG" dist.integrity 2>/dev/null || true)
-if [[ "$REGISTRY_INTEGRITY" != "$INTEGRITY" ]]; then
-  ATTACH=false
-  echo "AVISO: o tarball local ($INTEGRITY) não é o que o npm serve ($REGISTRY_INTEGRITY); o Release sai sem anexo." >&2
-fi
 
 NOTES="$WORK/release-notes.md"
 node "$TREE/scripts/changelog.mjs" notes "$TAG" --allow-unreleased >"$NOTES"
@@ -275,14 +284,11 @@ node "$TREE/scripts/changelog.mjs" notes "$TAG" --allow-unreleased >"$NOTES"
 } >>"$NOTES"
 FLAGS=(--title "$GIT_TAG" --notes-file "$NOTES")
 [[ "$PRERELEASE" == "true" ]] && FLAGS+=(--prerelease)
-ASSETS=()
-[[ "$ATTACH" == "true" ]] && ASSETS=("$TARBALL")
+ASSETS=("$TARBALL")
 
 if gh release view "$GIT_TAG" >/dev/null 2>&1; then
   gh release edit "$GIT_TAG" "${FLAGS[@]}"
-  if [[ "$ATTACH" == "true" ]]; then
-    gh release upload "$GIT_TAG" "$TARBALL" --clobber
-  fi
+  gh release upload "$GIT_TAG" "$TARBALL" --clobber
 else
   REGISTRY_LATEST=$(bash "$DIST_TAG_SCRIPT" current-latest "$PKG_NAME")
   if [[ "$REGISTRY_LATEST" == "$TAG" ]]; then
@@ -291,10 +297,6 @@ else
     LATEST_FLAG=--latest=false
   fi
   gh release create "$GIT_TAG" "${ASSETS[@]}" --verify-tag "$LATEST_FLAG" "${FLAGS[@]}"
-fi
-
-if [[ "$ATTACH" != "true" ]]; then
-  fail "Release $GIT_TAG criado sem o tarball. Anexe o do próprio registry: npm pack $PKG_NAME@$TAG && gh release upload $GIT_TAG $PKG_NAME-$TAG.tgz"
 fi
 
 echo ""

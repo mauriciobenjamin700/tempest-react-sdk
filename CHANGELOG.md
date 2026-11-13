@@ -76,6 +76,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **`make release-tag` falha fechado quando o npm serve, sob a versão, um artefato que não é o
+  tarball testado** (auditoria pré-tag run-9, achado 1). Numa retomada (versão já servida), o
+  script pulava o publish sem comparar bytes, empurrava a tag e criava o GitHub Release com
+  `--latest`, e só no fim comparava a integridade — mandando anexar o tarball do próprio registry.
+  Sem provenance, a tag e o Release são a única atestação de que o pacote saiu deste commit. Agora
+  `dist.integrity` é conferido contra o sha512 do tarball dos smokes na retomada e depois do
+  read-back, antes de qualquer tag ou Release; divergência sai 1 com instrução de investigar.
+  Medido com `npx vitest run test/release-workflow.test.ts`: os 2 testes novos/reescritos falham
+  sobre o script anterior e passam agora (60/60). **Migração:** nenhuma para quem consome o pacote.
+
 - **Sessão restaurada por `refresh()` ganha `sessionKey()` própria (#561, C2).** O restore do boot
   por cookie e o callback de OAuth não criavam linhagem, e toda sessão assim respondia a constante
   `"unlineaged"`. Reproduzido: a conta A restaurada deixava um upload com

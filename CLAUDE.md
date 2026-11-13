@@ -84,11 +84,10 @@ smokes do tarball (bundler + Node cru, Vitest do consumidor, CLI) · e2e da gall
 **Não existe CI** (26/10/2026 a suíte saiu, #521; 13/11/2026 saiu o resto). Regra
 global: GitHub Actions só em repositório da org `7rc` — nenhum workflow, nenhum
 `gh run rerun`/`gh workflow run`. O `make check` local é o gate de merge e o último
-passo do `make release` antes do push; publicar é `make release-tag` (build + smokes
-
-- `npm publish` com a credencial npm local, sem provenance + tag + GitHub Release) e
-  o site é `make docs-deploy` (build `--strict` em venv descartável → `gh-pages`).
-  Guards: `test/ci-policy.test.ts` e `test/release-workflow.test.ts`.
+passo do `make release` antes do push. Publicar é `make release-tag`: build e smokes,
+`npm publish` com a credencial npm local (sem provenance), tag e GitHub Release. O site
+é `make docs-deploy` (build `--strict` em venv descartável → `gh-pages`). Guards:
+`test/ci-policy.test.ts` e `test/release-workflow.test.ts`.
 
 Além deles, cinco guards que reprovam o que o compilador não vê:
 `test/public-surface.test.ts` (todo export de runtime está documentado),
@@ -142,7 +141,7 @@ mais voltam:
   antes disso não passa pelo lint-staged. Parou a v0.80.0 (`RELEASES.md` sem
   formatar); o `release.sh` hoje roda `npm ci` e formata sozinho.
 
-## Estado atual (snapshot pós-v0.82.0 — `[Unreleased]` abre o ciclo 0.83.0)
+## Estado atual (snapshot pós-v0.83.0 — `[Unreleased]` abre o ciclo 0.84.0)
 
 - **npm**: <https://www.npmjs.com/package/tempest-react-sdk> — 103 tags publicadas
   (0.1.0 → 0.83.0); até a 0.82.0 com provenance via OIDC, depois publicadas da
@@ -151,10 +150,10 @@ mais voltam:
 - **Superfície**: 41 módulos em `src/` (`ls -d src/*/`), 134 componentes
   (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
-  raiz: **673 em 02/11/2026** (70 em `/br`, 21 em `/icons`); o método de
+  raiz: **673 em 13/11/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em
   [`architecture.md`](./docs/internal/architecture.md).
-- **Testes**: 8589 em 691 arquivos, medido em 02/11/2026 (`npm run test:run`).
+- **Testes**: 8705 em 697 arquivos, medido em 13/11/2026 (`npm run test:run`).
   Cobertura em 23/09/2026: 99,14% linhas / 98,26% statements / 99,39% funções /
   95,32% branches (`npx vitest run --coverage`); pisos do `test:coverage` em 99/98/99/95 — o
   node 22 mede ~0,02 pp abaixo do 24 em branches.

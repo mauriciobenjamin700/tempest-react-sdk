@@ -54,6 +54,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   #567, barril ESM 151 902 B (dentro do teto de 152 KB, ruído do brotli) e CJS 181 252 → 181 410 B;
   tetos subidos para 5 KB (resumable) e 181,5 KB (CJS).
 
+- **`tempestPwaDevSw()` passa a empacotar o service worker no `vite build`, e o build falha quando
+  o PWA sairia quebrado (#573).** Medido num app mínimo com `tempestPwaManifest()` +
+  `tempestPwaDevSw()` sobre a `main` (`2df6e4b`), `npx vite build`: exit 0, `dist/` com
+  `precache-manifest.json` e **sem** `sw.js` — o registro dá 404 em produção e
+  `navigator.serviceWorker.ready` nunca resolve. O mesmo build listava `/manifest.webmanifest` (de
+  `additionalUrls`) no precache sem o arquivo existir: o manifesto real saiu com hash em
+  `assets/manifest-*.webmanifest`. Agora o plugin (antes `apply: "serve"`) também roda no build e
+  emite `swSrc` em `swUrl` como worker clássico (IIFE), com o `build()` do próprio Vite — o esbuild
+  é peer opcional no Vite 8 — e o `import.meta.env` do app. A primeira linha do `sw.js` carrega a
+  `version` do precache, para cada deploy que muda o precache gerar um worker byte a byte diferente
+  e o navegador reinstalar. O `tempestPwaManifest()` derruba o build quando nenhum worker sai no
+  `swUrl` (ou `/sw.js`) e quando um item de `additionalUrls` não está em `public/` nem no bundle
+  (URLs `http(s):` ficam fora). 14 dos 15 testes novos de `src/vite/pwa-worker-build.test.ts` (8 com
+  `vite build` real) falham sobre a `main` e passam aqui (`npx vitest run src/vite`).
+  **Migração:** (1) quem gera o worker num passo separado depois do build (`build:sw` do
+  `template-pwa`, `vite-plugin-pwa`) passa `tempestPwaDevSw({ build: false })` ou, sem o plugin de
+  dev, `tempestPwaManifest({ serviceWorker: false })` — ou apaga o `build:sw`, agora redundante;
+  (2) item de `additionalUrls` que não existe sai da lista. Só o subpath `/vite` (Node) mudou;
+  nenhuma fatia do `size-limit` o importa.
+
 ### Segurança
 
 - **Sessão restaurada por `refresh()` ganha `sessionKey()` própria (#561, C2).** O restore do boot

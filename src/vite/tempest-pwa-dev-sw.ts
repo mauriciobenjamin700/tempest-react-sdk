@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { basePrefix } from "./base-url";
+import { basePrefix, toOutputFile } from "./base-url";
 import type { TempestVitePlugin } from "./tempest-pwa-manifest";
 
 /** Options for {@link tempestPwaDevSw}. */
@@ -23,6 +23,73 @@ export interface TempestPwaDevSwOptions {
     manifestUrl?: string;
     /** Serve the worker in dev. Default `true`; set `false` to opt out. */
     enabled?: boolean;
+    /**
+     * Bundle `swSrc` into the production build as `swUrl`. Default `true`.
+     *
+     * Set `false` only when another step bundles the worker (a second
+     * `vite build --config vite.sw.config.ts`, `vite-plugin-pwa`). That is also
+     * what tells {@link tempestPwaManifest} the worker is external, so its
+     * missing-worker check stands down.
+     */
+    build?: boolean;
+}
+
+/** Name of the plugin {@link tempestPwaDevSw} returns, looked up by the manifest plugin. */
+export const PWA_WORKER_PLUGIN_NAME = "tempest-pwa-dev-sw";
+
+/**
+ * What {@link tempestPwaDevSw} publishes on its plugin `api`, for sibling plugins.
+ *
+ * {@link tempestPwaManifest} reads it to know which file the worker lands at and
+ * whether this build emits it at all.
+ */
+export interface TempestPwaWorkerApi {
+    /** URL the worker is served and emitted at. */
+    swUrl: string;
+    /** Whether this plugin bundles the worker into the production build. */
+    build: boolean;
+}
+
+/**
+ * The comment prepended to the production worker, carrying the precache version.
+ *
+ * The browser installs a new service worker only when the bytes of `sw.js`
+ * change. A deploy that touches the app but not `src/sw.ts` would otherwise ship
+ * a byte-identical worker: it never reinstalls, `installPrecache` never re-runs,
+ * and the offline shell keeps serving the previous deploy. The manifest
+ * `version` is a hash of every precached URL, so it changes exactly when the
+ * precache does.
+ *
+ * @param version - The `version` of the emitted precache manifest.
+ * @returns A one-line block comment.
+ */
+export function precacheVersionBanner(version: string): string {
+    return `/* tempest-precache-version: ${version} */\n`;
+}
+
+/**
+ * The `version` of the precache manifest this build emitted, when there is one.
+ *
+ * @param bundle - The output bundle, as Rollup/Rolldown hands it to `generateBundle`.
+ * @param fileName - Where the manifest was emitted, relative to `outDir`.
+ * @returns The version, or `undefined` when the manifest is absent or unreadable.
+ */
+function readManifestVersion(
+    bundle: Record<string, { type?: string; source?: unknown }>,
+    fileName: string,
+): string | undefined {
+    const asset = bundle[fileName];
+    if (asset?.type !== "asset") return undefined;
+    const source =
+        typeof asset.source === "string"
+            ? asset.source
+            : new TextDecoder().decode(asset.source as Uint8Array);
+    try {
+        const parsed = JSON.parse(source) as { version?: unknown };
+        return typeof parsed.version === "string" ? parsed.version : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 /**
@@ -79,20 +146,31 @@ function createDevSwMiddleware(deps: {
 }
 
 /**
- * Dev-server plugin that makes the service worker available under `npm run dev`.
+ * Service-worker plugin: serves `swSrc` under `npm run dev` and bundles it into
+ * the production build.
  *
- * The production worker is bundled at build time (`vite.sw.config.ts`), so in
- * dev there is no `/sw.js` to register. This plugin compiles `swSrc` on the fly
- * with esbuild — through one incremental context, not a cold build per request —
- * and serves it as a classic worker, plus an empty `precache-manifest.json` (there are no hashed build assets to precache in
- * dev — push and runtime caching still work). It closes the "SW in dev" gap
- * that otherwise only `vite-plugin-pwa`'s `devOptions` covered.
+ * In dev there is no `/sw.js` to register. This plugin compiles `swSrc` on the
+ * fly with esbuild — through one incremental context, not a cold build per
+ * request — and serves it as a classic worker, plus an empty
+ * `precache-manifest.json` (there are no hashed build assets to precache in
+ * dev — push and runtime caching still work).
+ *
+ * In `vite build` it bundles the same entry with Vite's own `build()` (IIFE, so
+ * it registers as a classic worker, exactly what the old `vite.sw.config.ts`
+ * produced) and emits it at `swUrl`. Before 0.83.0 it was serve-only: an app
+ * with this plugin and {@link tempestPwaManifest} worked in dev and shipped a
+ * production build with no `sw.js` and a zero exit code, so registration
+ * 404'd and `navigator.serviceWorker.ready` never resolved. The emitted worker
+ * starts with the precache `version` (see {@link precacheVersionBanner}), so
+ * every deploy that changes the precache changes the worker bytes and the
+ * browser installs it. Pass `build: false` when another step bundles the
+ * worker.
  *
  * @example
  * // vite.config.ts
- * import { createViteConfig, tempestPwaDevSw } from "tempest-react-sdk/vite";
+ * import { createViteConfig, tempestPwaDevSw, tempestPwaManifest } from "tempest-react-sdk/vite";
  *
- * export default createViteConfig({ plugins: [tempestPwaDevSw()] });
+ * export default createViteConfig({ plugins: [tempestPwaManifest(), tempestPwaDevSw()] });
  */
 export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVitePlugin {
     const {
@@ -100,10 +178,17 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
         swUrl = "/sw.js",
         manifestUrl = "/precache-manifest.json",
         enabled = true,
+        build = true,
     } = options;
 
     let root = process.cwd();
     let base = "/";
+    let isBuild = false;
+    let mode = "production";
+    let envDir: string | false | undefined;
+    let envPrefix: string | string[] | undefined;
+    let minify: boolean | string = true;
+    let logLevel: "silent" | "error" | "warn" = "warn";
 
     /**
      * Whether a request path addresses `target`.
@@ -212,15 +297,76 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
         await current?.dispose();
     }
 
+    /**
+     * Bundle `swSrc` for production with the host's own Vite.
+     *
+     * Vite's `build()` rather than esbuild: Vite 8 lists esbuild only as an
+     * optional peer, so a fresh app may not have it, while the `vite` running
+     * this plugin is always there. The config mirrors the `vite.sw.config.ts`
+     * the PWA template used to ship — IIFE lib build, one entry, no app plugins —
+     * plus the app's `mode`, `envDir` and `envPrefix`, so `import.meta.env`
+     * inside the worker sees the same `VITE_*` values as the page. Its log level
+     * is the app's, capped at `warn`, so the nested build adds no size table to
+     * the output but a `silent` build stays silent.
+     *
+     * @returns The bundled worker source.
+     */
+    async function bundleWorkerForProduction(): Promise<string> {
+        const vite = (await import("vite")) as unknown as {
+            build(config: Record<string, unknown>): Promise<unknown>;
+        };
+        const result = await vite.build({
+            configFile: false,
+            root,
+            mode,
+            envDir,
+            envPrefix,
+            publicDir: false,
+            logLevel,
+            build: {
+                write: false,
+                emptyOutDir: false,
+                copyPublicDir: false,
+                sourcemap: false,
+                minify,
+                lib: {
+                    entry: resolve(root, swSrc),
+                    formats: ["iife"],
+                    name: "sw",
+                    fileName: () => "sw.js",
+                },
+            },
+        });
+        const outputs = (Array.isArray(result) ? result : [result]) as {
+            output?: { type: string; isEntry?: boolean; code?: string }[];
+        }[];
+        for (const { output = [] } of outputs) {
+            const entry = output.find((item) => item.type === "chunk" && item.isEntry);
+            if (entry?.code !== undefined) return entry.code;
+        }
+        throw new Error("the build produced no service-worker chunk");
+    }
+
+    const api: TempestPwaWorkerApi = { swUrl, build };
+
     const plugin: Plugin = {
-        name: "tempest-pwa-dev-sw",
-        apply: "serve",
+        name: PWA_WORKER_PLUGIN_NAME,
+        api,
         async buildEnd() {
             await disposeContext();
         },
         configResolved(config) {
             root = config.root ?? process.cwd();
             base = config.base ?? "/";
+            isBuild = config.command === "build" && !config.build?.ssr;
+            mode = config.mode ?? "production";
+            envDir = config.envDir;
+            envPrefix = config.envPrefix;
+            minify = config.build?.minify ?? true;
+            logLevel =
+                config.logLevel === "silent" || config.logLevel === "error"
+                    ? config.logLevel
+                    : "warn";
         },
         configureServer(server) {
             if (!enabled) return;
@@ -230,6 +376,33 @@ export function tempestPwaDevSw(options: TempestPwaDevSwOptions = {}): TempestVi
             server.middlewares.use(
                 createDevSwMiddleware({ swUrl, manifestUrl, matches, buildWorker }),
             );
+        },
+        generateBundle: {
+            order: "post",
+            async handler(_outputOptions, bundle) {
+                if (!isBuild || !build) return;
+                let source: string;
+                try {
+                    source = await bundleWorkerForProduction();
+                } catch (error) {
+                    this.error(
+                        `[tempest-pwa-dev-sw] could not bundle the service worker "${swSrc}" ` +
+                            `into ${swUrl}: ${error instanceof Error ? error.message : String(error)}. ` +
+                            "Fix the entry, point `swSrc` at it, or pass `build: false` if another " +
+                            "step bundles the worker.",
+                    );
+                }
+                const version = readManifestVersion(
+                    bundle as Record<string, { type?: string; source?: unknown }>,
+                    toOutputFile(base, manifestUrl),
+                );
+                this.emitFile({
+                    type: "asset",
+                    fileName: toOutputFile(base, swUrl),
+                    source:
+                        version === undefined ? source : precacheVersionBanner(version) + source,
+                });
+            },
         },
     };
 

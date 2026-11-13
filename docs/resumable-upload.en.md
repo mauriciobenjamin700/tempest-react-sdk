@@ -242,6 +242,7 @@ Two things prevent that:
     | --- | --- | --- |
     | network failure, `408`, `425`, `429`, `5xx` | **yes** | the standard policy: it can change on its own |
     | `409`, `412` | **yes** | the offset-divergence signal — the replay *is* the fix, and the resync `HEAD` performs it |
+    | `200`/`204` with an `Upload-Offset` not past the one sent | **yes**, within `retries` | tus says the new offset is the previous one plus the bytes received; confirming without moving is a protocol error (`code: "UPLOAD_OFFSET_STALLED"`, 0.83.0). The resync `HEAD` checks whether the server stored the bytes anyway |
     | `404`, `410` | **no** | the upload is gone from the server. Recreating one only happens at attach, never inside the loop |
     | `400`, `403`, `413`, `415`, `422` | **no** | a deliberate refusal; the 5th attempt gets the same answer |
 
@@ -264,7 +265,7 @@ Every request carries `Tus-Resumable: 1.0.0`.
 | --- | --- | --- |
 | Create | `POST {endpoint}` + `Upload-Length`, `Upload-Metadata`, `Idempotency-Key` | `201` + `Location` (the upload URL, absolute or relative) |
 | Probe | `HEAD {uploadUrl}` | `200`/`204` + `Upload-Offset` |
-| Write | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, body = chunk | `204` + the new `Upload-Offset`; `409` when the offset does not match |
+| Write | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, body = chunk | `204` + the new `Upload-Offset`, greater than the one sent; `409` when the offset does not match |
 | Discard | `DELETE {uploadUrl}` | `204` |
 
 Details that tend to bite:
@@ -273,6 +274,7 @@ Details that tend to bite:
 - **`Upload-Metadata`** is comma-separated `key base64(value)`, with the value encoded as **UTF-8 before** base64 — that is how `note-ação.webm` survives an HTTP header.
 - **`HEAD` answering `404`/`410`** is read as "the server forgot this upload": the client recreates it from scratch instead of getting stuck.
 - **A missing `Upload-Offset` on a successful `PATCH`** is tolerated — the client assumes the end of the chunk — but sending it is better.
+- **An `Upload-Offset` that does not advance on a successful `PATCH`** — the offset sent, or a smaller one — becomes a `TempestApiError` with `code: "UPLOAD_OFFSET_STALLED"` and the response's status, counted as a chunk failure: the next attempt re-reads the offset with `HEAD`, and the upload rejects once `retries` runs out (`retries: 0` sends **one** `PATCH`; the default, five). Up to 0.82.0 the loop took the answer as success and re-sent the same chunk forever — measured in #569, more than 1500 requests in 4 s even with `retries: 0`; the real case was a `303` redirect turned into a `GET` answered `200` with the same offset. Refusing without a retry was rejected: the server may have stored the bytes and only answered badly, and the `HEAD` settles that for free. It is the same rule as the reference client (`tus-js-client`), where only an offset that moved refills the retry counter.
 - Keep a table of `Idempotency-Key`s if you want to avoid orphans.
 
 !!! info "Off-the-shelf servers"

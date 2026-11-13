@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.83.0] — 2026-11-13
+
 ### Breaking
 
 - **`persistQueryClientOffline` com `getPrincipal` prende o handle ao primeiro dono logado e apaga o

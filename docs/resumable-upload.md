@@ -242,6 +242,7 @@ Duas coisas impedem:
     | --- | --- | --- |
     | falha de rede, `408`, `425`, `429`, `5xx` | **sim** | política padrão: pode mudar sozinho |
     | `409`, `412` | **sim** | é o sinal de offset divergente — o replay *é* a correção, e o `HEAD` de resync a executa |
+    | `200`/`204` com `Upload-Offset` que não passou do enviado | **sim**, dentro do `retries` | o tus manda o offset novo ser o anterior mais os bytes recebidos; confirmar sem avançar é erro de protocolo (`code: "UPLOAD_OFFSET_STALLED"`, 0.83.0). O `HEAD` de resync confere se o servidor gravou mesmo assim |
     | `404`, `410` | **não** | o upload sumiu do servidor. Recriar só acontece no attach, nunca dentro do loop |
     | `400`, `403`, `413`, `415`, `422` | **não** | recusa deliberada; a 5ª tentativa recebe a mesma resposta |
 
@@ -264,7 +265,7 @@ Toda request leva `Tus-Resumable: 1.0.0`.
 | --- | --- | --- |
 | Criar | `POST {endpoint}` + `Upload-Length`, `Upload-Metadata`, `Idempotency-Key` | `201` + `Location` (URL do upload, absoluta ou relativa) |
 | Sondar | `HEAD {uploadUrl}` | `200`/`204` + `Upload-Offset` |
-| Escrever | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, corpo = chunk | `204` + o novo `Upload-Offset`; `409` quando o offset não bate |
+| Escrever | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, corpo = chunk | `204` + o novo `Upload-Offset`, maior que o enviado; `409` quando o offset não bate |
 | Descartar | `DELETE {uploadUrl}` | `204` |
 
 Detalhes que costumam morder:
@@ -273,6 +274,7 @@ Detalhes que costumam morder:
 - **`Upload-Metadata`** é `chave base64(valor)` separado por vírgula, com o valor em **UTF-8 antes** do base64 — é assim que `nota-ação.webm` sobrevive a um header HTTP.
 - **`HEAD` respondendo `404`/`410`** é lido como "o servidor esqueceu esse upload": o cliente recria do zero em vez de travar.
 - **`Upload-Offset` ausente num `PATCH` bem-sucedido** é tolerado — o cliente assume o fim do chunk —, mas mandar é melhor.
+- **`Upload-Offset` que não avança num `PATCH` bem-sucedido** — o mesmo offset enviado, ou menor — vira `TempestApiError` com `code: "UPLOAD_OFFSET_STALLED"` e o status da resposta, contado como falha do chunk: a próxima tentativa relê o offset com `HEAD`, e o upload rejeita quando o `retries` acaba (`retries: 0` manda **um** `PATCH`; o padrão, cinco). Até a 0.82.0 o loop aceitava a resposta como sucesso e reenviava o mesmo chunk para sempre — medido no #569, mais de 1500 requisições em 4 s mesmo com `retries: 0`; o caso real foi um redirect `303` que virou `GET` respondido `200` com o mesmo offset. Recusar sem retentativa foi descartado: o servidor pode ter gravado e só respondido mal, e o `HEAD` resolve isso de graça. É a mesma regra do cliente de referência (`tus-js-client`), em que só um offset que andou recarrega o contador de retentativas.
 - Reflita o `Idempotency-Key` numa tabela de chaves se quiser evitar órfãos.
 
 !!! info "Servidor pronto"

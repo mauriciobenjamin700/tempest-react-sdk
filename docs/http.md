@@ -315,7 +315,7 @@ await api.get("https://cdn.outro.com/arquivo.json");
 
     O `X-CSRF-Token` também atravessa um redirect para outra origem, e fica de fora de propósito: ele vai em todo `POST` de uma sessão por cookie, que é justamente o caso do `307` de barra final, e sozinho não autentica nada — usá-lo exige o cookie da vítima e um header customizado que o CORS da sua API não libera para outra origem.
 
-    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo `redirect`: ele sempre segue. O `Authorization` que ele leva é tirado pelo navegador como no `fetch` (medido); os `headers` que você passa a ele foram escritos para aquela URL, e o CSRF tem o mesmo raciocínio de cima.
+    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo `redirect`: ele sempre segue. O `Authorization` que ele leva é tirado pelo navegador como no `fetch` (medido); o resto não. O `createResumableUpload` troca para `fetch` quando há `headers` fixos ([Upload resumível](./resumable-upload.md)); o `uploadWithProgress` recusa a resposta de outra origem e tem `redirect: "error"` — veja [Redirect no `uploadWithProgress`](#redirect-no-uploadwithprogress-0830).
 
 O mesmo predicado está exportado, para quando você monta a requisição por fora:
 
@@ -711,6 +711,39 @@ export function AvatarUpload() {
     ```
 
     Até a 0.81.0, sem `credentialOrigin` o header ia para onde a `url` apontasse — inclusive uma URL assinada que veio de um corpo de resposta. A opção `csrf` segue exatamente o mesmo escopo. Os `headers` que você passa aqui são da chamada e vão para a `url` dela.
+
+### Redirect no `uploadWithProgress` (0.83.0)
+
+Um `XMLHttpRequest` segue todo redirect, e não existe opção para impedir. Medido no Chrome 150 (#570) com o `uploadWithProgress` empacotado por esbuild: página e `url` em `127.0.0.1:5470`, que responde `301`/`302`/`303`/`307`/`308` para `localhost:5471`, que ecoa os headers com CORS. Nos cinco códigos o outro host recebeu o `X-Api-Key` dos `headers` e o `X-CSRF-Token` do SDK — e, no `307`/`308`, o corpo inteiro (2048 B). Só o `Authorization` o navegador tirou. E o upload **resolvia** com a resposta do outro host, como se fosse a da sua API.
+
+O que dá para fazer depende do que você precisa:
+
+| | `redirect: "follow"` (padrão) | `redirect: "error"` |
+| --- | --- | --- |
+| Transporte | XHR | `fetch` com `redirect: "manual"` |
+| Progresso | byte a byte | uma vez, quando o servidor confirma o corpo inteiro |
+| Redirect para outra origem | seguido; os `headers` chegam lá | recusado antes de sair — **0** requisições ao outro host nos 5 códigos (medido) |
+| Resposta de outra origem | rejeita com `REDIRECT_REFUSED` (desde a 0.83.0; antes resolvia com ela) | não acontece |
+| Redirect de mesma origem (`307` de barra final) | seguido | rejeita com `REDIRECT_REFUSED` |
+
+Progresso e recusa de redirect juntos não existem no navegador: um corpo de `fetch` em stream reportaria progresso, mas o Chrome recusa stream por HTTP/1.1 (`TypeError: Failed to fetch`, medido) e Firefox e Safari não suportam. Por isso o padrão continua o XHR — progresso é o motivo deste helper existir — e o SDK garante o que consegue: a resposta de outro host nunca vira o resultado, então ele não entrega ao app uma URL para gravar.
+
+Quando os `headers` levam uma credencial e o servidor da `url` pode redirecionar, troque o progresso pela garantia:
+
+```ts
+import { uploadWithProgress } from "tempest-react-sdk";
+
+export async function sendReport(file: File, apiKey: string): Promise<unknown> {
+  return uploadWithProgress({
+    url: "/api/reports/",
+    body: file,
+    headers: { "X-Api-Key": apiKey },
+    redirect: "error",
+  });
+}
+```
+
+Credencial de usuário vai melhor pelo `getToken`: o navegador tira o `Authorization` num redirect entre origens, e o `"follow"` com progresso continua seguro para ele.
 
 ## Upload direto com teto — `uploadPresignedPost`
 

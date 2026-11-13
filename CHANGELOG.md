@@ -132,6 +132,29 @@ docs-deploy` → ~13 s, deploy real conferido contra um `origin` bare local. O s
   Trusted Publisher e o secret `NPM_TOKEN`, ligar 2FA de publish no npm e desligar Actions no
   repositório — checklist em `docs/release.md`. Consumidor: nada muda.
 
+- **`uploadWithProgress` não entrega mais a resposta de outra origem como resultado, e ganha
+  `redirect: "error"` (#570).** Validado no Chrome 150 (Chromium do Playwright MCP) com o
+  `uploadWithProgress` empacotado por esbuild a partir de `src/`: página e `url` em
+  `127.0.0.1:5470` respondendo `301`/`302`/`303`/`307`/`308` para `localhost:5471`, que ecoa os
+  headers com CORS. O XHR seguiu os cinco: o `X-Api-Key` dos `headers` e o `X-CSRF-Token` do SDK
+  **chegaram** ao outro host nos cinco, o corpo (2048 B) no `307`/`308`; só o `Authorization` o
+  navegador tirou — e a promise **resolvia** com a resposta do outro host. Impedir o envio sem
+  perder o progresso não é possível no navegador: o XHR não tem modo `redirect`, e um `fetch` com
+  corpo em stream (que daria progresso) falha no Chrome por HTTP/1.1 (`TypeError: Failed to fetch`,
+  medido) e não existe no Firefox/Safari. Trocar o padrão para `fetch` como no #568 tiraria o
+  progresso, que é o motivo do helper — descartado. Agora: (1) no padrão (`redirect: "follow"`), uma
+  resposta cujo `responseURL` está em outra origem que a da `url` rejeita com `TempestApiError`
+  `code: "REDIRECT_REFUSED"` (status da resposta) — o outro host não entrega ao app uma URL para
+  gravar; (2) `redirect: "error"` manda por `fetch` com `redirect: "manual"`, recusa todo redirect
+  com `REDIRECT_REFUSED` antes de sair, e chama `onProgress` uma vez, ao fim. Remedido: no padrão,
+  os 5 códigos rejeitam com `REDIRECT_REFUSED` (o header ainda chega lá — limite do XHR, documentado
+  em `docs/http.md`); com `redirect: "error"`, **0** requisições ao outro host nos 5. Testes em
+  `src/http/upload-with-progress.redirect.test.ts` (9 de 11 falham na `main`;
+  `npx vitest run src/http/upload-with-progress.redirect.test.ts`). **Migração:** upload cujo
+  servidor redireciona de propósito para outra origem e cuja resposta o app usa passa a rejeitar
+  com `REDIRECT_REFUSED` — chame a URL final. Redirect de mesma origem (o `307` de barra final do
+  FastAPI) segue funcionando no padrão.
+
 ### Corrigido
 
 - **`installPrecache` volta a servir o app offline depois que o navegador reinicia o service worker
@@ -180,6 +203,30 @@ docs-deploy` → ~13 s, deploy real conferido contra um `origin` bare local. O s
   `bin/lib/openapi/generate.hostile.test.mjs` (13 falham na `main`;
   `npx vitest run bin/lib/openapi/generate.hostile.test.mjs`). Spec que já gerava continua gerando
   igual; passa a falhar só o que escondia um destes defeitos — o contrato já anunciado no #533.
+
+- **`createResumableUpload` não entra mais em loop quando o `PATCH` confirma sem avançar o
+  `Upload-Offset` (#569).** Reproduzido em `src/http/resumable-upload.offset.test.ts` com um
+  servidor fake que responde `204` (ou `200`) ecoando o offset enviado: na `main` o loop não termina
+  sozinho — o teste o para por um contador de 60 requisições — com `retries: 0` e com o padrão;
+  6 de 7 testes falham na `main` (o sétimo é o controle de escrita parcial que avança). A causa: o
+  loop aceitava a resposta como sucesso, e cada volta do `while` ganhava um orçamento de `retry` novo
+  que nunca era gasto. O tus 1.0.0 manda o offset novo ser "a soma do offset antes do `PATCH` e dos
+  bytes recebidos"; o `tus-js-client` também não confere, mas só recarrega o contador de
+  retentativa quando o offset anda. Agora offset igual ou menor que o enviado vira `TempestApiError`
+  com `code: "UPLOAD_OFFSET_STALLED"` (status da resposta), contado como falha do chunk: a próxima
+  tentativa relê o offset com `HEAD` (o servidor pode ter gravado e só respondido mal) e o upload
+  rejeita quando o `retries` acaba — `retries: 0` manda 1 `PATCH`, o padrão 5. Recusar sem
+  retentativa foi descartado por perder esse caso. `Upload-Offset` ausente continua tolerado (assume
+  o fim do chunk). **Migração:** nenhuma para servidor tus conforme.
+
+### Budgets
+
+- **#569 e #570** (`npm run build && npx size-limit --json`, `src/http/resumable-upload.ts` e
+  `src/http/upload-with-progress.ts` da `origin/main` em `2df6e4b` contra os deste branch): fatia
+  `http client` 5040 → 5349 B (+309 B, o caminho `fetch` do `redirect: "error"`; teto 5,06 → 5,4 KB),
+  `resumable upload` 4948 → 5046 B (+98 B; teto 5 → 5,1 KB), e, remedido sobre a `main` já com #575 e
+  #576, barril ESM 152 470 → 152 588 B (teto 152,5 → 152,6 KB) e CJS 181 894 → 181 937 B (teto 181,9 →
+  182 KB).
 
 ## [0.82.0] — 2026-11-02
 

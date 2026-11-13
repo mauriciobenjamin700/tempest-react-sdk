@@ -467,6 +467,30 @@ interface TusRequest {
 const UPLOAD_REDIRECT_REFUSED = "REDIRECT_REFUSED";
 
 /**
+ * The `code` of the {@link TempestApiError} a chunk rejects with when the
+ * server confirms the `PATCH` (`200`/`204`) but its `Upload-Offset` did not
+ * move past the offset the chunk was written at (#569).
+ *
+ * tus 1.0.0 says the new offset "MUST be the sum of the offset before the
+ * `PATCH` request and the number of bytes received", so a confirmed write
+ * that reports the same offset (or a smaller one) is a protocol violation —
+ * the shape a redirect produces when it turns the chunk into a body-less
+ * `GET` answered `200`, or a proxy that drops the body. Until 0.83.0 the
+ * chunk loop took that answer as success and wrote the same bytes again,
+ * forever: measured during #568, more than 1500 requests in 4 s, even with
+ * `retries: 0`, because every iteration of the loop got a fresh retry budget
+ * and none of them ever failed.
+ *
+ * It is counted as a chunk failure, not refused outright: the next attempt
+ * re-reads the offset with `HEAD` first (the server may have stored the bytes
+ * and only reported badly), and the run rejects once the `retries` budget is
+ * spent — `retries: 0` sends one `PATCH`. That is the same budget rule the
+ * reference client (`tus-js-client`) applies, where only an offset that moved
+ * refills the retry counter.
+ */
+const UPLOAD_OFFSET_STALLED = "UPLOAD_OFFSET_STALLED";
+
+/**
  * Send one tus request.
  *
  * `XMLHttpRequest` rather than `fetch` for the same reason `uploadWithProgress`
@@ -640,6 +664,10 @@ const RESYNCABLE_STATUSES: ReadonlySet<number> = new Set([409, 412]);
  *   is gone, five times, and then reports the same thing with the backoff added
  *   on top.
  *
+ * - **`UPLOAD_OFFSET_STALLED` retries**, though its status is a `2xx` the
+ *   shared policy knows nothing about: the next attempt resyncs with `HEAD`,
+ *   and the budget is what stops a server that keeps confirming nothing.
+ *
  * Anything with no API shape still retries: a transport failure has no status to
  * judge, and losing a large upload to one dropped connection is the outcome this
  * whole module exists to avoid.
@@ -650,6 +678,7 @@ const RESYNCABLE_STATUSES: ReadonlySet<number> = new Set([409, 412]);
 function isRetriableChunkFailure(error: unknown): boolean {
     if (!isApiError(error)) return true;
     if (error.code === UPLOAD_REDIRECT_REFUSED) return false;
+    if (error.code === UPLOAD_OFFSET_STALLED) return true;
     if (RESYNCABLE_STATUSES.has(error.status)) return true;
     return isRetriableStatus(error.status);
 }
@@ -706,7 +735,7 @@ function resolveUploadUrl(value: string, endpoint: string): string {
  * | --- | --- | --- |
  * | Create | `POST {endpoint}` + `Upload-Length`, `Upload-Metadata`, `Idempotency-Key` | `201` + `Location` (the upload URL, absolute or endpoint-relative) |
  * | Probe | `HEAD {uploadUrl}` | `200`/`204` + `Upload-Offset` |
- * | Write | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, chunk body | `204` + the new `Upload-Offset`; `409` when the offset does not match |
+ * | Write | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, chunk body | `204` + the new `Upload-Offset`, past the one sent; `409` when the offset does not match |
  * | Discard | `DELETE {uploadUrl}` | `204` |
  *
  * ## The failure that actually happens
@@ -1084,7 +1113,15 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             throw failed(response, "Chunk recusado pelo servidor.");
         }
 
-        offset = parseOffset(response) ?? end;
+        const confirmed = parseOffset(response);
+        if (confirmed !== null && confirmed <= from) {
+            throw new TempestApiError({
+                status: response.status,
+                code: UPLOAD_OFFSET_STALLED,
+                detail: `O servidor confirmou o chunk sem avançar o Upload-Offset (${from} → ${confirmed}).`,
+            });
+        }
+        offset = confirmed ?? end;
         report(offset);
         await persist();
     }

@@ -5,7 +5,11 @@
  * AbortSignal bridge.
  */
 import { randomId } from "../utils";
-import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
+import {
+    isTrustedCredentialTarget,
+    reportSuppressedCredential,
+    resolveRequestUrl,
+} from "./credential-scope";
 import { csrfHeaders } from "./csrf";
 import type { CsrfOptions } from "./csrf";
 import { buildApiError, TempestApiError } from "./errors";
@@ -69,6 +73,47 @@ export interface UploadWithProgressOptions {
      * Defaults to a generated id. Return an empty string to disable.
      */
     requestId?: () => string;
+    /**
+     * What to do when the server answers with a redirect. Default `"follow"`.
+     *
+     * - `"follow"` — the `XMLHttpRequest` path, with byte-level progress. The
+     *   browser follows every redirect and offers no way to stop it: measured
+     *   in Chrome 150 (#570), a same-origin upload answered `301`/`302`/`303`/
+     *   `307`/`308` towards another origin delivered `X-Api-Key` from
+     *   {@link headers} and the SDK's own `X-CSRF-Token` there on all five, and
+     *   the body on `307`/`308`; only `Authorization` was stripped. What this
+     *   path does enforce (since 0.83.0): an answer from another origin than
+     *   the one the request was sent to is never the result — it rejects with
+     *   `code: "REDIRECT_REFUSED"`, so that host cannot hand the app a URL to
+     *   store. Until 0.82.0 it resolved with the other host's body.
+     * - `"error"` — goes out over `fetch` with `redirect: "manual"`, and a
+     *   redirect rejects with `code: "REDIRECT_REFUSED"` before anything is
+     *   sent to the other host. The cost: `fetch` reports no upload progress,
+     *   so `onProgress` fires once, when the server confirms the whole body. A
+     *   streamed `fetch` body would report progress, but Chrome refuses one
+     *   over HTTP/1.1 (`TypeError: Failed to fetch`, measured) and Firefox and
+     *   Safari do not support it.
+     *
+     * Use `"error"` when {@link headers} carry a credential (an `X-Api-Key`) and
+     * the server behind `url` could redirect; sending the bearer through
+     * {@link getToken} keeps `"follow"` safe for it, because the browser strips
+     * `Authorization` on a cross-origin redirect.
+     */
+    redirect?: "follow" | "error";
+}
+
+/**
+ * The `code` of the {@link TempestApiError} an upload rejects with when a
+ * redirect is refused, or when the answer came from another origin — the code
+ * `createApiClient` and `createResumableUpload` use for the same refusal.
+ */
+const UPLOAD_REDIRECT_REFUSED = "REDIRECT_REFUSED";
+
+/** What a finished upload answered, whichever transport carried it. */
+interface UploadAnswer {
+    status: number;
+    text: string;
+    header: (name: string) => string | null;
 }
 
 function parseErrorBody(raw: string): unknown {
@@ -81,11 +126,117 @@ function parseErrorBody(raw: string): unknown {
 }
 
 /**
+ * Turn a finished upload's answer into the promised value, or the error the
+ * contract promises. Shared by both transports, so `redirect: "follow"` and
+ * `redirect: "error"` resolve and reject the same way.
+ *
+ * @param answer - Status, raw text and a header reader.
+ * @param parser - The JSON parser.
+ * @param requestId - The `X-Request-ID` sent, for the error.
+ * @returns The parsed JSON, the raw text, or `undefined` for an empty answer.
+ * @throws {TempestApiError} On a non-2xx status.
+ */
+function settle<T>(answer: UploadAnswer, parser: (raw: string) => unknown, requestId: string): T {
+    if (answer.status < 200 || answer.status >= 300) {
+        throw new TempestApiError(
+            buildApiError(
+                answer.status,
+                parseErrorBody(answer.text),
+                { get: answer.header },
+                requestId,
+            ),
+        );
+    }
+    if (answer.status === 204 || !answer.text) return undefined as T;
+    if ((answer.header("content-type") ?? "").includes("application/json")) {
+        return parser(answer.text) as T;
+    }
+    return answer.text as unknown as T;
+}
+
+/**
+ * The origin a URL resolves to, or `null` when it does not resolve.
+ *
+ * @param url - Absolute or relative URL.
+ * @returns The origin.
+ */
+function originOf(url: string): string | null {
+    const resolved = resolveRequestUrl(url);
+    return resolved === null ? null : new URL(resolved).origin;
+}
+
+/** What {@link sendWithoutRedirects} sends. */
+interface ManualUpload {
+    url: string;
+    method: string;
+    headers: Record<string, string>;
+    body: FormData | Blob;
+    withCredentials: boolean;
+    signal?: AbortSignal;
+    requestId: string;
+}
+
+/**
+ * Send the upload over `fetch` with `redirect: "manual"` — the
+ * `redirect: "error"` path of {@link uploadWithProgress}.
+ *
+ * A browser hands the stopped redirect back as an `opaqueredirect` with
+ * status `0`; a server runtime hands back the real `3xx`. Both are refused;
+ * `304` is a cache answer, not a redirect.
+ *
+ * @param init - Where, how, and what to send.
+ * @returns The answer.
+ * @throws {TempestApiError} `code: "REDIRECT_REFUSED"` on a redirect, status
+ *   `0` on a network failure.
+ */
+async function sendWithoutRedirects(init: ManualUpload): Promise<UploadAnswer> {
+    let response: Response;
+    try {
+        response = await fetch(init.url, {
+            method: init.method,
+            headers: init.headers,
+            body: init.body,
+            credentials: init.withCredentials ? "include" : "same-origin",
+            redirect: "manual",
+            signal: init.signal,
+        });
+    } catch {
+        if (init.signal?.aborted) throw new DOMException("Aborted", "AbortError");
+        throw new TempestApiError({
+            status: 0,
+            detail: "Falha de rede no upload.",
+            requestId: init.requestId || undefined,
+        });
+    }
+    if (
+        response.type === "opaqueredirect" ||
+        (response.status >= 300 && response.status < 400 && response.status !== 304)
+    ) {
+        throw new TempestApiError({
+            status: response.status,
+            code: UPLOAD_REDIRECT_REFUSED,
+            detail: "Redirect não seguido no upload.",
+            requestId: init.requestId || undefined,
+        });
+    }
+    return {
+        status: response.status,
+        text: await response.text(),
+        header: (name) => response.headers.get(name),
+    };
+}
+
+/**
  * Upload a file (or any payload) with byte-level progress reporting.
  *
  * `fetch` cannot report upload progress in browsers, so this helper falls
  * back to `XMLHttpRequest`. It mirrors the error contract used by
  * {@link createApiClient}: non-2xx responses reject with a `TempestApiError`.
+ *
+ * An `XMLHttpRequest` cannot refuse a redirect; see
+ * {@link UploadWithProgressOptions.redirect} for what follows one, what the
+ * helper still refuses, and the `fetch` path that trades progress for never
+ * following.
  *
  * @returns The parsed JSON response, or the raw text when the response is not JSON.
  */
@@ -104,43 +255,63 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         signal,
         parser = JSON.parse,
         requestId,
+        redirect = "follow",
     } = options;
 
-    return new Promise<T>((resolve, reject) => {
-        if (signal?.aborted) {
-            reject(new DOMException("Aborted", "AbortError"));
-            return;
-        }
+    if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
 
+    const token = getToken?.();
+    const sentRequestId = requestId ? requestId() : randomId();
+    const finalHeaders: Record<string, string> = { ...headers };
+    const scope = credentialOrigin ?? globalThis.location?.origin ?? url;
+    if (token && !("Authorization" in finalHeaders)) {
+        if (isTrustedCredentialTarget(url, scope, trustedOrigins)) {
+            finalHeaders.Authorization = `Bearer ${token}`;
+        } else {
+            reportSuppressedCredential(url, scope);
+        }
+    }
+    Object.assign(
+        finalHeaders,
+        csrfHeaders({
+            method,
+            url,
+            reference: scope,
+            csrf,
+            trustedOrigins,
+            headers,
+        }),
+    );
+    if (sentRequestId && !("X-Request-ID" in finalHeaders)) {
+        finalHeaders["X-Request-ID"] = sentRequestId;
+    }
+
+    if (redirect === "error") {
+        return sendWithoutRedirects({
+            url,
+            method,
+            headers: finalHeaders,
+            body,
+            withCredentials,
+            signal,
+            requestId: sentRequestId,
+        }).then((answer) => {
+            const sized = body instanceof Blob;
+            const total = sized ? body.size : 0;
+            onProgress?.({
+                loaded: total,
+                total,
+                fraction: sized ? 1 : null,
+                lengthComputable: sized,
+            });
+            return settle<T>(answer, parser, sentRequestId);
+        });
+    }
+
+    return new Promise<T>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open(method, url);
         xhr.withCredentials = withCredentials;
-
-        const token = getToken?.();
-        const sentRequestId = requestId ? requestId() : randomId();
-        const finalHeaders: Record<string, string> = { ...headers };
-        const scope = credentialOrigin ?? globalThis.location?.origin ?? url;
-        if (token && !("Authorization" in finalHeaders)) {
-            if (isTrustedCredentialTarget(url, scope, trustedOrigins)) {
-                finalHeaders.Authorization = `Bearer ${token}`;
-            } else {
-                reportSuppressedCredential(url, scope);
-            }
-        }
-        Object.assign(
-            finalHeaders,
-            csrfHeaders({
-                method,
-                url,
-                reference: scope,
-                csrf,
-                trustedOrigins,
-                headers,
-            }),
-        );
-        if (sentRequestId && !("X-Request-ID" in finalHeaders)) {
-            finalHeaders["X-Request-ID"] = sentRequestId;
-        }
         for (const [key, value] of Object.entries(finalHeaders)) {
             xhr.setRequestHeader(key, value);
         }
@@ -163,37 +334,32 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
 
         xhr.onload = () => {
             signal?.removeEventListener("abort", handleAbort);
-            const isSuccess = xhr.status >= 200 && xhr.status < 300;
-            const contentType = xhr.getResponseHeader("content-type") ?? "";
-
-            if (!isSuccess) {
-                const errorBody = parseErrorBody(xhr.responseText);
+            const landed = xhr.responseURL ? originOf(xhr.responseURL) : null;
+            if (landed !== null && landed !== originOf(url)) {
                 reject(
-                    new TempestApiError(
-                        buildApiError(
-                            xhr.status,
-                            errorBody,
-                            { get: (name) => xhr.getResponseHeader(name) },
-                            sentRequestId,
-                        ),
-                    ),
+                    new TempestApiError({
+                        status: xhr.status,
+                        code: UPLOAD_REDIRECT_REFUSED,
+                        detail: "O upload foi redirecionado para outra origem.",
+                        requestId: sentRequestId || undefined,
+                    }),
                 );
                 return;
             }
-
-            if (xhr.status === 204 || !xhr.responseText) {
-                resolve(undefined as T);
-                return;
-            }
-
-            if (contentType.includes("application/json")) {
-                try {
-                    resolve(parser(xhr.responseText) as T);
-                } catch (err) {
-                    reject(err);
-                }
-            } else {
-                resolve(xhr.responseText as unknown as T);
+            try {
+                resolve(
+                    settle<T>(
+                        {
+                            status: xhr.status,
+                            text: xhr.responseText,
+                            header: (name) => xhr.getResponseHeader(name),
+                        },
+                        parser,
+                        sentRequestId,
+                    ),
+                );
+            } catch (err) {
+                reject(err);
             }
         };
 

@@ -554,8 +554,22 @@ async function describePrecache(name: string): Promise<ActivePrecache> {
     return { name, paths };
 }
 
+/**
+ * Answer a precached path from the cache, or from the network when the entry is
+ * missing.
+ *
+ * Matches with `ignoreVary`. `cache.addAll` stored each entry for a header-less
+ * request, while the page asks for the same URL with the headers its element
+ * sends: `Origin` from a `<script type="module">` or a `crossorigin` element,
+ * `Accept: text/css,…` from a stylesheet. A response stored with `Vary` on one
+ * of those — `vite preview`, a CORS middleware serving static files, a CDN —
+ * never matched, so every precached asset went to the network, and offline the
+ * app loaded as a blank shell (#582). The precache holds one entry per URL,
+ * written by this worker from the manifest and never for a credential, so
+ * `Vary` there distinguishes nothing; the runtime cache keeps honouring it.
+ */
 async function fromPrecache(name: string, request: Request): Promise<Response> {
-    const cached = await (await caches.open(name)).match(request);
+    const cached = await (await caches.open(name)).match(request, { ignoreVary: true });
     return cached ?? fetch(request);
 }
 

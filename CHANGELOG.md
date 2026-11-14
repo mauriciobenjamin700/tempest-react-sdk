@@ -107,6 +107,70 @@ exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava p
   o controle da sessão que se firma passa nas duas; os testes do #563/#580/#590/#596 seguem
   verdes sem alteração; `npx vitest run src/query/`). Sem mudança de API.
 
+- **`persistQueryClientOffline({ auth })`: toda sessão instalada enquanto o cache vive conta, não
+  só a que uma mudança de cache viu.** Terceira variante do mesmo desenho (#590 → C2 da run-11, no
+  item acima → esta), achado C1 (baixo) da auditoria `security-audit` run-12, num caminho ainda
+  não publicado. O api client repete com o bearer de um `login()` ou do `refresh()` do boot em voo
+  a requisição que saiu **sem token** e levou `401`. Se a sessão de A acabava antes da resposta
+  chegar (logout em outra aba, `logout()` sem `clear()`), ninguém estava logado nem na saída nem na
+  chegada: o handle nunca soube que A existiu — o item acima tratava `null` anotado como nada
+  anotado, e uma requisição que saiu deslogada não anotava nada —, e a gravação carimbava a
+  resposta de A como `p:anonymous` para o próximo boot deslogado, contra o que a doc prometia.
+  Reproduzido nas quatro variantes da auditoria (requisição durante o `login()`, requisição
+  deslogada e `login()` depois, `refresh()` do boot, requisição deslogada e `refresh()` de cookie
+  depois): o boot deslogado hidratava `["A-private-order"]`. **Correção estrutural, não mais um
+  remendo:** o preset agora avisa cada mudança de sessão (o `sessionKey` entra no mesmo
+  `WeakMap` de identidade que o `api` e o `getToken` já usavam) e o handle anota cada sessão
+  instalada numa linhagem **do `QueryClient`**; quando uma segunda sessão, ou ninguém depois de
+  uma, é instalada, toda gravação apaga a linha e o `restore()` não hidrata nada. Ninguém seguido
+  de uma sessão não é fim (dado de visitante não é de conta nenhuma), e a rotação do token mantém
+  a chave. O mecanismo do item acima (`unknownWindowSession` + sentinela `p:superseded`) saiu: a
+  linhagem cobre os três casos dele. **Custo, deliberado:** depois de uma sessão que acaba sem
+  `clear()` (inclusive a sessão salva que venceu no boot), a próxima não persiste naquele
+  carregamento até o client ser zerado ou a página recarregar — zerar sozinho quando o cache
+  esvazia reabriria o app que busca com `auth.api` e grava com `setQueryData`. **Limite, escrito
+  na doc:** um objeto de sessão próprio em `auth` (não o preset) não avisa instalação e só é lido
+  em mudança de cache, gravação e restore. Testes em
+  `src/query/offline-persistence.lifetime.test.ts`: **6 de 10 falham sobre a `main` em
+  `3202295`** (as quatro variantes, o `sessionKey()` que lança e o handle novo sobre o client com
+  a sessão encerrada); os controles — sessão que fica logada grava como dela, dado de visitante
+  antes do login, client zerado e `clear()` antes do handle novo — passam nos dois. Sem a
+  assinatura do preset as quatro variantes voltam a falhar. As suítes do #563/#580/#590/#596/C2
+  seguem verdes; só as duas asserções do texto do aviso mudaram, abaixo
+  (`npx vitest run src/query/ src/auth/`: 376 testes). Sem mudança de API. Junto, dois
+  hardenings da mesma auditoria:
+  - **Handle novo sobre o mesmo client não herda a sessão encerrada.** O `console.warn` de dev
+    mandava "criar um handle novo depois do login"; no mesmo `QueryClient`, o handle novo
+    carimbava as respostas de A, ainda em memória, como de B (P7b). Como a linhagem é do client,
+    o handle novo continua apagando até o client ser zerado — `clear()` do handle anterior, ou um
+    handle criado com o client vazio. O aviso agora manda chamar `clear({ resetClient: true })`
+    antes de criar o handle novo (os dois testes que fixavam o texto antigo foram reescritos, com
+    o porquê). Só com `getPrincipal`, sem `auth`, zerar o client continua com o app; a doc diz
+    isso.
+  - **`sessionKey()` que lança conta como desconhecida**, e nada é gravado (antes contava como
+    ninguém e carimbava `p:anonymous`, P8).
+  - **`clear()` sem `resetClient` não apaga mais a linhagem do client** (auditoria run-13, C1,
+    baixo; a `main` em `3202295` vaza igual). O `QueryClient` em memória ainda guardava as
+    respostas de A, e o handle novo que a doc manda criar no login começava uma linhagem nova,
+    adotava B como primeira sessão e gravava as respostas de A com a impressão de B — que o
+    `restore()` do próximo boot de B hidratava. Reproduzido nas três formas da auditoria:
+    `logout()` + `clear()` e login de B; logout em outra aba, login de B e `clear()`; e duas `key`
+    no mesmo client, em que o `clear()` de uma apagava a linhagem da outra e reabria o C1 da
+    run-12 nela (linha `p:anonymous` com o dado de A). Agora só o reset apaga a linhagem — depois
+    do `queryClient.clear()` do `clear({ resetClient: true })`, ou num handle criado com o client
+    vazio —; o `clear()` sem reset a marca como encerrada. Junto, o N3 da mesma auditoria: com
+    `auth`, `flush()` depois de `unsubscribe()` não grava (o handle deixou de ver as sessões e
+    gravava o dado de A sob B). O handle criado sobre um client que **já** guarda respostas
+    continua sem saber de quem elas são; a doc manda criá-lo no boot. A frase "Com `auth` a
+    biblioteca garante isso" de `docs/query.md` foi corrigida para dizer o que é garantido.
+    Testes em `src/query/offline-persistence.lifetime.test.ts`: **5 de 7 novos falham sobre
+    `7e71acd`** (as três formas, `clear()` antes do `logout()` e o `flush()` desacoplado); os
+    controles — `clear({ resetClient: true })` persiste só B, client esvaziado à mão antes do
+    handle novo — passam nos dois (`npx vitest run src/query/ src/auth/`: 383 testes, nenhum
+    teste existente alterado). **Migração:** app com `auth` que chama `clear()` sem `resetClient`
+    e mantém queries públicas no client deixa de persistir a sessão seguinte naquele
+    carregamento; use `clear({ resetClient: true })` ou esvazie o client antes do handle novo.
+
 - **`src/payments`: hardening do checkout da 0.84.0 (#592).** Quatro bordas da auditoria
   `security-audit` (run-10), nenhuma mostrando "pago" sem o backend dizer `paid`. Testes novos
   em `src/payments/*.test.ts(x)`: **17 de 77 falham sobre a `main` em `08c3b91`**
@@ -234,6 +298,18 @@ exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava p
   `### Segurança`.
 
 ### Budgets
+
+- **Linhagem que sobrevive ao `clear()` sem reset (auditoria run-13 C1): barrel CJS 187,7 →
+  187,8 kB** (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` de
+  `7e71acd` contra o deste branch, mesmo resto da árvore): CJS 187 593 → 187 741 B (+148 B; havia
+  107 B de folga); ESM 157 879 → 157 796 B (reminificação; budget 157,9 kB mantido). Nenhuma
+  fatia importada mudou.
+
+- **Linhagem de sessão do cache de query (auditoria run-12 C1): barrel ESM 157,8 → 157,9 kB**
+  (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` e
+  `src/auth/create-tempest-auth.ts` da `main` em `3202295` contra os deste branch, mesmo resto da
+  árvore): ESM 157 680 → 157 879 B (+199 B; a `main` tinha 120 B de folga); CJS 187 427 →
+  187 593 B (+166 B, budget 187,7 kB mantido). Nenhuma fatia importada mudou.
 
 - **Login que termina antes do `/me` (auditoria run-11 C2): barrel CJS 187,4 → 187,7 kB**
   (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` da `main` em

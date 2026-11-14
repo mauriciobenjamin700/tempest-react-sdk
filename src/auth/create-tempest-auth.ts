@@ -1714,6 +1714,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     };
     bindSessionIdentity(api, identity);
     bindSessionIdentity(getToken, identity);
+    bindSessionIdentity(sessionKey, identity);
 
     const isSessionKnown = (): boolean =>
         loginsInFlight.size === 0 && !(rotatingEpochs.size > 0 && getToken() === null);

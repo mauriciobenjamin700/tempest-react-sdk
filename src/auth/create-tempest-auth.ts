@@ -258,7 +258,10 @@ export interface TempestAuth<TUser, TCredentials> {
      * @throws {SessionSupersededError} When the session ended or changed while
      *   the refresh was in flight; its tokens were discarded. That includes a
      *   `logout()` or `login()` landing after the redemption of another
-     *   account and before the switch: it wins over the switch (#591).
+     *   account and before the switch: it wins over the switch (#591). And a
+     *   `login()` still in flight when the redemption brought another account:
+     *   the explicit sign-in wins, the switch is discarded and, in body mode,
+     *   its refresh token revoked (#595).
      */
     refresh: () => Promise<void>;
     /**
@@ -279,9 +282,20 @@ export interface TempestAuth<TUser, TCredentials> {
      * session — and the callback uses this. Called where no sign-in happened,
      * it costs a needless switch: an upload bound to the session starts over.
      *
+     * Two tabs restoring together redeem once (#594). The redemption holds an
+     * origin-wide sign-in lock until the session it brought is installed, so a
+     * tab that calls `restore()` meanwhile waits for it and adopts that
+     * session — its own, if any, ends with `onSessionEnd` `"switch"` and
+     * `elsewhere: true` — and a `refresh()` that waited behind it follows the
+     * new session instead of redeeming the refresh token it spent. Until
+     * 0.84.0 the waiting tab redeemed again: a spent token, which a backend
+     * with reuse detection answers by revoking the whole family, or none at
+     * all, since the restoring tab's teardown had already cleared it.
+     *
      * @returns The user of the new session, or null.
      * @throws {SessionSupersededError} When a `logout()` or `login()` moved
-     *   the session while it was in flight; the new tokens are discarded.
+     *   the session while it was in flight; the new tokens are discarded. Also
+     *   when the other tab's sign-in it waited for left no session to adopt.
      */
     restore: () => Promise<TUser | null>;
     /** The current access token, or null. */
@@ -313,6 +327,29 @@ export interface TempestAuth<TUser, TCredentials> {
      * a redemption kept the previous account's key.
      */
     sessionKey: () => string | null;
+    /**
+     * Whether the session this preset holds is settled — `false` while it is
+     * still being decided (#596).
+     *
+     * It is `false` while a `login()`, a `restore()` or an account switch is
+     * in flight (their user load included), and while a `refresh()` runs with
+     * no token installed — the boot restore from a refresh cookie. It is
+     * `true` otherwise, signed in or signed out: a signed-out answer is then
+     * the real one, not "the restore has not answered yet".
+     *
+     * What it is for: a store that persists per-account data across boots
+     * must not stamp it while the account is unknown. A cookie app reads
+     * nobody signed in until its restore answers, and the persisted query
+     * cache used to stamp the signed-in account's responses as anonymous in
+     * that window, for the next signed-out boot to hydrate.
+     * `persistQueryClientOffline({ auth })` reads it on its own.
+     *
+     * It says nothing about the user profile: a session restored by
+     * `refresh()` installs a token and a `sessionKey()` without loading the
+     * user. A principal read from the user is known only once that user is
+     * there, which `persistQueryClientOffline` also checks.
+     */
+    isSessionKnown: () => boolean;
     /**
      * Stop following the other tabs: removes the `storage` listener this
      * preset adds to `window`. Idempotent.
@@ -347,6 +384,14 @@ const LOGOUT_REVOCATION_WAIT_MS = 10_000;
  * duplicate redemption, not a request that never settles.
  */
 const REFRESH_LOCK_WAIT_MS = 10_000;
+
+/**
+ * What a redemption made under the refresh lock answers when another tab's
+ * sign-in holds the sign-in lock: that sign-in already redeemed the stored
+ * refresh token and has not installed what it got yet, so the token in
+ * storage is spent.
+ */
+const SIGN_IN_PENDING = "sign-in-pending";
 
 /**
  * Wait until every promise settled, or until `ms` passed, whichever is first.
@@ -453,6 +498,14 @@ interface Redemption {
     refreshToken: string | undefined;
 }
 
+/**
+ * A redemption on its way to be installed as a sign-in, holding the sign-in
+ * lock until `release` is called.
+ */
+interface ClaimedRedemption extends Redemption {
+    release: () => void;
+}
+
 function defaultParseTokens(data: unknown): { token: string; refreshToken?: string } {
     const d = (data ?? {}) as TempestTokenResponse;
     return { token: d.access_token, refreshToken: d.refresh_token };
@@ -502,8 +555,10 @@ function defaultParseTokens(data: unknown): { token: string; refreshToken?: stri
  * mints and every rotation keeps — not by comparing users, which took two
  * sign-ins whose user had not loaded yet for the same account (#544). Two tabs
  * never redeem the same refresh token at once: the redemption runs under an
- * origin-wide Web Lock when the browser has one. `storage: "session"` is per
- * tab and behaves as before.
+ * origin-wide Web Lock when the browser has one, and a redemption installed as
+ * a sign-in — `restore()`, an account switch — holds a second one until it is
+ * installed, so no tab presents the token it spent meanwhile (#594).
+ * `storage: "session"` is per tab and behaves as before.
  *
  * Refreshes are collapsed per rotation, not just per overlap: a `401` whose
  * request left with a token that has since been replaced in the same session
@@ -570,6 +625,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 
     const lineageKey = `${storeName}-lineage`;
     const refreshLockName = `tempest-react-sdk:${storeName}:refresh`;
+    const signInLockName = `tempest-react-sdk:${storeName}:sign-in`;
     let heldLineage: string | null = storageImpl()?.getItem(lineageKey) ?? null;
     function writeLineage(lineage: string | null): void {
         heldLineage = lineage;
@@ -634,6 +690,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     let ending: Promise<void> = Promise.resolve();
     let hooksRunning = 0;
     const loginsInFlight = new Set<Promise<unknown>>();
+    let explicitLogins = 0;
     const revocations = new Set<Promise<void>>();
     const credentialRequests = new Set<Promise<unknown>>();
     const rotatingEpochs = new Set<number>();
@@ -781,25 +838,51 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * the next task, so the window is at most a few microtasks there; the
      * check costs nothing and does not depend on that order.
      *
+     * A switch keeps the sign-in lock its redemption claimed until it is
+     * installed, see `claimSignIn`. A rotation that finds another tab's
+     * sign-in holding it waits for that sign-in and tries once more, which
+     * follows the session it installed; a second wait gives up as superseded
+     * (#594).
+     *
+     * An explicit `login()` in flight wins over the switch (#595, decided by
+     * the owner on 14/11/2026): the switch is discarded the same way, so the
+     * user ends on the account they asked for. Before, the switch moved the
+     * epoch first and the `login()` that landed after it was the one discarded
+     * as superseded. Only `login()` counts — `restore()` and another switch are
+     * not the user asking for an account — and only while it is in flight: a
+     * switch already tearing down when `login()` starts is superseded by that
+     * login's own epoch move.
+     *
      * @throws {SessionSupersededError} When the epoch changed during the call,
-     *   or another tab ended or replaced the session.
+     *   another tab ended or replaced the session, or a `login()` was in
+     *   flight when the redemption brought another account.
      */
     async function rotate(): Promise<void> {
         const before = getToken();
         const started = epoch;
         rotatingEpochs.add(started);
-        let switched: Redemption | null;
+        let outcome: Awaited<ReturnType<typeof redeem>>;
         try {
-            switched = await underRefreshLock(() => redeem(before));
+            outcome = await underRefreshLock(() => redeem(before));
+            if (outcome === SIGN_IN_PENDING) {
+                await awaitSignIn();
+                outcome = await underRefreshLock(() => redeem(before));
+            }
         } finally {
             rotatingEpochs.delete(started);
         }
-        if (!switched) return;
-        if (epoch !== started) {
-            revokeDiscarded(switched.token ?? null, switched.refreshToken);
-            throw new SessionSupersededError();
+        if (outcome === SIGN_IN_PENDING) throw new SessionSupersededError();
+        if (!outcome) return;
+        const switched = outcome;
+        try {
+            if (epoch !== started || explicitLogins > 0) {
+                revokeDiscarded(switched.token ?? null, switched.refreshToken);
+                throw new SessionSupersededError();
+            }
+            await trackSignIn(replaceSession(switched));
+        } finally {
+            switched.release();
         }
-        await trackSignIn(replaceSession(switched));
     }
 
     /**
@@ -827,10 +910,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * @returns A promise settling with `run`.
      */
     async function underRefreshLock<T>(run: () => Promise<T>): Promise<T> {
-        const locks =
-            storage === "local" && typeof navigator !== "undefined"
-                ? (navigator as Partial<Navigator>).locks
-                : undefined;
+        const locks = lockManager();
         if (!locks) return run();
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), REFRESH_LOCK_WAIT_MS);
@@ -848,6 +928,83 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             return run();
         }
         return result;
+    }
+
+    /**
+     * The origin's Web Locks manager, when the session is shared by every tab
+     * (`storage: "local"`) and the browser has one.
+     *
+     * @returns The manager, or undefined.
+     */
+    function lockManager(): LockManager | undefined {
+        return storage === "local" && typeof navigator !== "undefined"
+            ? (navigator as Partial<Navigator>).locks
+            : undefined;
+    }
+
+    /**
+     * Take the origin-wide **sign-in lock** without waiting, from inside the
+     * refresh lock and before a redemption (#594).
+     *
+     * The refresh lock covers the redemption round trip only. A redemption
+     * installed as a sign-in — `restore()`, or a refresh that redeemed another
+     * account — is installed after that lock is released, once `onSessionEnd`
+     * settled and the user loaded, and until then the storage still holds the
+     * refresh token it spent (or none: the teardown cleared it). A tab that
+     * took the refresh lock in that window redeemed that token again — a
+     * backend with reuse detection answers by revoking the whole family — or
+     * presented none and failed. So such a redemption holds this second lock
+     * from before its request until the sign-in is installed, and a
+     * redemption that finds it held answers {@link SIGN_IN_PENDING} instead of
+     * presenting the stored token.
+     *
+     * A second lock, not a longer hold of the refresh lock, so the hook and
+     * the user load keep running outside the window in which every other tab
+     * waits to redeem: only a tab that would have presented the spent token
+     * waits on them. Fail-open like the refresh lock: without the API, or
+     * when the request throws, every claim succeeds.
+     *
+     * @returns The release of the claim, or null when another sign-in holds
+     *   the lock.
+     */
+    async function claimSignIn(): Promise<(() => void) | null> {
+        const locks = lockManager();
+        if (!locks) return () => undefined;
+        let release!: () => void;
+        const held = new Promise<void>((resolve) => {
+            release = resolve;
+        });
+        try {
+            return await new Promise<(() => void) | null>((resolve, reject) => {
+                locks
+                    .request(signInLockName, { ifAvailable: true }, (lock) => {
+                        if (lock === null) {
+                            resolve(null);
+                            return undefined;
+                        }
+                        resolve(release);
+                        return held;
+                    })
+                    .catch(reject);
+            });
+        } catch {
+            return () => undefined;
+        }
+    }
+
+    /**
+     * Wait — at most {@link REFRESH_LOCK_WAIT_MS} — until no sign-in holds the
+     * sign-in lock, see `claimSignIn`. Never rejects.
+     */
+    async function awaitSignIn(): Promise<void> {
+        const locks = lockManager();
+        if (!locks) return;
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), REFRESH_LOCK_WAIT_MS);
+        await locks
+            .request(signInLockName, { signal: controller.signal }, () => undefined)
+            .catch(() => undefined);
+        clearTimeout(timer);
     }
 
     /**
@@ -882,39 +1039,49 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *   it was installed as a rotation or nothing was redeemed.
      * @throws {SessionSupersededError} See `rotate()`.
      */
-    async function redeem(before: string | null): Promise<Redemption | null> {
-        const held = before !== null || state().user !== null || heldRefreshToken !== null;
-        const followed = followSharedSession();
-        if (!held && getToken() !== null) return null;
-        if (!followed.continues) throw new SessionSupersededError();
-        if (getToken() !== before) return null;
-        const started = epoch;
-        let data: unknown;
+    async function redeem(
+        before: string | null,
+    ): Promise<ClaimedRedemption | null | typeof SIGN_IN_PENDING> {
+        const release = await claimSignIn();
+        if (!release) return SIGN_IN_PENDING;
+        let claimed = false;
         try {
-            data = await trackCredentialRequest(
-                api.post<unknown>(refreshPath, {
-                    body: refreshBody(readRefreshToken()),
-                    skipAuth: true,
-                }),
-            );
-        } catch (error) {
-            if (epoch !== started) throw new SessionSupersededError();
-            throw error;
+            const held = before !== null || state().user !== null || heldRefreshToken !== null;
+            const followed = followSharedSession();
+            if (!held && getToken() !== null) return null;
+            if (!followed.continues) throw new SessionSupersededError();
+            if (getToken() !== before) return null;
+            const started = epoch;
+            let data: unknown;
+            try {
+                data = await trackCredentialRequest(
+                    api.post<unknown>(refreshPath, {
+                        body: refreshBody(readRefreshToken()),
+                        skipAuth: true,
+                    }),
+                );
+            } catch (error) {
+                if (epoch !== started) throw new SessionSupersededError();
+                throw error;
+            }
+            const { token, refreshToken } = parseTokens(data);
+            if (epoch !== started || !followSharedSession().continues) {
+                revokeDiscarded(token ?? null, refreshToken);
+                throw new SessionSupersededError();
+            }
+            const previous = subjectOf(before);
+            const next = subjectOf(token);
+            if (previous !== null && next !== null && previous !== next) {
+                claimed = true;
+                return { data, token, refreshToken, release };
+            }
+            if (!held) writeLineage(newLineage());
+            state().setToken(token);
+            if (refreshToken) writeRefreshToken(refreshToken);
+            return null;
+        } finally {
+            if (!claimed) release();
         }
-        const { token, refreshToken } = parseTokens(data);
-        if (epoch !== started || !followSharedSession().continues) {
-            revokeDiscarded(token ?? null, refreshToken);
-            throw new SessionSupersededError();
-        }
-        const previous = subjectOf(before);
-        const next = subjectOf(token);
-        if (previous !== null && next !== null && previous !== next) {
-            return { data, token, refreshToken };
-        }
-        if (!held) writeLineage(newLineage());
-        state().setToken(token);
-        if (refreshToken) writeRefreshToken(refreshToken);
-        return null;
     }
 
     let queue = createRefreshQueue(rotate);
@@ -1056,6 +1223,10 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * request leaves — at most {@link LOGOUT_REVOCATION_WAIT_MS} — so a
      * cookie-clearing response cannot land after the new account's cookies.
      *
+     * Counted in `explicitLogins` from the call until it settles: while it is
+     * in flight, a refresh that redeems another account discards that switch
+     * instead of installing it, see `rotate` (#595).
+     *
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.
      * @throws {SessionSupersededError} When a `logout()` or another `login()`
@@ -1064,8 +1235,15 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *   tokens, or the user, are discarded.
      */
     async function login(credentials: TCredentials): Promise<TUser | null> {
-        if (revocations.size > 0) await settleWithin([...revocations], LOGOUT_REVOCATION_WAIT_MS);
-        return trackSignIn(signIn(credentials));
+        explicitLogins += 1;
+        try {
+            if (revocations.size > 0) {
+                await settleWithin([...revocations], LOGOUT_REVOCATION_WAIT_MS);
+            }
+            return await trackSignIn(signIn(credentials));
+        } finally {
+            explicitLogins -= 1;
+        }
     }
 
     /**
@@ -1100,7 +1278,10 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
 
     /**
      * The body of `restore()`: the redemption runs under the refresh lock, as
-     * every redemption does, then the result replaces the held session.
+     * every redemption does, then the result replaces the held session. The
+     * sign-in lock is claimed before the request and held until
+     * `replaceSession` settled; when another tab's sign-in holds it, nothing is
+     * redeemed and that sign-in is adopted instead, see `adoptSignIn` (#594).
      *
      * Nothing held is revoked, unlike `login()`: in body mode the refresh
      * token held is the one just redeemed, and presenting a spent token to a
@@ -1111,20 +1292,58 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      */
     async function restoreSession(): Promise<TUser | null> {
         const started = epoch;
-        const data = await underRefreshLock(() =>
-            trackCredentialRequest(
-                api.post<unknown>(refreshPath, {
-                    body: refreshBody(readRefreshToken()),
-                    skipAuth: true,
-                }),
-            ),
-        );
-        const { token, refreshToken } = parseTokens(data);
-        if (epoch !== started) {
-            revokeDiscarded(token ?? null, refreshToken);
-            throw new SessionSupersededError();
+        const outcome = await underRefreshLock(async () => {
+            const release = await claimSignIn();
+            if (!release) return null;
+            try {
+                const data = await trackCredentialRequest(
+                    api.post<unknown>(refreshPath, {
+                        body: refreshBody(readRefreshToken()),
+                        skipAuth: true,
+                    }),
+                );
+                return { data, release };
+            } catch (error) {
+                release();
+                throw error;
+            }
+        });
+        if (!outcome) return adoptSignIn(started);
+        try {
+            const { token, refreshToken } = parseTokens(outcome.data);
+            if (epoch !== started) {
+                revokeDiscarded(token ?? null, refreshToken);
+                throw new SessionSupersededError();
+            }
+            return await replaceSession({ data: outcome.data, token, refreshToken });
+        } finally {
+            outcome.release();
         }
-        return replaceSession({ data, token, refreshToken });
+    }
+
+    /**
+     * Settle a `restore()` that found another tab's sign-in holding the
+     * sign-in lock (#594): that sign-in already redeemed the stored refresh
+     * token, and redeeming again would present a spent one. Waits for it to
+     * be installed, then follows the shared storage — the session held here,
+     * if any, ends with `onSessionEnd` `"switch"` and `elsewhere: true` — and
+     * resolves with the user that sign-in stored, loading it when it stored
+     * none.
+     *
+     * @param started - The epoch current when `restore()` was called.
+     * @returns The user of the adopted session, or null.
+     * @throws {SessionSupersededError} When this tab's session moved while it
+     *   waited, or the other sign-in left no session to adopt — it was
+     *   superseded or signed out.
+     */
+    async function adoptSignIn(started: number): Promise<TUser | null> {
+        await awaitSignIn();
+        if (epoch !== started) throw new SessionSupersededError();
+        const followed = followSharedSession();
+        await followed.done.catch(() => undefined);
+        if (getToken() === null) throw new SessionSupersededError();
+        const user = state().user;
+        return user !== null ? user : fetchUser();
     }
 
     /**
@@ -1496,6 +1715,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     bindSessionIdentity(api, identity);
     bindSessionIdentity(getToken, identity);
 
+    const isSessionKnown = (): boolean =>
+        loginsInFlight.size === 0 && !(rotatingEpochs.size > 0 && getToken() === null);
+
     /**
      * Follow a write another tab made to this session's keys. The browser
      * fires `storage` only in the tabs that did not write; `key` is null when
@@ -1520,5 +1742,16 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     host?.addEventListener("storage", onStorage);
     const dispose = (): void => host?.removeEventListener("storage", onStorage);
 
-    return { useAuthStore, api, login, logout, refresh, restore, getToken, sessionKey, dispose };
+    return {
+        useAuthStore,
+        api,
+        login,
+        logout,
+        refresh,
+        restore,
+        getToken,
+        sessionKey,
+        isSessionKnown,
+        dispose,
+    };
 }

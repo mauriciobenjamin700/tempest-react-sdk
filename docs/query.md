@@ -277,6 +277,40 @@ export async function boot(): Promise<void> {
 }
 ```
 
+### Com `createTempestAuth`: passe `auth`
+
+App com `createTempestAuth` não precisa montar `getPrincipal` nem `isPrincipalKnown` à mão: passe o próprio preset em `auth` (#596).
+
+```ts
+import { createTempestAuth, persistQueryClientOffline } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+interface User {
+    id: string;
+}
+
+const auth = createTempestAuth<User>({
+    baseURL: "https://api.example.com",
+    withCredentials: true,
+    logoutPath: "/api/auth/logout",
+    mePath: "/api/auth/me",
+});
+const queryClient = new QueryClient();
+const persistence = persistQueryClientOffline({ queryClient, auth });
+
+export async function boot(): Promise<void> {
+    await auth.refresh().catch(() => undefined);
+    await persistence.restore();
+}
+```
+
+- **O dono do cache é a sessão**: o principal é `auth.sessionKey()`, que sobrevive ao reload e à rotação do token e muda a cada login. Login novo da mesma conta começa com o cache frio — é um cache, e nenhuma conta herda o de outra.
+- **"Ainda não sei" vem do preset**: `auth.isSessionKnown()` é `false` enquanto um `login()`, um `restore()` ou uma troca de conta está em voo, e enquanto o `refresh()` do boot ainda restaura a sessão do cookie. Nesse intervalo nada é gravado, nada prende o dono e o `restore()` não hidrata nada.
+- **Quer o id do usuário como dono?** Passe `getPrincipal` junto com `auth`. Aí o principal também precisa estar carregado: com sessão instalada e `getPrincipal` respondendo ninguém (o perfil ainda não veio), conta como desconhecido — não como anônimo.
+- Chame o `restore()` **depois** do `refresh()` do boot. Antes dele, a sessão ainda não existe, e o `restore()` só hidrata o que é de ninguém.
+
+Antes, a única proteção era a frase do item `isPrincipalKnown` acima: sem ela, a aba fechada antes do `/me` deixava as respostas de A carimbadas como anônimas, e o próximo boot deslogado as hidratava. Reproduzido em `src/query/offline-persistence.auth.test.ts` (`npx vitest run src/query/offline-persistence.auth.test.ts`).
+
 !!! warning "Mudou na 0.77.0: o handle morre no `clear()`"
     Antes, o mesmo handle continuava gravando depois do `clear()`. Se o seu app guarda a `persistence` no nível do módulo e reaproveita depois do login, ele **para de persistir** a partir da 0.77.0. Crie o handle dentro da sessão:
 

@@ -81,7 +81,67 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   chegarem. Quem dependia de `usePixCharge` sair de `paid` para `expired`/`cancelled`/`failed`,
   ou de aceitar atualização de outro `provider`, deixa de ver essas transições.
 
+### Adicionado
+
+- **`auth.isSessionKnown()` e a opção `auth` de `persistQueryClientOffline` (#596).** O #590 deixou
+  o cache offline seguro só para quem passasse `isPrincipalKnown` à mão — a proteção era uma frase
+  da doc. Agora o `createTempestAuth` diz por conta própria quando a sessão ainda está sendo
+  decidida: `isSessionKnown()` é `false` com um `login()`, um `restore()` ou uma troca de conta em
+  voo e com o `refresh()` do boot restaurando a sessão sem token instalado; `true` no resto, logado
+  ou deslogado. `persistQueryClientOffline({ queryClient, auth })` usa `auth.sessionKey()` como
+  principal (o cache é de um login: sobrevive a reload e rotação, login novo começa frio) e só
+  grava, prende o dono ou restaura com a sessão conhecida; com `getPrincipal` próprio junto,
+  sessão instalada com principal vazio (perfil ainda não carregado) também conta como
+  desconhecida. Aceite da issue — app de cookie com `createTempestAuth` + persistência, sem
+  `isPrincipalKnown`, aba fechada antes do `/me`, boot deslogado — restaura `undefined` em vez de
+  `["A-order-1"]`. Testes em `src/query/offline-persistence.auth.test.ts` (3 de 6 falham sobre a
+  `main` em `b99a0c6`; os outros 3 são controles: restore do mesmo login no reload, e os dois do
+  `isSessionKnown` durante login e rotação, que passam também lá por não existir a opção;
+  `npx vitest run src/query/offline-persistence.auth.test.ts`). Opção nova, nada muda para quem
+  não a passa. Outros consumidores de `getPrincipal` (`createOfflineSync`, `createWebSocket`/
+  `useWebSocket`, `createResumableUpload`, `provideBackgroundSyncCredentials`, a fila de
+  telemetria) **não** foram ligados: nenhum hidrata dado para o próximo boot — com o principal
+  desconhecido eles seguram ou descartam o item, nunca o entregam a outra conta —, e o upload
+  resumível já lê a sessão do `getToken` do preset. O `template-pwa` não usa
+  `persistQueryClientOffline` nem `createTempestAuth`, então não muda.
+
 ### Corrigido
+
+- **`createTempestAuth`: duas abas chamando `restore()` juntas resgatam uma vez só (#594).** O
+  resgate do `restore()` rodava sob o lock de refresh, mas o par novo só era gravado no
+  `replaceSession`, depois de soltar o lock e depois do `onSessionEnd`. A aba que esperava atrás
+  dele resgatava de novo: medido em `b99a0c6` com dois presets em modo body, `fakeLocks` e um
+  backend com detecção de reuso, a segunda aba apresentou **nenhum** refresh token (o teardown da
+  primeira já tinha limpado o storage) e o `restore()` dela rejeitou com `401`; com o storage
+  ainda não limpo, apresentaria o `ref-1` já gasto e o backend revogaria a família — o que a
+  issue mediu. O mesmo valia para um `refresh()` que esperava atrás do `restore()`, e para a
+  troca de conta de um `refresh()` (#579), instalada pelo mesmo caminho. Agora o resgate que vai
+  virar login segura um segundo Web Lock da origem (`tempest-react-sdk:<storeName>:sign-in`) do
+  pedido até a instalação; o lock de refresh continua cobrindo só o round trip, então o hook e o
+  `/me` não prendem as outras abas. Quem acha esse lock ocupado não resgata: um `restore()` espera
+  e **adota** a sessão instalada (a sua, se havia, termina com `"switch"` e `elsewhere: true`) e
+  resolve com o mesmo usuário; um `refresh()` espera, segue a sessão nova e rejeita com
+  `SessionSupersededError`. Fail-open como o lock de refresh: sem a API, ou depois de 10 s, segue
+  como antes. Testes em `src/auth/create-tempest-auth.restore-tabs.test.ts` (4 de 5 falham sobre
+  a `main` em `b99a0c6`; o controle "restore depois de uma rotação resgata o token rodado" passa
+  nas duas; `npx vitest run src/auth/create-tempest-auth.restore-tabs.test.ts`). O teste do
+  run-7 em `create-tempest-auth.refresh-lock.test.ts` que listava os locks pedidos foi reescrito
+  para incluir o lock de login. Sem mudança de API.
+
+- **`createTempestAuth`: login explícito vence a troca de conta implícita de um `refresh()`
+  (#595, decisão do dono em 14/11/2026).** Com um `login(C)` em voo, um `refresh()` que resgatava
+  o refresh credential de outra conta (B) e respondia antes trocava para B: a troca movia a época,
+  e o `login(C)` que chegava depois era descartado como `SessionSupersededError` — o usuário pedia
+  C e terminava como B (medido em `b99a0c6`). Agora, enquanto houver um `login()` em voo, a troca
+  é descartada pelo mesmo caminho do #591: o refresh token de B é revogado no modo body, o
+  `refresh()` rejeita com `SessionSupersededError` e o `login(C)` instala C. Só `login()` conta:
+  `restore()` e a própria troca continuam fora (o `loginsInFlight`, usado pelo `401` sem token,
+  não muda). Testes em `src/auth/create-tempest-auth.explicit-login.test.ts` (3 de 5 falham sobre
+  a `main` em `b99a0c6`: login primeiro com a troca chegando antes, a revogação de B e o login
+  recusado que mantém A; os dois controles — troca já em teardown quando o login começa, troca já
+  instalada — passam nas duas; `npx vitest run src/auth/create-tempest-auth.explicit-login.test.ts`).
+  **Migração:** quem dependia de "a primeira resposta vence" vê o `refresh()` rejeitar como
+  superado durante um `login()`; a sessão final passa a ser a do login.
 
 - **`Markdown`: link dentro de ênfase não some mais (#599).** `**[texto](url)**` renderizava
   `<strong></strong>` vazio e o texto do link sumia. A causa não era o parser, como a issue supunha:
@@ -113,11 +173,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
-- **#599: fatia do `AIChat` 11 → 11,3 kB, barrel ESM 157 → 157,2 kB, CJS 186,6 → 187 kB**
+- **#596: barrel CJS 187,1 → 187,2 kB** (`npm run build && npx size-limit --json`, sobre o
+  #595): CJS 187 061 → 187 133 B (+72 B); ESM 157 215 → 157 224 B (+9 B, budget 157,4 kB
+  mantido). Contra a `main` em `b99a0c6`, somando #594, #595 e #596: ESM 156 964 → 157 224 B
+  (+260 B), CJS 186 505 → 187 133 B (+628 B). As fatias medidas não mudam — nenhuma importa
+  `createTempestAuth`, e a de offline + PWA continua em 5 061 B.
+- **#595: barrel CJS 186,9 → 187,1 kB** (`npm run build && npx size-limit --json`, sobre o
+  #594): CJS 186 843 → 187 061 B (+218 B); ESM 157 310 → 157 215 B (reminificação; budget
+  157,4 kB mantido). Contra a `main` em `b99a0c6`: ESM 156 964 → 157 215 B, CJS 186 505 →
+  187 061 B.
+- **#594: barrel ESM 157 → 157,4 kB e CJS 186,6 → 186,9 kB** (`npm run build && npx size-limit
+--json`, contra a `main` em `b99a0c6`): barrel ESM 156 964 → 157 310 B (+346 B), CJS 186 505 →
+  186 843 B (+338 B) — o lock de login e a adoção do `restore()`. Nenhuma fatia do
+  `size-limit` importa `createTempestAuth`; as demais não mudam.
+
+- **#599: fatia do `AIChat` 11 → 11,3 kB, barrel ESM 157,4 → 157,8 kB, CJS 187,2 → 187,4 kB**
   (`npm run build && npx size-limit --json`, contra a `main` em `b99a0c6`): fatia do `AIChat`
   (que puxa `Markdown`) 10 867 → 11 219 B (+352 B); barrel ESM 156 964 → 157 097 B (+133 B); CJS
   186 505 → 186 973 B (+468 B). Os bytes compram o parser inline que aninha e pula átomos ao fechar
   ênfase (tabelas de próximo índice, memo de átomo e de cauda de link para manter o custo linear).
+  Somado ao #594, #595 e #596 na `main` (`371c58a`), remedido no merge: barrel ESM 157 756 B
+  (budget 157,8 kB), CJS 187 377 B (budget 187,4 kB).
 
 - **#592: barrel ESM 156,8 → 157 kB** (`npm run build && npx size-limit --json`, contra a `main` em
   `08c3b91`): fatia do cartão (`useMercadoPagoCard` + `describeCardCharge`) 2383 → 2482 B (+99 B,

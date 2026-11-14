@@ -157,6 +157,12 @@ function openTab(
  * rejected while the other held an access token with no live refresh token
  * behind it. The first test below is that measurement, kept as the
  * fail-open baseline.
+ *
+ * Since #594 every redemption also claims the sign-in lock from inside the
+ * refresh lock — it is what keeps a tab from redeeming the token a sign-in
+ * spent before installing it — so the lock list asserted below carries both
+ * names: one claim per tab that took the refresh lock, made before it looks
+ * at the stored session.
  */
 describe("createTempestAuth — one tab at a time redeems the shared refresh token", () => {
     beforeEach(() => {
@@ -198,6 +204,8 @@ describe("createTempestAuth — one tab at a time redeems the shared refresh tok
         expect(requested).toEqual([
             "tempest-react-sdk:tempest-auth:refresh",
             "tempest-react-sdk:tempest-auth:refresh",
+            "tempest-react-sdk:tempest-auth:sign-in",
+            "tempest-react-sdk:tempest-auth:sign-in",
         ]);
     });
 

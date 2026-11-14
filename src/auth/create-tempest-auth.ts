@@ -328,6 +328,29 @@ export interface TempestAuth<TUser, TCredentials> {
      */
     sessionKey: () => string | null;
     /**
+     * Whether the session this preset holds is settled — `false` while it is
+     * still being decided (#596).
+     *
+     * It is `false` while a `login()`, a `restore()` or an account switch is
+     * in flight (their user load included), and while a `refresh()` runs with
+     * no token installed — the boot restore from a refresh cookie. It is
+     * `true` otherwise, signed in or signed out: a signed-out answer is then
+     * the real one, not "the restore has not answered yet".
+     *
+     * What it is for: a store that persists per-account data across boots
+     * must not stamp it while the account is unknown. A cookie app reads
+     * nobody signed in until its restore answers, and the persisted query
+     * cache used to stamp the signed-in account's responses as anonymous in
+     * that window, for the next signed-out boot to hydrate.
+     * `persistQueryClientOffline({ auth })` reads it on its own.
+     *
+     * It says nothing about the user profile: a session restored by
+     * `refresh()` installs a token and a `sessionKey()` without loading the
+     * user. A principal read from the user is known only once that user is
+     * there, which `persistQueryClientOffline` also checks.
+     */
+    isSessionKnown: () => boolean;
+    /**
      * Stop following the other tabs: removes the `storage` listener this
      * preset adds to `window`. Idempotent.
      *
@@ -1692,6 +1715,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     bindSessionIdentity(api, identity);
     bindSessionIdentity(getToken, identity);
 
+    const isSessionKnown = (): boolean =>
+        loginsInFlight.size === 0 && !(rotatingEpochs.size > 0 && getToken() === null);
+
     /**
      * Follow a write another tab made to this session's keys. The browser
      * fires `storage` only in the tabs that did not write; `key` is null when
@@ -1716,5 +1742,16 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     host?.addEventListener("storage", onStorage);
     const dispose = (): void => host?.removeEventListener("storage", onStorage);
 
-    return { useAuthStore, api, login, logout, refresh, restore, getToken, sessionKey, dispose };
+    return {
+        useAuthStore,
+        api,
+        login,
+        logout,
+        refresh,
+        restore,
+        getToken,
+        sessionKey,
+        isSessionKnown,
+        dispose,
+    };
 }

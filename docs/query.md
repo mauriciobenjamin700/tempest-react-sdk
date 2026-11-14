@@ -252,6 +252,30 @@ As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flu
 - Se a remoção no IndexedDB falhar, `resetClient` limpa o `QueryClient` mesmo assim, e o erro chega a quem chamou.
 - **Sessão que acaba sem `clear()`** (token vencido, crash, aba fechada logada) não passa pelo logout. Para ela, passe `getPrincipal: () => userId`: cada gravação carimba o snapshot com a impressão de quem está logado, e o `restore()` só hidrata o snapshot do **mesmo** dono. O de outra pessoa é ignorado, não apagado — app com cookie que só descobre o usuário depois do `/me` não perde o próprio cache —, e a próxima gravação o substitui. Snapshot gravado antes da opção não tem carimbo e não é restaurado: custa um boot frio, uma vez.
 - **O handle fica preso ao primeiro dono logado** que ele vê — numa mudança do cache, numa gravação ou num restore. É a mudança do cache que fixa o dono do dado: a gravação tem throttle, e sem isso uma sessão que vencia (ou outra conta que entrava) dentro da primeira janela recebia as respostas de quem saiu, carimbadas como anônimas ou como suas (#580). Depois disso, uma gravação com outro dono — ninguém, porque o token venceu sem `clear()`, ou outra conta entrando na mesma aba — **apaga** o snapshot em vez de carimbar as respostas de quem saiu com o dono novo (#563); se o mesmo usuário voltar, o handle volta a gravar. Gravação antes de alguém logar continua anônima e é restaurada enquanto ninguém estiver logado, então app que persiste dado de visitante segue igual. Snapshot anônimo gravado pela 0.82.0 não é restaurado (pode conter o cache de uma sessão vencida): um boot frio, uma vez. Para a próxima sessão persistir, crie um handle novo no login, como depois do `clear()`.
+- **Principal ainda desconhecido: `isPrincipalKnown`.** Para o `getPrincipal`, `null` e `undefined` querem dizer **ninguém logado** — o mesmo contrato do resto do SDK, então `() => user?.id` continua valendo. "Ainda não sei" é outro estado: app com sessão por cookie só descobre o usuário depois do `/me`, e uma gravação que rodava antes disso carimbava as respostas de A como anônimas; se a aba fechasse antes da próxima gravação, o boot deslogado seguinte as hidratava (#590). Passe `isPrincipalKnown: () => false` até a resposta do `/me` chegar, seja ela qual for. Enquanto for `false`, nada é gravado (a gravação é reagendada para a próxima janela), mudança no cache não prende o dono e o `restore()` não hidrata nada — chame-o de novo quando o principal for conhecido. Um `isPrincipalKnown` que lança conta como desconhecido. Sem `getPrincipal`, a opção é ignorada.
+- **Handle que hidratou snapshot anônimo não o recarimba** quando alguém loga nele: a linha anônima pode ser de uma conta cujo principal ainda não era conhecido na gravação, e recarimbá-la entregava as respostas de A a B (#590). A gravação apaga a linha, como na troca de conta (#563), e em build de dev sai **um** `console.warn`. App de visitante que depois faz login perde a persistência daquela sessão; crie um handle novo no login para continuar persistindo.
+
+```ts
+import { persistQueryClientOffline } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+let me: { id: string } | null = null;
+let meResolved = false;
+
+const persistence = persistQueryClientOffline({
+    queryClient,
+    getPrincipal: () => me?.id,
+    isPrincipalKnown: () => meResolved,
+});
+
+export async function boot(): Promise<void> {
+    const response = await fetch("/api/me", { credentials: "include" });
+    me = response.ok ? ((await response.json()) as { id: string }) : null;
+    meResolved = true;
+    await persistence.restore();
+}
+```
 
 !!! warning "Mudou na 0.77.0: o handle morre no `clear()`"
     Antes, o mesmo handle continuava gravando depois do `clear()`. Se o seu app guarda a `persistence` no nível do módulo e reaproveita depois do login, ele **para de persistir** a partir da 0.77.0. Crie o handle dentro da sessão:

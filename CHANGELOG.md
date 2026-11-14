@@ -6,6 +6,47 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **`createTempestAuth`: a troca de conta de um `refresh()` relê a época antes de instalar
+  (#591).** Desde o #579, o `rotate()` instala a sessão de outra conta depois que o
+  `navigator.locks.request()` resolve, e a última checagem de época ficava dentro do lock. Com um
+  `LockManager` que resolve uma task depois do callback, um `logout()` nesse intervalo terminava
+  com o token de B instalado, e um `login(C)` terminava como B com o usuário B (medido em
+  `08c3b91`). Agora a época é relida antes da troca: quem chegou no intervalo vence, o refresh
+  rejeita com `SessionSupersededError` e o refresh token resgatado é revogado no modo body.
+  **Alcançabilidade:** em navegador real a janela não passa de microtasks — o snippet da issue,
+  200 execuções por variante (lock livre, lock disputado, `await` dentro do callback, com
+  `signal`) em `http://localhost:5591` via `@playwright/test`, deu `cb,resolved,task` em 200/200
+  no Chromium 153, Firefox 155 e WebKit 26.6: o `request()` resolve antes da task seguinte. É
+  hardening, sem depender dessa ordem. Testes em `src/auth/create-tempest-auth.subject.test.ts`
+  (os 3 marcados `#591` falham sobre a `main` em `08c3b91`;
+  `npx vitest run src/auth/create-tempest-auth.subject.test.ts`). Sem mudança de API.
+
+- **`persistQueryClientOffline`: cache gravado antes de saber quem está logado não vira anônimo nem
+  passa para a próxima conta (#590).** Com `getPrincipal`, `null`/`undefined` eram a única resposta
+  possível antes do `/me` de um app com sessão por cookie, e liam como "ninguém": a gravação da
+  primeira janela carimbava as respostas de A como `p:anonymous`, o boot deslogado seguinte as
+  hidratava e, quando B logava, o mesmo handle as recarimbava como de B. Reproduzido no vitest
+  (jsdom + fake-indexeddb, `throttleMs: 30`): o boot deslogado restaurava `["A-order-1"]` e o boot
+  posterior de `user-b` também. Duas mudanças:
+  - **Opção nova `isPrincipalKnown`.** O contrato de `getPrincipal` **não** muda (`null` e
+    `undefined` continuam "ninguém", como em todo `getPrincipal` do SDK — redefinir `undefined` como
+    "carregando" quebraria em silêncio o `() => user?.id` que a doc do PWA e o template usam).
+    Enquanto `isPrincipalKnown()` for `false` (ou lançar), nada é gravado e a gravação é reagendada,
+    mudança no cache não prende o dono e o `restore()` não hidrata nada. Sem a opção, nada muda.
+  - **Handle que hidratou snapshot anônimo apaga a linha em vez de recarimbá-la** quando alguém
+    loga nele, com **um** `console.warn` em dev. Vale sem configurar nada e fecha a metade
+    "vaza para B" do achado; a metade "boot deslogado vê o cache de A" só se fecha com
+    `isPrincipalKnown`, porque sem ela a biblioteca não tem como saber que o `null` era provisório.
+    Testes: `src/query/offline-persistence.unknown-principal.test.ts` (6 de 11 falham sobre a `main`
+    em `08c3b91`, entre eles o Q1 da issue; o controle Q2 passa nas duas;
+    `npx vitest run src/query/offline-persistence.unknown-principal.test.ts`). Os testes do #563/#580
+    em `offline-persistence.owner.test.ts` seguem verdes sem alteração. **Migração:** app com cookie
+    passa `isPrincipalKnown: () => meResolved` e chama `restore()` depois do `/me`. App de visitante
+    que restaura um snapshot anônimo e depois faz login no mesmo handle deixa de persistir aquela
+    sessão (a linha é apagada): crie um handle novo no login, como a doc já orientava. Tamanho
+    (`npm run build && npx size-limit --json`, contra a `main` em `08c3b91`): barrel ESM 156 692 →
+    156 709 B, CJS 186 508 → 186 584 B; budgets inalterados.
+
 - **`src/payments`: hardening do checkout da 0.84.0 (#592).** Quatro bordas da auditoria
   `security-audit` (run-10), nenhuma mostrando "pago" sem o backend dizer `paid`. Testes novos
   em `src/payments/*.test.ts(x)`: **17 de 77 falham sobre a `main` em `08c3b91`**

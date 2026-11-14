@@ -48,6 +48,8 @@ function segment(value: unknown): string {
  * `sub` is the account with `format: "jwt"`, an opaque `<owner>-tok-<n>` with
  * `"opaque"`. `/api/auth/me` answers the account that owns the bearer;
  * `/api/orders` answers it too, unless the bearer is in `expired`.
+ * `/api/auth/login` signs in the account named by the `email` it receives,
+ * which then owns the cookie.
  *
  * @param format - Whether access tokens are JWTs or opaque.
  * @returns The fetcher, the cookie holder, the expired set and every
@@ -74,6 +76,14 @@ function cookieBackend(format: "jwt" | "opaque") {
                     : `${owner}-tok-${issued}`;
             owners.set(token, owner);
             await new Promise((resolve) => setTimeout(resolve, 2));
+            return jsonResponse({ access_token: token });
+        }
+        if (path === "/api/auth/login") {
+            const { email } = JSON.parse(String(init?.body)) as { email: string };
+            issued += 1;
+            cookie.owner = email;
+            const token = `${segment({ alg: "HS256", typ: "JWT" })}.${segment({ sub: email, n: issued })}.sig`;
+            owners.set(token, email);
             return jsonResponse({ access_token: token });
         }
         if (path === "/api/auth/logout") return new Response(null, { status: 204 });
@@ -311,5 +321,127 @@ describe("createTempestAuth — restore() installs the refresh credential as a n
         await expect(restoring).rejects.toBeInstanceOf(SessionSupersededError);
         expect(auth.getToken()).toBeNull();
         expect(auth.sessionKey()).toBeNull();
+    });
+});
+
+/**
+ * A `LockManager` whose `request()` settles one task after its callback did,
+ * running `gap` in between — the window #591 asked about. Chromium 153,
+ * Firefox 155 and WebKit 26.6 settle it before the next task (200 runs each,
+ * see the CHANGELOG), so this is the worst case an engine could take, not one
+ * a browser was seen taking.
+ *
+ * @param gap - Runs after the callback settled and before `request()` does.
+ * @returns The manager.
+ */
+function lateLocks(gap: { run: (() => Promise<unknown>) | null }) {
+    return {
+        async request(
+            _name: string,
+            _options: { signal?: AbortSignal },
+            callback: () => Promise<unknown>,
+        ): Promise<unknown> {
+            const result = await callback();
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            const run = gap.run;
+            gap.run = null;
+            await run?.();
+            return result;
+        },
+    };
+}
+
+/**
+ * #591: a refresh that redeemed another account is installed by `rotate()`
+ * after `navigator.locks.request()` settles. Until 0.84.0 nothing re-read the
+ * epoch there, so a `logout()` or `login()` landing between the end of the
+ * lock callback and that settlement was overwritten by the redeemed account.
+ * The tests marked (#591) failed against 08c3b91.
+ */
+describe("createTempestAuth — a switch redeemed under the lock yields to a sign-out or sign-in in the gap", () => {
+    const gap: { run: (() => Promise<unknown>) | null } = { run: null };
+
+    beforeEach(() => {
+        localStorage.clear();
+        gap.run = null;
+        Object.defineProperty(navigator, "locks", {
+            configurable: true,
+            value: lateLocks(gap),
+        });
+    });
+
+    afterEach(() => {
+        for (const auth of created.splice(0)) auth.dispose();
+        Reflect.deleteProperty(navigator, "locks");
+    });
+
+    it("stays signed out when logout() lands after the lock callback (#591)", async () => {
+        const backend = cookieBackend("jwt");
+        const ended: TempestSessionEnd<User>[] = [];
+        const auth = openTab(backend.fetcher, ended);
+        await auth.refresh();
+        backend.cookie.owner = "B";
+        gap.run = () => auth.logout();
+
+        await expect(auth.refresh()).rejects.toBeInstanceOf(SessionSupersededError);
+
+        expect(auth.getToken()).toBeNull();
+        expect(auth.sessionKey()).toBeNull();
+        expect(ended.map((event) => event.reason)).toEqual(["logout"]);
+    });
+
+    it("keeps the account login() signed in when it lands after the lock callback (#591)", async () => {
+        const backend = cookieBackend("jwt");
+        const auth = openTab(backend.fetcher, [], { mePath: "/api/auth/me" });
+        await auth.refresh();
+        backend.cookie.owner = "B";
+        gap.run = () => auth.login({ email: "C", password: "x" });
+
+        await expect(auth.refresh()).rejects.toBeInstanceOf(SessionSupersededError);
+
+        expect(backend.ownerOf(auth.getToken())).toBe("C");
+        expect(auth.useAuthStore.getState().user).toEqual({ id: "C" });
+    });
+
+    it("revokes, in body mode, the redemption it discarded for the gap's logout() (#591)", async () => {
+        const backend = cookieBackend("jwt");
+        const revoked: string[] = [];
+        let issued = 0;
+        const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+            const path = new URL(String(input)).pathname;
+            if (path === "/api/auth/logout") {
+                const body = JSON.parse(String(init?.body)) as { refresh_token: string };
+                revoked.push(body.refresh_token);
+            }
+            const response = await backend.fetcher(input, init);
+            if (path !== "/api/auth/refresh") return response;
+            const body = (await response.json()) as { access_token: string };
+            issued += 1;
+            return jsonResponse({
+                ...body,
+                refresh_token: `${backend.cookie.owner}-ref-${issued}`,
+            });
+        }) as typeof fetch;
+        const auth = openTab(fetcher, [], { withCredentials: false });
+        await auth.refresh();
+        backend.cookie.owner = "B";
+        gap.run = () => auth.logout();
+
+        await expect(auth.refresh()).rejects.toBeInstanceOf(SessionSupersededError);
+        await vi.waitFor(() => expect(revoked).toContain("B-ref-2"));
+
+        expect(revoked).toEqual(["A-ref-1", "B-ref-2"]);
+        expect(auth.getToken()).toBeNull();
+    });
+
+    it("still switches when nothing lands in the gap", async () => {
+        const backend = cookieBackend("jwt");
+        const auth = openTab(backend.fetcher);
+        await auth.refresh();
+        backend.cookie.owner = "B";
+
+        await auth.refresh();
+
+        expect(backend.ownerOf(auth.getToken())).toBe("B");
     });
 });

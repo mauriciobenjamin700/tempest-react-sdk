@@ -46,9 +46,9 @@ function wait(ms: number): Promise<void> {
  */
 function cookieBackend(): {
     fetcher: typeof fetch;
-    cookie: { alive: boolean; refreshMs: number };
+    cookie: { alive: boolean; refreshMs: number; meMs: number };
 } {
-    const cookie = { alive: true, refreshMs: 0 };
+    const cookie = { alive: true, refreshMs: 0, meMs: 0 };
     let issued = 0;
     const fetcher = (async (input: RequestInfo | URL) => {
         const path = new URL(String(input)).pathname;
@@ -63,7 +63,10 @@ function cookieBackend(): {
             issued += 1;
             return jsonResponse({ access_token: `A-tok-${issued}` });
         }
-        if (path === "/api/auth/me") return jsonResponse({ id: "A" });
+        if (path === "/api/auth/me") {
+            await wait(cookie.meMs);
+            return jsonResponse({ id: "A" });
+        }
         if (path === "/api/auth/logout") return new Response(null, { status: 204 });
         return jsonResponse({ detail: "not found" }, 404);
     }) as typeof fetch;
@@ -284,5 +287,159 @@ describe("persistQueryClientOffline — the session comes from createTempestAuth
         const rotating = auth.refresh();
         expect(auth.isSessionKnown()).toBe(true);
         await rotating;
+    });
+});
+
+/**
+ * Wait until `login()` installed its token, which happens before `/me` is
+ * asked: from then on `sessionKey()` names the new lineage while
+ * `isSessionKnown()` is still `false`.
+ *
+ * @param auth - The preset.
+ */
+async function untilTokenInstalled(auth: Auth): Promise<void> {
+    for (let i = 0; i < 200 && auth.getToken() === null; i++) await wait(1);
+}
+
+/**
+ * Security audit run-11, C2: `login()` installs A's token before `/me`
+ * answers, and A's queries resolve in that window while `isSessionKnown()` is
+ * `false`, so the cache change did not bind the handle. When the session ended
+ * before `/me` answered — a logout in another tab, or `logout()` in this tab
+ * without `persistence.clear()` — the handle was still unbound, the next write
+ * stamped A's responses `p:anonymous`, and the next signed-out boot on the
+ * profile hydrated them. A second `login()` superseding the first inside the
+ * window stamped the first session's responses with the second session's key
+ * the same way. The first three tests fail on 05293bc, which wrote the row
+ * (`p:anonymous`, or the second session's fingerprint); the handle now
+ * records the `sessionKey()` the cache change saw and, once the session is
+ * known, deletes instead of writing when it is not that session.
+ */
+describe("persistQueryClientOffline — a login that ends before /me answers (#596 follow-up)", () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        for (const auth of created.splice(0)) auth.dispose();
+    });
+
+    it("leaves nothing for a signed-out boot when another tab signs out during /me", async () => {
+        const dbName = databaseName();
+        const backend = cookieBackend();
+        backend.cookie.meMs = 60;
+        const auth = boot(backend);
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        const login = auth.login({ email: "a@example.test", password: "x" });
+        await untilTokenInstalled(auth);
+        expect(auth.sessionKey()).not.toBeNull();
+        expect(auth.isSessionKnown()).toBe(false);
+        client.setQueryData(["orders"], ["A-order-1"]);
+        localStorage.clear();
+        window.dispatchEvent(new StorageEvent("storage", { key: null, storageArea: localStorage }));
+        await login.catch(() => undefined);
+        expect(auth.sessionKey()).toBeNull();
+        expect(auth.isSessionKnown()).toBe(true);
+        await wait(40);
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        expect(await readRow(dbName)).toBeUndefined();
+        const next = await signedOutBoot(backend, dbName);
+        expect(next.getQueryData(["orders"])).toBeUndefined();
+    });
+
+    it("leaves nothing for a signed-out boot when logout() runs during /me without clear()", async () => {
+        const dbName = databaseName();
+        const backend = cookieBackend();
+        backend.cookie.meMs = 60;
+        const auth = boot(backend);
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        const login = auth.login({ email: "a@example.test", password: "x" });
+        await untilTokenInstalled(auth);
+        client.setQueryData(["orders"], ["A-order-1"]);
+        await auth.logout();
+        await login.catch(() => undefined);
+        expect(auth.sessionKey()).toBeNull();
+        await wait(40);
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        expect(await readRow(dbName)).toBeUndefined();
+        const next = await signedOutBoot(backend, dbName);
+        expect(next.getQueryData(["orders"])).toBeUndefined();
+    });
+
+    it("does not stamp the first session's responses with a second login() that superseded it during /me", async () => {
+        const dbName = databaseName();
+        const backend = cookieBackend();
+        backend.cookie.meMs = 60;
+        const auth = boot(backend);
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        const first = auth.login({ email: "a@example.test", password: "x" });
+        await untilTokenInstalled(auth);
+        const firstKey = auth.sessionKey();
+        client.setQueryData(["orders"], ["A-order-1"]);
+        const second = auth.login({ email: "a@example.test", password: "x" });
+        await first.catch(() => undefined);
+        await second;
+        expect(auth.sessionKey()).not.toBe(firstKey);
+        await persistence.flush();
+        persistence.unsubscribe();
+
+        expect(await readRow(dbName)).toBeUndefined();
+    });
+
+    it("still persists the account whose login settles, for its next boot only", async () => {
+        const dbName = databaseName();
+        const backend = cookieBackend();
+        backend.cookie.meMs = 60;
+        const auth = boot(backend);
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        const login = auth.login({ email: "a@example.test", password: "x" });
+        await untilTokenInstalled(auth);
+        client.setQueryData(["orders"], ["A-order-1"]);
+        await login;
+        await persistence.flush();
+        persistence.unsubscribe();
+        auth.dispose();
+
+        const reloaded = boot(backend);
+        const next = new QueryClient();
+        const again = persistQueryClientOffline({
+            queryClient: next,
+            databaseName: dbName,
+            auth: reloaded,
+        });
+        await again.restore();
+        again.unsubscribe();
+
+        expect(next.getQueryData(["orders"])).toEqual(["A-order-1"]);
+        const anonymous = await signedOutBoot(backend, dbName);
+        expect(anonymous.getQueryData(["orders"])).toBeUndefined();
     });
 });

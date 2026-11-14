@@ -305,7 +305,7 @@ export async function boot(): Promise<void> {
 ```
 
 - **The cache belongs to the session**: the principal is `auth.sessionKey()`, which survives reloads and token rotations and changes on every sign-in. A new sign-in of the same account starts with a cold cache — it is a cache, and no account inherits another's.
-- **"Not known yet" comes from the preset**: `auth.isSessionKnown()` is `false` while a `login()`, a `restore()` or an account switch is in flight, and while the boot `refresh()` is still restoring the session from the cookie. In that window nothing is written, nothing binds the owner and `restore()` hydrates nothing.
+- **"Not known yet" comes from the preset**: `auth.isSessionKnown()` is `false` while a `login()`, a `restore()` or an account switch is in flight, and while the boot `refresh()` is still restoring the session from the cookie. In that window nothing is written, nothing binds the owner and `restore()` hydrates nothing. The handle does note the `sessionKey()` it saw when the cache changed, though: if the session that settles is not that one — a `logout()` in another tab, a `logout()` in this one without `clear()`, another `login()` on top —, the next write deletes the row instead of stamping those responses as anonymous or as the new session's.
 - **Want the user id as owner?** Pass `getPrincipal` along with `auth`. Then the principal must be loaded too: with a session installed and `getPrincipal` answering nobody (the profile has not arrived yet), it counts as unknown — not as anonymous.
 - Call `restore()` **after** the boot `refresh()`. Before it, the session does not exist yet, and `restore()` only hydrates what belongs to nobody.
 

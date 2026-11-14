@@ -248,6 +248,106 @@ describe("parseInline", () => {
     });
 });
 
+/** A link node with one text child, for the nested-inline table. */
+const link = (href: string, label: string) => ({
+    type: "link",
+    href,
+    children: [{ type: "text", value: label }],
+});
+
+describe("parseInline — nested inline content (#599)", () => {
+    it.each([
+        ["**[a](mailto:a@b.com)**", [{ type: "strong", children: [link("mailto:a@b.com", "a")] }]],
+        ["*[a](https://x.com)*", [{ type: "em", children: [link("https://x.com", "a")] }]],
+        ["_[a](https://x.com)_", [{ type: "em", children: [link("https://x.com", "a")] }]],
+        ["~~[a](https://x.com)~~", [{ type: "del", children: [link("https://x.com", "a")] }]],
+        ["**`código`**", [{ type: "strong", children: [{ type: "code", value: "código" }] }]],
+        [
+            "**![gato](https://x.com/g.png)**",
+            [
+                {
+                    type: "strong",
+                    children: [{ type: "image", src: "https://x.com/g.png", alt: "gato" }],
+                },
+            ],
+        ],
+        [
+            "**[clique](javascript:alert(1))**",
+            [{ type: "strong", children: [{ type: "text", value: "clique" }] }],
+        ],
+    ])("parses %j with the inline content intact", (source, expected) => {
+        expect(parseInline(source)).toEqual(expected);
+    });
+
+    it("reads *** as italic around bold, with no stray asterisk", () => {
+        expect(parseInline("***[a](https://x.com)***")).toEqual([
+            {
+                type: "em",
+                children: [{ type: "strong", children: [link("https://x.com", "a")] }],
+            },
+        ]);
+    });
+
+    it("nests bold inside italic instead of splitting the italic in three", () => {
+        expect(parseInline("*a **b** c*")).toEqual([
+            {
+                type: "em",
+                children: [
+                    { type: "text", value: "a " },
+                    { type: "strong", children: [{ type: "text", value: "b" }] },
+                    { type: "text", value: " c" },
+                ],
+            },
+        ]);
+    });
+
+    it("does not close emphasis on a marker inside a link URL", () => {
+        expect(parseInline("_veja [doc](https://x.com/a_b) aqui_")).toEqual([
+            {
+                type: "em",
+                children: [
+                    { type: "text", value: "veja " },
+                    link("https://x.com/a_b", "doc"),
+                    { type: "text", value: " aqui" },
+                ],
+            },
+        ]);
+    });
+
+    it("does not close emphasis on a marker inside a code span or an autolink", () => {
+        expect(parseInline("**a `x**y` b**")).toEqual([
+            {
+                type: "strong",
+                children: [
+                    { type: "text", value: "a " },
+                    { type: "code", value: "x**y" },
+                    { type: "text", value: " b" },
+                ],
+            },
+        ]);
+        expect(parseInline("_ver <https://x.com/a_b>_")).toEqual([
+            {
+                type: "em",
+                children: [
+                    { type: "text", value: "ver " },
+                    link("https://x.com/a_b", "https://x.com/a_b"),
+                ],
+            },
+        ]);
+    });
+
+    it("keeps an unmatched marker as text next to the emphasis it did not open", () => {
+        expect(parseInline("**a*")).toEqual([
+            { type: "text", value: "*" },
+            { type: "em", children: [{ type: "text", value: "a" }] },
+        ]);
+        expect(parseInline("***a**")).toEqual([
+            { type: "text", value: "*" },
+            { type: "strong", children: [{ type: "text", value: "a" }] },
+        ]);
+    });
+});
+
 /**
  * Run `work` three times and return the fastest run, in milliseconds.
  *
@@ -301,6 +401,12 @@ describe("parseMarkdown — hostile input stays linear (#437)", () => {
         ["a run of unclosed image openers", "![".repeat(25_000)],
         ["link openers sharing one failing tail", `${"[".repeat(50_000)}](x y`],
         ["a run of unclosed autolinks", "<http://".repeat(12_000)],
+        ["italic openers stepping over unclosed link openers", "_[".repeat(25_000)],
+        ["italic openers stepping over failing link tails", "*[x](".repeat(10_000)],
+        ["italic openers stepping over unclosed code spans", "*`".repeat(25_000)],
+        ["link labels full of underscores", "[_](".repeat(12_500)],
+        ["bold openers around links with no closing paren", "**[x](y ".repeat(6_000)],
+        ["a run of italic-around-bold openers", "***a ".repeat(10_000)],
         // The line separator and the paragraph separator are not `\n`, so they stay
         // inside one line. The list patterns used to let `\s+` and `(.*)` race for
         // the run of spaces around them, quadratic in the run (#478).

@@ -158,6 +158,8 @@ export function SteppedSignup() {
 
 A Markdown subset: headings, paragraphs, lists (nested and ordered), blockquote, fenced code (through [`CodeBlock`](utility.md#codeblock)), thematic break, GFM pipe tables with alignment, and the usual inline set (`**strong**`, `*em*`, `` `code` ``, `~~del~~`, links, images, autolinks, hard breaks).
 
+Inline nests: emphasis content goes through the same inline parser, so `**[contact](mailto:a@b.com)**` is a bold link, `***text***` is italic around bold and `*a **b** c*` keeps the bold inside the italic. Code spans, links, images and autolinks are read whole, so a marker inside them never closes the emphasis around them — the `_` in `_see [doc](https://x.com/a_b)_` belongs to the URL. A link refused by the scheme allowlist inside bold still renders its words as bold text.
+
 ```tsx
 import { Markdown } from "tempest-react-sdk";
 

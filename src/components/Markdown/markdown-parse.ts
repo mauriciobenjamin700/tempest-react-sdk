@@ -456,203 +456,296 @@ function parseTable(lines: string[], start: number): [MarkdownBlock, number] {
 }
 
 /**
- * The precheck a rule needs before its pattern may run, keyed by the opener the
- * pattern starts with.
- *
- * `link` covers links and images, whose label ends at the first `]`; `autolink`
- * covers `<scheme:...>`, which ends at the first `>` or whitespace. Without the
- * precheck each pattern scanned to the end of the text from every opener, and
- * `"[".repeat(50000)` took 0.6 s (#437).
+ * The tail of a link or image, read from the label's closing `]`: the
+ * destination and an optional quoted title. Sticky, so it runs at a position of
+ * the whole source instead of on a slice.
  */
-type InlineGuard = { kind: "link"; opener: "[" | "![" } | { kind: "autolink"; opener: "<" };
+const LINK_TAIL = /\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/y;
 
-/** Inline delimiters, longest marker first so `**` wins over `*`. */
-const INLINE_RULES: Array<{
-    first: string;
-    pattern: RegExp;
-    guard?: InlineGuard;
-    build: (match: RegExpExecArray) => MarkdownInline | null;
-}> = [
-    {
-        guard: { kind: "link", opener: "![" },
-        first: "!",
-        pattern: /^!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/,
-        build: (match) => {
-            const src = safeImageUrl(match[2]);
-            return src ? { type: "image", src, alt: match[1] } : { type: "text", value: match[1] };
-        },
-    },
-    {
-        guard: { kind: "link", opener: "[" },
-        first: "[",
-        pattern: /^\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/,
-        build: (match) => {
-            const href = safeLinkUrl(match[2]);
-            const children = parseInline(match[1]);
-            // A rejected URL keeps the label as plain text: dropping the text too
-            // would silently delete words somebody wrote.
-            return href ? { type: "link", href, children } : { type: "text", value: match[1] };
-        },
-    },
-    { first: "`", pattern: /^`([^`]+)`/, build: (match) => ({ type: "code", value: match[1] }) },
-    {
-        first: "*",
-        pattern: /^\*\*([\s\S]+?)\*\*/,
-        build: (match) => ({ type: "strong", children: parseInline(match[1]) }),
-    },
-    {
-        first: "_",
-        pattern: /^__([\s\S]+?)__/,
-        build: (match) => ({ type: "strong", children: parseInline(match[1]) }),
-    },
-    {
-        first: "~",
-        pattern: /^~~([\s\S]+?)~~/,
-        build: (match) => ({ type: "del", children: parseInline(match[1]) }),
-    },
-    {
-        first: "*",
-        pattern: /^\*([^*\n]+)\*/,
-        build: (match) => ({ type: "em", children: parseInline(match[1]) }),
-    },
-    {
-        first: "_",
-        pattern: /^_([^_\n]+)_/,
-        build: (match) => ({ type: "em", children: parseInline(match[1]) }),
-    },
-    {
-        guard: { kind: "autolink", opener: "<" },
-        first: "<",
-        pattern: /^<((?:https?:\/\/|mailto:)[^>\s]+)>/,
-        build: (match) => {
-            const href = safeLinkUrl(match[1]);
-            return href
-                ? { type: "link", href, children: [{ type: "text", value: match[1] }] }
-                : { type: "text", value: match[1] };
-        },
-    },
-    { first: "\\", pattern: /^\\\n/, build: () => ({ type: "break" }) },
-];
+/** An autolink, `<https://…>` or `<mailto:…>`. Sticky, like {@link LINK_TAIL}. */
+const AUTOLINK = /<((?:https?:\/\/|mailto:)[^>\s]+)>/y;
 
-/** Characters some inline rule can start with; any other character is text. */
-const INLINE_FIRST = new Set(INLINE_RULES.map((rule) => rule.first));
+/** Characters an atom can start with: code span, link, image, autolink. */
+const ATOM_FIRST = new Set(["`", "[", "!", "<"]);
+
+/** Characters an emphasis run is made of. */
+const EMPHASIS = new Set(["*", "_", "~"]);
+
+/** A parsed inline construct and the index right after it. */
+interface InlineSpan {
+    /** The node, or `null` when the source up to `end` is plain text. */
+    node: MarkdownInline | null;
+    end: number;
+}
+
+/** Where an emphasis closer search ended: the closer, or `-1` and where it gave up. */
+interface CloserScan {
+    close: number;
+    stop: number;
+}
+
+/**
+ * For every index of `source`, the first index at or after it holding a
+ * character `matches` accepts, or `source.length` when none does.
+ *
+ * One backward pass, so every later lookup is O(1) wherever it starts — a cursor
+ * that only moves forward would go stale as soon as the emphasis scan looked
+ * ahead of the main loop.
+ *
+ * @param source - The text being parsed.
+ * @param matches - Which characters to index.
+ * @returns The lookup table, `source.length + 1` long.
+ */
+function nextIndexTable(source: string, matches: (char: string) => boolean): Int32Array {
+    const table = new Int32Array(source.length + 1);
+    table[source.length] = source.length;
+    for (let index = source.length - 1; index >= 0; index -= 1) {
+        table[index] = matches(source[index]) ? index : table[index + 1];
+    }
+    return table;
+}
+
+/**
+ * Wrap emphasis content in the node its marker run means.
+ *
+ * @param marker - `*`, `_` or `~`.
+ * @param length - The run length: 1 is italic, 2 bold (strikethrough for `~`),
+ *   3 italic around bold.
+ * @param children - The parsed content.
+ * @returns The emphasis node.
+ */
+function emphasisNode(marker: string, length: number, children: MarkdownInline[]): MarkdownInline {
+    if (marker === "~") return { type: "del", children };
+    if (length === 1) return { type: "em", children };
+    if (length === 2) return { type: "strong", children };
+    return { type: "em", children: [{ type: "strong", children }] };
+}
 
 /**
  * Parse inline Markdown.
  *
  * A backslash escapes the next character, so `\*not italic\*` renders with the
- * asterisks. Anything that matches no rule is text — an unclosed `**` is two
+ * asterisks. Anything that matches no construct is text — an unclosed `**` is two
  * asterisks, not a bold run to the end of the paragraph.
+ *
+ * Code spans, links, images and autolinks are **atoms**: read whole wherever they
+ * start, and stepped over whole by the search for an emphasis closer. So the
+ * content of `**…**`, `*…*`, `_…_` and `~~…~~` goes through this same parser —
+ * `**[texto](url)**` is bold around a link — and a marker inside an atom never
+ * closes the emphasis around it: the `_` in `_veja [doc](https://x.com/a_b)_` is
+ * part of the URL (#599).
+ *
+ * Emphasis is a run of one marker character. A run of 1 is italic, of 2 bold
+ * (strikethrough for `~~`), of 3 italic around bold. The closer is the next run
+ * of the same character and the same length, or a run of 3, which closes the
+ * outer emphasis and leaves the rest of its markers to the content: `*a **b***`
+ * is italic around `a` and bold `b`. A run of another length is stepped over,
+ * which is what lets `*a **b** c*` keep its bold inside the italic. Italic does
+ * not cross a line break; bold and strikethrough do. A run that finds no closer
+ * gives up one marker as text and the rest is tried again, so `**a*` is a literal
+ * `*` before italic `a`.
  *
  * The parse is linear in the text, which matters because the text is somebody
  * else's (#437):
  *
  * - A run of spaces is consumed whole: it is a hard break when two or more of them
- *   end at a newline, and text otherwise. Matching `^ {2,}\n` from every space
- *   rescanned the run each time.
- * - A link or image label ends at the first `]` after the opener, so every opener
- *   before the same `]` shares the same `](...)` tail. The position of that `]` is
- *   cached, an opener whose `]` is not followed by `(` is skipped without running
- *   the pattern, and once a tail has failed no later opener retries it.
- * - An autolink ends at the first `>` or whitespace, also cached; when that stop
- *   is not `>` the pattern cannot match and is not run.
- * - A rule runs only at its own first character, so a run of `[` costs one set
- *   lookup per character instead of every pattern in the table.
+ *   end at a newline, and text otherwise.
+ * - A link or image label ends at the first `]` after the opener, read from a
+ *   table built once per call, and the `](…)` tail after a given `]` is matched
+ *   once and remembered: every opener before that `]` shares it.
+ * - An autolink ends at the first `>` or whitespace, also from a table; when that
+ *   stop is not `>` the pattern does not run.
+ * - An atom is read once per position and remembered, so the closer search and
+ *   the main loop never parse the same link label twice.
+ * - A closer search for one marker and length that fails proves no later opener
+ *   of the same kind closes either, since that opener would itself have been the
+ *   closer; so each kind fails at most once per line. A matched emphasis cannot
+ *   nest its own kind (the inner one's closer would have closed the outer), so
+ *   the content is re-read at most once per kind — a constant factor.
  *
  * @param source - One block's text.
  * @returns Inline nodes.
  */
 export function parseInline(source: string): MarkdownInline[] {
-    const nodes: MarkdownInline[] = [];
-    let text = "";
-    let i = 0;
+    const length = source.length;
+    let brackets: Int32Array | null = null;
+    let backticks: Int32Array | null = null;
+    let autolinkStops: Int32Array | null = null;
+    const tails = new Map<number, RegExpExecArray | null>();
+    const atoms = new Map<number, InlineSpan | null>();
 
-    let bracketAt = -1;
-    let deadTailAt = -1;
-    let stopAt = -1;
-    const stops = /[>\s]/g;
-
-    const flush = (): void => {
-        if (text) nodes.push({ type: "text", value: text });
-        text = "";
-    };
-
-    const closingBracket = (from: number): number => {
-        if (bracketAt < from) {
-            const found = source.indexOf("]", from);
-            bracketAt = found === -1 ? source.length : found;
+    const tailAt = (close: number): RegExpExecArray | null => {
+        if (!tails.has(close)) {
+            LINK_TAIL.lastIndex = close;
+            tails.set(close, LINK_TAIL.exec(source));
         }
-        return bracketAt;
+        return tails.get(close) ?? null;
     };
 
-    const autolinkStop = (from: number): number => {
-        if (stopAt < from) {
-            stops.lastIndex = from;
-            stopAt = stops.exec(source)?.index ?? source.length;
+    const runLength = (from: number, end: number): number => {
+        let to = from;
+        while (to < end && source[to] === source[from]) to += 1;
+        return to - from;
+    };
+
+    const readLink = (start: number): InlineSpan | null => {
+        const image = source[start] === "!";
+        if (image && source[start + 1] !== "[") return null;
+        const labelStart = start + (image ? 2 : 1);
+        brackets ??= nextIndexTable(source, (char) => char === "]");
+        const close = brackets[labelStart];
+        if (close >= length) return null;
+        const tail = tailAt(close);
+        if (!tail) return null;
+        const label = source.slice(labelStart, close);
+        const end = close + tail[0].length;
+        if (image) {
+            const src = safeImageUrl(tail[1]);
+            return {
+                node: src ? { type: "image", src, alt: label } : { type: "text", value: label },
+                end,
+            };
         }
-        return stopAt;
+        const href = safeLinkUrl(tail[1]);
+        return {
+            node: href
+                ? { type: "link", href, children: parseRange(labelStart, close) }
+                : { type: "text", value: label },
+            end,
+        };
     };
 
-    const allowed = (guard: InlineGuard | undefined): boolean => {
-        if (!guard) return true;
-        if (!source.startsWith(guard.opener, i)) return false;
-        if (guard.kind === "autolink") return source[autolinkStop(i + 1)] === ">";
-        const close = closingBracket(i + guard.opener.length);
-        return source[close + 1] === "(" && close !== deadTailAt;
-    };
-
-    while (i < source.length) {
-        if (source[i] === "\\" && i + 1 < source.length && source[i + 1] !== "\n") {
-            text += source[i + 1];
-            i += 2;
-            continue;
+    const readAtom = (start: number): InlineSpan | null => {
+        const char = source[start];
+        if (char === "`") {
+            backticks ??= nextIndexTable(source, (next) => next === "`");
+            const close = backticks[start + 1];
+            if (close >= length || close === start + 1) return null;
+            return {
+                node: { type: "code", value: source.slice(start + 1, close) },
+                end: close + 1,
+            };
         }
+        if (char === "<") {
+            autolinkStops ??= nextIndexTable(source, (next) => next === ">" || /\s/.test(next));
+            if (source[autolinkStops[start + 1]] !== ">") return null;
+            AUTOLINK.lastIndex = start;
+            const match = AUTOLINK.exec(source);
+            if (!match) return null;
+            const href = safeLinkUrl(match[1]);
+            const text: MarkdownInline = { type: "text", value: match[1] };
+            return {
+                node: href ? { type: "link", href, children: [text] } : text,
+                end: start + match[0].length,
+            };
+        }
+        return readLink(start);
+    };
 
-        if (source[i] === " ") {
-            let end = i;
-            while (source[end] === " ") end += 1;
-            if (end - i >= 2 && source[end] === "\n") {
-                flush();
-                nodes.push({ type: "break" });
-                i = end + 1;
-            } else {
-                text += source.slice(i, end);
-                i = end;
+    const atomAt = (start: number, end: number): InlineSpan | null => {
+        if (!ATOM_FIRST.has(source[start])) return null;
+        if (!atoms.has(start)) atoms.set(start, readAtom(start));
+        const atom = atoms.get(start) ?? null;
+        return atom && atom.end <= end ? atom : null;
+    };
+
+    const findCloser = (marker: string, size: number, from: number, end: number): CloserScan => {
+        let index = from;
+        while (index < end) {
+            const char = source[index];
+            if (char === "\\") {
+                index += 2;
+                continue;
             }
-            continue;
+            if (char === "\n" && size === 1) return { close: -1, stop: index };
+            if (char === marker) {
+                const run = runLength(index, end);
+                if (run === size) return { close: index, stop: index };
+                if (run === 3 && marker !== "~") {
+                    return { close: index + 3 - size, stop: index };
+                }
+                index += run;
+                continue;
+            }
+            const atom = atomAt(index, end);
+            index = atom ? atom.end : index + 1;
         }
+        return { close: -1, stop: end };
+    };
 
-        if (!INLINE_FIRST.has(source[i])) {
-            text += source[i];
-            i += 1;
-            continue;
-        }
+    function parseRange(start: number, end: number): MarkdownInline[] {
+        const nodes: MarkdownInline[] = [];
+        const failed = new Map<string, number>();
+        let text = "";
+        let index = start;
 
-        const rest = source.slice(i);
-        let matched = false;
-        for (const rule of INLINE_RULES) {
-            if (rule.first !== source[i] || !allowed(rule.guard)) continue;
-            const match = rule.pattern.exec(rest);
-            if (!match) {
-                if (rule.guard?.kind === "link") {
-                    deadTailAt = closingBracket(i + rule.guard.opener.length);
+        const push = (node: MarkdownInline): void => {
+            if (node.type === "text") {
+                text += node.value;
+                return;
+            }
+            if (text) nodes.push({ type: "text", value: text });
+            text = "";
+            nodes.push(node);
+        };
+
+        const emphasisAt = (at: number): InlineSpan => {
+            const marker = source[at];
+            const size = runLength(at, end);
+            const usable = marker === "~" ? size === 2 : size <= 3;
+            if (!usable) return { node: null, end: at + size };
+            const kind = `${marker}${size}`;
+            const deadUntil = failed.get(kind) ?? -1;
+            let close = -1;
+            if (at >= deadUntil) {
+                const scan = findCloser(marker, size, at + size, end);
+                close = scan.close;
+                if (close === -1) failed.set(kind, scan.stop);
+            }
+            if (close === -1) return { node: null, end: marker === "~" ? at + size : at + 1 };
+            return {
+                node: emphasisNode(marker, size, parseRange(at + size, close)),
+                end: close + size,
+            };
+        };
+
+        while (index < end) {
+            const char = source[index];
+
+            if (char === "\\" && index + 1 < end) {
+                if (source[index + 1] === "\n") push({ type: "break" });
+                else text += source[index + 1];
+                index += 2;
+                continue;
+            }
+
+            if (char === " ") {
+                let stop = index;
+                while (stop < end && source[stop] === " ") stop += 1;
+                if (stop - index >= 2 && stop < end && source[stop] === "\n") {
+                    push({ type: "break" });
+                    index = stop + 1;
+                } else {
+                    text += source.slice(index, stop);
+                    index = stop;
                 }
                 continue;
             }
-            const node = rule.build(match);
-            if (!node) continue;
-            flush();
-            nodes.push(node);
-            i += match[0].length;
-            matched = true;
-            break;
-        }
-        if (matched) continue;
 
-        text += source[i];
-        i += 1;
+            const span = EMPHASIS.has(char) ? emphasisAt(index) : atomAt(index, end);
+            if (span?.node) {
+                push(span.node);
+                index = span.end;
+                continue;
+            }
+            const next = span ? span.end : index + 1;
+            text += source.slice(index, next);
+            index = next;
+        }
+
+        if (text) nodes.push({ type: "text", value: text });
+        return nodes;
     }
 
-    flush();
-    return nodes;
+    return parseRange(0, length);
 }

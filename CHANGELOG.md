@@ -25,6 +25,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `onSessionEnd` passa a rodar com `"switch"` nesse caso, que antes era silencioso. Com token opaco,
   chame `auth.restore()` na rota de callback de OAuth/magic link em vez de `auth.refresh()`.
 
+- **Upload resumível: o `clear()` do fim de sessão encerra também o handle pausado (#528).** O
+  `createLocalUploadStorage().clear()` no `onSessionEnd` é o único teardown que alcança uma sessão
+  que o SDK não enxerga — cookie HttpOnly, sem `getToken` nem `getPrincipal`. Ele já apagava os
+  registros e parava o run em andamento (`reason: "cleared"`), mas o handle **pausado** antes dele
+  guardava em memória a `Idempotency-Key` da sessão anterior, e o `resume()` da conta seguinte criava
+  o upload com ela — um servidor cujo store de idempotência não escopa por quem chama devolve com
+  isso o upload da conta anterior. Agora um `clear()` desde o último attach faz o handle recomeçar
+  como depois de um `abort()`: URL e chave em memória descartadas, `POST` com chave nova. 3 dos 5
+  testes de `src/http/resumable-upload.clear.test.ts` falham sobre a `main` (`c16aae0`) — cookie,
+  token e `getPrincipal`, os três com a chave de A no `POST` de B
+  (`npx vitest run src/http/resumable-upload.clear.test.ts`). O bloqueio da issue, lido no
+  tempest-fastapi-sdk 0.345.0 (`e9e02b52`): ele **não tem servidor tus** (nenhum handler de
+  `Upload-Offset`/`Tus-Resumable` no pacote), então quem autoriza `HEAD`/`PATCH` na URL de upload é o
+  servidor implantado; e o `IdempotencyMiddleware` escopa a chave pelo digest de `Authorization`,
+  `Cookie`, `X-Token` e `X-API-Key` (`api/middlewares/idempotency.py`, `_credentials.py`), então a
+  chave de A repetida por B não devolve o upload de A ali. O registro sem dono de uma sessão por
+  cookie **sem** `clear()` continua sendo retomado por quem vier depois — o SDK não tem de onde ler a
+  troca de conta; a doc diz o que basta (`clear()` no fim de sessão, ou `getPrincipal`). **Migração:**
+  nada; o `abort()` que a doc mandava chamar junto com o `clear()` para sessão por cookie deixa de ser
+  necessário com o `storage` padrão.
+
 ### Adicionado
 
 - **`auth.restore()` no `createTempestAuth` (#579).** Resgata o refresh credential como **login
@@ -92,6 +113,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   contra o deste branch: barril ESM 152 588 → 153 018 B (+430 B), barril CJS 181 937 → 182 393 B
   (+456 B); nenhuma fatia importada mudou. Somado ao #582 e ao #580 na `main` (`1a311a3`), remedido
   no merge: ESM 153 045 B (budget 153,1 kB), CJS 182 527 B (budget 182,6 kB).
+
+- **Barril ESM 153,1 → 153,2 kB (#528).** `npm run build && npx size-limit --json`, `main`
+  (`c16aae0`) contra este branch: barril ESM 153 045 → 153 144 B (+99 B), barril CJS 182 527 →
+  182 399 B (−128 B), fatia do upload resumível 5046 → 5051 B (+5 B, o código novo). A diferença
+  nos barris é a recompressão do bundle inteiro.
 
 ## [0.83.0] — 2026-11-13
 

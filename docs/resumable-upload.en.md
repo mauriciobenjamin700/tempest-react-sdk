@@ -218,8 +218,10 @@ Measured in `src/http/resumable-upload.session.test.ts` (`npx vitest run src/htt
 !!! note "The getter, not a wrapper"
     `getToken: () => auth.getToken()` is another function and carries no session: it stays bound to the token, like the "any other getter" row. A `login()` into the same account is a new session — the upload starts over; to resume across logins, pass `getPrincipal` with the user's id.
 
-!!! warning "A cookie session needs `getPrincipal`"
-    Without `getToken` — a cookie-only session, outside `createTempestAuth`, which always has a token — the SDK cannot see who is signed in: the record has no owner and is resumed by whoever comes next, as before. With a cookie session and more than one account per browser, pass `getPrincipal` and clear at session end — and, without the getter, call `abort()` on the uploads in progress from `onSessionEnd`, because a running upload only notices an account switch through `getPrincipal`.
+!!! warning "A cookie session: `clear()` at session end, or `getPrincipal`"
+    Without `getToken` — a cookie-only session, outside `createTempestAuth`, which always has a token — the SDK cannot see who is signed in: the cookie is HttpOnly, and nothing in the browser announces an account switch. The record has no owner and is resumed by whoever comes next. The teardown that reaches this case is `createLocalUploadStorage().clear()` at session end, and it is enough: it removes the records, stops the run in flight (`reason: "cleared"`) and, since **0.84.0**, makes a handle **paused** before it start over with a fresh `Idempotency-Key` instead of carrying the previous session's into the next account's upload creation (#528 — until 0.83.0 B's `resume()` reused A's key). `abort()` is no longer needed here. To resume across reloads without relying on the teardown, pass `getPrincipal`.
+
+    Whether this crosses accounts still depends on the tus server. tempest-fastapi-sdk has no tus server (in 0.345.0 no handler answers `Upload-Offset`), so what authorizes `HEAD`/`PATCH` on an upload URL is the server you deployed — many treat the URL itself as the credential. Its `IdempotencyMiddleware`, on the other hand, scopes the key by a digest of `Authorization`, `Cookie`, `X-Token` and `X-API-Key`: A's key repeated by B does not hand back A's upload.
 
 ## The failure that actually happens
 

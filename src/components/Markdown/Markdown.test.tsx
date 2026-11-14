@@ -192,3 +192,52 @@ describe("Markdown — the table's scrollable region", () => {
         expect(scroll).not.toHaveAttribute("role");
     });
 });
+
+describe("Markdown — a link nested in emphasis keeps its text (#599)", () => {
+    it.each([
+        ["**[a@b.com](mailto:a@b.com)**", "STRONG", "mailto:a@b.com", "a@b.com"],
+        ["__[site](https://x.com)__", "STRONG", "https://x.com", "site"],
+        ["*[site](https://x.com)*", "EM", "https://x.com", "site"],
+        ["_[site](https://x.com)_", "EM", "https://x.com", "site"],
+        ["~~[site](https://x.com)~~", "DEL", "https://x.com", "site"],
+        ["**<https://x.com>**", "STRONG", "https://x.com", "https://x.com"],
+        ["**[tel](tel:+5589999999999)**", "STRONG", "tel:+5589999999999", "tel"],
+    ])("renders %j as a link inside <%s>", (source, wrapper, href, name) => {
+        const { container } = render(<Markdown source={`A: ${source} fim.`} />);
+        const link = screen.getByRole("link", { name });
+        expect(link).toHaveAttribute("href", href);
+        expect(link.parentElement?.tagName).toBe(wrapper);
+        expect(container.querySelector("p")).toHaveTextContent(`A: ${name} fim.`);
+    });
+
+    it("renders a link inside emphasis in a table cell and in a list item", () => {
+        render(
+            <Markdown
+                source={"| a |\n| --- |\n| **[x](https://x.dev)** |\n\n- *[y](https://y.dev)*"}
+            />,
+        );
+        expect(screen.getByRole("link", { name: "x" }).parentElement?.tagName).toBe("STRONG");
+        expect(screen.getByRole("link", { name: "y" }).parentElement?.tagName).toBe("EM");
+    });
+
+    it("passes linkProps to a link at any depth", () => {
+        render(
+            <Markdown
+                source="**[a](https://a.dev)** e ***[b](https://b.dev)***"
+                linkProps={{ target: "_blank", rel: "noreferrer" }}
+            />,
+        );
+        const links = screen.getAllByRole("link");
+        expect(links).toHaveLength(2);
+        for (const link of links) {
+            expect(link).toHaveAttribute("target", "_blank");
+            expect(link).toHaveAttribute("rel", "noreferrer");
+        }
+    });
+
+    it("keeps the label of a refused link inside bold as text", () => {
+        const { container } = render(<Markdown source="**[clique](javascript:alert(1))**" />);
+        expect(screen.queryByRole("link")).not.toBeInTheDocument();
+        expect(container.querySelector("strong")).toHaveTextContent("clique");
+    });
+});

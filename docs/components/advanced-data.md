@@ -161,6 +161,8 @@ export function CadastroEmEtapas() {
 
 Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](utility.md#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
 
+O inline aninha: o conteúdo da ênfase passa pelo mesmo parser inline, então `**[contato](mailto:a@b.com)**` é um link em negrito, `***texto***` é itálico em volta de negrito e `*a **b** c*` mantém o negrito dentro do itálico. Código, link, imagem e autolink são lidos inteiros, então um marcador dentro deles nunca fecha a ênfase em volta — o `_` em `_veja [doc](https://x.com/a_b)_` é da URL. Link recusado pela allowlist de esquema dentro de negrito continua mostrando as palavras, em negrito.
+
 ```tsx
 import { Markdown } from "tempest-react-sdk";
 

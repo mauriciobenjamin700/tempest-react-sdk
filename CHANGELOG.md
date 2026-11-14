@@ -143,6 +143,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   **Migração:** quem dependia de "a primeira resposta vence" vê o `refresh()` rejeitar como
   superado durante um `login()`; a sessão final passa a ser a do login.
 
+- **`Markdown`: link dentro de ênfase não some mais (#599).** `**[texto](url)**` renderizava
+  `<strong></strong>` vazio e o texto do link sumia. A causa não era o parser, como a issue supunha:
+  ele já devolvia `strong > link`; quem descartava era o render, que só tratava link no primeiro
+  nível do parágrafo e caía num `default: return null` para link aninhado. Maior que a issue: valia
+  para link e autolink dentro de `*`, `_`, `__`, `~~` e `***`, em parágrafo, heading, célula de
+  tabela e item de lista. Agora todo nó inline tem seu braço no mesmo render, em qualquer
+  profundidade, `linkProps` incluso, e o `default` é um `never` — nó novo sem render vira erro de
+  tipo. A sondagem da família achou três defeitos do parser ao lado, também corrigidos (a ênfase
+  passou a pular código, link, imagem e autolink inteiros ao procurar o fechamento, e a ler a
+  corrida de marcadores pelo comprimento):
+  - `***x***` era `<strong>*x</strong>*` (asterisco solto); agora é itálico em volta de negrito.
+  - `*a **b** c*` virava três itálicos e o negrito sumia; agora é negrito dentro do itálico.
+  - `_veja [doc](https://x.com/a_b) aqui_` fechava o itálico no `_` da URL e mostrava o Markdown
+    cru; o mesmo para ``**a `x**y` b**`` e `_ver <https://x.com/a_b>_`. Agora o marcador dentro
+    de código, link, imagem e autolink não fecha a ênfase.
+
+  Link recusado pela allowlist dentro de negrito continua texto em negrito (já era assim; fixado
+  em teste). Testes: `src/components/Markdown/*.test.ts(x)` — **14 dos novos falham sobre a `main`
+  em `b99a0c6`** (`npx vitest run src/components/Markdown`). Validado no Chromium (Playwright MCP)
+  a 390 px tema claro e 1280 px tema escuro: zero ênfase vazia, os 12 links presentes, sem overflow,
+  console limpo. **Custo continua linear**: seis formas hostis novas entraram no teto de tempo do
+  #437 em `markdown-parse.test.ts`; 19 formas de 200 KB levam de 0,3 a 21 ms contra 0,4 a 17 ms
+  na `main`, e 40 textos aleatórios de 200 KB (marcadores, colchetes, parênteses, crase, `<>!`,
+  espaço, letra, quebra) pioram de 9,3 para 16,8 ms no pior caso (Node 24, mínimo de 3 execuções,
+  sonda descartável comparando os dois parsers). Mudança de saída para quem dependia do
+  comportamento antigo: `*a**` passa a ser texto (antes era itálico `a` seguido de `*`), e
+  `2 * 3 * 4` continua itálico como antes.
+
 ### Budgets
 
 - **#596: barrel CJS 187,1 → 187,2 kB** (`npm run build && npx size-limit --json`, sobre o
@@ -158,6 +186,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 --json`, contra a `main` em `b99a0c6`): barrel ESM 156 964 → 157 310 B (+346 B), CJS 186 505 →
   186 843 B (+338 B) — o lock de login e a adoção do `restore()`. Nenhuma fatia do
   `size-limit` importa `createTempestAuth`; as demais não mudam.
+
+- **#599: fatia do `AIChat` 11 → 11,3 kB, barrel ESM 157,4 → 157,8 kB, CJS 187,2 → 187,4 kB**
+  (`npm run build && npx size-limit --json`, contra a `main` em `b99a0c6`): fatia do `AIChat`
+  (que puxa `Markdown`) 10 867 → 11 219 B (+352 B); barrel ESM 156 964 → 157 097 B (+133 B); CJS
+  186 505 → 186 973 B (+468 B). Os bytes compram o parser inline que aninha e pula átomos ao fechar
+  ênfase (tabelas de próximo índice, memo de átomo e de cauda de link para manter o custo linear).
+  Somado ao #594, #595 e #596 na `main` (`371c58a`), remedido no merge: barrel ESM 157 756 B
+  (budget 157,8 kB), CJS 187 377 B (budget 187,4 kB).
+
 - **#592: barrel ESM 156,8 → 157 kB** (`npm run build && npx size-limit --json`, contra a `main` em
   `08c3b91`): fatia do cartão (`useMercadoPagoCard` + `describeCardCharge`) 2383 → 2482 B (+99 B,
   budget 2,5 kB); fatia do Pix (`PixCheckout` + `usePixCharge`) 6211 → 6294 B (+83 B); barrel

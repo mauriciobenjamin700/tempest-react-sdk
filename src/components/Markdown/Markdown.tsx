@@ -38,19 +38,42 @@ export interface MarkdownProps extends Omit<HTMLAttributes<HTMLDivElement>, Over
     linkProps?: HTMLAttributes<HTMLAnchorElement> & { target?: string; rel?: string };
 }
 
-/** Render inline nodes. */
-function renderInline(nodes: readonly MarkdownInline[]): ReactNode {
+/**
+ * Render inline nodes, at any depth.
+ *
+ * Every node kind has its arm here, the link included, because a link is as
+ * likely to sit inside `**…**` as at the top of a paragraph. The link used to be
+ * handled only by the block renderer's top-level pass, so this function hit its
+ * `default` for a link nested in emphasis and returned `null`: `**[texto](url)**`
+ * rendered an empty `<strong>` and the words were gone (#599). The `never` check
+ * in the `default` arm makes a node kind without a renderer a type error instead
+ * of silently missing text.
+ *
+ * @param nodes - Inline nodes from the parser.
+ * @param linkProps - Extra props for every link, however deep.
+ * @returns The React children.
+ */
+function renderInline(
+    nodes: readonly MarkdownInline[],
+    linkProps: MarkdownProps["linkProps"],
+): ReactNode {
     return nodes.map((node, index) => {
         const key = index;
         switch (node.type) {
             case "text":
                 return <Fragment key={key}>{node.value}</Fragment>;
             case "strong":
-                return <strong key={key}>{renderInline(node.children)}</strong>;
+                return <strong key={key}>{renderInline(node.children, linkProps)}</strong>;
             case "em":
-                return <em key={key}>{renderInline(node.children)}</em>;
+                return <em key={key}>{renderInline(node.children, linkProps)}</em>;
             case "del":
-                return <del key={key}>{renderInline(node.children)}</del>;
+                return <del key={key}>{renderInline(node.children, linkProps)}</del>;
+            case "link":
+                return (
+                    <a key={key} className={styles.link} href={node.href} {...linkProps}>
+                        {renderInline(node.children, linkProps)}
+                    </a>
+                );
             case "code":
                 return (
                     <code key={key} className={styles.inlineCode}>
@@ -61,8 +84,10 @@ function renderInline(nodes: readonly MarkdownInline[]): ReactNode {
                 return <img key={key} className={styles.image} src={node.src} alt={node.alt} />;
             case "break":
                 return <br key={key} />;
-            default:
-                return null;
+            default: {
+                const unhandled: never = node;
+                return unhandled;
+            }
         }
     });
 }
@@ -137,16 +162,7 @@ function Block({ block, headingOffset, highlightCode, showLineNumbers, linkProps
             />
         ));
 
-    const inline = (nodes: readonly MarkdownInline[]): ReactNode =>
-        nodes.map((node, index) =>
-            node.type === "link" ? (
-                <a key={index} className={styles.link} href={node.href} {...linkProps}>
-                    {renderInline(node.children)}
-                </a>
-            ) : (
-                <Fragment key={index}>{renderInline([node])}</Fragment>
-            ),
-        );
+    const inline = (nodes: readonly MarkdownInline[]): ReactNode => renderInline(nodes, linkProps);
 
     switch (block.type) {
         case "heading": {

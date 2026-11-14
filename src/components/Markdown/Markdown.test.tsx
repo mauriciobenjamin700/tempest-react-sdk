@@ -235,6 +235,17 @@ describe("Markdown — a link nested in emphasis keeps its text (#599)", () => {
         }
     });
 
+    it("renders thousands of link openers before one tail instead of throwing", () => {
+        for (const source of [
+            `${"[".repeat(5000)}a](https://x.dev)`,
+            `${"[a ".repeat(3000)}doc](https://x.dev)`,
+        ]) {
+            const { unmount } = render(<Markdown source={source} />);
+            expect(screen.getByRole("link")).toHaveAttribute("href", "https://x.dev");
+            unmount();
+        }
+    });
+
     it("keeps the label of a refused link inside bold as text", () => {
         const { container } = render(<Markdown source="**[clique](javascript:alert(1))**" />);
         expect(screen.queryByRole("link")).not.toBeInTheDocument();

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { parseInline, parseMarkdown, type MarkdownBlock } from "./markdown-parse";
+import {
+    parseInline,
+    parseMarkdown,
+    type MarkdownBlock,
+    type MarkdownInline,
+} from "./markdown-parse";
 
 /** Block kinds of a document, for a quick shape assertion. */
 const kinds = (source: string): string[] => parseMarkdown(source).map((block) => block.type);
@@ -437,6 +442,144 @@ describe("parseMarkdown — hostile input stays linear (#437)", () => {
         expect(depth).toBeLessThan(100);
         expect(block?.type).toBe("paragraph");
         expect(text(block?.type === "paragraph" ? block.children : [])).toContain("fundo");
+    });
+});
+
+/** How many inline nodes deep the deepest leaf of `nodes` sits. */
+function inlineDepth(nodes: readonly MarkdownInline[]): number {
+    let deepest = 0;
+    for (const node of nodes) {
+        const below = "children" in node ? inlineDepth(node.children) : 0;
+        deepest = Math.max(deepest, 1 + below);
+    }
+    return deepest;
+}
+
+/** Every inline node of a tree, depth first. */
+function allInline(nodes: readonly MarkdownInline[]): MarkdownInline[] {
+    return nodes.flatMap((node) => [node, ...("children" in node ? allInline(node.children) : [])]);
+}
+
+/**
+ * The deepest inline tree the grammar allows: the seven emphasis kinds (`*`,
+ * `**`, `***`, `_`, `__`, `___`, `~~`) outside a link, the link, the seven again
+ * inside its label, and the leaf. Nothing in the text can push past it.
+ */
+const MAX_INLINE_DEPTH = 7 + 1 + 7 + 1;
+
+describe("parseMarkdown — link labels are parsed only when the link is kept", () => {
+    it.each([
+        ["50 000 link openers before one tail", `${"[".repeat(50_000)}a](u)`],
+        ["5000 link openers before an absolute URL", `${"[".repeat(5000)}a](https://x.dev)`],
+        ["9 KB of prose-like openers before one tail", `${"[a ".repeat(3000)}doc](https://x.dev)`],
+        ["20 000 prose-like openers before one tail", `${"[a ".repeat(20_000)}b](u)`],
+        ["25 000 image openers before one tail", `${"![".repeat(25_000)}a](u)`],
+        ["link openers mixed with italic openers", `${"[*".repeat(10_000)}a](u)`],
+        ["italic openers around link openers", `${"*[".repeat(10_000)}a](u)*`],
+        ["bold, link and underscore openers", `${"**[_".repeat(5000)}a](u)_**`],
+        ["strikethrough around link openers", `${"~~[".repeat(10_000)}a](u)~~`],
+        ["autolinks that start in a label and end after it", `[${"<https://".repeat(10_000)}](u)>`],
+    ])("parses %s without overflowing the stack, in linear time", (_label, source) => {
+        expect(elapsed(() => parseMarkdown(source))).toBeLessThan(BUDGET_MS);
+    });
+
+    it("links the first opener and keeps the openers after it as label text", () => {
+        const [link, ...rest] = first(`${"[".repeat(5000)}a](https://x.dev)`, "paragraph").children;
+        expect(rest).toEqual([]);
+        expect(link).toMatchObject({ type: "link", href: "https://x.dev" });
+        expect(text([link])).toBe(`${"[".repeat(4999)}a`);
+    });
+
+    it("keeps an autolink inside a link label as text, so no link nests in a link", () => {
+        expect(parseInline("[veja <https://b.dev>](https://a.dev)")).toEqual([
+            {
+                type: "link",
+                href: "https://a.dev",
+                children: [{ type: "text", value: "veja <https://b.dev>" }],
+            },
+        ]);
+    });
+
+    it("keeps the label of a link with formatting inside it", () => {
+        expect(parseInline("[**negrito** e `código`](https://x.dev)")).toEqual([
+            {
+                type: "link",
+                href: "https://x.dev",
+                children: [
+                    { type: "strong", children: [{ type: "text", value: "negrito" }] },
+                    { type: "text", value: " e " },
+                    { type: "code", value: "código" },
+                ],
+            },
+        ]);
+    });
+
+    it("never nests a link inside a link, nor past the depth the grammar allows", () => {
+        const pieces = [
+            "[",
+            "]",
+            "](u)",
+            "](javascript:x)",
+            "*",
+            "**",
+            "_",
+            "__",
+            "~~",
+            "`",
+            "<https://a>",
+            "a",
+            " ",
+        ];
+        let seed = 599;
+        const random = (): number => {
+            seed = (seed * 1103515245 + 12345) % 2147483648;
+            return seed / 2147483648;
+        };
+        for (let sample = 0; sample < 300; sample += 1) {
+            let source = "";
+            for (let piece = 0; piece < 400; piece += 1) {
+                source += pieces[Math.floor(random() * pieces.length)];
+            }
+            const nodes = parseInline(source);
+            expect(inlineDepth(nodes)).toBeLessThanOrEqual(MAX_INLINE_DEPTH);
+            for (const node of allInline(nodes)) {
+                if (node.type !== "link") continue;
+                expect(allInline(node.children).some((child) => child.type === "link")).toBe(false);
+            }
+        }
+    });
+
+    it("still refuses a javascript: URL deep inside emphasis and a link label", () => {
+        const nodes = parseInline(
+            "***~~_[**x** <javascript:alert(1)>](javascript:alert(1))_~~*** [ok](https://ok.dev)",
+        );
+        const links = allInline(nodes).filter((node) => node.type === "link");
+        expect(links).toEqual([
+            { type: "link", href: "https://ok.dev", children: [{ type: "text", value: "ok" }] },
+        ]);
+    });
+});
+
+describe("parseInline — autolinks read without a pattern over the URL", () => {
+    it.each([
+        ["<https://x.dev/a_b?c=1>", "https://x.dev/a_b?c=1"],
+        ["<http://x.dev>", "http://x.dev"],
+        ["<mailto:a@b.dev>", "mailto:a@b.dev"],
+    ])("links %j to %j", (source, href) => {
+        expect(parseInline(source)).toEqual([
+            { type: "link", href, children: [{ type: "text", value: href }] },
+        ]);
+    });
+
+    it.each([
+        "<https://>",
+        "<mailto:>",
+        "<ftp://x.dev>",
+        "<HTTPS://x.dev>",
+        "<https://x .dev>",
+        "<https://x.dev",
+    ])("keeps %j as text", (source) => {
+        expect(parseInline(source)).toEqual([{ type: "text", value: source }]);
     });
 });
 

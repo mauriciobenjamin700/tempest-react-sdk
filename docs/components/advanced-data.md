@@ -161,7 +161,7 @@ export function CadastroEmEtapas() {
 
 Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](utility.md#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
 
-O inline aninha: o conteúdo da ênfase passa pelo mesmo parser inline, então `**[contato](mailto:a@b.com)**` é um link em negrito, `***texto***` é itálico em volta de negrito e `*a **b** c*` mantém o negrito dentro do itálico. Código, link, imagem e autolink são lidos inteiros, então um marcador dentro deles nunca fecha a ênfase em volta — o `_` em `_veja [doc](https://x.com/a_b)_` é da URL. Link recusado pela allowlist de esquema dentro de negrito continua mostrando as palavras, em negrito.
+O inline aninha: o conteúdo da ênfase passa pelo mesmo parser inline, então `**[contato](mailto:a@b.com)**` é um link em negrito, `***texto***` é itálico em volta de negrito e `*a **b** c*` mantém o negrito dentro do itálico. Código, link, imagem e autolink são lidos inteiros, então um marcador dentro deles nunca fecha a ênfase em volta — o `_` em `_veja [doc](https://x.com/a_b)_` é da URL. Link recusado pela allowlist de esquema dentro de negrito continua mostrando as palavras, em negrito. O rótulo do link também aceita ênfase e código (`[**forte** e *itálico*](url)`), mas nunca outro link: um autolink dentro do rótulo fica como texto, porque `<a>` dentro de `<a>` é HTML inválido.
 
 ```tsx
 import { Markdown } from "tempest-react-sdk";
@@ -191,6 +191,8 @@ import { Markdown } from "tempest-react-sdk";
     O parse é **linear** no tamanho do texto: nenhuma regex do parser tem dois quantificadores disputando o mesmo trecho. Antes da 0.77.0, `"# a" + " ".repeat(4000) + "b"` — 4 KB num comentário — custava 4,7 s de main thread a cada render, e o custo crescia ao cubo. Hoje uma linha de heading com 50 KB de espaços parseia em menos de 1 ms (medido com `performance.now()` em Node 24; o teto de tempo está fixado em teste no `markdown-parse.test.ts`).
 
     Desde a 0.78.0 o mesmo vale para os itens de lista: `- ` ou `1. ` seguido de 80 KB de espaços e um separador de linha (U+2028/U+2029) fazia as regex de lista disputarem a corrida — 3,6 s por linha, duas vezes por linha. Hoje parseia no mesmo teto.
+
+    O inline também não estoura a pilha: o rótulo de um link só é parseado quando o link é aceito, e o aninhamento inline tem teto fixo pela própria gramática (um link, e no máximo um de cada tipo de ênfase de cada lado dele), qualquer que seja o texto. Na 0.85.0 em desenvolvimento, antes do lançamento, `"[".repeat(5000) + "a](https://x.dev)"` lançava `RangeError` e derrubava a árvore React; hoje 50 mil `[` antes de um `](u)` parseiam em ~10 ms.
 
     Citação e lista aninham até **32 níveis**. Dali em diante o conteúdo vira parágrafo: as palavras ficam, só o aninhamento cai. Sem o teto, `"- ".repeat(20000)` estourava a pilha (`RangeError`) e derrubava a árvore React de quem só abriu a conversa.
 

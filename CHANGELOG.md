@@ -6,6 +6,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **`Markdown`: algumas centenas de `[` antes de um `](url)` não derrubam mais a árvore React.**
+  Regressão do #599, **ainda não publicada** (a 0.84.0 não tem o defeito); achada pela auditoria
+  de segurança antes do corte da 0.85.0 (run-11, C1, severidade média). O parser novo lia cada
+  link por inteiro, rótulo parseado incluso, antes de decidir se ele cabia onde começava. Todos os
+  `[` antes de um mesmo `]` dividem a mesma cauda, então cada um parseava o rótulo do seguinte, uma
+  chamada recursiva por `[`: `"[".repeat(5000) + "a](https://x.dev)"` e os 9 KB de
+  `"[a ".repeat(3000) + "doc](https://x.dev)"` lançavam `RangeError: Maximum call stack size
+exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava para quem só
+  abriu o comentário. Abaixo do limite da pilha o custo era quadrático (500 / 1000 / 1500 `[`:
+  5,4 / 17,6 / 50,1 ms). Agora ler um átomo só acha onde ele termina; o nó, e com ele o parse do
+  rótulo, é montado quando o link é aceito, e todo `[` depois do primeiro custa O(1). O
+  aninhamento inline tem teto dado pela gramática — um rótulo termina no primeiro `]`, então link
+  aceito não contém outro link, e nenhum tipo de ênfase aninha a si mesmo —, por isso não há teto
+  numérico a calibrar; um teste aleatório (300 textos de 400 peças) fixa a profundidade máxima.
+  A mesma sondagem achou o outro quadrático da auditoria: um autolink que começa dentro de um
+  rótulo e termina depois dele rodava a regex do `<` até o `>` a partir de **cada** `<`
+  (`"[" + "<https://".repeat(10000) + "](u)>"`: 373,5 ms, 4× a cada dobro). A regex agora casa só
+  o esquema; o fim vem da tabela de próximo `>`/espaço que já existia — 4,0 ms. Junto, um autolink
+  dentro de um rótulo de link volta a ser texto (`<a>` dentro de `<a>` é HTML inválido; na 0.84.0
+  o rótulo era todo texto). `safeLinkUrl`/`safeImageUrl` continuam aplicados em toda
+  profundidade (teste com `javascript:` dentro de `***~~_[…](…)_~~***`). Testes:
+  `src/components/Markdown/*.test.ts(x)` — **13 dos novos falham sobre a `main` em `05293bc`**
+  (`npx vitest run src/components/Markdown`), entre eles `"[".repeat(50_000) + "a](u)"` e os 9 KB
+  no teto de tempo do #437. Medição (Node 24.15, mediana de 3, `node perf.mjs v084 main branch`
+  sobre cópias de `markdown-parse.ts` da `v0.84.0`, da `main` e deste branch):
+
+  | entrada                                     | 0.84.0 | `main`     | agora  |
+  | ------------------------------------------- | ------ | ---------- | ------ |
+  | `"[".repeat(5000) + "a](https://x.dev)"`    | 2,2 ms | RangeError | 1,1 ms |
+  | `"[".repeat(50000) + "a](u)"`               | 7,3 ms | RangeError | 9,8 ms |
+  | `"[a ".repeat(3000) + "doc](…)"` (9 KB)     | 0,8 ms | RangeError | 0,6 ms |
+  | `"[a ".repeat(20000) + "b](u)"`             | 2,1 ms | RangeError | 3,2 ms |
+  | `"**[_".repeat(5000) + "a](u)_**"`          | 1,2 ms | RangeError | 1,3 ms |
+  | `"[".repeat(1500) + "a](u)"`                | 0,1 ms | 50,1 ms    | 0,3 ms |
+  | `"[" + "<https://".repeat(10000) + "](u)>"` | 1,4 ms | 373,5 ms   | 4,0 ms |
+
+  Sem mudança de API.
+
 - **`createTempestAuth`: a troca de conta de um `refresh()` relê a época antes de instalar
   (#591).** Desde o #579, o `rotate()` instala a sessão de outra conta depois que o
   `navigator.locks.request()` resolve, e a última checagem de época ficava dentro do lock. Com um
@@ -189,7 +227,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   espaço, letra, quebra) pioram de 9,3 para 16,8 ms no pior caso (Node 24, mínimo de 3 execuções,
   sonda descartável comparando os dois parsers). Mudança de saída para quem dependia do
   comportamento antigo: `*a**` passa a ser texto (antes era itálico `a` seguido de `*`), e
-  `2 * 3 * 4` continua itálico como antes.
+  `2 * 3 * 4` continua itálico como antes. O parse do rótulo de link desta entrada estourava a
+  pilha com milhares de `[` antes de um `](url)` — corrigido antes do lançamento, ver
+  `### Segurança`.
 
 ### Budgets
 
@@ -198,6 +238,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `05293bc` contra o deste branch, mesmo resto da árvore): CJS 187 377 → 187 630 B (+253 B; a
   `main` tinha 23 B de folga); ESM 157 756 → 157 648 B (reminificação; budget 157,8 kB mantido).
   Nenhuma fatia importada mudou.
+
+- **Correção do rótulo de link do `Markdown`, sem mudar limite** (`npm run build &&
+npx size-limit --json`, contra a `main` em `05293bc`): CJS 187 377 → 187 413 B (+36 B); ESM
+  157 756 → 157 783 B (+27 B, budget 157,8 kB mantido); fatia do `AIChat` 11 219 → 11 267 B (+48 B,
+  budget 11,3 kB mantido). Os bytes são o montador adiado de cada átomo e o esquema do autolink
+  lido separado do fim.
+  Somado ao fix do cache de query na `main` (`5478495`), remedido no merge: barrel ESM 157 680 B
+  (budget 157,8 kB), CJS 187 427 B (budget 187,7 kB, já subido por aquele fix).
 
 - **#596: barrel CJS 187,1 → 187,2 kB** (`npm run build && npx size-limit --json`, sobre o
   #595): CJS 187 061 → 187 133 B (+72 B); ESM 157 215 → 157 224 B (+9 B, budget 157,4 kB

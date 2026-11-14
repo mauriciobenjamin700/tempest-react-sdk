@@ -462,8 +462,16 @@ function parseTable(lines: string[], start: number): [MarkdownBlock, number] {
  */
 const LINK_TAIL = /\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/y;
 
-/** An autolink, `<https://…>` or `<mailto:…>`. Sticky, like {@link LINK_TAIL}. */
-const AUTOLINK = /<((?:https?:\/\/|mailto:)[^>\s]+)>/y;
+/**
+ * The scheme an autolink must open with, right after its `<`. Sticky, like
+ * {@link LINK_TAIL}.
+ *
+ * Only the scheme is a regex. The rest of `<https://…>` is the run up to the
+ * first `>` or whitespace, which a table already knows: the pattern this
+ * replaces, `/<((?:https?:\/\/|mailto:)[^>\s]+)>/y`, rescanned that run from
+ * every `<` inside it, quadratic for `[` plus 10 000 `<https://` plus `](u)>`.
+ */
+const AUTOLINK_SCHEME = /https?:\/\/|mailto:/y;
 
 /** Characters an atom can start with: code span, link, image, autolink. */
 const ATOM_FIRST = new Set(["`", "[", "!", "<"]);
@@ -476,6 +484,25 @@ interface InlineSpan {
     /** The node, or `null` when the source up to `end` is plain text. */
     node: MarkdownInline | null;
     end: number;
+}
+
+/**
+ * An atom read at one position: where it ends, and how to build its node.
+ *
+ * The node is built only when the atom is accepted, because most atoms never
+ * are: every `[` before one `]` reads a link ending at the same tail, the first
+ * one is kept, and every later one overruns the label it sits in. Building
+ * eagerly parsed each of those labels recursively — one stack frame per opener,
+ * so `"[".repeat(5000) + "a](u)"` threw `RangeError: Maximum call stack size
+ * exceeded`, and below the stack limit the work was quadratic.
+ *
+ * `build` is told whether the atom sits in a link label: an autolink there is
+ * kept as text, since an `<a>` inside an `<a>` is invalid HTML and the browser
+ * splits it.
+ */
+interface InlineAtom {
+    end: number;
+    build: (inLink: boolean) => MarkdownInline;
 }
 
 /** Where an emphasis closer search ended: the closer, or `-1` and where it gave up. */
@@ -553,10 +580,17 @@ function emphasisNode(marker: string, length: number, children: MarkdownInline[]
  * - A link or image label ends at the first `]` after the opener, read from a
  *   table built once per call, and the `](…)` tail after a given `]` is matched
  *   once and remembered: every opener before that `]` shares it.
- * - An autolink ends at the first `>` or whitespace, also from a table; when that
- *   stop is not `>` the pattern does not run.
- * - An atom is read once per position and remembered, so the closer search and
- *   the main loop never parse the same link label twice.
+ * - An autolink ends at the first `>` or whitespace, also from a table; only its
+ *   scheme is matched by a pattern, so no `<` rescans the run after it.
+ * - An atom is read once per position and remembered, and reading it only finds
+ *   where it ends: its node, and so the parse of a link label, is built when the
+ *   atom is accepted. An opener that overruns the range it sits in costs O(1),
+ *   which is every `[` after the first before a shared `]`.
+ * - Nesting is bounded by the grammar, not by the input. A label ends at the
+ *   first `]`, so an accepted link never holds another link, and an autolink in a
+ *   label stays text; no emphasis kind nests itself. So at most one link and the
+ *   seven emphasis kinds on each side of it stack up, whatever the text — no stack
+ *   overflow, and no depth cap to tune.
  * - A closer search for one marker and length that fails proves no later opener
  *   of the same kind closes either, since that opener would itself have been the
  *   closer; so each kind fails at most once per line. A matched emphasis cannot
@@ -572,7 +606,7 @@ export function parseInline(source: string): MarkdownInline[] {
     let backticks: Int32Array | null = null;
     let autolinkStops: Int32Array | null = null;
     const tails = new Map<number, RegExpExecArray | null>();
-    const atoms = new Map<number, InlineSpan | null>();
+    const atoms = new Map<number, InlineAtom | null>();
 
     const tailAt = (close: number): RegExpExecArray | null => {
         if (!tails.has(close)) {
@@ -588,7 +622,7 @@ export function parseInline(source: string): MarkdownInline[] {
         return to - from;
     };
 
-    const readLink = (start: number): InlineSpan | null => {
+    const readLink = (start: number): InlineAtom | null => {
         const image = source[start] === "!";
         if (image && source[start + 1] !== "[") return null;
         const labelStart = start + (image ? 2 : 1);
@@ -597,52 +631,51 @@ export function parseInline(source: string): MarkdownInline[] {
         if (close >= length) return null;
         const tail = tailAt(close);
         if (!tail) return null;
-        const label = source.slice(labelStart, close);
-        const end = close + tail[0].length;
-        if (image) {
-            const src = safeImageUrl(tail[1]);
-            return {
-                node: src ? { type: "image", src, alt: label } : { type: "text", value: label },
-                end,
-            };
-        }
-        const href = safeLinkUrl(tail[1]);
-        return {
-            node: href
-                ? { type: "link", href, children: parseRange(labelStart, close) }
-                : { type: "text", value: label },
-            end,
+        const build = (): MarkdownInline => {
+            const label = source.slice(labelStart, close);
+            if (image) {
+                const src = safeImageUrl(tail[1]);
+                return src ? { type: "image", src, alt: label } : { type: "text", value: label };
+            }
+            const href = safeLinkUrl(tail[1]);
+            return href
+                ? { type: "link", href, children: parseRange(labelStart, close, true) }
+                : { type: "text", value: label };
         };
+        return { end: close + tail[0].length, build };
     };
 
-    const readAtom = (start: number): InlineSpan | null => {
+    const readAtom = (start: number): InlineAtom | null => {
         const char = source[start];
         if (char === "`") {
             backticks ??= nextIndexTable(source, (next) => next === "`");
             const close = backticks[start + 1];
             if (close >= length || close === start + 1) return null;
             return {
-                node: { type: "code", value: source.slice(start + 1, close) },
                 end: close + 1,
+                build: () => ({ type: "code", value: source.slice(start + 1, close) }),
             };
         }
         if (char === "<") {
             autolinkStops ??= nextIndexTable(source, (next) => next === ">" || /\s/.test(next));
-            if (source[autolinkStops[start + 1]] !== ">") return null;
-            AUTOLINK.lastIndex = start;
-            const match = AUTOLINK.exec(source);
-            if (!match) return null;
-            const href = safeLinkUrl(match[1]);
-            const text: MarkdownInline = { type: "text", value: match[1] };
-            return {
-                node: href ? { type: "link", href, children: [text] } : text,
-                end: start + match[0].length,
+            const stop = autolinkStops[start + 1];
+            if (source[stop] !== ">") return null;
+            AUTOLINK_SCHEME.lastIndex = start + 1;
+            const scheme = AUTOLINK_SCHEME.exec(source);
+            if (!scheme || start + 1 + scheme[0].length >= stop) return null;
+            const build = (inLink: boolean): MarkdownInline => {
+                if (inLink) return { type: "text", value: source.slice(start, stop + 1) };
+                const url = source.slice(start + 1, stop);
+                const href = safeLinkUrl(url);
+                const text: MarkdownInline = { type: "text", value: url };
+                return href ? { type: "link", href, children: [text] } : text;
             };
+            return { end: stop + 1, build };
         }
         return readLink(start);
     };
 
-    const atomAt = (start: number, end: number): InlineSpan | null => {
+    const atomAt = (start: number, end: number): InlineAtom | null => {
         if (!ATOM_FIRST.has(source[start])) return null;
         if (!atoms.has(start)) atoms.set(start, readAtom(start));
         const atom = atoms.get(start) ?? null;
@@ -673,7 +706,7 @@ export function parseInline(source: string): MarkdownInline[] {
         return { close: -1, stop: end };
     };
 
-    function parseRange(start: number, end: number): MarkdownInline[] {
+    function parseRange(start: number, end: number, inLink: boolean): MarkdownInline[] {
         const nodes: MarkdownInline[] = [];
         const failed = new Map<string, number>();
         let text = "";
@@ -704,7 +737,7 @@ export function parseInline(source: string): MarkdownInline[] {
             }
             if (close === -1) return { node: null, end: marker === "~" ? at + size : at + 1 };
             return {
-                node: emphasisNode(marker, size, parseRange(at + size, close)),
+                node: emphasisNode(marker, size, parseRange(at + size, close, inLink)),
                 end: close + size,
             };
         };
@@ -732,20 +765,27 @@ export function parseInline(source: string): MarkdownInline[] {
                 continue;
             }
 
-            const span = EMPHASIS.has(char) ? emphasisAt(index) : atomAt(index, end);
-            if (span?.node) {
-                push(span.node);
+            if (EMPHASIS.has(char)) {
+                const span = emphasisAt(index);
+                if (span.node) push(span.node);
+                else text += source.slice(index, span.end);
                 index = span.end;
                 continue;
             }
-            const next = span ? span.end : index + 1;
-            text += source.slice(index, next);
-            index = next;
+
+            const atom = atomAt(index, end);
+            if (atom) {
+                push(atom.build(inLink));
+                index = atom.end;
+                continue;
+            }
+            text += char;
+            index += 1;
         }
 
         if (text) nodes.push({ type: "text", value: text });
         return nodes;
     }
 
-    return parseRange(0, length);
+    return parseRange(0, length, false);
 }

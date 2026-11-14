@@ -6,6 +6,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`installPrecache` serve offline o asset gravado com `Vary` (#582).** O `install` grava cada URL
+  do manifest por uma requisição sem headers, e o `fetch` buscava a entrada com `cache.match(request)`
+  — que respeita o `Vary` da resposta contra os headers da requisição da página. Com `Vary: Origin`
+  (`vite preview`, middleware de CORS, CDN), o `<script type="module" crossorigin>` do Vite, que
+  manda `Origin`, nunca casava. O defeito é maior que o da issue: `Vary: Accept` quebra igual (a
+  folha de estilo manda `Accept: text/css,…`, o script `Accept: */*`, e a entrada foi gravada sem
+  `Accept`), e online o precache também era ignorado — todo asset ia para a rede. Medido no Chromium
+  do Playwright (worker de `src/sw/cache.ts` empacotado com esbuild, servidor Node em `127.0.0.1:5582`
+  respondendo `Vary` em `/assets/*`, servidor derrubado antes do reload): na `main` (`8e18770`),
+  `Vary: Origin`, `Vary: Accept` e `Vary: Origin, Accept` deixam o JS e o CSS em
+  `net::ERR_FAILED` offline (sem `Vary` e com `Vary: Accept-Encoding`, funciona), e o reload
+  controlado online pede os 2 assets de novo à rede; com a correção, os 4 casos carregam JS e CSS
+  offline e o reload online não toca a rede. O fallback de navegação não era afetado (casa por string,
+  sem headers, nos dois lados). Agora o precache casa com `{ ignoreVary: true }`: ele tem uma entrada
+  por URL, gravada pelo próprio worker e nunca para uma credencial. O `installRuntimeCache` continua
+  respeitando `Vary`, que é o que separa as contas no `cacheAuthenticated` — fixado por teste. 2
+  testes novos em `src/sw/cache.test.ts` falham na `main` e passam aqui
+  (`npx vitest run src/sw/cache.test.ts`), com o fake de `Cache` agora respeitando `Vary` e
+  `ignoreVary` como o `Cache.match` real.
+
 - **`persistQueryClientOffline` com `getPrincipal` prende o handle ao dono no momento em que o dado
   chega ao cache, não só na gravação (#580).** O #563 prendia o handle na primeira gravação ou no
   primeiro restore, mas a gravação tem throttle: num banco vazio, se a sessão de A vencia dentro da
@@ -23,11 +43,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
-- **Teto do barrel inteiro: ESM 152,6 → 152,8 kB, CJS 182 → 182,2 kB (#580).** Medido com
+- **Barris inteiros, pela correção do #582.** `npm run build && npx size-limit --json`, com
+  `src/sw/cache.ts` da `main` (`8e18770`) contra o deste branch, mesmo resto da árvore: barrel ESM
+  152 588 → 152 633 B (+45 B, budget 152,6 → 152,7 kB), barrel CJS 181 937 → 182 138 B (+201 B,
+  budget 182 → 182,2 kB; a diferença no fonte é só `{ ignoreVary: true }`, o resto é o gzip
+  reagrupando o arquivo — medido duas vezes, determinístico). Nenhuma fatia importada mudou.
+
+- **Teto do barrel inteiro: ESM 152,7 → 152,8 kB, CJS 182,2 → 182,3 kB (#580).** Medido com
   `npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` da `main` (`8e18770`)
   contra o deste branch: barrel ESM 152 588 → 152 712 B (+124 B), CJS 181 937 → 182 149 B (+212 B);
   o módulo `dist/query/offline-persistence.js` encolheu 2739 → 2728 B (`wc -c`), e nenhuma fatia
   importada mudou. A diferença no barrel é da reminificação do bundle inteiro, não do código novo.
+  Somado ao #582 na `main` (`bb8e779`), remedido no merge: ESM 152 779 B (budget 152,8 kB), CJS
+  182 280 B (budget 182,3 kB).
 
 ## [0.83.0] — 2026-11-13
 

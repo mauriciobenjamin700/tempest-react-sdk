@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createTempestAuth`: a troca de conta de um `refresh()` relê a época antes de instalar
+  (#591).** Desde o #579, o `rotate()` instala a sessão de outra conta depois que o
+  `navigator.locks.request()` resolve, e a última checagem de época ficava dentro do lock. Com um
+  `LockManager` que resolve uma task depois do callback, um `logout()` nesse intervalo terminava
+  com o token de B instalado, e um `login(C)` terminava como B com o usuário B (medido em
+  `08c3b91`). Agora a época é relida antes da troca: quem chegou no intervalo vence, o refresh
+  rejeita com `SessionSupersededError` e o refresh token resgatado é revogado no modo body.
+  **Alcançabilidade:** em navegador real a janela não passa de microtasks — o snippet da issue,
+  200 execuções por variante (lock livre, lock disputado, `await` dentro do callback, com
+  `signal`) em `http://localhost:5591` via `@playwright/test`, deu `cb,resolved,task` em 200/200
+  no Chromium 153, Firefox 155 e WebKit 26.6: o `request()` resolve antes da task seguinte. É
+  hardening, sem depender dessa ordem. Testes em `src/auth/create-tempest-auth.subject.test.ts`
+  (os 3 marcados `#591` falham sobre a `main` em `08c3b91`;
+  `npx vitest run src/auth/create-tempest-auth.subject.test.ts`). Sem mudança de API.
+
 ## [0.84.0] — 2026-11-14
 
 ### Breaking

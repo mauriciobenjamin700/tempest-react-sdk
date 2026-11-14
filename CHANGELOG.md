@@ -83,11 +83,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
-- **#592, sem mudar limite** (`npm run build && npx size-limit --json`, contra a `main` em
+- **#592: barrel ESM 156,8 → 157 kB** (`npm run build && npx size-limit --json`, contra a `main` em
   `08c3b91`): fatia do cartão (`useMercadoPagoCard` + `describeCardCharge`) 2383 → 2482 B (+99 B,
   budget 2,5 kB); fatia do Pix (`PixCheckout` + `usePixCharge`) 6211 → 6294 B (+83 B); barrel
   ESM 156 692 → 156 526 B e CJS 186 508 → 186 344 B. A primeira versão da mensagem de recusa do
   `tokenize` passava o budget do cartão por 5 B (2505 B); foi encurtada em vez de subir o limite.
+  Somado ao #590 e ao #591 na `main` (`1c0e857`), remedido no merge: barrel ESM 156 964 B (budget
+  156,8 → 157 kB), CJS 186 505 B (budget 186,6 kB, sem mudança). Isolado o #592 encolhe o barrel;
+  o estouro vem da reminificação do bundle somado.
 
 ## [0.84.0] — 2026-11-14
 

@@ -289,6 +289,91 @@ describe("persistQueryClientOffline — a session that ends without clear() (#56
         expect(await readRow(dbName)).not.toHaveProperty("owner");
     });
 
+    describe("a handle not yet bound when the session ends before its first throttled write (#580)", () => {
+        async function signedInThenGone(next: string | null): Promise<string> {
+            const dbName = databaseName();
+            let principal: string | null = "user-a";
+            const client = new QueryClient();
+            const persistence = persistQueryClientOffline({
+                queryClient: client,
+                databaseName: dbName,
+                throttleMs: 20,
+                getPrincipal: () => principal,
+            });
+            client.setQueryData(["me"], { name: "Ada" });
+            principal = next;
+            await new Promise((resolve) => setTimeout(resolve, 60));
+            await persistence.flush();
+            persistence.unsubscribe();
+            return dbName;
+        }
+
+        it("leaves nothing for a logged-out boot once the session expired before the throttled write", async () => {
+            const dbName = await signedInThenGone(null);
+
+            const anonymous = await restoreAs(dbName, () => null);
+
+            expect(anonymous.getQueryData(["me"])).toBeUndefined();
+            expect(await readRow(dbName)).toBeUndefined();
+        });
+
+        it("does not hand the expired session's data to the next account through a logged-out boot", async () => {
+            const dbName = await signedInThenGone(null);
+            let principal: string | null = null;
+            const client = new QueryClient();
+            const relay = persistQueryClientOffline({
+                queryClient: client,
+                databaseName: dbName,
+                getPrincipal: () => principal,
+            });
+            await relay.restore();
+            principal = "user-b";
+            await relay.flush();
+            relay.unsubscribe();
+
+            const next = await restoreAs(dbName, () => "user-b");
+
+            expect(next.getQueryData(["me"])).toBeUndefined();
+        });
+
+        it("does not stamp the data with the account that signed in before the throttled write", async () => {
+            const dbName = await signedInThenGone("user-b");
+
+            const next = await restoreAs(dbName, () => "user-b");
+
+            expect(next.getQueryData(["me"])).toBeUndefined();
+            expect(await readRow(dbName)).toBeUndefined();
+        });
+
+        it("binds to the owner signed in when the data arrived, not when the write runs", async () => {
+            const dbName = await signedInThenGone("user-a");
+
+            const restored = await restoreAs(dbName, () => "user-a");
+
+            expect(restored.getQueryData(["me"])).toEqual({ name: "Ada" });
+        });
+
+        it("still persists an app that learns the user after /me, when the principal arrives after the data", async () => {
+            const dbName = databaseName();
+            let principal: string | null = null;
+            const client = new QueryClient();
+            const persistence = persistQueryClientOffline({
+                queryClient: client,
+                databaseName: dbName,
+                throttleMs: 20,
+                getPrincipal: () => principal,
+            });
+            client.setQueryData(["me"], { name: "Ada" });
+            principal = "user-a";
+            await new Promise((resolve) => setTimeout(resolve, 60));
+            persistence.unsubscribe();
+
+            const restored = await restoreAs(dbName, () => "user-a");
+
+            expect(restored.getQueryData(["me"])).toEqual({ name: "Ada" });
+        });
+    });
+
     describe("dev warning", () => {
         afterEach(() => {
             vi.restoreAllMocks();

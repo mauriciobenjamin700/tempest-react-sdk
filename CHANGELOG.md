@@ -26,6 +26,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`npx vitest run src/sw/cache.test.ts`), com o fake de `Cache` agora respeitando `Vary` e
   `ignoreVary` como o `Cache.match` real.
 
+- **`persistQueryClientOffline` com `getPrincipal` prende o handle ao dono no momento em que o dado
+  chega ao cache, não só na gravação (#580).** O #563 prendia o handle na primeira gravação ou no
+  primeiro restore, mas a gravação tem throttle: num banco vazio, se a sessão de A vencia dentro da
+  primeira janela, a gravação lia "ninguém", carimbava as respostas de A com `p:anonymous`, o próximo
+  boot deslogado as hidratava e quem entrasse como B em seguida as regravava como suas. O defeito é
+  maior que o da issue: se B entrava na mesma aba dentro da janela, a gravação carimbava os dados de
+  A direto como de B. Reproduzido em 3 testes de `src/query/offline-persistence.owner.test.ts`
+  (`npx vitest run src/query/offline-persistence.owner.test.ts` → 3 failed | 21 passed na `main`
+  `8e18770`, 24 passed aqui). Agora todo evento do cache num handle ainda solto lê o `getPrincipal`
+  e prende o handle a quem estiver logado; a gravação seguinte com outro dono apaga a linha, como no
+  #563. Evento sem ninguém logado não prende, então o app com cookie que só conhece o usuário depois
+  do `/me` continua persistindo (teste próprio); sem `getPrincipal`, nada muda. **Migração:** app que
+  reaproveita o handle numa troca de conta antes da primeira gravação passa a não persistir para a
+  conta nova, como já acontecia depois dela desde a 0.83.0 — crie um handle novo no login.
+
 ### Budgets
 
 - **Barris inteiros, pela correção do #582.** `npm run build && npx size-limit --json`, com
@@ -33,6 +48,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   152 588 → 152 633 B (+45 B, budget 152,6 → 152,7 kB), barrel CJS 181 937 → 182 138 B (+201 B,
   budget 182 → 182,2 kB; a diferença no fonte é só `{ ignoreVary: true }`, o resto é o gzip
   reagrupando o arquivo — medido duas vezes, determinístico). Nenhuma fatia importada mudou.
+
+- **Teto do barrel inteiro: ESM 152,7 → 152,8 kB, CJS 182,2 → 182,3 kB (#580).** Medido com
+  `npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` da `main` (`8e18770`)
+  contra o deste branch: barrel ESM 152 588 → 152 712 B (+124 B), CJS 181 937 → 182 149 B (+212 B);
+  o módulo `dist/query/offline-persistence.js` encolheu 2739 → 2728 B (`wc -c`), e nenhuma fatia
+  importada mudou. A diferença no barrel é da reminificação do bundle inteiro, não do código novo.
+  Somado ao #582 na `main` (`bb8e779`), remedido no merge: ESM 152 779 B (budget 152,8 kB), CJS
+  182 280 B (budget 182,3 kB).
 
 ## [0.83.0] — 2026-11-13
 

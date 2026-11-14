@@ -35,9 +35,9 @@ export interface OfflineQueryPersistenceOptions {
     /**
      * Who is signed in right now — a stable, non-secret id such as the user id;
      * `null`/`undefined` when nobody is. Read on every write, which stamps the
-     * snapshot with a one-way fingerprint of it (never the id itself), and on
+     * snapshot with a one-way fingerprint of it (never the id itself), on
      * `restore()`, which hydrates only a snapshot stamped with the same
-     * fingerprint.
+     * fingerprint, and on cache changes until the handle is bound.
      *
      * `clear()` on logout already deletes the snapshot; this covers the session
      * that ends without it — a token that expired, a crash, a tab closed while
@@ -50,11 +50,14 @@ export interface OfflineQueryPersistenceOptions {
      * the principal after a `/me` round trip would otherwise wipe its own cache
      * on every cold start. The next write replaces it.
      *
-     * The handle is bound to the first signed-in owner it writes or restores.
-     * Once bound, a write under another owner — nobody, because the token
-     * expired without `clear()`, or a second account on the same tab — deletes
-     * the snapshot instead of stamping the bound owner's cached responses with
-     * the new owner (#563); the same owner coming back writes again. Writes
+     * The handle is bound to the first signed-in owner it sees on a cache
+     * change, a write or a restore — the cache change is what pins the owner of
+     * data that a throttled write would otherwise stamp with whoever is signed
+     * in a second later (#580). Once bound, a write under another owner —
+     * nobody, because the token expired without `clear()`, or a second account
+     * on the same tab — deletes the snapshot instead of stamping the bound
+     * owner's cached responses with the new owner (#563); the same owner coming
+     * back writes again. Writes
      * before anyone signs in stay anonymous and are restored while nobody is,
      * so an app that persists logged-out data keeps doing so. An anonymous
      * snapshot written by 0.82.0 is not restored (it may hold an expired
@@ -243,7 +246,7 @@ export function persistQueryClientOffline(
      * Write the snapshot, or delete the row when the session it holds is over.
      *
      * With `getPrincipal`, the handle is bound to the first signed-in owner it
-     * writes or restores. A write under any other owner — nobody, after a token
+     * sees on a cache change, a write or a restore. A write under any other owner — nobody, after a token
      * expired, or a second account signing in on the same tab — deletes the row
      * instead of stamping it: the in-memory cache still holds the bound owner's
      * responses, and stamping them with the new owner is what handed them to the
@@ -263,7 +266,7 @@ export function persistQueryClientOffline(
             const owner = currentOwner(getPrincipal);
             foreign = boundOwner !== null && owner !== boundOwner;
             if (foreign && owner !== null) warnRebound();
-            if (owner !== null) boundOwner = boundOwner ?? owner;
+            boundOwner ??= owner;
             snapshot.owner = owner ?? ANONYMOUS_SNAPSHOT_OWNER;
         }
         const write = foreign ? store.delete(key) : store.put(snapshot);
@@ -290,8 +293,23 @@ export function persistQueryClientOffline(
         }, throttleMs);
     }
 
+    /**
+     * Schedule a write for cache activity, or detach once the handle has ended.
+     *
+     * With `getPrincipal`, an unbound handle is bound here, to whoever is
+     * signed in when the cache changes — not only by a write or a restore. The
+     * write is throttled, so the principal it reads can already be someone
+     * else's: a session that expired inside the first window used to stamp the
+     * previous user's responses `p:anonymous`, which the next logged-out boot
+     * hydrated and the next account re-stamped as its own; an account that
+     * signed in inside it got them stamped as its own directly (#580). Binding
+     * at event time pins the owner of the data, so that write deletes instead.
+     * An event while nobody is signed in leaves the handle unbound, which keeps
+     * the cookie app whose principal arrives after `/me` persisting.
+     */
     function onCacheEvent(event: QueryCacheNotifyEvent): void {
         if (!ended) {
+            if (getPrincipal) boundOwner ??= currentOwner(getPrincipal);
             schedule();
             return;
         }
@@ -324,7 +342,7 @@ export function persistQueryClientOffline(
             if (getPrincipal) {
                 const owner = currentOwner(getPrincipal);
                 if (snapshot.owner !== (owner ?? ANONYMOUS_SNAPSHOT_OWNER)) return;
-                if (owner !== null) boundOwner = boundOwner ?? owner;
+                boundOwner ??= owner;
             }
             hydrate(queryClient, snapshot.state);
         },

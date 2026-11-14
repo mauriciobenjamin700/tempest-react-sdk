@@ -218,8 +218,10 @@ Medido em `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/
 !!! note "O getter, não um wrapper"
     `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário.
 
-!!! warning "Sessão por cookie precisa de `getPrincipal`"
-    Sem `getToken` — sessão só por cookie, fora do `createTempestAuth`, que sempre tem token — o SDK não enxerga quem está logado: o registro fica sem dono e é retomado por quem vier depois, como antes. Com sessão por cookie e mais de uma conta por navegador, passe `getPrincipal` e limpe no fim de sessão — e, sem o getter, chame `abort()` nos uploads em andamento dentro do `onSessionEnd`, porque um run em andamento só percebe a troca de conta pelo `getPrincipal`.
+!!! warning "Sessão por cookie: `clear()` no fim de sessão, ou `getPrincipal`"
+    Sem `getToken` — sessão só por cookie, fora do `createTempestAuth`, que sempre tem token — o SDK não enxerga quem está logado: o cookie é HttpOnly, e nada no navegador avisa a troca de conta. O registro fica sem dono e é retomado por quem vier depois. O teardown que alcança esse caso é o `createLocalUploadStorage().clear()` no fim de sessão, e ele basta: apaga os registros, para o run em andamento (`reason: "cleared"`) e, desde a **0.84.0**, faz o handle **pausado** antes dele recomeçar com `Idempotency-Key` nova em vez de levar a da sessão anterior para a criação do upload da conta seguinte (#528 — até a 0.83.0 o `resume()` de B reaproveitava a chave de A). O `abort()` deixa de ser necessário aqui. Para retomar entre reloads sem depender do teardown, passe `getPrincipal`.
+
+    Se cruzar contas ainda depende do servidor tus. O tempest-fastapi-sdk não tem servidor tus (na 0.345.0 nenhum handler responde `Upload-Offset`), então quem autoriza `HEAD`/`PATCH` numa URL de upload é o servidor que você implantou — muitos tratam a URL como a própria credencial. O `IdempotencyMiddleware` dele, por outro lado, escopa a chave pelo digest de `Authorization`, `Cookie`, `X-Token` e `X-API-Key`: a chave de A repetida por B não devolve o upload de A.
 
 ## A falha que realmente acontece
 

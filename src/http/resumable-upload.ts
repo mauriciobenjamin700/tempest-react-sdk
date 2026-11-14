@@ -233,8 +233,11 @@ export interface ResumableUploadOptions {
      * It is read again before every chunk and every record write: when it
      * names someone else mid-run, the run stops with
      * {@link ResumableUploadSupersededError} (`"principal"`) before the new
-     * account's token reaches the previous one's upload URL. Without it, call
-     * `abort()` on the uploads in progress from `onSessionEnd`.
+     * account's token reaches the previous one's upload URL. Without it,
+     * `createLocalUploadStorage().clear()` from `onSessionEnd` stops the runs in
+     * flight and, since 0.84.0, makes a paused handle start over with a fresh
+     * `Idempotency-Key`; with a custom `storage`, call `abort()` on the uploads
+     * in progress there instead.
      */
     getPrincipal?: () => string | number | null | undefined;
     /**
@@ -390,6 +393,10 @@ export function uploadFingerprint(endpoint: string, file: Blob | File): string {
  * `clear()` forgets every record under the prefix. Call it from
  * `onSessionEnd`: a record outlives the session that wrote it, and only
  * completing the upload or `abort({ discard: true })` removes it otherwise.
+ * It also ends every handle built over a storage with the same prefix: a run
+ * in flight stops with {@link ResumableUploadSupersededError} (`"cleared"`),
+ * and a paused one's next `resume()` starts a new upload with a fresh
+ * `Idempotency-Key` (since 0.84.0, #528).
  *
  * @param prefix - Key prefix. Default `"tempest-upload:"`.
  * @returns A storage that no-ops when `localStorage` is unavailable.
@@ -1004,9 +1011,18 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * `start()`/`resume()` after `abort()` attaches as a new handle would: the
      * URL and the `Idempotency-Key` kept in memory are dropped, and the stored
      * record is resumed only when its owner is the current one.
+     *
+     * A `clear()` of the default storage since the handle last attached ends
+     * it the same way (#528). `clear()` in `onSessionEnd` is the only teardown
+     * a session the SDK cannot see has — an HttpOnly cookie, with neither
+     * `getToken` nor `getPrincipal` — and it already deleted the records and
+     * stopped the runs in flight. A handle paused before it, though, kept the
+     * previous session's `Idempotency-Key` in memory, and the next account's
+     * `resume()` created its upload with it: a server whose idempotency store
+     * is not scoped by caller answers that with the previous account's upload.
      */
     async function ensureUpload(): Promise<string> {
-        if (abandoned) {
+        if (abandoned || (attached && generationOf && generationOf() !== generation)) {
             abandoned = false;
             attached = false;
             url = null;

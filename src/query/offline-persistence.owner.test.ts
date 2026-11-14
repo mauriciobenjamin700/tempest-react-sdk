@@ -396,13 +396,22 @@ describe("persistQueryClientOffline — a session that ends without clear() (#56
             persistence.unsubscribe();
         }
 
+        /**
+         * The warning used to say only "Create a new handle after login". A new
+         * handle on the same `QueryClient` stamps the responses still in memory
+         * — the ones this handle refused to write — with the account signed in
+         * (security audit run-12, hardening P7b), so the advice now names the
+         * reset first.
+         */
         it("warns once in dev when another account signs in on a bound handle", async () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
 
             await switchAccounts("user-b");
 
             expect(warn).toHaveBeenCalledTimes(1);
-            expect(String(warn.mock.calls[0]?.[0])).toContain("Create a new handle after login");
+            expect(String(warn.mock.calls[0]?.[0])).toContain(
+                "Call clear({ resetClient: true }), then create a new handle.",
+            );
         });
 
         it("stays silent when the session merely expires", async () => {

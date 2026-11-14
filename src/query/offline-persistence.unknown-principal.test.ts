@@ -253,6 +253,13 @@ describe("persistQueryClientOffline — principal not known yet (#590)", () => {
             expect(visitor.getQueryData(["catalog"])).toEqual(["a"]);
         });
 
+        /**
+         * The warning used to say only "Create a new handle after login". A new
+         * handle on the same `QueryClient` stamps the responses still in memory
+         * — the ones this handle refused to write — with the account signed in
+         * (security audit run-12, hardening P7b), so the advice now names the
+         * reset first.
+         */
         it("warns once in dev that the handle stopped persisting", async () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
             const dbName = await leakedAnonymousRow();
@@ -270,7 +277,9 @@ describe("persistQueryClientOffline — principal not known yet (#590)", () => {
             relay.unsubscribe();
 
             expect(warn).toHaveBeenCalledTimes(1);
-            expect(String(warn.mock.calls[0]?.[0])).toContain("Create a new handle after login");
+            expect(String(warn.mock.calls[0]?.[0])).toContain(
+                "Call clear({ resetClient: true }), then create a new handle.",
+            );
         });
     });
 

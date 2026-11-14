@@ -4,6 +4,7 @@ import {
     type QueryCacheNotifyEvent,
     type QueryClient,
 } from "@tanstack/react-query";
+import { sessionIdentityOf } from "../auth/session-identity";
 import { createOfflineStore } from "../offline/create-offline-store";
 import { isDevBuild } from "../utils/dev-mode";
 import { ownerFingerprint } from "../utils/owner-fingerprint";
@@ -93,8 +94,12 @@ export interface OfflineQueryPersistenceOptions {
      * writing, once someone signs in on it: the anonymous row may hold a
      * previous account's responses written before its principal was known, and
      * stamping them with the account now signed in is what handed them to it
-     * (#590). Create a new handle after login to keep persisting, as after
-     * `clear()`.
+     * (#590). To keep persisting, end it with `clear({ resetClient: true })`
+     * and create a new handle: the in-memory client still holds what the
+     * deleted row held, and a new handle on it would stamp that with the
+     * account signed in. With {@link OfflineQueryPersistenceOptions.auth} a new
+     * handle on such a client keeps deleting until the client is reset; with
+     * `getPrincipal` alone, resetting it is up to the app.
      */
     getPrincipal?: () => string | number | null | undefined;
     /**
@@ -137,11 +142,26 @@ export interface OfflineQueryPersistenceOptions {
      *   `refresh()` is still deciding it — and, with a `getPrincipal` of your
      *   own, only once it names someone whenever a session is installed (a
      *   user id read from a profile that has not loaded yet is not "nobody");
-     * - a cache change while the session is not known records the
-     *   `sessionKey()` it saw; if the session that settles is another one or
-     *   nobody — a sign-out in another tab, a `logout()` without `clear()`,
-     *   a second `login()` on top — the handle's writes delete the row instead
-     *   of stamping those responses as anonymous or as the new session's.
+     * - every session installed while the `QueryClient`'s cache lives is
+     *   recorded — the preset notifies each install, and every cache change,
+     *   write and restore reads `sessionKey()` too — not only the one a cache
+     *   change happens to see. Once a second session, or nobody after one,
+     *   was installed — a sign-out in another tab, a `logout()` without
+     *   `clear()`, a second `login()` on top —, every write deletes the row
+     *   and `restore()` hydrates nothing: the cache may hold the ended
+     *   session's responses, including one the api client replayed with the
+     *   bearer of a `login()` or boot `refresh()` that started after the
+     *   request left with no token and ended before it landed (security audit
+     *   run-12, C1). Nobody followed by a session is not an end, and a
+     *   token rotation keeps the key;
+     * - that record belongs to the `QueryClient`, not to the handle, so a new
+     *   handle on the same client keeps deleting. `clear()` drops it — with
+     *   `resetClient: true` nothing of the ended session stays in memory
+     *   either — and so does creating a handle on a client with empty caches.
+     *   A session that is not this preset (an object of your own) is only
+     *   read on cache changes, writes and restores, so a session installed
+     *   and ended between two of them goes unseen;
+     * - a `sessionKey()` that throws reads as not known, so nothing is written.
      *
      * It does not call `clear()` on session end by itself: `clear()` ends the
      * handle, and the row is already deleted on the next write. Keep calling
@@ -240,28 +260,73 @@ function principalKnown(isPrincipalKnown: (() => boolean) | undefined): boolean 
 }
 
 /**
- * Owner a handle is bound to when the session its cache was filled under ended
- * before it was known — never written, only compared.
+ * The sessions whose responses a `QueryClient`'s in-memory cache may hold, as
+ * the `auth` handles on it saw them.
  *
- * Not a fingerprint either, so no signed-in owner and not
- * {@link ANONYMOUS_SNAPSHOT_OWNER} ever matches it: every later write of that
- * handle deletes the row, since the in-memory cache still holds the ended
- * session's responses.
+ * Kept per client, not per handle, because the cache is the client's: a handle
+ * created after another one stopped persisting (the advice of the dev warning)
+ * still sits on the cache that holds the ended session's responses, and used to
+ * stamp them with the session signed in when it was created (security audit
+ * run-12, hardening). The entry is dropped by `clear()` — the logout the app
+ * owns, which also resets the client with `resetClient` — and when a handle is
+ * created on a client whose caches are empty.
  */
-const SUPERSEDED_SESSION_OWNER = "p:superseded";
+interface ClientSessions {
+    /** The first session seen installed, or `null` while none has been. */
+    session: string | null;
+    /** Whether a handle hydrated an anonymous snapshot into this client. */
+    hydratedAnonymous: boolean;
+    /**
+     * Whether the cache may hold a session that is not the one installed now:
+     * a second session, or nobody after one. Never reset while the entry lives.
+     */
+    ended: boolean;
+}
+
+const clientSessions = new WeakMap<QueryClient, ClientSessions>();
 
 /**
- * Read the key of the session signed in now.
+ * Record the session installed now on a client's lineage.
  *
- * @param auth - The session the handle follows.
- * @returns The key, or `null` for nobody or a throw.
+ * Every session installed while the cache lives counts, not only the one a
+ * cache change happens to see: the api client replays a request that left
+ * without a token with the bearer of a `login()` or boot `refresh()` still in
+ * flight, so a response can belong to a session that was installed and ended
+ * between two cache events, with nobody signed in at both (security audit
+ * run-12, C1). The lineage ends when a second session or nobody follows the
+ * first one, and when someone signs in on a client holding a hydrated
+ * anonymous snapshot, which may be a previous account's (#590). Nobody
+ * followed by a session is not an end: responses fetched while nobody was
+ * signed in carry no account.
+ *
+ * @param lineage - The client's entry.
+ * @param current - The key of the session installed now, or `null`.
  */
-function readSessionKey(auth: OfflineQuerySession): string | null {
-    try {
-        return auth.sessionKey();
-    } catch {
-        return null;
+function recordSession(lineage: ClientSessions, current: string | null): void {
+    if (lineage.ended) return;
+    if (current === null) {
+        lineage.ended = lineage.session !== null;
+        return;
     }
+    if (lineage.hydratedAnonymous || (lineage.session !== null && lineage.session !== current)) {
+        lineage.ended = true;
+        return;
+    }
+    lineage.session = current;
+}
+
+/**
+ * Whether the client holds no query and no mutation — nothing any session
+ * could have left in it.
+ *
+ * @param queryClient - The client.
+ * @returns `true` when both caches are empty.
+ */
+function clientIsEmpty(queryClient: QueryClient): boolean {
+    return (
+        queryClient.getQueryCache().getAll().length === 0 &&
+        queryClient.getMutationCache().getAll().length === 0
+    );
 }
 
 /**
@@ -332,12 +397,16 @@ export function persistQueryClientOffline(
     const appPrincipal = options.getPrincipal;
     const getPrincipal = appPrincipal ?? auth?.sessionKey;
     const isPrincipalKnown = auth
-        ? (): boolean =>
-              principalKnown(options.isPrincipalKnown) &&
-              auth.isSessionKnown() &&
-              (appPrincipal === undefined ||
-                  auth.sessionKey() === null ||
-                  currentOwner(appPrincipal) !== null)
+        ? (): boolean => {
+              const session = auth.sessionKey();
+              return (
+                  principalKnown(options.isPrincipalKnown) &&
+                  auth.isSessionKnown() &&
+                  (appPrincipal === undefined ||
+                      session === null ||
+                      currentOwner(appPrincipal) !== null)
+              );
+          }
         : options.isPrincipalKnown;
     const key = options.key ?? "tanstack-query";
     const databaseName = options.databaseName ?? "TempestQueryCache";
@@ -355,7 +424,6 @@ export function persistQueryClientOffline(
     let warnedRebound = false;
     let boundOwner: string | null = null;
     let hydratedAnonymous = false;
-    let unknownWindowSession: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const inFlight = new Set<Promise<unknown>>();
 
@@ -379,9 +447,43 @@ export function persistQueryClientOffline(
         console.warn(
             "[tempest-react-sdk] persistQueryClientOffline: an account signed in on a " +
                 "handle holding another session's cache; its snapshot is deleted instead of " +
-                "written. Create a new handle after login to keep persisting.",
+                "written. Call clear({ resetClient: true }), then create a new handle.",
         );
     }
+
+    if (auth && clientIsEmpty(queryClient)) clientSessions.delete(queryClient);
+
+    function lineage(): ClientSessions {
+        let entry = clientSessions.get(queryClient);
+        if (!entry) {
+            entry = { session: null, hydratedAnonymous: false, ended: false };
+            clientSessions.set(queryClient, entry);
+        }
+        return entry;
+    }
+
+    /**
+     * Record on the client's lineage the session `auth` holds now. Runs on
+     * every auth state change the preset notifies, and on every cache change,
+     * write and restore. A `sessionKey()` that throws records nothing.
+     *
+     * @returns Whether the client's cache may hold a session that has ended.
+     */
+    function observeSession(): boolean {
+        if (!auth || ended) return false;
+        const entry = lineage();
+        try {
+            recordSession(entry, auth.sessionKey());
+        } catch {
+            return entry.ended;
+        }
+        return entry.ended;
+    }
+
+    const unsubscribeSession = auth
+        ? (sessionIdentityOf(auth.sessionKey)?.subscribe(observeSession) ?? null)
+        : null;
+    observeSession();
 
     /**
      * Write the snapshot, or delete the row when the session it holds is over.
@@ -402,6 +504,10 @@ export function persistQueryClientOffline(
      *
      * While `isPrincipalKnown` says the principal is not settled, nothing is
      * written and the write is re-armed for the next window (#590).
+     *
+     * With `auth`, a client whose lineage ended — a second session, or nobody
+     * after one, was installed while its cache lived — deletes the row as
+     * well, whatever the handle is bound to (security audit run-12, C1).
      */
     async function save(): Promise<void> {
         if (ended) return;
@@ -414,9 +520,9 @@ export function persistQueryClientOffline(
         const snapshot: Snapshot = { id: key, state: dehydrate(queryClient) };
         let foreign = false;
         if (getPrincipal) {
-            settleUnknownWindow();
             const owner = currentOwner(getPrincipal);
             foreign =
+                observeSession() ||
                 (boundOwner !== null && owner !== boundOwner) ||
                 (hydratedAnonymous && owner !== null);
             if (foreign && owner !== null) warnRebound();
@@ -429,35 +535,6 @@ export function persistQueryClientOffline(
             await write;
         } finally {
             inFlight.delete(write);
-        }
-    }
-
-    /**
-     * Bind the handle as superseded when the session its cache was filled
-     * under, before that session was known, is not the one now known.
-     *
-     * With `auth`, `login()` installs the new session's token, and so its
-     * `sessionKey()`, before `/me` answers; queries that resolve in that
-     * window hold that session's responses, but a cache change cannot bind
-     * the handle while the session may still fail. The key it saw is recorded
-     * instead and compared here, on the first cache change, write or restore
-     * that finds the principal known. When the window resolved to nobody (a
-     * sign-out in another tab, a `logout()` without `clear()`) or to another
-     * session, the handle is bound to {@link SUPERSEDED_SESSION_OWNER}, so its
-     * writes delete the row. Until then the handle was left unbound, and the
-     * next write stamped those responses `p:anonymous` for the next signed-out
-     * boot to hydrate (security audit run-11, C2). The same session settling
-     * changes nothing.
-     *
-     * Without `auth` nothing is recorded: what an app's own `getPrincipal`
-     * returns while `isPrincipalKnown` is `false` is not trusted (#590).
-     */
-    function settleUnknownWindow(): void {
-        if (!auth || unknownWindowSession === null) return;
-        const cachedUnder = unknownWindowSession;
-        unknownWindowSession = null;
-        if (boundOwner === null && readSessionKey(auth) !== cachedUnder) {
-            boundOwner = SUPERSEDED_SESSION_OWNER;
         }
     }
 
@@ -489,19 +566,15 @@ export function persistQueryClientOffline(
      * at event time pins the owner of the data, so that write deletes instead.
      * An event while nobody is signed in leaves the handle unbound, which keeps
      * the cookie app whose principal arrives after `/me` persisting; so does
-     * an event while `isPrincipalKnown` says the principal is not settled,
-     * which with `auth` records the session key instead, see
-     * `settleUnknownWindow`.
+     * an event while `isPrincipalKnown` says the principal is not settled.
+     * With `auth`, every event also records the session installed now on the
+     * client's lineage, see `recordSession`.
      */
     function onCacheEvent(event: QueryCacheNotifyEvent): void {
         if (!ended) {
-            if (getPrincipal) {
-                if (principalKnown(isPrincipalKnown)) {
-                    settleUnknownWindow();
-                    boundOwner ??= currentOwner(getPrincipal);
-                } else if (auth && boundOwner === null) {
-                    unknownWindowSession ??= readSessionKey(auth);
-                }
+            observeSession();
+            if (getPrincipal && principalKnown(isPrincipalKnown)) {
+                boundOwner ??= currentOwner(getPrincipal);
             }
             schedule();
             return;
@@ -533,12 +606,14 @@ export function persistQueryClientOffline(
             const snapshot = await store.get(key);
             if (!snapshot || ended) return;
             if (getPrincipal) {
-                if (!principalKnown(isPrincipalKnown)) return;
-                settleUnknownWindow();
+                if (!principalKnown(isPrincipalKnown) || observeSession()) return;
                 const owner = currentOwner(getPrincipal);
                 if (snapshot.owner !== (owner ?? ANONYMOUS_SNAPSHOT_OWNER)) return;
                 boundOwner ??= owner;
-                if (owner === null) hydratedAnonymous = true;
+                if (owner === null) {
+                    hydratedAnonymous = true;
+                    if (auth) lineage().hydratedAnonymous = true;
+                }
             }
             hydrate(queryClient, snapshot.state);
         },
@@ -553,10 +628,13 @@ export function persistQueryClientOffline(
         unsubscribe() {
             cancelTimer();
             unsubscribeCache();
+            unsubscribeSession?.();
         },
         async clear(clearOptions = {}) {
             ended = true;
             cancelTimer();
+            unsubscribeSession?.();
+            if (auth) clientSessions.delete(queryClient);
             const previous = pendingClears.get(slot);
             const run = endSession(clearOptions.resetClient ?? false);
             const settled = Promise.allSettled([previous, run]);

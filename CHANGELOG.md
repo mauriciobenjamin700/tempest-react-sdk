@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.85.0] — 2026-11-14
+
 ### Segurança
 
 - **`createTempestAuth`: a troca de conta de um `refresh()` relê a época antes de instalar

@@ -74,30 +74,41 @@ export interface UploadWithProgressOptions {
      */
     requestId?: () => string;
     /**
-     * What to do when the server answers with a redirect. Default `"follow"`.
+     * What to do when the server answers with a redirect. When unset, the
+     * helper picks: `"error"` when {@link headers} carry anything besides the
+     * headers it exempts (`Authorization`, `X-Request-ID`, `Content-Type` and
+     * `X-CSRF-Token`) **and** no {@link onProgress} was given, `"follow"`
+     * otherwise (since 0.84.0). A value passed here always wins.
      *
      * - `"follow"` — the `XMLHttpRequest` path, with byte-level progress. The
      *   browser follows every redirect and offers no way to stop it: measured
-     *   in Chrome 150 (#570), a same-origin upload answered `301`/`302`/`303`/
-     *   `307`/`308` towards another origin delivered `X-Api-Key` from
-     *   {@link headers} and the SDK's own `X-CSRF-Token` there on all five, and
-     *   the body on `307`/`308`; only `Authorization` was stripped. What this
-     *   path does enforce (since 0.83.0): an answer from another origin than
-     *   the one the request was sent to is never the result — it rejects with
+     *   in Chrome 150, and again in Chromium 153, Firefox 155 and WebKit 26.6
+     *   (#570), a same-origin upload answered `301`/`302`/`303`/`307`/`308`
+     *   towards another origin delivered `X-Api-Key` from {@link headers} and
+     *   the SDK's own `X-CSRF-Token` there on all five, and the body on
+     *   `307`/`308`; only `Authorization` was stripped. What this path does
+     *   enforce (since 0.83.0): an answer from another origin than the one the
+     *   request was sent to is never the result — it rejects with
      *   `code: "REDIRECT_REFUSED"`, so that host cannot hand the app a URL to
      *   store. Until 0.82.0 it resolved with the other host's body.
      * - `"error"` — goes out over `fetch` with `redirect: "manual"`, and a
      *   redirect rejects with `code: "REDIRECT_REFUSED"` before anything is
      *   sent to the other host. The cost: `fetch` reports no upload progress,
-     *   so `onProgress` fires once, when the server confirms the whole body. A
+     *   so `onProgress` fires once, when the server confirms the whole body,
+     *   and a same-origin redirect (FastAPI's trailing-slash `307`) is refused
+     *   too — a browser hands it back opaque, with no readable `Location`. A
      *   streamed `fetch` body would report progress, but Chrome refuses one
      *   over HTTP/1.1 (`TypeError: Failed to fetch`, measured) and Firefox and
      *   Safari do not support it.
      *
-     * Use `"error"` when {@link headers} carry a credential (an `X-Api-Key`) and
-     * the server behind `url` could redirect; sending the bearer through
-     * {@link getToken} keeps `"follow"` safe for it, because the browser strips
-     * `Authorization` on a cross-origin redirect.
+     * Why the default depends on `onProgress`: progress is the only thing the
+     * XHR path buys, and the leak is its price. A caller that asked for no
+     * progress paid that price for nothing, so its fixed headers get the
+     * treatment `createApiClient` (#560) and `createResumableUpload` (#568)
+     * give theirs. A caller that wants progress keeps it, and the guarantee is
+     * one `redirect: "error"` away. Sending the bearer through
+     * {@link getToken} keeps `"follow"` safe for it, because the browser
+     * strips `Authorization` on a cross-origin redirect.
      */
     redirect?: "follow" | "error";
 }
@@ -108,6 +119,46 @@ export interface UploadWithProgressOptions {
  * `createApiClient` and `createResumableUpload` use for the same refusal.
  */
 const UPLOAD_REDIRECT_REFUSED = "REDIRECT_REFUSED";
+
+/**
+ * Fixed headers that do not switch an upload without `onProgress` to
+ * `redirect: "error"`, lowercased.
+ *
+ * `authorization` is stripped by the browser on a cross-origin redirect
+ * (measured in Chromium 153, Firefox 155 and WebKit 26.6). `x-request-id` and
+ * `content-type` are not secrets. `x-csrf-token` does cross the redirect, and
+ * is exempt for the reason `createApiClient` (#560) exempts it: it rides on
+ * every `POST` of a cookie session, which is exactly the trailing-slash `307`
+ * case, and on its own it authenticates nothing — using it takes the victim's
+ * cookie and a custom header the API's CORS does not allow from another
+ * origin. The header the `csrf` option adds is not part of `headers` and never
+ * counts.
+ */
+const HEADERS_THAT_KEEP_FOLLOWING: ReadonlySet<string> = new Set([
+    "authorization",
+    "x-request-id",
+    "content-type",
+    "x-csrf-token",
+]);
+
+/**
+ * The redirect mode an upload runs with when the caller did not pick one.
+ *
+ * @param headers - The caller's fixed headers.
+ * @param wantsProgress - Whether an `onProgress` was given.
+ * @returns `"error"` when a header that would leak rides along and progress
+ *   was not asked for, `"follow"` otherwise.
+ */
+function defaultRedirect(
+    headers: Record<string, string>,
+    wantsProgress: boolean,
+): "follow" | "error" {
+    if (wantsProgress) return "follow";
+    const leaks = Object.keys(headers).some(
+        (name) => !HEADERS_THAT_KEEP_FOLLOWING.has(name.toLowerCase()),
+    );
+    return leaks ? "error" : "follow";
+}
 
 /** What a finished upload answered, whichever transport carried it. */
 interface UploadAnswer {
@@ -235,8 +286,9 @@ async function sendWithoutRedirects(init: ManualUpload): Promise<UploadAnswer> {
  *
  * An `XMLHttpRequest` cannot refuse a redirect; see
  * {@link UploadWithProgressOptions.redirect} for what follows one, what the
- * helper still refuses, and the `fetch` path that trades progress for never
- * following.
+ * helper still refuses, the `fetch` path that trades progress for never
+ * following, and when that path is the default (fixed headers and no
+ * `onProgress`, since 0.84.0).
  *
  * @returns The parsed JSON response, or the raw text when the response is not JSON.
  */
@@ -255,7 +307,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         signal,
         parser = JSON.parse,
         requestId,
-        redirect = "follow",
+        redirect = defaultRedirect(options.headers ?? {}, options.onProgress !== undefined),
     } = options;
 
     if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));

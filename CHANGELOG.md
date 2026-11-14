@@ -4,6 +4,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Breaking
+
+- **`uploadWithProgress` com `headers` fixos e sem `onProgress` não segue mais redirect (#570).**
+  Sem `redirect` na chamada, o padrão passa a ser `"error"` (`fetch` com `redirect: "manual"`)
+  quando os `headers` levam algo além de `Authorization`, `X-Request-ID`, `Content-Type` e
+  `X-CSRF-Token` **e** não há `onProgress`; nos outros casos continua `"follow"` (XHR com
+  progresso), e um `redirect` explícito sempre vence. O XHR só compra progresso, e o vazamento é o
+  preço dele: medido com o `uploadWithProgress` do `dist/` (`npm run build`, página em
+  `127.0.0.1:5540` com `X-Api-Key`, `getToken` e `csrf: true`, a `url` respondendo
+  `301`/`302`/`303`/`307`/`308` para `localhost:5541`, que ecoa os headers), em Chromium 153,
+  Firefox 155 e WebKit 26.6 — não só no Chrome 150 da 0.83.0 —, o caminho XHR entregou
+  `X-Api-Key` e `X-CSRF-Token` ao outro host nos 5 códigos dos 3 motores (o corpo de 2048 B no
+  `307`/`308`; o `Authorization`, nunca). Com o padrão novo e sem `onProgress`: **0** requisições
+  ao outro host nos 15 casos, todos rejeitando com `REDIRECT_REFUSED`. Quem passa `onProgress`
+  segue igual. O `X-CSRF-Token` não dispara a troca pelo mesmo motivo do `createApiClient` (#560).
+  Testes: `src/http/upload-with-progress.default-redirect.test.ts` (4 de 8 falham sobre a `main`
+  em `8440e87`, com a chamada indo por XHR;
+  `npx vitest run src/http/upload-with-progress.default-redirect.test.ts`); o teste do caminho XHR
+  em `upload-with-progress.redirect.test.ts`, que usava exatamente essa combinação, foi reescrito
+  para pedir progresso, com o porquê. **Migração:** nessa combinação, o `307` de barra final do
+  FastAPI (mesma origem) passa a rejeitar com `TempestApiError` `code: "REDIRECT_REFUSED"` — o
+  navegador devolve o redirect parado como resposta opaca, sem `Location`. Corrija a URL (com a
+  barra final) ou passe `redirect: "follow"`.
+
 ### Segurança
 
 - **`createTempestAuth`: o `refresh()` que resgata o cookie de outra conta é troca de conta, não
@@ -118,6 +142,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`c16aae0`) contra este branch: barril ESM 153 045 → 153 144 B (+99 B), barril CJS 182 527 →
   182 399 B (−128 B), fatia do upload resumível 5046 → 5051 B (+5 B, o código novo). A diferença
   nos barris é a recompressão do bundle inteiro.
+
+- **Fatia do http client 5,4 → 5,5 kB (#570).** `npm run build && npx size-limit --json`, com
+  `src/http/upload-with-progress.ts` da `main` (`8440e87`) contra o deste branch, mesmo resto da
+  árvore: fatia do http client 5349 → 5421 B (+72 B, a escolha do padrão); barril ESM 153 144 →
+  153 035 B (−109 B), CJS 182 399 → 182 370 B (−29 B). Nenhuma outra fatia mudou.
 
 ## [0.83.0] — 2026-11-13
 

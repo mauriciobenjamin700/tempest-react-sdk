@@ -52,6 +52,16 @@ afterEach(() => {
 });
 
 describe("uploadWithProgress — an answer from another origin is never the result (#570)", () => {
+    /**
+     * Rewritten in 0.84.0. Until then this call — an `X-Api-Key` and no
+     * `onProgress` — took the XHR path by default, and the test pinned that the
+     * landing was refused after the fact. Since 0.84.0 that exact call goes out
+     * over `fetch` with `redirect: "manual"` instead and the header never
+     * reaches the other host (pinned in
+     * `upload-with-progress.default-redirect.test.ts`). What this test still
+     * guarantees is the XHR path's own refusal, so it now asks for progress,
+     * which is what keeps an upload on XHR.
+     */
     it("rejects with REDIRECT_REFUSED when the XHR followed a redirect to another origin", async () => {
         installXhr("http://localhost:5471/sink/307");
 
@@ -60,8 +70,10 @@ describe("uploadWithProgress — an answer from another origin is never the resu
                 url: "/upload",
                 body: new Blob([new Uint8Array(8)]),
                 headers: { "X-Api-Key": "secret" },
+                onProgress: () => undefined,
             }),
         ).rejects.toMatchObject({ status: 200, code: "REDIRECT_REFUSED" });
+        expect(RedirectedXhr.created).toBe(1);
     });
 
     it("still resolves a redirect that stayed on the same origin, like FastAPI's trailing-slash 307", async () => {

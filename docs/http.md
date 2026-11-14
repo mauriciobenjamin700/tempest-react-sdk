@@ -315,7 +315,7 @@ await api.get("https://cdn.outro.com/arquivo.json");
 
     O `X-CSRF-Token` também atravessa um redirect para outra origem, e fica de fora de propósito: ele vai em todo `POST` de uma sessão por cookie, que é justamente o caso do `307` de barra final, e sozinho não autentica nada — usá-lo exige o cookie da vítima e um header customizado que o CORS da sua API não libera para outra origem.
 
-    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo `redirect`: ele sempre segue. O `Authorization` que ele leva é tirado pelo navegador como no `fetch` (medido); o resto não. O `createResumableUpload` troca para `fetch` quando há `headers` fixos ([Upload resumível](./resumable-upload.md)); o `uploadWithProgress` recusa a resposta de outra origem e tem `redirect: "error"` — veja [Redirect no `uploadWithProgress`](#redirect-no-uploadwithprogress-0830).
+    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo `redirect`: ele sempre segue. O `Authorization` que ele leva é tirado pelo navegador como no `fetch` (medido); o resto não. O `createResumableUpload` troca para `fetch` quando há `headers` fixos ([Upload resumível](./resumable-upload.md)); o `uploadWithProgress` recusa a resposta de outra origem e tem `redirect: "error"`, o padrão com `headers` fixos e sem `onProgress` desde a 0.84.0 — veja [Redirect no `uploadWithProgress`](#redirect-no-uploadwithprogress-0830).
 
 O mesmo predicado está exportado, para quando você monta a requisição por fora:
 
@@ -720,7 +720,7 @@ Remedido em 14/11/2026 nos três motores do Playwright, agora com o `dist/` da 0
 
 O que dá para fazer depende do que você precisa:
 
-| | `redirect: "follow"` (padrão) | `redirect: "error"` |
+| | `redirect: "follow"` | `redirect: "error"` |
 | --- | --- | --- |
 | Transporte | XHR | `fetch` com `redirect: "manual"` |
 | Progresso | byte a byte | uma vez, quando o servidor confirma o corpo inteiro |
@@ -728,18 +728,38 @@ O que dá para fazer depende do que você precisa:
 | Resposta de outra origem | rejeita com `REDIRECT_REFUSED` (desde a 0.83.0; antes resolvia com ela) | não acontece |
 | Redirect de mesma origem (`307` de barra final) | seguido | rejeita com `REDIRECT_REFUSED` |
 
-Progresso e recusa de redirect juntos não existem no navegador: um corpo de `fetch` em stream reportaria progresso, mas o Chrome recusa stream por HTTP/1.1 (`TypeError: Failed to fetch`, medido) e Firefox e Safari não suportam. Por isso o padrão continua o XHR — progresso é o motivo deste helper existir — e o SDK garante o que consegue: a resposta de outro host nunca vira o resultado, então ele não entrega ao app uma URL para gravar.
+Progresso e recusa de redirect juntos não existem no navegador: um corpo de `fetch` em stream reportaria progresso, mas o Chrome recusa stream por HTTP/1.1 (`TypeError: Failed to fetch`, medido) e Firefox e Safari não suportam. Por isso quem pede progresso continua no XHR — progresso é o motivo deste helper existir — e o SDK garante o que consegue: a resposta de outro host nunca vira o resultado, então ele não entrega ao app uma URL para gravar.
 
-Quando os `headers` levam uma credencial e o servidor da `url` pode redirecionar, troque o progresso pela garantia:
+#### O padrão escolhe pelo `onProgress` (0.84.0)
+
+Sem `redirect` na chamada, o helper decide:
+
+| `headers` fixos | `onProgress` | Padrão |
+| --- | --- | --- |
+| algum além de `Authorization`, `X-Request-ID`, `Content-Type` e `X-CSRF-Token` | não | `"error"` |
+| algum além desses | sim | `"follow"` |
+| nenhum, ou só esses | qualquer | `"follow"` |
+
+O XHR só compra progresso, e o vazamento é o preço dele. Quem não pediu progresso pagava esse preço à toa, então os `headers` fixos dele ganham o mesmo tratamento que o `createApiClient` (#560) e o `createResumableUpload` (#568) já davam. O `X-CSRF-Token` fica de fora pelo motivo do `createApiClient`: ele vai em todo `POST` de sessão por cookie, que é justamente o caso do `307` de barra final, e sozinho não autentica nada. Medido no `dist/` deste branch, na mesma montagem acima, com `X-Api-Key` e sem `onProgress`: **0** requisições ao outro host nos 5 códigos, em Chromium 153, Firefox 155 e WebKit 26.6, todos rejeitando com `REDIRECT_REFUSED`; com `onProgress`, o comportamento de antes (header lá, resposta recusada).
+
+!!! warning "Breaking: `307` de barra final com `headers` fixos e sem `onProgress`"
+    Nessa combinação, um redirect de **mesma origem** — o `307` que o FastAPI responde para `/api/reports` → `/api/reports/` — passa a rejeitar com `REDIRECT_REFUSED`: o navegador devolve o redirect parado como resposta opaca, sem `Location` legível, e não dá para distingui-lo de um para outro host. Corrija a URL (com a barra final), ou siga de propósito com `redirect: "follow"`. Um `redirect` passado na chamada sempre vence.
+
+Quando os `headers` levam uma credencial, o servidor da `url` pode redirecionar e você **quer** progresso, troque o progresso pela garantia explicitamente:
 
 ```ts
 import { uploadWithProgress } from "tempest-react-sdk";
 
-export async function sendReport(file: File, apiKey: string): Promise<unknown> {
+export async function sendReport(
+  file: File,
+  apiKey: string,
+  onDone: (fraction: number | null) => void,
+): Promise<unknown> {
   return uploadWithProgress({
     url: "/api/reports/",
     body: file,
     headers: { "X-Api-Key": apiKey },
+    onProgress: (event) => onDone(event.fraction),
     redirect: "error",
   });
 }

@@ -258,7 +258,10 @@ export interface TempestAuth<TUser, TCredentials> {
      * @throws {SessionSupersededError} When the session ended or changed while
      *   the refresh was in flight; its tokens were discarded. That includes a
      *   `logout()` or `login()` landing after the redemption of another
-     *   account and before the switch: it wins over the switch (#591).
+     *   account and before the switch: it wins over the switch (#591). And a
+     *   `login()` still in flight when the redemption brought another account:
+     *   the explicit sign-in wins, the switch is discarded and, in body mode,
+     *   its refresh token revoked (#595).
      */
     refresh: () => Promise<void>;
     /**
@@ -664,6 +667,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
     let ending: Promise<void> = Promise.resolve();
     let hooksRunning = 0;
     const loginsInFlight = new Set<Promise<unknown>>();
+    let explicitLogins = 0;
     const revocations = new Set<Promise<void>>();
     const credentialRequests = new Set<Promise<unknown>>();
     const rotatingEpochs = new Set<number>();
@@ -817,8 +821,18 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * follows the session it installed; a second wait gives up as superseded
      * (#594).
      *
+     * An explicit `login()` in flight wins over the switch (#595, decided by
+     * the owner on 14/11/2026): the switch is discarded the same way, so the
+     * user ends on the account they asked for. Before, the switch moved the
+     * epoch first and the `login()` that landed after it was the one discarded
+     * as superseded. Only `login()` counts — `restore()` and another switch are
+     * not the user asking for an account — and only while it is in flight: a
+     * switch already tearing down when `login()` starts is superseded by that
+     * login's own epoch move.
+     *
      * @throws {SessionSupersededError} When the epoch changed during the call,
-     *   or another tab ended or replaced the session.
+     *   another tab ended or replaced the session, or a `login()` was in
+     *   flight when the redemption brought another account.
      */
     async function rotate(): Promise<void> {
         const before = getToken();
@@ -838,7 +852,7 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         if (!outcome) return;
         const switched = outcome;
         try {
-            if (epoch !== started) {
+            if (epoch !== started || explicitLogins > 0) {
                 revokeDiscarded(switched.token ?? null, switched.refreshToken);
                 throw new SessionSupersededError();
             }
@@ -1186,6 +1200,10 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * request leaves — at most {@link LOGOUT_REVOCATION_WAIT_MS} — so a
      * cookie-clearing response cannot land after the new account's cookies.
      *
+     * Counted in `explicitLogins` from the call until it settles: while it is
+     * in flight, a refresh that redeems another account discards that switch
+     * instead of installing it, see `rotate` (#595).
+     *
      * @param credentials - Sent as the login body.
      * @returns The user of the new session, or null.
      * @throws {SessionSupersededError} When a `logout()` or another `login()`
@@ -1194,8 +1212,15 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *   tokens, or the user, are discarded.
      */
     async function login(credentials: TCredentials): Promise<TUser | null> {
-        if (revocations.size > 0) await settleWithin([...revocations], LOGOUT_REVOCATION_WAIT_MS);
-        return trackSignIn(signIn(credentials));
+        explicitLogins += 1;
+        try {
+            if (revocations.size > 0) {
+                await settleWithin([...revocations], LOGOUT_REVOCATION_WAIT_MS);
+            }
+            return await trackSignIn(signIn(credentials));
+        } finally {
+            explicitLogins -= 1;
+        }
     }
 
     /**

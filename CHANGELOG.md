@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.85.0] — 2026-11-14
+
 ### Segurança
 
 - **`Markdown`: algumas centenas de `[` antes de um `](url)` não derrubam mais a árvore React.**

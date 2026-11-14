@@ -256,7 +256,9 @@ export interface TempestAuth<TUser, TCredentials> {
      * have happened outside `login()`.
      *
      * @throws {SessionSupersededError} When the session ended or changed while
-     *   the refresh was in flight; its tokens were discarded.
+     *   the refresh was in flight; its tokens were discarded. That includes a
+     *   `logout()` or `login()` landing after the redemption of another
+     *   account and before the switch: it wins over the switch (#591).
      */
     refresh: () => Promise<void>;
     /**
@@ -770,7 +772,14 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * A redemption that brought another account's token (see `redeem`) is
      * installed here, after the lock is released, as a sign-in: the switch
      * waits on `onSessionEnd` and loads the user, and neither belongs inside
-     * the window in which every other tab waits to redeem.
+     * the window in which every other tab waits to redeem. The epoch is read
+     * again once the lock settled and before that switch: a `logout()` or
+     * `login()` landing between the end of the lock callback and the
+     * settlement of `navigator.locks.request()` wins, and the redemption is
+     * discarded — revoked in body mode — instead of overwriting it (#591).
+     * Chromium, Firefox and WebKit were measured settling the request before
+     * the next task, so the window is at most a few microtasks there; the
+     * check costs nothing and does not depend on that order.
      *
      * @throws {SessionSupersededError} When the epoch changed during the call,
      *   or another tab ended or replaced the session.
@@ -785,7 +794,12 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         } finally {
             rotatingEpochs.delete(started);
         }
-        if (switched) await trackSignIn(replaceSession(switched));
+        if (!switched) return;
+        if (epoch !== started) {
+            revokeDiscarded(switched.token ?? null, switched.refreshToken);
+            throw new SessionSupersededError();
+        }
+        await trackSignIn(replaceSession(switched));
     }
 
     /**

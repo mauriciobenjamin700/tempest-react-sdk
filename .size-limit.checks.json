@@ -220,6 +220,50 @@
     ]
   },
   {
+    "name": "slice: Pix checkout screen (`PixCheckout` + `usePixCharge` — QR encoder, copy, countdown)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ PixCheckout, usePixCharge }"
+    },
+    "limit": "6.4 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: card tokenization (`useMercadoPagoCard` + `describeCardCharge` — MercadoPago.js loads at runtime, not bundled)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ useMercadoPagoCard, describeCardCharge }"
+    },
+    "limit": "2.5 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
     "name": "slice: passkeys (WebAuthn client + hooks, no dependency)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
@@ -407,7 +451,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "153.2 KB",
+    "limit": "156.8 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -426,7 +470,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "182.6 KB",
+    "limit": "186.4 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -736,7 +780,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "31.3 kB"
+    "limit": "31.5 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

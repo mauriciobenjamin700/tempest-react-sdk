@@ -1,0 +1,121 @@
+.checkout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tempest-space-3);
+    width: 100%;
+    max-width: 360px;
+    margin-inline: auto;
+    font-family: var(--tempest-font-sans);
+    color: var(--tempest-text);
+    text-align: center;
+}
+
+.amount {
+    font-size: var(--tempest-text-2xl);
+    font-weight: var(--tempest-weight-semibold);
+    font-variant-numeric: tabular-nums;
+}
+
+.state {
+    width: 100%;
+    text-align: start;
+}
+
+div.state[role="status"] {
+    text-align: center;
+}
+
+.title {
+    margin: 0;
+    font-size: var(--tempest-text-lg);
+    font-weight: var(--tempest-weight-semibold);
+}
+
+.description {
+    margin: var(--tempest-space-1) 0 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-snug);
+}
+
+.timer {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.timer strong {
+    color: var(--tempest-text);
+    font-variant-numeric: tabular-nums;
+}
+
+/* The QR stays black on white in both themes — see the note on `QRCode`. The
+   white plate keeps the quiet zone intact on a dark page. */
+.symbol {
+    display: inline-flex;
+    padding: var(--tempest-space-2);
+    background: #ffffff;
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-md);
+}
+
+.image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+}
+
+.hint {
+    margin: 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+}
+
+.copy {
+    display: flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    width: 100%;
+}
+
+.copy > button {
+    flex: none;
+    white-space: nowrap;
+}
+
+.code {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    background: var(--tempest-surface-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    color: var(--tempest-text-muted);
+    font-family: var(--tempest-font-mono);
+    font-size: var(--tempest-text-xs);
+    line-height: var(--tempest-leading-snug);
+    text-align: start;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Both labels render and CSS picks one, keyed on `CopyButton`'s `data-copied`;
+   swapping the text node keeps the accessible name in sync. */
+.copyDone {
+    display: none;
+}
+
+.copy button[data-copied] .copyIdle {
+    display: none;
+}
+
+.copy button[data-copied] .copyDone {
+    display: inline;
+}
+
+.footer {
+    width: 100%;
+}

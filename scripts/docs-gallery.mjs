@@ -105,6 +105,7 @@ const PAGE_SECTIONS = {
     "http.md": ["recipe-http"],
     "icons.md": ["icons"],
     "passkeys.md": ["recipe-passkeys"],
+    "payments.md": ["payments-checkout"],
     "query.md": ["recipe-query"],
     "resumable-upload.md": ["recipe-resumable-upload"],
     "sse.md": ["recipe-realtime"],

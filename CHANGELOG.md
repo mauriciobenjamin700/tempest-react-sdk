@@ -55,6 +55,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   o app sabe que houve login fora do `login()` — o boot continua com `refresh()`. Doc em
   `docs/auth.md` → "Login fora do `login()`".
 
+- **Módulo `payments`: metade frontend do checkout do Mercado Pago, Pix e cartão (#455).**
+  `<PixCheckout>` mostra valor, QR, copia-e-cola com botão e contagem até `expires_at`, e só
+  **renderiza** o estado que o backend reporta — com o prazo vencido e o backend ainda `pending`,
+  esconde o QR e diz que está confirmando, não que expirou. O QR vem de `qr_code_base64` só quando é
+  Base64 válido; sem ele (OpenPix), é desenhado localmente do `br_code`. `usePixCharge` segue a
+  cobrança por `refresh` (polling sequencial, sem requisição sobreposta) e/ou `subscribe` (SSE/WS),
+  para no estado final, ignora resposta de outra cobrança e nunca volta de final para não-final.
+  `useMercadoPagoCard` tokeniza com os **Secure Fields** do MercadoPago.js (carregado em runtime de
+  `sdk.mercadopago.com/js/v2` por `loadMercadoPago`, uma tag por documento, falha não fica em cache;
+  não é dependência npm): número, validade e CVV ficam nos iframes do Mercado Pago, e `tokenize`
+  devolve só `{ token, payment_method_id, installments }` — recusa antes de chamar o provedor se a
+  bandeira não foi identificada ou se a parcela não é uma das oferecidas. Parcelas pelo BIN com o
+  `recommended_message` do provedor. `describeCardCharge` + `CARD_STATUS_DETAIL_MESSAGES` traduzem
+  `status`/`status_detail` em texto PT-BR (portado da tabela "Status da transação" da API de Orders,
+  lida em 14/11/2026); recusa é resposta (`failed`), `waiting_capture` é `authorized`, e um detalhe
+  que contradiz o status é ignorado. Tipos (`PixCharge`, `CardCharge`, `CardChargeRequest`,
+  `PaymentStatus`) espelham `tempest_fastapi_sdk/integrations/payment/base.py` (`origin/main`
+  `ec51a886`, linhas 31/200/514/561). Doc nova em `docs/payments.md`, seção `payments-checkout` na
+  gallery. Validado em Chromium (Playwright MCP) a 390 px e 1280 px, claro e escuro, sem overflow
+  horizontal e sem erro de console da seção.
+
 ### Corrigido
 
 - **`installPrecache` serve offline o asset gravado com `Vary` (#582).** O `install` grava cada URL
@@ -118,6 +139,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`c16aae0`) contra este branch: barril ESM 153 045 → 153 144 B (+99 B), barril CJS 182 527 →
   182 399 B (−128 B), fatia do upload resumível 5046 → 5051 B (+5 B, o código novo). A diferença
   nos barris é a recompressão do bundle inteiro.
+
+- **Módulo `payments` (#455): duas fatias novas, barris e `styles.css` remedidos.** Medido com
+  `npm run build && npx size-limit --json`, barrel raiz da `main` (`c16aae0`, sem
+  `export * from "./payments"`) contra o deste branch: barril ESM 153 045 → 156 408 B (+3363 B,
+  budget 153,1 → 156,8 kB após o merge), CJS 182 527 → 186 297 B (+3770 B, budget 182,6 → 186,4 kB),
+  `styles.css` 31 223 → 31 451 B (+228 B, budget 31,3 → 31,5 kB); fatias existentes mudaram ±50 B
+  (reagrupamento do gzip). Fatias novas: `{ PixCheckout, usePixCharge }` 6211 B (budget 6,4 kB —
+  3,2 kB são o encoder do `QRCode`, que só roda quando o provedor não manda Base64) e
+  `{ useMercadoPagoCard, describeCardCharge }` 2383 B (budget 2,5 kB; o MercadoPago.js não entra no
+  bundle). Somado ao #528 na `main` (`8440e87`), remedido no merge: ESM 156 714 B (budget
+  156,8 kB), CJS 186 279 B (budget 186,4 kB, mantido); fatias do `payments` inalteradas.
 
 ## [0.83.0] — 2026-11-13
 

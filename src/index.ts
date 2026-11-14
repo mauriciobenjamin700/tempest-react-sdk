@@ -21,6 +21,9 @@ export * from "./access";
 // OAuth (Google sign-in wrapper, callback hook)
 export * from "./oauth";
 
+// Payments (Pix screen, Mercado Pago card tokenization, backend contract)
+export * from "./payments";
+
 // Query
 export * from "./query";
 

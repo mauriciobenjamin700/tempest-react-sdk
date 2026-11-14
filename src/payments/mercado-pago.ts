@@ -62,6 +62,24 @@ export interface MercadoPagoCardTokenData {
 }
 
 /**
+ * What `fields.createCardToken` resolves with — the subset this module reads.
+ *
+ * The Secure Fields iframe posts the card to `POST /v1/card_tokens` and answers
+ * with that endpoint's JSON as is (read from the iframe served by
+ * `secure-fields.mercadopago.com` on 2026-11-14), so the shape is the card token
+ * resource: `CardTokenResponse` in Mercado Pago's own Node SDK (`mercadopago`
+ * 3.6.2), where every field is optional. `first_six_digits` is the BIN of the
+ * card that was actually tokenized, which is how {@link useMercadoPagoCard}
+ * binds the token to the brand it quoted.
+ */
+export interface MercadoPagoCardToken {
+    /** Single-use token id. */
+    id: string;
+    /** First six digits of the tokenized card. */
+    first_six_digits?: string;
+}
+
+/**
  * The subset of a `new MercadoPago(publicKey)` instance this module calls.
  *
  * Declared here instead of depending on `@mercadopago/sdk-js`, matching how the
@@ -71,7 +89,7 @@ export interface MercadoPagoCardTokenData {
 export interface MercadoPagoLike {
     fields: {
         create(type: MercadoPagoFieldType, options?: MercadoPagoFieldOptions): MercadoPagoFieldLike;
-        createCardToken(data: MercadoPagoCardTokenData): Promise<{ id: string }>;
+        createCardToken(data: MercadoPagoCardTokenData): Promise<MercadoPagoCardToken>;
     };
     getInstallments(params: {
         amount: string;
@@ -88,7 +106,12 @@ export type MercadoPagoConstructor = new (
 
 /** Options for {@link loadMercadoPago}. */
 export interface LoadMercadoPagoOptions {
-    /** Script URL. Default {@link MERCADO_PAGO_SCRIPT_URL}; override only for a proxy you control. */
+    /**
+     * Script URL. Default {@link MERCADO_PAGO_SCRIPT_URL}; override only for a
+     * proxy you control that serves the **identical** MercadoPago.js — SAQ A
+     * depends on the fields coming from the processor unaltered. Not checked:
+     * the script is unversioned, so there is no stable integrity hash to pin.
+     */
     src?: string;
     /** Document to inject into. Default the global `document`. */
     document?: Document;
@@ -108,6 +131,12 @@ function readGlobal(doc: Document): MercadoPagoConstructor | undefined {
  * checkout that remounts never injects the script twice. A failed load is
  * forgotten instead of cached — the next call tries again, which is what a
  * payer on a flaky connection needs — and the dead tag is removed.
+ *
+ * Trust: an existing `window.MercadoPago` is used as is, and `src` is not
+ * checked. Neither is a boundary the page can enforce — whoever can define that
+ * global already runs script here, and an unversioned script has no integrity
+ * hash to pin — so the control is the page's CSP `script-src`, restricted to
+ * `https://sdk.mercadopago.com` or the proxy `src` points at.
  *
  * @param options - Script URL and target document.
  * @returns The `MercadoPago` constructor.

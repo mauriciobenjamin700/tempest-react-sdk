@@ -13,6 +13,7 @@ export type { PaymentOutcome, PaymentOutcomeTone } from "./outcome";
 export { MERCADO_PAGO_SCRIPT_URL, loadMercadoPago } from "./mercado-pago";
 export type {
     LoadMercadoPagoOptions,
+    MercadoPagoCardToken,
     MercadoPagoCardTokenData,
     MercadoPagoConstructor,
     MercadoPagoFieldLike,

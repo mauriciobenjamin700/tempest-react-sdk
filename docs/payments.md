@@ -76,7 +76,7 @@ O que a tela mostra, por estado:
 | `pending` com o prazo vencido | Esconde o QR e diz que está **confirmando** — não "expirado" |
 | `paid` | "Pagamento confirmado" |
 | `expired` / `cancelled` / `failed` | O motivo, sem QR, e o `footer` (ex.: "Gerar novo Pix") |
-| `unknown` | "Verificando o pagamento" — nunca pago, nunca recusado |
+| `unknown` — ou qualquer status que esta versão não conhece | "Verificando o pagamento" — nunca pago, nunca recusado |
 
 !!! tip "Por que \"confirmando\" e não \"expirado\" quando o relógio zera?"
     Um Pix enviado no último segundo ainda pode cair. Só o backend, relendo a order, sabe. A tela para de oferecer o QR e espera o backend dizer `expired` (o Mercado Pago responde `canceled` / `expired`, que o backend traduz).
@@ -106,7 +106,7 @@ export function TelaDoPixAoVivo({ criada }: { criada: PixCharge }) {
 }
 ```
 
-O hook ignora atualização de **outra** cobrança e nunca volta de um estado final para um não-final — quando polling e push chegam fora de ordem, quem já pagou não vê "aguardando pagamento" piscar.
+O hook ignora atualização de **outra** cobrança — outro `provider_charge_id` **ou** outro `provider`, porque o id só é único dentro de um provedor — e nunca volta de um estado final para um não-final. E de `paid` a cobrança só sai para `refunded` ou `charged_back`: um `expired` atrasado não substitui o pago. Quando polling e push chegam fora de ordem, quem já pagou não vê "aguardando pagamento" piscar nem é mandado "gerar um novo Pix". O caminho inverso continua aberto: `expired` ainda pode virar `paid`, porque um Pix enviado no último segundo pode cair depois do prazo.
 
 ## Passo 2 — Tokenizar o cartão
 
@@ -183,6 +183,8 @@ Peça por peça:
 2. `publicKey` é a **Public Key** da aplicação, não o access token. Ela só serve para tokenizar; o token sozinho não cobra nada.
 3. Quando o pagador digita os primeiros dígitos, o Mercado Pago avisa o BIN e o hook busca as parcelas. `recommendedMessage` é o texto do próprio provedor ("2 parcelas de R$ 57,20 (R$ 114,40)") — mostre como veio: há juros a partir de 2x, e o total tem de ser o número do provedor.
 4. `tokenize` devolve exatamente `{ token, payment_method_id, installments }`. Ele recusa antes de chamar o Mercado Pago se os campos não carregaram, se a bandeira ainda não foi identificada ou se o número de parcelas não está entre as opções — cada um desses viraria um `400` opaco no backend.
+5. Depois de criado, o token é **amarrado à cotação**: o Mercado Pago devolve o `first_six_digits` do cartão tokenizado, e se ele não for o BIN para o qual a bandeira e as parcelas foram cotadas, `tokenize` rejeita. O `binChange` é atrasado dentro do iframe, então quem troca o número e envia na hora mandaria o cartão novo com a bandeira do antigo. Mostre o erro e deixe o pagador enviar de novo depois que as parcelas novas chegarem.
+6. Trocar a `publicKey` remonta os campos **vazios** e esquece o BIN, a bandeira e as parcelas do cartão anterior.
 
 !!! info "Escopo PCI: por que Secure Fields e não `<input>`"
     Uma página que renderiza o próprio `<input>` do número e chama `createCardToken` com ele **manipulou** dado de cartão, por mais rápido que o descarte — e cai no SAQ A-EP. Com os Secure Fields o número nunca passa pelo seu JavaScript, que é a condição do SAQ A. Por isso o hook não aceita o número como parâmetro: não existe um jeito de usá-lo errado.
@@ -200,6 +202,15 @@ connect-src https://api.mercadopago.com https://api.mercadolibre.com
 ```
 
 Os hosts foram lidos do próprio script (`js_version` 2.83.6) em 14/11/2026.
+
+#### Em quem o `loadMercadoPago` confia
+
+O `loadMercadoPago` confia em duas coisas sem conferir, e nenhuma das duas é conferível de dentro da página:
+
+- **Um `window.MercadoPago` que já existe.** É usado como está. Quem consegue definir esse global já roda script na sua página — e aí já leu tudo o que a página lê.
+- **O `src` que você passar.** O default é o host do Mercado Pago. Um `src` trocado (um proxy seu) **precisa servir o MercadoPago.js idêntico**: o SAQ A depende de os campos virem do processador, e um script alterado no caminho tira a página dele.
+
+Não há checagem barata que a biblioteca possa fazer no lugar: o script não tem versão, então não existe hash de Subresource Integrity estável para fixar; fixar a origem anularia o motivo de existir o `src`; e um global já definido não tem como provar de onde veio. O controle real é a **CSP**: `script-src` restrito a `https://sdk.mercadopago.com` (ou ao seu proxy) é o que impede um script de outro lugar de entrar na página de checkout.
 
 ## Passo 3 — Explicar o resultado do cartão
 
@@ -259,7 +270,7 @@ Do sandbox medido no backend (09/10/2026), com a conta **vendedora de teste**:
 | `describeCardCharge` | `CardCharge` → `{ status, tone, title, message, canRetry }`. |
 | `CARD_STATUS_DETAIL_MESSAGES` | Texto PT-BR por `status_detail` da API de Orders. |
 
-Tipos: `PixCharge`, `CardCharge`, `CardChargeRequest`, `PaymentPayer`, `PaymentStatus`, `PaymentOutcome`, `CardTokenResult`, `CardInstallmentOption`, `UseMercadoPagoCardOptions`, `UsePixChargeOptions`, `PixCheckoutProps`, `PixCheckoutLabels`, `MercadoPagoLike`.
+Tipos: `PixCharge`, `CardCharge`, `CardChargeRequest`, `PaymentPayer`, `PaymentStatus`, `PaymentOutcome`, `CardTokenResult`, `CardInstallmentOption`, `UseMercadoPagoCardOptions`, `UsePixChargeOptions`, `PixCheckoutProps`, `PixCheckoutLabels`, `MercadoPagoLike`, `MercadoPagoCardToken`.
 
 ## Recap
 

@@ -47,6 +47,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
     (`npm run build && npx size-limit --json`, contra a `main` em `08c3b91`): barrel ESM 156 692 →
     156 709 B, CJS 186 508 → 186 584 B; budgets inalterados.
 
+- **`src/payments`: hardening do checkout da 0.84.0 (#592).** Quatro bordas da auditoria
+  `security-audit` (run-10), nenhuma mostrando "pago" sem o backend dizer `paid`. Testes novos
+  em `src/payments/*.test.ts(x)`: **17 de 77 falham sobre a `main` em `08c3b91`**
+  (`npx vitest run src/payments`).
+  - **Status com nome de protótipo vira `unknown`.** `describeCardCharge` e `<PixCheckout>` usavam
+    `in`/lookup em objeto literal: `status: "toString"` (ou `constructor`, `__proto__`,
+    `hasOwnProperty`, `valueOf`) passava como conhecido — `describeCardCharge` devolvia
+    `tone`/`title`/`canRetry` `undefined`, e o `<PixCheckout>` renderizava
+    `data-status="constructor"` com o bloco de estado vazio. Maior que a issue: um
+    `status_detail: "toString"` devolvia uma **função** como `message` mesmo com status
+    conhecido (`pending`). Agora só chave própria conta (`Object.hasOwn`): o status vira
+    `unknown` ("Verificando o pagamento") e o detalhe cai no texto do status.
+  - **`tokenize` amarra o token à cotação.** O token do Mercado Pago traz `first_six_digits`
+    (o iframe dos Secure Fields devolve o JSON de `POST /v1/card_tokens` como veio, lido em
+    `secure-fields.mercadopago.com` em 14/11/2026; o campo é o `CardTokenResponse` do SDK Node
+    `mercadopago` 3.6.2), e o `binChange` manda **8** dígitos com debounce dentro do iframe. Se
+    os 6 primeiros não forem o BIN cotado, `tokenize` rejeita. Trocar a `publicKey` agora
+    esquece BIN, bandeira e parcelas do cartão anterior — antes, os campos novos e vazios
+    voltavam a cotar o BIN antigo. Novo tipo `MercadoPagoCardToken`;
+    `MercadoPagoLike.fields.createCardToken` resolve com ele (um fake que devolve `{ id }`
+    continua válido).
+  - **`usePixCharge` não deixa um `expired` atrasado substituir `paid`.** De `paid` a cobrança
+    só sai para `refunded`/`charged_back`, e uma atualização de outro `provider` com o mesmo
+    `provider_charge_id` é ignorada (e trocar o `provider` do `initial` reinicia o
+    acompanhamento). `expired` → `paid` continua aceito.
+  - **Confiança do `loadMercadoPago` documentada**, sem código: um `window.MercadoPago` já
+    definido e um `src` trocado não são conferíveis de dentro da página (script sem versão, sem
+    hash SRI estável), e o controle real é a CSP `script-src`. Seção nova em `docs/payments`.
+
+  **Migração:** `tokenize` pode rejeitar **depois** de criar o token (o token de uso único é
+  descartado) — mostre o erro e deixe o pagador enviar de novo quando as parcelas novas
+  chegarem. Quem dependia de `usePixCharge` sair de `paid` para `expired`/`cancelled`/`failed`,
+  ou de aceitar atualização de outro `provider`, deixa de ver essas transições.
+
+### Budgets
+
+- **#592: barrel ESM 156,8 → 157 kB** (`npm run build && npx size-limit --json`, contra a `main` em
+  `08c3b91`): fatia do cartão (`useMercadoPagoCard` + `describeCardCharge`) 2383 → 2482 B (+99 B,
+  budget 2,5 kB); fatia do Pix (`PixCheckout` + `usePixCharge`) 6211 → 6294 B (+83 B); barrel
+  ESM 156 692 → 156 526 B e CJS 186 508 → 186 344 B. A primeira versão da mensagem de recusa do
+  `tokenize` passava o budget do cartão por 5 B (2505 B); foi encurtada em vez de subir o limite.
+  Somado ao #590 e ao #591 na `main` (`1c0e857`), remedido no merge: barrel ESM 156 964 B (budget
+  156,8 → 157 kB), CJS 186 505 B (budget 186,6 kB, sem mudança). Isolado o #592 encolhe o barrel;
+  o estouro vem da reminificação do bundle somado.
+
 ## [0.84.0] — 2026-11-14
 
 ### Breaking

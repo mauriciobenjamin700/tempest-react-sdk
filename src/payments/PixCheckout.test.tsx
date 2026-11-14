@@ -126,6 +126,18 @@ describe("PixCheckout", () => {
         expect(screen.getByRole("alert")).toHaveTextContent("Verificando o pagamento");
     });
 
+    it.each(["toString", "constructor", "__proto__", "hasOwnProperty", "valueOf"])(
+        "reads the prototype name %s as unknown, with the checking state block",
+        (name) => {
+            const { container } = render(
+                <PixCheckout charge={charge({ status: name as PaymentStatus })} />,
+            );
+            expect(container.firstElementChild).toHaveAttribute("data-status", "unknown");
+            expect(screen.getByRole("alert")).toHaveTextContent("Verificando o pagamento");
+            expect(screen.queryByTestId("pix-checkout-code")).not.toBeInTheDocument();
+        },
+    );
+
     it("copies the copia-e-cola and reports it", async () => {
         vi.useRealTimers();
         const writeText = vi.fn(() => Promise.resolve());

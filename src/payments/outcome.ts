@@ -141,12 +141,27 @@ const STATUS_OUTCOMES: Readonly<Record<PaymentStatus, Omit<PaymentOutcome, "stat
 };
 
 /**
+ * The text a table holds for `key` itself, or `undefined`.
+ *
+ * `status` and `status_detail` arrive from the network, and a plain object
+ * literal answers `toString`, `constructor` or `__proto__` from its prototype:
+ * an `in` check or a bare lookup would read those as known and hand back a
+ * function. Only an own key counts.
+ */
+function ownText(table: Readonly<Record<string, string>>, key: string): string | undefined {
+    return Object.hasOwn(table, key) ? table[key] : undefined;
+}
+
+/**
  * Turn a card charge from the backend into what the payer should read.
  *
  * The **status** decides the outcome; `status_detail` only refines the sentence.
  * That ordering is the point: `waiting_capture` arrives as `authorized` and
  * reads as "reserved, not charged", never as paid, and a detail this table does
- * not know falls back to the status's generic text instead of guessing. A
+ * not know falls back to the status's generic text instead of guessing — and
+ * "know" means an own key of the table, so a status or detail named after an
+ * `Object.prototype` member (`toString`, `constructor`, `__proto__`) reads as
+ * `unknown` / unknown detail instead of a half-empty outcome. A
  * decline reason only refines a `failed` charge, and a pending reason only a
  * charge that is not `failed`, so a detail that contradicts its status cannot
  * put "recusado" and "reservado" on the same screen.
@@ -171,11 +186,15 @@ export function describeCardCharge(
     charge: Pick<CardCharge, "status" | "status_detail">,
     messages: Readonly<Record<string, string>> = {},
 ): PaymentOutcome {
-    const base = STATUS_OUTCOMES[charge.status] ?? STATUS_OUTCOMES.unknown;
-    const status: PaymentStatus = charge.status in STATUS_OUTCOMES ? charge.status : "unknown";
+    const status: PaymentStatus = Object.hasOwn(STATUS_OUTCOMES, charge.status)
+        ? charge.status
+        : "unknown";
+    const base = STATUS_OUTCOMES[status];
     const detail = charge.status_detail ?? "";
     const matches =
         detail !== "" && status !== "paid" && DECLINE_DETAILS.has(detail) === (status === "failed");
-    const refined = matches ? (messages[detail] ?? CARD_STATUS_DETAIL_MESSAGES[detail]) : undefined;
+    const refined = matches
+        ? (ownText(messages, detail) ?? ownText(CARD_STATUS_DETAIL_MESSAGES, detail))
+        : undefined;
     return { status, ...base, message: refined ?? base.message };
 }

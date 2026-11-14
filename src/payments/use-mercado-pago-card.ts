@@ -98,10 +98,15 @@ export interface UseMercadoPagoCardResult {
      * Ask Mercado Pago for a card token. Throws when the fields are not ready,
      * the BIN has not been identified, or `installments` is not one of the
      * offered options — each of which would otherwise surface later as an
-     * opaque `400` from the backend.
+     * opaque `400` from the backend. Also throws, after the token is created,
+     * when the token's `first_six_digits` is not the BIN the brand and
+     * installments were quoted for: the payer changed the card number after the
+     * quote, and charging it would send one card with another card's brand.
      */
     tokenize: (input: CardTokenizeInput) => Promise<CardTokenResult>;
 }
+
+const BIN_PREFIX = 6;
 
 const FIELD_TYPES: readonly MercadoPagoFieldType[] = [
     "cardNumber",
@@ -170,7 +175,16 @@ function readBin(payload: unknown): string {
  * The containers must be in the DOM when the hook's effect runs — render the
  * three empty elements in the same component. The fields are created once per
  * `publicKey`; changing the containers, locale or loader afterwards does not
- * remount them.
+ * remount them. A new `publicKey` remounts empty fields and forgets the previous
+ * BIN, brand and quote with them.
+ *
+ * `tokenize` binds the token to the quote: Mercado Pago's token carries
+ * `first_six_digits`, and a token whose digits are not the quoted BIN is
+ * refused. `binChange` is debounced inside the iframe, so a payer who swaps the
+ * card number and submits at once would otherwise send the new card with the
+ * old card's brand and installments. A token response without
+ * `first_six_digits` is not refused — there is nothing to compare — and the
+ * backend and Mercado Pago still validate the brand on the charge.
  *
  * @tempest-limits empty-catch — `unmount()` throws when MercadoPago.js already
  * tore the iframe down (a container removed by React first). The cleanup has
@@ -204,7 +218,7 @@ export function useMercadoPagoCard(options: UseMercadoPagoCardOptions): UseMerca
     const [status, setStatus] = useState<MercadoPagoCardStatus>("loading");
     const [error, setError] = useState<Error | null>(null);
     const [bin, setBin] = useState("");
-    const [paymentMethodId, setPaymentMethodId] = useState<string | null>(null);
+    const [quote, setQuote] = useState<{ bin: string; paymentMethodId: string } | null>(null);
     const [installmentOptions, setInstallmentOptions] = useState<CardInstallmentOption[]>([]);
     const [installmentsLoading, setInstallmentsLoading] = useState(false);
     const [installmentsError, setInstallmentsError] = useState<Error | null>(null);
@@ -216,6 +230,7 @@ export function useMercadoPagoCard(options: UseMercadoPagoCardOptions): UseMerca
         const mounted: { unmount(): unknown }[] = [];
         setStatus("loading");
         setError(null);
+        setBin("");
         const setup = setupRef.current;
         setup
             .load()
@@ -252,10 +267,10 @@ export function useMercadoPagoCard(options: UseMercadoPagoCardOptions): UseMerca
 
     useEffect(() => {
         const mp = mpRef.current;
-        setPaymentMethodId(null);
+        setQuote(null);
         setInstallmentOptions([]);
         setInstallmentsError(null);
-        if (mp === null || bin.length < 6 || status !== "ready") {
+        if (mp === null || bin.length < BIN_PREFIX || status !== "ready") {
             setInstallmentsLoading(false);
             return;
         }
@@ -267,7 +282,7 @@ export function useMercadoPagoCard(options: UseMercadoPagoCardOptions): UseMerca
                 const entry = entries[0];
                 if (entry === undefined)
                     throw new Error("Mercado Pago returned no installments for this card.");
-                setPaymentMethodId(entry.payment_method_id);
+                setQuote({ bin, paymentMethodId: entry.payment_method_id });
                 setInstallmentOptions(
                     entry.payer_costs.map((cost) => ({
                         installments: Number(cost.installments),
@@ -293,8 +308,7 @@ export function useMercadoPagoCard(options: UseMercadoPagoCardOptions): UseMerca
             const mp = mpRef.current;
             if (mp === null || status !== "ready")
                 throw new Error("The card fields are not ready yet.");
-            if (paymentMethodId === null)
-                throw new Error("The card brand has not been identified yet.");
+            if (quote === null) throw new Error("The card brand has not been identified yet.");
             if (!installmentOptions.some((option) => option.installments === input.installments)) {
                 throw new Error(
                     `${input.installments} installments is not an option for this card and amount.`,
@@ -314,19 +328,23 @@ export function useMercadoPagoCard(options: UseMercadoPagoCardOptions): UseMerca
             const token = await mp.fields.createCardToken(data).catch((reason: unknown) => {
                 throw toError(reason);
             });
+            const firstSix = token.first_six_digits;
+            if (typeof firstSix === "string" && firstSix !== quote.bin.slice(0, BIN_PREFIX)) {
+                throw new Error("The card changed after the installments were quoted. Try again.");
+            }
             return {
                 token: token.id,
-                payment_method_id: paymentMethodId,
+                payment_method_id: quote.paymentMethodId,
                 installments: input.installments,
             };
         },
-        [status, paymentMethodId, installmentOptions],
+        [status, quote, installmentOptions],
     );
 
     return {
         status,
         error,
-        paymentMethodId,
+        paymentMethodId: quote?.paymentMethodId ?? null,
         installmentOptions,
         installmentsLoading,
         installmentsError,

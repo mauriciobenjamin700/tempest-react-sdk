@@ -463,6 +463,50 @@ Uma sessão gravada **antes** da linhagem existir não tem linhagem no storage; 
 !!! info "Até a 0.82.0: uma chave só para toda sessão sem linhagem (#561)"
     As duas sessões acima respondiam a mesma constante, `"unlineaged"`, qualquer que fosse a conta. A conta A restaurada do cookie deixava um upload pela metade com `getToken: auth.getToken`, saía, e a conta B restaurada do mesmo jeito tinha a **mesma** chave: o upload de B mandava `HEAD`/`PATCH` para a URL do upload de A com o Bearer de B e reaproveitava a `Idempotency-Key` de A. Reproduzido em `src/auth/create-tempest-auth.restore.test.ts` e `src/http/resumable-upload.session.test.ts` (`npx vitest run src/auth/create-tempest-auth.restore.test.ts src/http/resumable-upload.session.test.ts`).
 
+### Login fora do `login()` — `auth.restore()`
+
+O cookie de refresh é do **navegador**, não da sessão que o store guarda. Ele troca de dono sem passar pelo `login()`: o callback de OAuth ou de magic link grava o cookie da conta que acabou de entrar, e com `storage: "session"` outra aba que loga como B troca o cookie debaixo da aba que ainda mostra A. O próximo `refresh()` dessa aba resgata o cookie de **B** com a sessão de **A** ainda instalada.
+
+Quando os dois access tokens são JWT com `sub` — o caso do tempest-fastapi-sdk —, o preset vê que o `sub` mudou e trata o resgate como **troca de conta**, igual a um `login()`: a sessão de A termina com `onSessionEnd` `"switch"`, B ganha linhagem e `sessionKey()` próprias, o usuário de B é carregado (`parseUser`, depois `mePath`), e o `refresh()` resolve com B instalado. A request de A que disparou o refresh **não** é repetida como B: rejeita com `SessionSupersededError`. A rotação da mesma conta (mesmo `sub`) continua sendo rotação — mesma chave, nenhum `onSessionEnd`, o upload retoma.
+
+Com token **opaco** não há `sub` para comparar, e o cliente não distingue "A rodou o token" de "o cookie agora é de B". Comparar o usuário do `mePath` custaria uma request por rotação e reabriria o #544 (dois logins cujo usuário ainda não carregou parecem iguais). Por isso, aí o resgate continua contando como rotação, e quem sabe que houve um login fora do `login()` — o app, na rota de callback — diz isso com `auth.restore()`:
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  mePath: "/api/auth/me",
+  withCredentials: true,
+  logoutPath: "/api/auth/logout",
+});
+
+export async function bootSession(): Promise<boolean> {
+  try {
+    await auth.refresh();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function finishOAuthCallback(): Promise<User | null> {
+  return auth.restore();
+}
+```
+
+- `restore()` resgata o refresh credential (o cookie, ou o refresh token guardado no modo corpo) **como um login novo**: o que ele trouxer substitui a sessão instalada, com `onSessionEnd` `"switch"` se havia uma, linhagem nova e usuário carregado. Resolve com o usuário, como o `login()`.
+- Resgate que falha deixa a sessão atual intacta. Um `logout()` ou `login()` durante o `restore()` o supera: rejeita com `SessionSupersededError` e o token novo é descartado.
+- **No boot continua o `refresh()`**: um reload não pode encerrar a sessão. `restore()` onde não houve login custa uma troca à toa — o upload amarrado à sessão recomeça em vez de retomar.
+
+!!! info "Até a 0.83.0: o cookie de outra conta contava como rotação (#579)"
+    Com A ainda instalada, o `refresh()` que resgatava o cookie de B mantinha a linhagem de A: `sessionKey()` respondia a chave de A para B, o upload resumível de B mandava `HEAD`/`PATCH` para a URL do upload de A com o Bearer de B e a `Idempotency-Key` de A, o store guardava o usuário de A ao lado do token de B, e a request de A que disparou o refresh era repetida **como B**. Com o controle — A faz logout antes — B recebia outra chave. Reproduzido em `src/auth/create-tempest-auth.subject.test.ts` e `src/http/resumable-upload.session.test.ts` (`npx vitest run src/auth/create-tempest-auth.subject.test.ts src/http/resumable-upload.session.test.ts`).
+
 ### Refresh por cookie e logout no servidor — `logoutPath`
 
 Com `withCredentials: true`, o refresh token mora num cookie HttpOnly, e o `logout()` não alcança esse cookie: ele limpa o store e o refresh token guardado, e o cookie continua no navegador, resgatável até o backend revogá-lo. Duas peças fecham isso.
@@ -614,6 +658,7 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **Várias abas** — com `storage: "local"` a sessão é da origem: logout, troca de conta e renovação numa aba chegam nas outras, com `elsewhere: true` no hook.
 - **`logoutPath`** — revoga o refresh token (ou o cookie) no servidor no `logout()`; restaure a sessão no boot com `auth.refresh()`.
 - **`auth.sessionKey()`** — a sessão como chave: muda no `login()`, não muda na rotação; `auth.api` e `auth.getToken` a carregam para o SSE e o upload resumível.
+- **`auth.restore()`** — login fora do `login()` (callback de OAuth): o refresh credential vira sessão nova. Com JWT, o `refresh()` que resgata outra conta (outro `sub`) já troca sozinho.
 
 ### Veja também
 

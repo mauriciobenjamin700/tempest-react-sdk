@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.84.0] — 2026-11-14
+
 ### Breaking
 
 - **`uploadWithProgress` com `headers` fixos e sem `onProgress` não segue mais redirect (#570).**

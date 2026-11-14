@@ -51,7 +51,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   lida em 14/11/2026); recusa é resposta (`failed`), `waiting_capture` é `authorized`, e um detalhe
   que contradiz o status é ignorado. Tipos (`PixCharge`, `CardCharge`, `CardChargeRequest`,
   `PaymentStatus`) espelham `tempest_fastapi_sdk/integrations/payment/base.py` (`origin/main`
-  `ec51a886`, linhas 31/200/514/561). Doc nova em `docs/pagamentos.md`, seção `payments-checkout` na
+  `ec51a886`, linhas 31/200/514/561). Doc nova em `docs/payments.md`, seção `payments-checkout` na
   gallery. Validado em Chromium (Playwright MCP) a 390 px e 1280 px, claro e escuro, sem overflow
   horizontal e sem erro de console da seção.
 

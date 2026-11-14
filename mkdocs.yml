@@ -311,7 +311,7 @@ nav:
                 - Geolocalização: geo.md
                 - Mapa do Brasil (br): br.md
                 - "Pagamentos, fiscal & contato BR": br-pagamentos.md
-                - "Checkout (Pix e cartão, Mercado Pago)": pagamentos.md
+                - "Checkout (Pix e cartão, Mercado Pago)": payments.md
                 - Web Push: push.md
                 - Offline: offline.md
                 - PWA & Offline-First: pwa.md

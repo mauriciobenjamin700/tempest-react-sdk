@@ -736,6 +736,8 @@ export function AvatarUpload() {
 
 An `XMLHttpRequest` follows every redirect, and there is no option to stop it. Measured in Chrome 150 (#570) with `uploadWithProgress` bundled by esbuild: page and `url` on `127.0.0.1:5470`, which answers `301`/`302`/`303`/`307`/`308` towards `localhost:5471`, which echoes the headers with CORS. On all five codes the other host received the `X-Api-Key` from `headers` and the SDK's `X-CSRF-Token` — and, on `307`/`308`, the whole body (2048 B). Only `Authorization` was stripped by the browser. And the upload **resolved** with the other host's answer, as if it were your API's.
 
+Re-measured on 14/11/2026 in Playwright's three engines, now against 0.83.0's `dist/` (`npm run build`, `dist/http/upload-with-progress.js` imported by the page): same setup, on `127.0.0.1:5540` → `localhost:5541`, with `X-Api-Key` in `headers`, `getToken` and `csrf: true`. Chromium 153, Firefox 155 and WebKit 26.6 behave the same: by default, all five codes carried `X-Api-Key` and `X-CSRF-Token` to the other host (and the 2048 B on `307`/`308`), none carried `Authorization`, and all five rejected with `REDIRECT_REFUSED`; with `redirect: "error"`, **0** requests to the other host in all 15 cases. It is not a Chrome quirk: it is XHR.
+
 What you can do depends on what you need:
 
 | | `redirect: "follow"` (default) | `redirect: "error"` |

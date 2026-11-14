@@ -115,6 +115,7 @@ plugins:
                     Geolocalização: Geolocation
                     Mapa do Brasil (br): Brazil map (br)
                     "Pagamentos, fiscal & contato BR": "BR payments, fiscal & contact"
+                    "Checkout (Pix e cartão, Mercado Pago)": "Checkout (Pix and card, Mercado Pago)"
                     Estado (Zustand): State (Zustand)
                     Providers: Providers
                     Componentes: Components
@@ -310,6 +311,7 @@ nav:
                 - Geolocalização: geo.md
                 - Mapa do Brasil (br): br.md
                 - "Pagamentos, fiscal & contato BR": br-pagamentos.md
+                - "Checkout (Pix e cartão, Mercado Pago)": payments.md
                 - Web Push: push.md
                 - Offline: offline.md
                 - PWA & Offline-First: pwa.md

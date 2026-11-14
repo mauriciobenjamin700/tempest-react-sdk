@@ -62,6 +62,7 @@ import { RealtimeRecipeSection } from "./RealtimeRecipeSection";
 import { GeoSection } from "./GeoSection";
 import { BrazilMapSection } from "./BrazilMapSection";
 import { BRPaymentsSection } from "./BRPaymentsSection";
+import { PaymentsCheckoutSection } from "./PaymentsCheckoutSection";
 import { ThemeFactorySection } from "./ThemeFactorySection";
 import { IconsSection } from "./IconsSection";
 import { UtilitiesCssSection } from "./UtilitiesCssSection";
@@ -535,6 +536,14 @@ export const SECTIONS: SectionEntry[] = [
             "pix pixqrcode pixpayload brcode emv crc16 copia e cola boleto linha digitavel codigo de barras febraban arrecadacao fator de vencimento chave nfe nfce cte feriados dias uteis pascoa carnaval",
         group: "Receitas",
         Component: BRPaymentsSection,
+    },
+    {
+        id: "payments-checkout",
+        label: "Checkout (Pix e cartão · Mercado Pago)",
+        keywords:
+            "pixcheckout usepixcharge usemercadopagocard describecardcharge mercado pago checkout pix cartao tokenizacao parcelas secure fields status_detail",
+        group: "Receitas",
+        Component: PaymentsCheckoutSection,
     },
     {
         id: "recipe-auth",

@@ -5,7 +5,7 @@ mexer em barrel, ou tocar no empacotamento.
 
 ## Estrutura de `src/`
 
-41 módulos, um por domínio. O que é subpath público está marcado com ⇢.
+42 módulos, um por domínio. O que é subpath público está marcado com ⇢.
 
 ```text
 src/
@@ -31,6 +31,7 @@ src/
 ├── logger/          createLogger leveled + sinks
 ├── oauth/           <GoogleSignIn>, useOAuthCallback
 ├── offline/         createOfflineStore (Dexie), createOfflineSync, resolvers
+├── payments/        PixCheckout, usePixCharge, useMercadoPagoCard, describeCardCharge
 ├── perf/            createInferenceProfiler, readDeviceProfile
 ├── push/            usePushSubscription, isPushSupported
 ├── query/           QueryProvider, createQueryKeys, useOfflineMutation

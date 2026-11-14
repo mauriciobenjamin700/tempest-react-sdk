@@ -104,8 +104,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   run-7 em `create-tempest-auth.refresh-lock.test.ts` que listava os locks pedidos foi reescrito
   para incluir o lock de login. Sem mudança de API.
 
+- **`createTempestAuth`: login explícito vence a troca de conta implícita de um `refresh()`
+  (#595, decisão do dono em 14/11/2026).** Com um `login(C)` em voo, um `refresh()` que resgatava
+  o refresh credential de outra conta (B) e respondia antes trocava para B: a troca movia a época,
+  e o `login(C)` que chegava depois era descartado como `SessionSupersededError` — o usuário pedia
+  C e terminava como B (medido em `b99a0c6`). Agora, enquanto houver um `login()` em voo, a troca
+  é descartada pelo mesmo caminho do #591: o refresh token de B é revogado no modo body, o
+  `refresh()` rejeita com `SessionSupersededError` e o `login(C)` instala C. Só `login()` conta:
+  `restore()` e a própria troca continuam fora (o `loginsInFlight`, usado pelo `401` sem token,
+  não muda). Testes em `src/auth/create-tempest-auth.explicit-login.test.ts` (3 de 5 falham sobre
+  a `main` em `b99a0c6`: login primeiro com a troca chegando antes, a revogação de B e o login
+  recusado que mantém A; os dois controles — troca já em teardown quando o login começa, troca já
+  instalada — passam nas duas; `npx vitest run src/auth/create-tempest-auth.explicit-login.test.ts`).
+  **Migração:** quem dependia de "a primeira resposta vence" vê o `refresh()` rejeitar como
+  superado durante um `login()`; a sessão final passa a ser a do login.
+
 ### Budgets
 
+- **#595: barrel CJS 186,9 → 187,1 kB** (`npm run build && npx size-limit --json`, sobre o
+  #594): CJS 186 843 → 187 061 B (+218 B); ESM 157 310 → 157 215 B (reminificação; budget
+  157,4 kB mantido). Contra a `main` em `b99a0c6`: ESM 156 964 → 157 215 B, CJS 186 505 →
+  187 061 B.
 - **#594: barrel ESM 157 → 157,4 kB e CJS 186,6 → 186,9 kB** (`npm run build && npx size-limit
 --json`, contra a `main` em `b99a0c6`): barrel ESM 156 964 → 157 310 B (+346 B), CJS 186 505 →
   186 843 B (+338 B) — o lock de login e a adoção do `restore()`. Nenhuma fatia do

@@ -4,6 +4,43 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createTempestAuth`: o `refresh()` que resgata o cookie de outra conta é troca de conta, não
+  rotação (#579).** Com a sessão de A ainda instalada, um `refresh()` que resgatava o cookie de B —
+  deixado por um callback de OAuth, ou por outra aba com `storage: "session"` — mantinha a linhagem
+  de A. O defeito é maior que o da issue: além de `sessionKey()` responder a chave de A para B (o
+  upload resumível de B mandava `HEAD`/`PATCH` para a URL do upload de A com o Bearer de B e a
+  `Idempotency-Key` de A), o store guardava o usuário de A ao lado do token de B, e a request de A
+  que disparou o refresh era **repetida como B** (`{ acting_as: "B" }` no teste). Reproduzido em 5
+  testes que falham sobre a `main` (`8e18770`) e passam com a correção
+  (`npx vitest run src/auth/create-tempest-auth.subject.test.ts src/http/resumable-upload.session.test.ts`).
+  Agora, quando o token guardado e o resgatado são JWT com `sub` e os `sub` diferem, o resgate vira
+  troca de conta, como um `login()`: `onSessionEnd` com `"switch"`, epoch e linhagem novos, usuário
+  carregado (`parseUser`, depois `mePath`), e a request de A rejeita com `SessionSupersededError` em
+  vez de sair como B. Rotação da mesma conta (mesmo `sub`) segue igual: mesma chave, nenhum
+  `onSessionEnd`, o upload retoma. Token opaco não tem sujeito para comparar e continua contando como
+  rotação — comparar o usuário do `mePath` custaria uma request por rotação e reabriria o #544 —; para
+  ele existe o `auth.restore()` (abaixo). **Migração:** nada para quem usa JWT com `sub`; o
+  `onSessionEnd` passa a rodar com `"switch"` nesse caso, que antes era silencioso. Com token opaco,
+  chame `auth.restore()` na rota de callback de OAuth/magic link em vez de `auth.refresh()`.
+
+### Adicionado
+
+- **`auth.restore()` no `createTempestAuth` (#579).** Resgata o refresh credential como **login
+  novo**: o que ele trouxer substitui a sessão instalada (`onSessionEnd` `"switch"` se havia uma),
+  com linhagem nova e usuário carregado; resolve com o usuário, como o `login()`. Resgate que falha
+  deixa a sessão intacta; `logout()`/`login()` durante ele o supera. É a chamada para o ponto em que
+  o app sabe que houve login fora do `login()` — o boot continua com `refresh()`. Doc em
+  `docs/auth.md` → "Login fora do `login()`".
+
+### Budgets
+
+- **Barris inteiros: ESM 152,6 → 153,1 kB, CJS 182 → 182,5 kB (#579).** Medido com
+  `npm run build && npx size-limit --json`, `src/auth/create-tempest-auth.ts` da `main` (`8e18770`)
+  contra o deste branch: barril ESM 152 588 → 153 018 B (+430 B), barril CJS 181 937 → 182 393 B
+  (+456 B); nenhuma fatia importada mudou.
+
 ## [0.83.0] — 2026-11-13
 
 ### Breaking

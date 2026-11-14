@@ -304,3 +304,80 @@ describe("createResumableUpload — sessions restored by refresh() do not share 
         auth.dispose();
     });
 });
+
+/**
+ * #579, as audit run-9 reproduced it: account A was restored from the refresh
+ * cookie and left an upload half-done; account B's sign-in replaced the cookie
+ * without A logging out, and the next `refresh()` counted B's token as a
+ * rotation of A. Same lineage, same key, so B resumed A's upload: `HEAD` to
+ * A's URL with B's bearer. Failed against 8e18770.
+ */
+describe("createResumableUpload — a refresh that redeems another account does not resume its upload", () => {
+    let tus: TusDouble;
+    const cookie = { owner: "A" };
+    let issued = 0;
+
+    function jwtOf(sub: string, n: number): string {
+        const encode = (value: unknown): string =>
+            btoa(JSON.stringify(value)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+        return `${encode({ alg: "HS256" })}.${encode({ sub, n })}.sig`;
+    }
+
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input)).pathname;
+        if (path === "/api/auth/refresh") {
+            issued += 1;
+            return json({ access_token: jwtOf(cookie.owner, issued) });
+        }
+        return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    beforeEach(() => {
+        localStorage.clear();
+        cookie.owner = "A";
+        tus = new TusDouble();
+        installXhr(tus);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it("starts a new upload for B instead of sending B's bearer to A's upload URL (#579)", async () => {
+        const auth: Auth = createTempestAuth({
+            baseURL: "https://api.example.com",
+            withCredentials: true,
+            logoutPath: "/api/auth/logout",
+            fetcher,
+        });
+        await auth.refresh();
+        tus.failPatchAt = 2;
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: auth.getToken,
+            retry: { shouldRetry: () => false },
+        })
+            .start()
+            .catch(() => undefined);
+        tus.failPatchAt = null;
+        cookie.owner = "B";
+        await auth.refresh();
+        tus.seen = [];
+
+        await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: auth.getToken,
+        }).start();
+
+        expect(tus.seen.filter((request) => request.url.endsWith("/api/uploads/1"))).toEqual([]);
+        expect(tus.seen[0]).toMatchObject({
+            method: "POST",
+            authorization: `Bearer ${jwtOf("B", issued)}`,
+        });
+        auth.dispose();
+    });
+});

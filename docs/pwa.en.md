@@ -55,6 +55,9 @@ installPrecache(); // app shell + offline navigation
 
     In the first request after a restart, while the worker is still reading which paths are precached, a same-origin `GET` that no runtime route answered goes to the network through `fetch(request)` inside the worker instead of bypassing it — the decision to call `respondWith` cannot wait for Cache Storage. From then on, what is not precached bypasses the worker again.
 
+!!! info "`Vary` does not hide a precached asset"
+    `install` stores each manifest URL for a header-less request, but the page asks for the same file with the headers its element sends: `Origin` on the `<script type="module" crossorigin>` Vite emits, `Accept: text/css,…` on the stylesheet. A server answering with `Vary: Origin` or `Vary: Accept` — `vite preview`, a CORS middleware serving static files, a CDN — produced an entry `cache.match` never returned: up to 0.83.0 every precached asset went to the network and, offline, the app opened blank (#582). The precache matches by URL, with `ignoreVary`: it holds one entry per path, written by the worker itself and never for a credential, so `Vary` distinguishes nothing there. `installRuntimeCache` keeps honouring `Vary` — that is what separates accounts under `cacheAuthenticated`.
+
 !!! note "Where the manifest comes from"
     `installPrecache` reads `precache-manifest.json`, emitted by the `tempestPwaManifest()` plugin from the `tempest-react-sdk/vite` subpath. See [Vite config](./vite-config.md).
 

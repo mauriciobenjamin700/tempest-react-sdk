@@ -3,14 +3,39 @@ import { createPartialResponse, installPrecache, installRuntimeCache } from "./c
 
 type Listener = (event: unknown) => void;
 
-/** In-memory Cache (subset of the Cache API), keyed by request URL. */
+/**
+ * In-memory Cache (subset of the Cache API), keyed by request URL.
+ *
+ * Honours `Vary` the way `Cache.match` does (Service Workers spec, "Request
+ * Response List" query): a stored response whose `Vary` names a header only
+ * matches a request whose value for that header equals the one the stored
+ * request carried, `Vary: *` never matches, and `{ ignoreVary: true }` skips
+ * the check. A string request, like one built from a bare URL, carries no
+ * headers. Entries seeded through `store` directly are recorded as stored for a
+ * header-less request.
+ */
 class FakeCache {
     store = new Map<string, Response>();
+    requests = new Map<string, Headers>();
     private key(req: Request | string): string {
         return typeof req === "string" ? new URL(req, "https://app.test").href : req.url;
     }
-    async match(req: Request | string): Promise<Response | undefined> {
-        return this.store.get(this.key(req));
+    async match(
+        req: Request | string,
+        options: CacheQueryOptions = {},
+    ): Promise<Response | undefined> {
+        const key = this.key(req);
+        const response = this.store.get(key);
+        if (!response || options.ignoreVary) return response;
+        const stored = this.requests.get(key) ?? new Headers();
+        const incoming = typeof req === "string" ? new Headers() : req.headers;
+        for (const name of (response.headers.get("vary") ?? "").split(",")) {
+            const header = name.trim();
+            if (!header) continue;
+            if (header === "*") return undefined;
+            if (stored.get(header) !== incoming.get(header)) return undefined;
+        }
+        return response;
     }
     /**
      * Rejects a response whose `Vary` lists `*`, as the Cache API does (Service
@@ -21,6 +46,7 @@ class FakeCache {
         const vary = (res.headers.get("vary") ?? "").split(",").map((name) => name.trim());
         if (vary.includes("*")) throw new TypeError("Vary header contains *");
         this.store.set(this.key(req), res);
+        this.requests.set(this.key(req), new Headers(typeof req === "string" ? {} : req.headers));
     }
     async addAll(urls: string[]): Promise<void> {
         for (const url of urls)
@@ -227,6 +253,59 @@ describe("installPrecache", () => {
         } as unknown as Request;
         const res = (await dispatchFetch(nav)) as Response;
         expect(await res.text()).toBe("<!doctype html>shell");
+    });
+
+    it.each([
+        ["Origin", { origin: "https://app.test" }],
+        ["Accept", { accept: "text/css,*/*;q=0.1" }],
+    ])(
+        "serves a precached asset stored with Vary: %s to a crossorigin request while offline",
+        async (vary, headers) => {
+            fetchMock.mockResolvedValueOnce(
+                new Response(JSON.stringify({ version: "vy", urls: ["/assets/a.js"] })),
+            );
+            installPrecache();
+            await dispatch("install");
+            await dispatch("activate");
+            (await cacheStorage.open("tempest-precache-vy")).store.set(
+                "https://app.test/assets/a.js",
+                new Response("precached", { headers: { vary } }),
+            );
+            fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+            const request = new Request("https://app.test/assets/a.js", {
+                mode: "cors",
+                headers,
+            });
+            const response = (await dispatchFetch(request)) as Response;
+
+            expect(await response.text()).toBe("precached");
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        },
+    );
+
+    it("keeps Vary for the runtime cache: another credential misses the entry", async () => {
+        installRuntimeCache([
+            {
+                match: /\/api\//,
+                strategy: "network-first",
+                cacheName: "api",
+                cacheAuthenticated: true,
+            },
+        ]);
+        fetchMock.mockResolvedValueOnce(new Response("alice"));
+        await (
+            (await dispatchFetch(
+                new Request("https://app.test/api/me", { headers: { authorization: "Bearer a" } }),
+            )) as Response
+        ).text();
+
+        fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+        const other = dispatchFetch(
+            new Request("https://app.test/api/me", { headers: { authorization: "Bearer b" } }),
+        );
+
+        await expect(other).rejects.toThrow("network-first: no network and no cache");
     });
 
     it("enables navigation preload on activate when supported", async () => {

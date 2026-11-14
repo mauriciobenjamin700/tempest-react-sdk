@@ -158,7 +158,7 @@ export function SteppedSignup() {
 
 A Markdown subset: headings, paragraphs, lists (nested and ordered), blockquote, fenced code (through [`CodeBlock`](utility.md#codeblock)), thematic break, GFM pipe tables with alignment, and the usual inline set (`**strong**`, `*em*`, `` `code` ``, `~~del~~`, links, images, autolinks, hard breaks).
 
-Inline nests: emphasis content goes through the same inline parser, so `**[contact](mailto:a@b.com)**` is a bold link, `***text***` is italic around bold and `*a **b** c*` keeps the bold inside the italic. Code spans, links, images and autolinks are read whole, so a marker inside them never closes the emphasis around them — the `_` in `_see [doc](https://x.com/a_b)_` belongs to the URL. A link refused by the scheme allowlist inside bold still renders its words as bold text.
+Inline nests: emphasis content goes through the same inline parser, so `**[contact](mailto:a@b.com)**` is a bold link, `***text***` is italic around bold and `*a **b** c*` keeps the bold inside the italic. Code spans, links, images and autolinks are read whole, so a marker inside them never closes the emphasis around them — the `_` in `_see [doc](https://x.com/a_b)_` belongs to the URL. A link refused by the scheme allowlist inside bold still renders its words as bold text. A link label also takes emphasis and code (`[**strong** and *italic*](url)`), but never another link: an autolink inside the label stays text, because an `<a>` inside an `<a>` is invalid HTML.
 
 ```tsx
 import { Markdown } from "tempest-react-sdk";
@@ -188,6 +188,8 @@ import { Markdown } from "tempest-react-sdk";
     Parsing is **linear** in the length of the text: no regex in the parser has two quantifiers competing for the same run. Before 0.77.0, `"# a" + " ".repeat(4000) + "b"` — 4 KB in a comment — cost 4.7 s of main thread on every render, and the cost grew cubically. Today a heading line with 50 KB of spaces parses in under 1 ms (measured with `performance.now()` on Node 24; the time ceiling is pinned by a test in `markdown-parse.test.ts`).
 
     Since 0.78.0 the same holds for list items: `- ` or `1. ` followed by 80 KB of spaces and a line separator (U+2028/U+2029) made the list regexes race for the run — 3.6 s per line, twice per line. Today it parses under the same ceiling.
+
+    Inline content does not overflow the stack either: a link label is parsed only once the link is accepted, and inline nesting has a fixed ceiling set by the grammar itself (one link, and at most one of each emphasis kind on each side of it), whatever the text. In the 0.85.0 development line, before release, `"[".repeat(5000) + "a](https://x.dev)"` threw `RangeError` and took down the React tree; today 50 thousand `[` before one `](u)` parse in ~10 ms.
 
     Quotes and lists nest up to **32 levels**. Past that the content becomes a paragraph: the words stay, only the nesting is dropped. Without the cap, `"- ".repeat(20000)` overflowed the stack (`RangeError`) and took down the React tree of whoever merely opened the conversation.
 

@@ -470,7 +470,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "187.7 KB",
+    "limit": "187.8 KB",
     "ignore": [
       "react",
       "react-dom",

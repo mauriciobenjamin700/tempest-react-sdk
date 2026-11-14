@@ -155,9 +155,16 @@ export interface OfflineQueryPersistenceOptions {
      *   run-12, C1). Nobody followed by a session is not an end, and a
      *   token rotation keeps the key;
      * - that record belongs to the `QueryClient`, not to the handle, so a new
-     *   handle on the same client keeps deleting. `clear()` drops it — with
-     *   `resetClient: true` nothing of the ended session stays in memory
-     *   either — and so does creating a handle on a client with empty caches.
+     *   handle on the same client keeps deleting. Only a reset drops it:
+     *   `clear({ resetClient: true })`, after which nothing of the ended
+     *   session stays in memory, or creating a handle on a client with empty
+     *   caches. `clear()` without `resetClient` leaves the client as it is,
+     *   so it marks the record ended instead: no handle on that client
+     *   persists until it is reset (security audit run-13, C1);
+     * - a handle only records sessions while it observes them: after
+     *   `unsubscribe()` its `flush()` writes nothing, and a handle created on
+     *   a client that already holds responses cannot know which session
+     *   fetched them — create it before the first query, at boot;
      *   A session that is not this preset (an object of your own) is only
      *   read on cache changes, writes and restores, so a session installed
      *   and ended between two of them goes unseen;
@@ -185,6 +192,15 @@ export interface OfflineQueryClearOptions {
      * Default `false`: the client belongs to the app, which may want to keep
      * public queries (a catalog, feature flags) across sessions and drop only
      * the user-scoped keys with `removeQueries`.
+     *
+     * With `auth`, only the reset lets a new handle on the same client persist
+     * the next session. Without it the client still holds the ended session's
+     * responses, so `clear()` marks the client's session record ended and
+     * every handle on it deletes its row instead of writing, until the client
+     * is reset or a handle is created on it with empty caches. Before 0.85.0,
+     * `clear()` dropped that record, and the handle created at login stamped
+     * the previous account's responses with the new one (security audit
+     * run-13, C1).
      */
     resetClient?: boolean;
 }
@@ -201,10 +217,17 @@ export interface OfflineQueryPersistence {
     restore: () => Promise<void>;
     /**
      * Write the current cache snapshot immediately (bypassing the throttle). A
-     * no-op once {@link OfflineQueryPersistence.clear} has been called.
+     * no-op once {@link OfflineQueryPersistence.clear} has been called, and,
+     * with `auth`, once {@link OfflineQueryPersistence.unsubscribe} has.
      */
     flush: () => Promise<void>;
-    /** Stop persisting and drop the pending write. Idempotent. */
+    /**
+     * Stop persisting and drop the pending write. Idempotent.
+     *
+     * With `auth`, a later `flush()` writes nothing: the handle no longer sees
+     * sessions installed and ended, so it cannot tell whose responses the
+     * cache holds (security audit run-13, N3).
+     */
     unsubscribe: () => void;
     /**
      * End the persisted session (e.g. on logout) and delete the snapshot.
@@ -234,6 +257,15 @@ export interface OfflineQueryPersistence {
      * shape of its logout: it may keep public queries and drop only the
      * user-scoped keys with `removeQueries`. Because persistence is already
      * off, that manual call can come before or after this one.
+     *
+     * With `auth`, the reset decides whether the next session persists on the
+     * same client. With it, the client's session record is dropped after
+     * `queryClient.clear()`, and a handle created at login persists the new
+     * account. Without it, the client still holds this session's responses,
+     * so the record is marked ended — never dropped — and every handle on the
+     * client, a new one or one on another `key`, deletes its row instead of
+     * writing until the client is reset or a handle is created on it with
+     * empty caches (security audit run-13, C1).
      *
      * Idempotent and safe to call concurrently; every call deletes the row
      * again.
@@ -267,9 +299,12 @@ function principalKnown(isPrincipalKnown: (() => boolean) | undefined): boolean 
  * created after another one stopped persisting (the advice of the dev warning)
  * still sits on the cache that holds the ended session's responses, and used to
  * stamp them with the session signed in when it was created (security audit
- * run-12, hardening). The entry is dropped by `clear()` — the logout the app
- * owns, which also resets the client with `resetClient` — and when a handle is
- * created on a client whose caches are empty.
+ * run-12, hardening). The entry is dropped only once the client is reset: by
+ * `clear({ resetClient: true })`, after `queryClient.clear()`, and when a
+ * handle is created on a client whose caches are empty. `clear()` without the
+ * reset marks it ended instead, because the client still holds the session's
+ * responses, and it may be shared by a handle on another `key` (security audit
+ * run-13, C1).
  */
 interface ClientSessions {
     /** The first session seen installed, or `null` while none has been. */
@@ -420,6 +455,7 @@ export function persistQueryClientOffline(
 
     const slot = `${databaseName}\u0000${key}`;
     let ended = false;
+    let detached = false;
     let warnedEnded = false;
     let warnedRebound = false;
     let boundOwner: string | null = null;
@@ -510,9 +546,9 @@ export function persistQueryClientOffline(
      * well, whatever the handle is bound to (security audit run-12, C1).
      */
     async function save(): Promise<void> {
-        if (ended) return;
+        if (ended || (auth && detached)) return;
         await afterPendingClear();
-        if (ended) return;
+        if (ended || (auth && detached)) return;
         if (getPrincipal && !principalKnown(isPrincipalKnown)) {
             schedule();
             return;
@@ -586,12 +622,23 @@ export function persistQueryClientOffline(
 
     const unsubscribeCache = queryClient.getQueryCache().subscribe(onCacheEvent);
 
+    /**
+     * Wait for the writes in flight, delete the row and, with `resetClient`,
+     * reset the client. Only that reset drops the client's lineage, after
+     * `queryClient.clear()`: nothing of an ended session is left in memory to
+     * stamp, so the next session starts a new one.
+     *
+     * @param resetClient - Whether to clear the in-memory `QueryClient`.
+     */
     async function endSession(resetClient: boolean): Promise<void> {
         try {
             await Promise.allSettled([...inFlight]);
             await store.delete(key);
         } finally {
-            if (resetClient) queryClient.clear();
+            if (resetClient) {
+                queryClient.clear();
+                if (auth) clientSessions.delete(queryClient);
+            }
         }
     }
 
@@ -626,6 +673,7 @@ export function persistQueryClientOffline(
             await save();
         },
         unsubscribe() {
+            detached = true;
             cancelTimer();
             unsubscribeCache();
             unsubscribeSession?.();
@@ -634,7 +682,7 @@ export function persistQueryClientOffline(
             ended = true;
             cancelTimer();
             unsubscribeSession?.();
-            if (auth) clientSessions.delete(queryClient);
+            if (auth) lineage().ended = true;
             const previous = pendingClears.get(slot);
             const run = endSession(clearOptions.resetClient ?? false);
             const settled = Promise.allSettled([previous, run]);

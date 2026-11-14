@@ -149,6 +149,27 @@ exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava p
     isso.
   - **`sessionKey()` que lança conta como desconhecida**, e nada é gravado (antes contava como
     ninguém e carimbava `p:anonymous`, P8).
+  - **`clear()` sem `resetClient` não apaga mais a linhagem do client** (auditoria run-13, C1,
+    baixo; a `main` em `3202295` vaza igual). O `QueryClient` em memória ainda guardava as
+    respostas de A, e o handle novo que a doc manda criar no login começava uma linhagem nova,
+    adotava B como primeira sessão e gravava as respostas de A com a impressão de B — que o
+    `restore()` do próximo boot de B hidratava. Reproduzido nas três formas da auditoria:
+    `logout()` + `clear()` e login de B; logout em outra aba, login de B e `clear()`; e duas `key`
+    no mesmo client, em que o `clear()` de uma apagava a linhagem da outra e reabria o C1 da
+    run-12 nela (linha `p:anonymous` com o dado de A). Agora só o reset apaga a linhagem — depois
+    do `queryClient.clear()` do `clear({ resetClient: true })`, ou num handle criado com o client
+    vazio —; o `clear()` sem reset a marca como encerrada. Junto, o N3 da mesma auditoria: com
+    `auth`, `flush()` depois de `unsubscribe()` não grava (o handle deixou de ver as sessões e
+    gravava o dado de A sob B). O handle criado sobre um client que **já** guarda respostas
+    continua sem saber de quem elas são; a doc manda criá-lo no boot. A frase "Com `auth` a
+    biblioteca garante isso" de `docs/query.md` foi corrigida para dizer o que é garantido.
+    Testes em `src/query/offline-persistence.lifetime.test.ts`: **5 de 7 novos falham sobre
+    `7e71acd`** (as três formas, `clear()` antes do `logout()` e o `flush()` desacoplado); os
+    controles — `clear({ resetClient: true })` persiste só B, client esvaziado à mão antes do
+    handle novo — passam nos dois (`npx vitest run src/query/ src/auth/`: 383 testes, nenhum
+    teste existente alterado). **Migração:** app com `auth` que chama `clear()` sem `resetClient`
+    e mantém queries públicas no client deixa de persistir a sessão seguinte naquele
+    carregamento; use `clear({ resetClient: true })` ou esvazie o client antes do handle novo.
 
 - **`src/payments`: hardening do checkout da 0.84.0 (#592).** Quatro bordas da auditoria
   `security-audit` (run-10), nenhuma mostrando "pago" sem o backend dizer `paid`. Testes novos
@@ -277,6 +298,12 @@ exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava p
   `### Segurança`.
 
 ### Budgets
+
+- **Linhagem que sobrevive ao `clear()` sem reset (auditoria run-13 C1): barrel CJS 187,7 →
+  187,8 kB** (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` de
+  `7e71acd` contra o deste branch, mesmo resto da árvore): CJS 187 593 → 187 741 B (+148 B; havia
+  107 B de folga); ESM 157 879 → 157 796 B (reminificação; budget 157,9 kB mantido). Nenhuma
+  fatia importada mudou.
 
 - **Linhagem de sessão do cache de query (auditoria run-12 C1): barrel ESM 157,8 → 157,9 kB**
   (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` e

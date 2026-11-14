@@ -99,17 +99,21 @@ function databaseName(): string {
  * Read the persisted row straight from IndexedDB.
  *
  * @param dbName - The database.
+ * @param key - The handle's `key`, defaulting to the library's.
  * @returns The row, if any.
  */
-async function readRow(dbName: string): Promise<{ owner?: unknown } | undefined> {
-    const store = createOfflineStore<{ id: string; owner?: unknown }, string>({
+async function readRow(
+    dbName: string,
+    key = "tanstack-query",
+): Promise<{ owner?: unknown; state?: unknown } | undefined> {
+    const store = createOfflineStore<{ id: string; owner?: unknown; state?: unknown }, string>({
         databaseName: dbName,
         version: 1,
         tableName: "cache",
         indexes: "&id",
         keyPath: "id",
     });
-    return store.get("tanstack-query");
+    return store.get(key);
 }
 
 const created: Auth[] = [];
@@ -498,5 +502,172 @@ describe("persistQueryClientOffline — a new handle on a client holding an ende
         second.unsubscribe();
 
         expect((await readRow(dbName))?.owner).toMatch(/^p:[0-9a-f]{16}$/);
+    });
+});
+
+/**
+ * Security audit run-13, C1. `clear()` without `resetClient` dropped the
+ * client's lineage while the in-memory client still held the ended session's
+ * responses, so the handle the docs say to create at login started a fresh
+ * lineage, adopted B as its first session and wrote A's responses under B's
+ * fingerprint for B's next boot. With two keys on one client, one handle's
+ * `clear()` dropped the other's lineage and reopened run-12 C1 there. The
+ * lineage now outlives a `clear()` that leaves the client as it is, marked as
+ * ended; only `resetClient: true` (or a handle created on an empty client)
+ * starts a new one. The three shapes and the detached `flush()` fail on
+ * `7e71acd`.
+ */
+describe("persistQueryClientOffline — clear() without resetClient keeps the client's lineage (run-13 C1)", () => {
+    beforeEach(() => {
+        localStorage.clear();
+    });
+
+    afterEach(() => {
+        for (const auth of created.splice(0)) auth.dispose();
+    });
+
+    /**
+     * Create a handle, sign A in on it and cache A's order.
+     *
+     * @returns The preset, the client, the database and the first handle.
+     */
+    async function signedInA(): Promise<{
+        auth: Auth;
+        client: QueryClient;
+        dbName: string;
+        first: ReturnType<typeof persistQueryClientOffline>;
+    }> {
+        const dbName = databaseName();
+        const auth = boot(replayBackend());
+        const client = new QueryClient();
+        const first = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        await auth.login({ email: "a@example.test", password: "x" });
+        client.setQueryData(["orders"], ["A-private-order"]);
+        await first.flush();
+        return { auth, client, dbName, first };
+    }
+
+    /**
+     * Do what the docs advise after a login: create a new handle on the same
+     * client, then let B's first query land and flush it.
+     *
+     * @param auth - The preset.
+     * @param client - The client.
+     * @param dbName - The database.
+     * @returns The row written, if any.
+     */
+    async function newHandleAfterLogin(
+        auth: Auth,
+        client: QueryClient,
+        dbName: string,
+    ): Promise<{ owner?: unknown; state?: unknown } | undefined> {
+        const second = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        client.setQueryData(["profile"], { id: "B" });
+        await second.flush();
+        second.unsubscribe();
+        return readRow(dbName);
+    }
+
+    it("does not write A's responses under B after logout() and clear()", async () => {
+        const { auth, client, dbName, first } = await signedInA();
+        await auth.logout();
+        await first.clear();
+        await auth.login({ email: "b@example.test", password: "x" });
+
+        expect(await newHandleAfterLogin(auth, client, dbName)).toBeUndefined();
+    });
+
+    it("does not write A's responses under B when clear() ran before logout()", async () => {
+        const { auth, client, dbName, first } = await signedInA();
+        await first.clear();
+        await auth.logout();
+        await auth.login({ email: "b@example.test", password: "x" });
+
+        expect(await newHandleAfterLogin(auth, client, dbName)).toBeUndefined();
+    });
+
+    it("does not write A's responses under B after a logout in another tab, a login and clear()", async () => {
+        const { auth, client, dbName, first } = await signedInA();
+        otherTabLogout();
+        await auth.login({ email: "b@example.test", password: "x" });
+        await first.clear();
+
+        expect(await newHandleAfterLogin(auth, client, dbName)).toBeUndefined();
+    });
+
+    it("keeps the other key's lineage when one handle on the same client calls clear()", async () => {
+        const dbName = databaseName();
+        const backend = replayBackend();
+        const auth = boot(backend);
+        const client = new QueryClient();
+        const options = { queryClient: client, databaseName: dbName, throttleMs: 1000, auth };
+        const one = persistQueryClientOffline({ ...options, key: "k1" });
+        const two = persistQueryClientOffline({ ...options, key: "k2" });
+        const login = auth.login({ email: "a@example.test", password: "x" });
+        await wait(1);
+        const orders = fetchOrders(client, auth);
+        await login;
+        await wait(10);
+        otherTabLogout();
+        expect(await orders).toEqual(["A-private-order"]);
+        await one.clear();
+        await two.flush();
+        two.unsubscribe();
+
+        expect(await readRow(dbName, "k2")).toBeUndefined();
+    });
+
+    it("does not write from a handle whose flush() runs after unsubscribe(), since it no longer sees sessions come and go", async () => {
+        const dbName = databaseName();
+        const auth = boot(replayBackend());
+        const client = new QueryClient();
+        const persistence = persistQueryClientOffline({
+            queryClient: client,
+            databaseName: dbName,
+            throttleMs: 10,
+            auth,
+        });
+        persistence.unsubscribe();
+        await auth.login({ email: "a@example.test", password: "x" });
+        client.setQueryData(["orders"], ["A-private-order"]);
+        await auth.logout();
+        await auth.login({ email: "b@example.test", password: "x" });
+        await persistence.flush();
+
+        expect(await readRow(dbName)).toBeUndefined();
+    });
+
+    it("keeps the control: clear({ resetClient: true }) lets the next handle persist only B", async () => {
+        const { auth, client, dbName, first } = await signedInA();
+        otherTabLogout();
+        await auth.login({ email: "b@example.test", password: "x" });
+        await first.clear({ resetClient: true });
+
+        const row = await newHandleAfterLogin(auth, client, dbName);
+        expect(row?.owner).toMatch(/^p:[0-9a-f]{16}$/);
+        expect(JSON.stringify(row?.state)).toContain('"B"');
+        expect(JSON.stringify(row?.state)).not.toContain("A-private-order");
+    });
+
+    it("lets a handle created on a client the app emptied by hand persist after clear()", async () => {
+        const { auth, client, dbName, first } = await signedInA();
+        await auth.logout();
+        await first.clear();
+        client.removeQueries();
+        await auth.login({ email: "b@example.test", password: "x" });
+
+        const row = await newHandleAfterLogin(auth, client, dbName);
+        expect(row?.owner).toMatch(/^p:[0-9a-f]{16}$/);
+        expect(JSON.stringify(row?.state)).not.toContain("A-private-order");
     });
 });

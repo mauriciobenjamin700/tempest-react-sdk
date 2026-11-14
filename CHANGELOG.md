@@ -85,6 +85,26 @@ exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava p
     (`npm run build && npx size-limit --json`, contra a `main` em `08c3b91`): barrel ESM 156 692 →
     156 709 B, CJS 186 508 → 186 584 B; budgets inalterados.
 
+- **`persistQueryClientOffline({ auth })`: login que termina antes do `/me` não deixa o cache como
+  anônimo.** Corrige um caminho ainda não publicado, aberto pela opção `auth` do #596 (achado C2,
+  baixo, da auditoria `security-audit` run-11). O `login()` instala o token de A antes do `/me`;
+  as queries de A que resolvem nesse intervalo, com `isSessionKnown()` `false`, não prendiam o
+  dono. Se a sessão acabasse antes do `/me` responder (logout em outra aba, ou `logout()` na
+  mesma aba sem `persistence.clear()`), a gravação seguinte carimbava as respostas de A como
+  `p:anonymous` e o próximo boot deslogado no mesmo perfil hidratava `["A-order-1"]`. Maior que o
+  achado: um segundo `login()` por cima do primeiro, no mesmo intervalo, carimbava as respostas da
+  primeira sessão com a chave da segunda. Agora o handle anota a `sessionKey()` vista na mudança de
+  cache enquanto a sessão é desconhecida; quando a que se firma é outra ou ninguém, a gravação
+  apaga a linha. A mesma sessão se firmando grava como antes. Sem `auth` nada muda: o que um
+  `getPrincipal` próprio responde com `isPrincipalKnown` `false` continua sem valer (#590).
+  **Decisão:** a opção `auth` **não** chama `clear()` sozinha no fim da sessão. Com a correção, os
+  três caminhos já apagam a linha na próxima gravação, e o `clear()` encerra o handle — fazê-lo
+  sozinho obrigaria todo app a recriar o handle a cada logout. Continue chamando
+  `persistence.clear()` no logout, que também para de persistir na hora. Testes em
+  `src/query/offline-persistence.auth.test.ts` (3 de 4 novos falham sobre a `main` em `05293bc`,
+  o controle da sessão que se firma passa nas duas; os testes do #563/#580/#590/#596 seguem
+  verdes sem alteração; `npx vitest run src/query/`). Sem mudança de API.
+
 - **`src/payments`: hardening do checkout da 0.84.0 (#592).** Quatro bordas da auditoria
   `security-audit` (run-10), nenhuma mostrando "pago" sem o backend dizer `paid`. Testes novos
   em `src/payments/*.test.ts(x)`: **17 de 77 falham sobre a `main` em `08c3b91`**
@@ -213,11 +233,19 @@ exceeded` de dentro do `render`, e sem error boundary o app inteiro desmontava p
 
 ### Budgets
 
-- **Correção do rótulo de link do `Markdown`: barrel CJS 187,4 → 187,5 kB** (`npm run build &&
+- **Login que termina antes do `/me` (auditoria run-11 C2): barrel CJS 187,4 → 187,7 kB**
+  (`npm run build && npx size-limit --json`, `src/query/offline-persistence.ts` da `main` em
+  `05293bc` contra o deste branch, mesmo resto da árvore): CJS 187 377 → 187 630 B (+253 B; a
+  `main` tinha 23 B de folga); ESM 157 756 → 157 648 B (reminificação; budget 157,8 kB mantido).
+  Nenhuma fatia importada mudou.
+
+- **Correção do rótulo de link do `Markdown`, sem mudar limite** (`npm run build &&
 npx size-limit --json`, contra a `main` em `05293bc`): CJS 187 377 → 187 413 B (+36 B); ESM
   157 756 → 157 783 B (+27 B, budget 157,8 kB mantido); fatia do `AIChat` 11 219 → 11 267 B (+48 B,
   budget 11,3 kB mantido). Os bytes são o montador adiado de cada átomo e o esquema do autolink
   lido separado do fim.
+  Somado ao fix do cache de query na `main` (`5478495`), remedido no merge: barrel ESM 157 680 B
+  (budget 157,8 kB), CJS 187 427 B (budget 187,7 kB, já subido por aquele fix).
 
 - **#596: barrel CJS 187,1 → 187,2 kB** (`npm run build && npx size-limit --json`, sobre o
   #595): CJS 187 061 → 187 133 B (+72 B); ESM 157 215 → 157 224 B (+9 B, budget 157,4 kB

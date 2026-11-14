@@ -305,7 +305,7 @@ export async function boot(): Promise<void> {
 ```
 
 - **O dono do cache é a sessão**: o principal é `auth.sessionKey()`, que sobrevive ao reload e à rotação do token e muda a cada login. Login novo da mesma conta começa com o cache frio — é um cache, e nenhuma conta herda o de outra.
-- **"Ainda não sei" vem do preset**: `auth.isSessionKnown()` é `false` enquanto um `login()`, um `restore()` ou uma troca de conta está em voo, e enquanto o `refresh()` do boot ainda restaura a sessão do cookie. Nesse intervalo nada é gravado, nada prende o dono e o `restore()` não hidrata nada.
+- **"Ainda não sei" vem do preset**: `auth.isSessionKnown()` é `false` enquanto um `login()`, um `restore()` ou uma troca de conta está em voo, e enquanto o `refresh()` do boot ainda restaura a sessão do cookie. Nesse intervalo nada é gravado, nada prende o dono e o `restore()` não hidrata nada. Mas o handle anota a `sessionKey()` que viu quando o cache mudou: se a sessão que se firma não for aquela — `logout()` em outra aba, `logout()` nesta sem `clear()`, outro `login()` por cima —, a gravação seguinte apaga a linha em vez de carimbar as respostas como anônimas ou da sessão nova.
 - **Quer o id do usuário como dono?** Passe `getPrincipal` junto com `auth`. Aí o principal também precisa estar carregado: com sessão instalada e `getPrincipal` respondendo ninguém (o perfil ainda não veio), conta como desconhecido — não como anônimo.
 - Chame o `restore()` **depois** do `refresh()` do boot. Antes dele, a sessão ainda não existe, e o `restore()` só hidrata o que é de ninguém.
 

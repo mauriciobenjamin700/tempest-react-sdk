@@ -136,7 +136,16 @@ export interface OfflineQueryPersistenceOptions {
      *   session is settled — not while a `login()`, `restore()` or the boot
      *   `refresh()` is still deciding it — and, with a `getPrincipal` of your
      *   own, only once it names someone whenever a session is installed (a
-     *   user id read from a profile that has not loaded yet is not "nobody").
+     *   user id read from a profile that has not loaded yet is not "nobody");
+     * - a cache change while the session is not known records the
+     *   `sessionKey()` it saw; if the session that settles is another one or
+     *   nobody — a sign-out in another tab, a `logout()` without `clear()`,
+     *   a second `login()` on top — the handle's writes delete the row instead
+     *   of stamping those responses as anonymous or as the new session's.
+     *
+     * It does not call `clear()` on session end by itself: `clear()` ends the
+     * handle, and the row is already deleted on the next write. Keep calling
+     * `clear()` on logout, which also stops persisting at once.
      *
      * Before it, a cookie app had to wire `isPrincipalKnown` by hand, and the
      * doc saying so was the only guard: without it, a tab closed before `/me`
@@ -231,6 +240,31 @@ function principalKnown(isPrincipalKnown: (() => boolean) | undefined): boolean 
 }
 
 /**
+ * Owner a handle is bound to when the session its cache was filled under ended
+ * before it was known — never written, only compared.
+ *
+ * Not a fingerprint either, so no signed-in owner and not
+ * {@link ANONYMOUS_SNAPSHOT_OWNER} ever matches it: every later write of that
+ * handle deletes the row, since the in-memory cache still holds the ended
+ * session's responses.
+ */
+const SUPERSEDED_SESSION_OWNER = "p:superseded";
+
+/**
+ * Read the key of the session signed in now.
+ *
+ * @param auth - The session the handle follows.
+ * @returns The key, or `null` for nobody or a throw.
+ */
+function readSessionKey(auth: OfflineQuerySession): string | null {
+    try {
+        return auth.sessionKey();
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Owner stamp of a snapshot written while nobody was signed in.
  *
  * Not a fingerprint (`ownerFingerprint` only yields `p:` + 16 hex characters),
@@ -321,6 +355,7 @@ export function persistQueryClientOffline(
     let warnedRebound = false;
     let boundOwner: string | null = null;
     let hydratedAnonymous = false;
+    let unknownWindowSession: string | null = null;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const inFlight = new Set<Promise<unknown>>();
 
@@ -379,6 +414,7 @@ export function persistQueryClientOffline(
         const snapshot: Snapshot = { id: key, state: dehydrate(queryClient) };
         let foreign = false;
         if (getPrincipal) {
+            settleUnknownWindow();
             const owner = currentOwner(getPrincipal);
             foreign =
                 (boundOwner !== null && owner !== boundOwner) ||
@@ -393,6 +429,35 @@ export function persistQueryClientOffline(
             await write;
         } finally {
             inFlight.delete(write);
+        }
+    }
+
+    /**
+     * Bind the handle as superseded when the session its cache was filled
+     * under, before that session was known, is not the one now known.
+     *
+     * With `auth`, `login()` installs the new session's token, and so its
+     * `sessionKey()`, before `/me` answers; queries that resolve in that
+     * window hold that session's responses, but a cache change cannot bind
+     * the handle while the session may still fail. The key it saw is recorded
+     * instead and compared here, on the first cache change, write or restore
+     * that finds the principal known. When the window resolved to nobody (a
+     * sign-out in another tab, a `logout()` without `clear()`) or to another
+     * session, the handle is bound to {@link SUPERSEDED_SESSION_OWNER}, so its
+     * writes delete the row. Until then the handle was left unbound, and the
+     * next write stamped those responses `p:anonymous` for the next signed-out
+     * boot to hydrate (security audit run-11, C2). The same session settling
+     * changes nothing.
+     *
+     * Without `auth` nothing is recorded: what an app's own `getPrincipal`
+     * returns while `isPrincipalKnown` is `false` is not trusted (#590).
+     */
+    function settleUnknownWindow(): void {
+        if (!auth || unknownWindowSession === null) return;
+        const cachedUnder = unknownWindowSession;
+        unknownWindowSession = null;
+        if (boundOwner === null && readSessionKey(auth) !== cachedUnder) {
+            boundOwner = SUPERSEDED_SESSION_OWNER;
         }
     }
 
@@ -424,12 +489,19 @@ export function persistQueryClientOffline(
      * at event time pins the owner of the data, so that write deletes instead.
      * An event while nobody is signed in leaves the handle unbound, which keeps
      * the cookie app whose principal arrives after `/me` persisting; so does
-     * an event while `isPrincipalKnown` says the principal is not settled.
+     * an event while `isPrincipalKnown` says the principal is not settled,
+     * which with `auth` records the session key instead, see
+     * `settleUnknownWindow`.
      */
     function onCacheEvent(event: QueryCacheNotifyEvent): void {
         if (!ended) {
-            if (getPrincipal && principalKnown(isPrincipalKnown)) {
-                boundOwner ??= currentOwner(getPrincipal);
+            if (getPrincipal) {
+                if (principalKnown(isPrincipalKnown)) {
+                    settleUnknownWindow();
+                    boundOwner ??= currentOwner(getPrincipal);
+                } else if (auth && boundOwner === null) {
+                    unknownWindowSession ??= readSessionKey(auth);
+                }
             }
             schedule();
             return;
@@ -462,6 +534,7 @@ export function persistQueryClientOffline(
             if (!snapshot || ended) return;
             if (getPrincipal) {
                 if (!principalKnown(isPrincipalKnown)) return;
+                settleUnknownWindow();
                 const owner = currentOwner(getPrincipal);
                 if (snapshot.owner !== (owner ?? ANONYMOUS_SNAPSHOT_OWNER)) return;
                 boundOwner ??= owner;

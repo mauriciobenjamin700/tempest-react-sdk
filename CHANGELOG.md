@@ -81,8 +81,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   chegarem. Quem dependia de `usePixCharge` sair de `paid` para `expired`/`cancelled`/`failed`,
   ou de aceitar atualização de outro `provider`, deixa de ver essas transições.
 
+### Corrigido
+
+- **`createTempestAuth`: duas abas chamando `restore()` juntas resgatam uma vez só (#594).** O
+  resgate do `restore()` rodava sob o lock de refresh, mas o par novo só era gravado no
+  `replaceSession`, depois de soltar o lock e depois do `onSessionEnd`. A aba que esperava atrás
+  dele resgatava de novo: medido em `b99a0c6` com dois presets em modo body, `fakeLocks` e um
+  backend com detecção de reuso, a segunda aba apresentou **nenhum** refresh token (o teardown da
+  primeira já tinha limpado o storage) e o `restore()` dela rejeitou com `401`; com o storage
+  ainda não limpo, apresentaria o `ref-1` já gasto e o backend revogaria a família — o que a
+  issue mediu. O mesmo valia para um `refresh()` que esperava atrás do `restore()`, e para a
+  troca de conta de um `refresh()` (#579), instalada pelo mesmo caminho. Agora o resgate que vai
+  virar login segura um segundo Web Lock da origem (`tempest-react-sdk:<storeName>:sign-in`) do
+  pedido até a instalação; o lock de refresh continua cobrindo só o round trip, então o hook e o
+  `/me` não prendem as outras abas. Quem acha esse lock ocupado não resgata: um `restore()` espera
+  e **adota** a sessão instalada (a sua, se havia, termina com `"switch"` e `elsewhere: true`) e
+  resolve com o mesmo usuário; um `refresh()` espera, segue a sessão nova e rejeita com
+  `SessionSupersededError`. Fail-open como o lock de refresh: sem a API, ou depois de 10 s, segue
+  como antes. Testes em `src/auth/create-tempest-auth.restore-tabs.test.ts` (4 de 5 falham sobre
+  a `main` em `b99a0c6`; o controle "restore depois de uma rotação resgata o token rodado" passa
+  nas duas; `npx vitest run src/auth/create-tempest-auth.restore-tabs.test.ts`). O teste do
+  run-7 em `create-tempest-auth.refresh-lock.test.ts` que listava os locks pedidos foi reescrito
+  para incluir o lock de login. Sem mudança de API.
+
 ### Budgets
 
+- **#594: barrel ESM 157 → 157,4 kB e CJS 186,6 → 186,9 kB** (`npm run build && npx size-limit
+--json`, contra a `main` em `b99a0c6`): barrel ESM 156 964 → 157 310 B (+346 B), CJS 186 505 →
+  186 843 B (+338 B) — o lock de login e a adoção do `restore()`. Nenhuma fatia do
+  `size-limit` importa `createTempestAuth`; as demais não mudam.
 - **#592: barrel ESM 156,8 → 157 kB** (`npm run build && npx size-limit --json`, contra a `main` em
   `08c3b91`): fatia do cartão (`useMercadoPagoCard` + `describeCardCharge`) 2383 → 2482 B (+99 B,
   budget 2,5 kB); fatia do Pix (`PixCheckout` + `usePixCharge`) 6211 → 6294 B (+83 B); barrel

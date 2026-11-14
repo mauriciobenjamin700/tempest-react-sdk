@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type {
+    MercadoPagoCardToken,
     MercadoPagoCardTokenData,
     MercadoPagoConstructor,
     MercadoPagoFieldType,
@@ -50,6 +51,7 @@ function harness(
         amount: string;
         bin: string;
     }) => Promise<MercadoPagoInstallmentsEntry[]> = () => Promise.resolve(VISA_INSTALLMENTS),
+    tokenResponse: MercadoPagoCardToken = { id: "card-token-123" },
 ): Harness {
     const state: Harness = {
         load: () => Promise.resolve(FakeMercadoPago as unknown as MercadoPagoConstructor),
@@ -74,7 +76,7 @@ function harness(
             }),
             createCardToken: (data: MercadoPagoCardTokenData) => {
                 state.tokenCalls.push(data);
-                return Promise.resolve({ id: "card-token-123" });
+                return Promise.resolve(tokenResponse);
             },
         };
         getInstallments = (params: { amount: string; bin: string }) => {
@@ -170,6 +172,49 @@ describe("useMercadoPagoCard", () => {
                 identificationNumber: "12345678909",
             },
         ]);
+    });
+
+    it("refuses a token whose first six digits are not the BIN the installments were quoted for", async () => {
+        const h = harness(undefined, { id: "card-token-456", first_six_digits: "503143" });
+        const { result } = renderHook(() => useMercadoPagoCard(options(h)));
+        await waitFor(() => expect(result.current.status).toBe("ready"));
+        act(() => h.emitBin("42356400"));
+        await waitFor(() => expect(result.current.paymentMethodId).toBe("visa"));
+        await expect(
+            result.current.tokenize({ cardholderName: "APRO", installments: 1 }),
+        ).rejects.toThrow(/card changed after the installments were quoted/);
+        expect(h.tokenCalls).toHaveLength(1);
+    });
+
+    it("accepts a token whose first six digits match the quoted eight-digit BIN", async () => {
+        const h = harness(undefined, { id: "card-token-789", first_six_digits: "423564" });
+        const { result } = renderHook(() => useMercadoPagoCard(options(h)));
+        await waitFor(() => expect(result.current.status).toBe("ready"));
+        act(() => h.emitBin("42356400"));
+        await waitFor(() => expect(result.current.paymentMethodId).toBe("visa"));
+        await expect(
+            result.current.tokenize({ cardholderName: "APRO", installments: 1 }),
+        ).resolves.toEqual({ token: "card-token-789", payment_method_id: "visa", installments: 1 });
+    });
+
+    it("forgets the previous card's BIN and brand when the fields remount for another public key", async () => {
+        const h = harness();
+        const { result, rerender } = renderHook(
+            ({ publicKey }: { publicKey: string }) => useMercadoPagoCard(options(h, { publicKey })),
+            { initialProps: { publicKey: "TEST-public-key" } },
+        );
+        await waitFor(() => expect(result.current.status).toBe("ready"));
+        act(() => h.emitBin("42356400"));
+        await waitFor(() => expect(result.current.paymentMethodId).toBe("visa"));
+        rerender({ publicKey: "TEST-other-key" });
+        await waitFor(() => expect(h.keys).toEqual(["TEST-public-key", "TEST-other-key"]));
+        await waitFor(() => expect(result.current.status).toBe("ready"));
+        await act(async () => {
+            await Promise.resolve();
+        });
+        expect(result.current.paymentMethodId).toBeNull();
+        expect(result.current.installmentOptions).toEqual([]);
+        expect(h.installmentCalls).toHaveLength(1);
     });
 
     it("refuses to tokenize before the brand is known or with an installment count the card does not offer", async () => {

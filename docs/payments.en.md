@@ -74,7 +74,7 @@ What the screen shows, per state:
 | `pending` past the deadline | Hides the QR and says it is **confirming** — not "expired" |
 | `paid` | "Pagamento confirmado" |
 | `expired` / `cancelled` / `failed` | The reason, no QR, and the `footer` (e.g. "New Pix") |
-| `unknown` | "Verificando o pagamento" — never paid, never declined |
+| `unknown` — or any status this version does not know | "Verificando o pagamento" — never paid, never declined |
 
 !!! tip "Why \"confirming\" and not \"expired\" when the clock hits zero?"
     A Pix sent in the last second can still land. Only the backend, re-reading the order, knows. The screen stops offering the QR and waits for the backend to say `expired` (Mercado Pago answers `canceled` / `expired`, which the backend translates).
@@ -104,7 +104,7 @@ export function LivePixScreen({ created }: { created: PixCharge }) {
 }
 ```
 
-The hook ignores an update for **another** charge and never moves a final state back to a non-final one — when polling and push arrive out of order, a payer who already paid never sees "waiting for payment" flash.
+The hook ignores an update for **another** charge — another `provider_charge_id` **or** another `provider`, because an id is only unique within one provider — and never moves a final state back to a non-final one. And a `paid` charge only moves on to `refunded` or `charged_back`: a late `expired` does not replace the payment. When polling and push arrive out of order, a payer who already paid never sees "waiting for payment" flash nor is told to "generate a new Pix". The other direction stays open: `expired` can still become `paid`, because a Pix sent in the last second can settle after the deadline.
 
 ## Step 2 — Tokenize the card
 
@@ -181,6 +181,8 @@ Piece by piece:
 2. `publicKey` is the application's **Public Key**, not the access token. It can only tokenize; the token alone charges nothing.
 3. When the payer types the first digits, Mercado Pago reports the BIN and the hook fetches the installments. `recommendedMessage` is the provider's own text ("2 parcelas de R$ 57,20 (R$ 114,40)") — show it as it came: there is interest from 2x on, and the total has to be the provider's number.
 4. `tokenize` returns exactly `{ token, payment_method_id, installments }`. It refuses before calling Mercado Pago when the fields have not loaded, the brand is not identified yet or the installment count is not among the options — each of those would become an opaque `400` on the backend.
+5. Once created, the token is **bound to the quote**: Mercado Pago returns the tokenized card's `first_six_digits`, and when they are not the BIN the brand and installments were quoted for, `tokenize` rejects. `binChange` is debounced inside the iframe, so a payer who swaps the number and submits at once would send the new card with the old card's brand. Show the error and let the payer submit again once the new installments arrive.
+6. Changing the `publicKey` remounts **empty** fields and forgets the previous card's BIN, brand and installments.
 
 !!! info "PCI scope: why Secure Fields and not `<input>`"
     A page that renders its own `<input>` for the number and calls `createCardToken` with it has **handled** cardholder data, however quickly it discards it — and lands in SAQ A-EP. With Secure Fields the number never goes through your JavaScript, which is the condition for SAQ A. That is why the hook does not take the number as a parameter: there is no way to use it wrong.
@@ -198,6 +200,15 @@ connect-src https://api.mercadopago.com https://api.mercadolibre.com
 ```
 
 The hosts were read from the script itself (`js_version` 2.83.6) on 2026-11-14.
+
+#### What `loadMercadoPago` trusts
+
+`loadMercadoPago` trusts two things without checking them, and neither can be checked from inside the page:
+
+- **An existing `window.MercadoPago`.** It is used as is. Whoever can define that global already runs script on your page — and has already read everything the page reads.
+- **The `src` you pass.** The default is Mercado Pago's host. An overridden `src` (a proxy of yours) **must serve the identical MercadoPago.js**: SAQ A depends on the fields coming from the processor, and a script altered on the way takes the page out of it.
+
+There is no cheap check the library could make instead: the script is unversioned, so there is no stable Subresource Integrity hash to pin; pinning the origin would defeat the reason `src` exists; and an already-defined global cannot prove where it came from. The real control is the **CSP**: `script-src` restricted to `https://sdk.mercadopago.com` (or your proxy) is what keeps a script from anywhere else out of the checkout page.
 
 ## Step 3 — Explain the card result
 
@@ -257,7 +268,7 @@ From the sandbox measured on the backend (2026-10-09), with the **test seller** 
 | `describeCardCharge` | `CardCharge` → `{ status, tone, title, message, canRetry }`. |
 | `CARD_STATUS_DETAIL_MESSAGES` | PT-BR text per Orders API `status_detail`. |
 
-Types: `PixCharge`, `CardCharge`, `CardChargeRequest`, `PaymentPayer`, `PaymentStatus`, `PaymentOutcome`, `CardTokenResult`, `CardInstallmentOption`, `UseMercadoPagoCardOptions`, `UsePixChargeOptions`, `PixCheckoutProps`, `PixCheckoutLabels`, `MercadoPagoLike`.
+Types: `PixCharge`, `CardCharge`, `CardChargeRequest`, `PaymentPayer`, `PaymentStatus`, `PaymentOutcome`, `CardTokenResult`, `CardInstallmentOption`, `UseMercadoPagoCardOptions`, `UsePixChargeOptions`, `PixCheckoutProps`, `PixCheckoutLabels`, `MercadoPagoLike`, `MercadoPagoCardToken`.
 
 ## Recap
 

@@ -147,6 +147,11 @@ export interface PixCheckoutProps extends Omit<HTMLAttributes<HTMLDivElement>, "
  * copia-e-cola line is always next to it: a QR cannot be scanned by the phone
  * that is showing it, which is where a mobile checkout puts it.
  *
+ * A status this version does not know renders as `unknown` ("verificando"). Known
+ * means an own key of the state table, so a status named after an
+ * `Object.prototype` member (`toString`, `constructor`) is unknown too, instead
+ * of an empty state block.
+ *
  * When the countdown reaches zero while the backend still says `pending`, the
  * screen hides the QR and says it is **confirming** — not "expired". A payment
  * sent in the last second can still settle, and only the backend knows.
@@ -173,7 +178,9 @@ export function PixCheckout({
     const expiresAt = charge.expires_at === null ? Number.NaN : Date.parse(charge.expires_at);
     const hasDeadline = Number.isFinite(expiresAt);
     const remaining = useCountdown(hasDeadline ? expiresAt : 0, 0);
-    const status: PaymentStatus = charge.status in STATE_VARIANT ? charge.status : "unknown";
+    const status: PaymentStatus = Object.hasOwn(STATE_VARIANT, charge.status)
+        ? charge.status
+        : "unknown";
     const pastDeadline = hasDeadline && remaining <= 0;
     const payable = status === "pending" && !pastDeadline && charge.br_code !== null;
     const image = qrImageSource(charge.qr_code_base64);

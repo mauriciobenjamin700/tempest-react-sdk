@@ -95,6 +95,26 @@ describe("describeCardCharge", () => {
         expect(outcome.title).toBe("Verificando o pagamento");
     });
 
+    it.each(["toString", "constructor", "__proto__", "hasOwnProperty", "valueOf"])(
+        "reads the prototype name %s as unknown, with a complete outcome, in status and in detail",
+        (name) => {
+            const outcome = describeCardCharge({
+                status: name as PaymentStatus,
+                status_detail: name,
+            });
+            expect(outcome).toEqual({
+                status: "unknown",
+                tone: "neutral",
+                title: "Verificando o pagamento",
+                message: "Ainda estamos confirmando o estado deste pagamento.",
+                canRetry: false,
+            });
+            expect(describeCardCharge({ status: "pending", status_detail: name }).message).toBe(
+                "O pagamento ainda não foi concluído.",
+            );
+        },
+    );
+
     it("lets the app override the text per detail", () => {
         const outcome = describeCardCharge(
             { status: "failed", status_detail: "rejected_by_issuer" },

@@ -111,6 +111,45 @@ describe("usePixCharge", () => {
         expect(result.current.charge.status).toBe("refunded");
     });
 
+    it("ignores an update with the same charge id from another provider", async () => {
+        const refresh = vi.fn(() =>
+            Promise.resolve({ ...CHARGE, provider: "openpix", status: "paid" as const }),
+        );
+        const { result } = renderHook(() => usePixCharge(CHARGE, { refresh, intervalMs: 1000 }));
+        await advance(1000);
+        expect(result.current.charge.status).toBe("pending");
+        expect(result.current.charge.provider).toBe("mercado_pago");
+    });
+
+    it.each(["expired", "cancelled", "failed"] as const)(
+        "keeps a paid charge paid when a late %s arrives, and still lets it become refunded or charged back",
+        (late) => {
+            let emit: (charge: PixCharge) => void = () => undefined;
+            const subscribe = (next: (charge: PixCharge) => void) => {
+                emit = next;
+                return () => undefined;
+            };
+            const { result } = renderHook(() => usePixCharge(CHARGE, { subscribe }));
+            act(() => emit({ ...CHARGE, status: "paid" }));
+            act(() => emit({ ...CHARGE, status: late }));
+            expect(result.current.charge.status).toBe("paid");
+            act(() => emit({ ...CHARGE, status: "charged_back" }));
+            expect(result.current.charge.status).toBe("charged_back");
+        },
+    );
+
+    it("lets an expired charge become paid, because a Pix sent in the last second can still settle", () => {
+        let emit: (charge: PixCharge) => void = () => undefined;
+        const subscribe = (next: (charge: PixCharge) => void) => {
+            emit = next;
+            return () => undefined;
+        };
+        const { result } = renderHook(() => usePixCharge(CHARGE, { subscribe }));
+        act(() => emit({ ...CHARGE, status: "expired" }));
+        act(() => emit({ ...CHARGE, status: "paid" }));
+        expect(result.current.charge.status).toBe("paid");
+    });
+
     it("unsubscribes and aborts the in-flight read on unmount", async () => {
         const unsubscribe = vi.fn();
         let seen: AbortSignal | undefined;
@@ -150,6 +189,19 @@ describe("usePixCharge", () => {
         rerender({ charge: next });
         expect(result.current.charge).toEqual(next);
         expect(result.current.error).toBeNull();
+    });
+
+    it("restarts from the new charge when the app passes the same id from another provider", async () => {
+        const refresh = vi.fn(() => Promise.resolve({ ...CHARGE, status: "expired" as const }));
+        const { result, rerender } = renderHook(
+            ({ charge }) => usePixCharge(charge, { refresh, intervalMs: 1000 }),
+            { initialProps: { charge: CHARGE } },
+        );
+        await advance(1000);
+        expect(result.current.charge.status).toBe("expired");
+        const next: PixCharge = { ...CHARGE, provider: "openpix" };
+        rerender({ charge: next });
+        expect(result.current.charge).toEqual(next);
     });
 
     it("drops a read that resolves after unmount", async () => {

@@ -19,6 +19,20 @@ import { ownerFingerprint } from "../utils/owner-fingerprint";
  */
 const pendingClears = new Map<string, Promise<unknown>>();
 
+/**
+ * The session a {@link persistQueryClientOffline} handle follows — what
+ * `createTempestAuth` returns satisfies it, so pass the preset as is.
+ *
+ * Structural on purpose: the query module does not import the auth preset,
+ * so an app that persists its cache without it pays nothing for it.
+ */
+export interface OfflineQuerySession {
+    /** The key of the session signed in now, or `null` when nobody is. */
+    sessionKey: () => string | null;
+    /** Whether that session is settled, see `TempestAuth.isSessionKnown`. */
+    isSessionKnown: () => boolean;
+}
+
 /** Options for {@link persistQueryClientOffline}. */
 export interface OfflineQueryPersistenceOptions {
     /** The `QueryClient` to snapshot and restore. */
@@ -105,8 +119,33 @@ export interface OfflineQueryPersistenceOptions {
      * (#590).
      *
      * Read synchronously; a throw reads as not known, so it fails closed.
+     *
+     * With {@link OfflineQueryPersistenceOptions.auth} there is no need for
+     * it; when both are given, both must say known.
      */
     isPrincipalKnown?: () => boolean;
+    /**
+     * The auth preset whose session owns the cache — pass what
+     * `createTempestAuth` returned. The safe wiring for an app built on it:
+     *
+     * - the principal is `auth.sessionKey()` unless
+     *   {@link OfflineQueryPersistenceOptions.getPrincipal} is given, so the
+     *   cache belongs to one sign-in and survives reloads and token rotations
+     *   of it; a new sign-in of the same account starts cold;
+     * - the principal is known only while `auth.isSessionKnown()` says the
+     *   session is settled — not while a `login()`, `restore()` or the boot
+     *   `refresh()` is still deciding it — and, with a `getPrincipal` of your
+     *   own, only once it names someone whenever a session is installed (a
+     *   user id read from a profile that has not loaded yet is not "nobody").
+     *
+     * Before it, a cookie app had to wire `isPrincipalKnown` by hand, and the
+     * doc saying so was the only guard: without it, a tab closed before `/me`
+     * answered left the signed-in account's responses stamped anonymous for
+     * the next signed-out boot to hydrate (#596). Call `restore()` after the
+     * boot `auth.refresh()` settles; called before, it hydrates only what
+     * nobody owns.
+     */
+    auth?: OfflineQuerySession;
 }
 
 /** Options for {@link OfflineQueryPersistence.clear}. */
@@ -255,7 +294,17 @@ function currentOwner(getPrincipal: () => unknown): string | null {
 export function persistQueryClientOffline(
     options: OfflineQueryPersistenceOptions,
 ): OfflineQueryPersistence {
-    const { queryClient, throttleMs = 1000, getPrincipal, isPrincipalKnown } = options;
+    const { queryClient, throttleMs = 1000, auth } = options;
+    const appPrincipal = options.getPrincipal;
+    const getPrincipal = appPrincipal ?? auth?.sessionKey;
+    const isPrincipalKnown = auth
+        ? (): boolean =>
+              principalKnown(options.isPrincipalKnown) &&
+              auth.isSessionKnown() &&
+              (appPrincipal === undefined ||
+                  auth.sessionKey() === null ||
+                  currentOwner(appPrincipal) !== null)
+        : options.isPrincipalKnown;
     const key = options.key ?? "tanstack-query";
     const databaseName = options.databaseName ?? "TempestQueryCache";
     const store = createOfflineStore<Snapshot, string>({

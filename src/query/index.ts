@@ -17,4 +17,5 @@ export type {
     OfflineQueryClearOptions,
     OfflineQueryPersistence,
     OfflineQueryPersistenceOptions,
+    OfflineQuerySession,
 } from "./offline-persistence";

@@ -81,6 +81,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   chegarem. Quem dependia de `usePixCharge` sair de `paid` para `expired`/`cancelled`/`failed`,
   ou de aceitar atualização de outro `provider`, deixa de ver essas transições.
 
+### Adicionado
+
+- **`auth.isSessionKnown()` e a opção `auth` de `persistQueryClientOffline` (#596).** O #590 deixou
+  o cache offline seguro só para quem passasse `isPrincipalKnown` à mão — a proteção era uma frase
+  da doc. Agora o `createTempestAuth` diz por conta própria quando a sessão ainda está sendo
+  decidida: `isSessionKnown()` é `false` com um `login()`, um `restore()` ou uma troca de conta em
+  voo e com o `refresh()` do boot restaurando a sessão sem token instalado; `true` no resto, logado
+  ou deslogado. `persistQueryClientOffline({ queryClient, auth })` usa `auth.sessionKey()` como
+  principal (o cache é de um login: sobrevive a reload e rotação, login novo começa frio) e só
+  grava, prende o dono ou restaura com a sessão conhecida; com `getPrincipal` próprio junto,
+  sessão instalada com principal vazio (perfil ainda não carregado) também conta como
+  desconhecida. Aceite da issue — app de cookie com `createTempestAuth` + persistência, sem
+  `isPrincipalKnown`, aba fechada antes do `/me`, boot deslogado — restaura `undefined` em vez de
+  `["A-order-1"]`. Testes em `src/query/offline-persistence.auth.test.ts` (3 de 6 falham sobre a
+  `main` em `b99a0c6`; os outros 3 são controles: restore do mesmo login no reload, e os dois do
+  `isSessionKnown` durante login e rotação, que passam também lá por não existir a opção;
+  `npx vitest run src/query/offline-persistence.auth.test.ts`). Opção nova, nada muda para quem
+  não a passa. Outros consumidores de `getPrincipal` (`createOfflineSync`, `createWebSocket`/
+  `useWebSocket`, `createResumableUpload`, `provideBackgroundSyncCredentials`, a fila de
+  telemetria) **não** foram ligados: nenhum hidrata dado para o próximo boot — com o principal
+  desconhecido eles seguram ou descartam o item, nunca o entregam a outra conta —, e o upload
+  resumível já lê a sessão do `getToken` do preset. O `template-pwa` não usa
+  `persistQueryClientOffline` nem `createTempestAuth`, então não muda.
+
 ### Corrigido
 
 - **`createTempestAuth`: duas abas chamando `restore()` juntas resgatam uma vez só (#594).** O
@@ -121,6 +145,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **#596: barrel CJS 187,1 → 187,2 kB** (`npm run build && npx size-limit --json`, sobre o
+  #595): CJS 187 061 → 187 133 B (+72 B); ESM 157 215 → 157 224 B (+9 B, budget 157,4 kB
+  mantido). Contra a `main` em `b99a0c6`, somando #594, #595 e #596: ESM 156 964 → 157 224 B
+  (+260 B), CJS 186 505 → 187 133 B (+628 B). As fatias medidas não mudam — nenhuma importa
+  `createTempestAuth`, e a de offline + PWA continua em 5 061 B.
 - **#595: barrel CJS 186,9 → 187,1 kB** (`npm run build && npx size-limit --json`, sobre o
   #594): CJS 186 843 → 187 061 B (+218 B); ESM 157 310 → 157 215 B (reminificação; budget
   157,4 kB mantido). Contra a `main` em `b99a0c6`: ESM 156 964 → 157 215 B, CJS 186 505 →

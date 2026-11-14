@@ -252,6 +252,30 @@ Writes are throttled (`throttleMs`, default 1s) and subscribe to the cache. `flu
 - If the IndexedDB delete fails, `resetClient` still clears the `QueryClient`, and the error reaches the caller.
 - **A session that ends without `clear()`** (expired token, crash, tab closed while signed in) never goes through logout. For it, pass `getPrincipal: () => userId`: every write stamps the snapshot with a fingerprint of whoever is signed in, and `restore()` only hydrates a snapshot of the **same** owner. Another person's is skipped, not deleted — a cookie app that learns the user only after `/me` does not lose its own cache — and the next write replaces it. A snapshot written before the option carries no stamp and is not restored: one cold start, once.
 - **The handle is bound to the first signed-in owner** it sees — on a cache change, a write or a restore. The cache change is what pins the owner of the data: writes are throttled, and without it a session that expired (or another account that signed in) inside the first window got the previous user's responses, stamped as anonymous or as its own (#580). From then on, a write under another owner — nobody, because the token expired without `clear()`, or another account signing in on the same tab — **deletes** the snapshot instead of stamping the previous user's responses with the new owner (#563); if the same user comes back, the handle writes again. Writes before anyone signs in stay anonymous and are restored while nobody is signed in, so an app that persists visitor data keeps working. An anonymous snapshot written by 0.82.0 is not restored (it may hold an expired session's cache): one cold start, once. For the next session to persist, create a new handle on login, as after `clear()`.
+- **Principal not known yet: `isPrincipalKnown`.** For `getPrincipal`, `null` and `undefined` mean **nobody is signed in** — the same contract as the rest of the SDK, so `() => user?.id` keeps working. "I don't know yet" is a different state: a cookie-session app only learns the user after `/me`, and a write that ran before that stamped A's responses as anonymous; if the tab closed before the next write, the next logged-out boot hydrated them (#590). Pass `isPrincipalKnown: () => false` until the `/me` answer arrives, whatever it is. While it is `false`, nothing is written (the write is re-armed for the next window), a cache change does not bind the owner and `restore()` hydrates nothing — call it again once the principal is known. An `isPrincipalKnown` that throws counts as unknown. Without `getPrincipal`, the option is ignored.
+- **A handle that hydrated an anonymous snapshot does not re-stamp it** when someone signs in on it: the anonymous row may belong to an account whose principal was not known yet when it was written, and re-stamping it handed A's responses to B (#590). The write deletes the row, as on an account switch (#563), and a dev build logs **one** `console.warn`. A visitor app that later signs in loses persistence for that session; create a new handle on login to keep persisting.
+
+```ts
+import { persistQueryClientOffline } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+let me: { id: string } | null = null;
+let meResolved = false;
+
+const persistence = persistQueryClientOffline({
+    queryClient,
+    getPrincipal: () => me?.id,
+    isPrincipalKnown: () => meResolved,
+});
+
+export async function boot(): Promise<void> {
+    const response = await fetch("/api/me", { credentials: "include" });
+    me = response.ok ? ((await response.json()) as { id: string }) : null;
+    meResolved = true;
+    await persistence.restore();
+}
+```
 
 !!! warning "Changed in 0.77.0: the handle ends at `clear()`"
     Before, the same handle kept writing after `clear()`. If your app keeps `persistence` at module scope and reuses it after login, it **stops persisting** from 0.77.0 on. Create the handle inside the session:

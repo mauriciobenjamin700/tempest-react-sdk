@@ -66,8 +66,47 @@ export interface OfflineQueryPersistenceOptions {
      * Read synchronously. A non-string, non-number value (the `Promise` of an
      * `async` getter) or a getter that throws reads as nobody. Omit it to restore
      * every snapshot, as before 0.82.0.
+     *
+     * `null` and `undefined` both mean **nobody is signed in** — the same
+     * contract as every other `getPrincipal` in the SDK, so `() => user?.id`
+     * keeps working. "Not known yet" (a cookie session before `/me` answers) is
+     * a different state, and this getter cannot express it: pass
+     * {@link OfflineQueryPersistenceOptions.isPrincipalKnown} for it. Without
+     * that, a write that runs before `/me` stamps the signed-in user's
+     * responses as anonymous, and a logged-out boot hydrates them (#590).
+     *
+     * A handle that hydrated an anonymous snapshot deletes it, instead of
+     * writing, once someone signs in on it: the anonymous row may hold a
+     * previous account's responses written before its principal was known, and
+     * stamping them with the account now signed in is what handed them to it
+     * (#590). Create a new handle after login to keep persisting, as after
+     * `clear()`.
      */
     getPrincipal?: () => string | number | null | undefined;
+    /**
+     * Whether `getPrincipal` already reflects the real session. Only read with
+     * `getPrincipal`; omitted, the principal is always known, as before.
+     *
+     * For an app that learns who is signed in only after a round trip — a
+     * cookie session resolved by `/me`, a token restored asynchronously —
+     * return `false` until that answer arrives, whatever it is. While it is
+     * `false`:
+     *
+     * - a write does not run and is re-armed for the next throttle window, so
+     *   the responses already in the cache are stamped with the real owner, not
+     *   as anonymous;
+     * - a cache change does not bind the handle;
+     * - `restore()` hydrates nothing — call it again once the principal is
+     *   known.
+     *
+     * Without it, `null` before `/me` reads as "nobody": a session that ends
+     * (tab closed) inside the first throttle window leaves the signed-in user's
+     * responses stamped anonymous, for the next logged-out boot to hydrate
+     * (#590).
+     *
+     * Read synchronously; a throw reads as not known, so it fails closed.
+     */
+    isPrincipalKnown?: () => boolean;
 }
 
 /** Options for {@link OfflineQueryPersistence.clear}. */
@@ -88,7 +127,8 @@ export interface OfflineQueryPersistence {
      * Load the persisted snapshot into the `QueryClient`. Call once on boot,
      * before rendering queries, so cached data is available offline. A no-op
      * once {@link OfflineQueryPersistence.clear} has been called, and — with
-     * `getPrincipal` — for a snapshot written under another principal.
+     * `getPrincipal` — for a snapshot written under another principal or while
+     * `isPrincipalKnown` returns `false`; call it again once it is known.
      */
     restore: () => Promise<void>;
     /**
@@ -133,6 +173,22 @@ export interface OfflineQueryPersistence {
      * @param options - `resetClient` also clears the in-memory `QueryClient`.
      */
     clear: (options?: OfflineQueryClearOptions) => Promise<void>;
+}
+
+/**
+ * Whether the app says its principal is settled.
+ *
+ * @param isPrincipalKnown - The app's getter, if any.
+ * @returns `true` without a getter; `false` when it returns anything but
+ * `true` or throws, so an unknown principal fails closed.
+ */
+function principalKnown(isPrincipalKnown: (() => boolean) | undefined): boolean {
+    if (!isPrincipalKnown) return true;
+    try {
+        return isPrincipalKnown() === true;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -199,7 +255,7 @@ function currentOwner(getPrincipal: () => unknown): string | null {
 export function persistQueryClientOffline(
     options: OfflineQueryPersistenceOptions,
 ): OfflineQueryPersistence {
-    const { queryClient, throttleMs = 1000, getPrincipal } = options;
+    const { queryClient, throttleMs = 1000, getPrincipal, isPrincipalKnown } = options;
     const key = options.key ?? "tanstack-query";
     const databaseName = options.databaseName ?? "TempestQueryCache";
     const store = createOfflineStore<Snapshot, string>({
@@ -215,6 +271,7 @@ export function persistQueryClientOffline(
     let warnedEnded = false;
     let warnedRebound = false;
     let boundOwner: string | null = null;
+    let hydratedAnonymous = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const inFlight = new Set<Promise<unknown>>();
 
@@ -236,9 +293,9 @@ export function persistQueryClientOffline(
         if (warnedRebound || !isDevBuild()) return;
         warnedRebound = true;
         console.warn(
-            "[tempest-react-sdk] persistQueryClientOffline: another account signed in on a " +
-                "handle bound to the previous one; its snapshot is deleted instead of written. " +
-                "Create a new handle after login to keep persisting.",
+            "[tempest-react-sdk] persistQueryClientOffline: an account signed in on a " +
+                "handle holding another session's cache; its snapshot is deleted instead of " +
+                "written. Create a new handle after login to keep persisting.",
         );
     }
 
@@ -255,16 +312,28 @@ export function persistQueryClientOffline(
      * A second account (not an expiry) means the app kept the handle across a
      * login, which stops persistence for that account in silence; a dev build
      * logs one `console.warn` saying so, as for a handle ended by `clear()`.
+     * Someone signing in on a handle that hydrated an anonymous snapshot is
+     * treated the same way: that row may hold an account's responses written
+     * before its principal was known, so it is deleted, not re-stamped (#590).
+     *
+     * While `isPrincipalKnown` says the principal is not settled, nothing is
+     * written and the write is re-armed for the next window (#590).
      */
     async function save(): Promise<void> {
         if (ended) return;
         await afterPendingClear();
         if (ended) return;
+        if (getPrincipal && !principalKnown(isPrincipalKnown)) {
+            schedule();
+            return;
+        }
         const snapshot: Snapshot = { id: key, state: dehydrate(queryClient) };
         let foreign = false;
         if (getPrincipal) {
             const owner = currentOwner(getPrincipal);
-            foreign = boundOwner !== null && owner !== boundOwner;
+            foreign =
+                (boundOwner !== null && owner !== boundOwner) ||
+                (hydratedAnonymous && owner !== null);
             if (foreign && owner !== null) warnRebound();
             boundOwner ??= owner;
             snapshot.owner = owner ?? ANONYMOUS_SNAPSHOT_OWNER;
@@ -305,11 +374,14 @@ export function persistQueryClientOffline(
      * signed in inside it got them stamped as its own directly (#580). Binding
      * at event time pins the owner of the data, so that write deletes instead.
      * An event while nobody is signed in leaves the handle unbound, which keeps
-     * the cookie app whose principal arrives after `/me` persisting.
+     * the cookie app whose principal arrives after `/me` persisting; so does
+     * an event while `isPrincipalKnown` says the principal is not settled.
      */
     function onCacheEvent(event: QueryCacheNotifyEvent): void {
         if (!ended) {
-            if (getPrincipal) boundOwner ??= currentOwner(getPrincipal);
+            if (getPrincipal && principalKnown(isPrincipalKnown)) {
+                boundOwner ??= currentOwner(getPrincipal);
+            }
             schedule();
             return;
         }
@@ -340,9 +412,11 @@ export function persistQueryClientOffline(
             const snapshot = await store.get(key);
             if (!snapshot || ended) return;
             if (getPrincipal) {
+                if (!principalKnown(isPrincipalKnown)) return;
                 const owner = currentOwner(getPrincipal);
                 if (snapshot.owner !== (owner ?? ANONYMOUS_SNAPSHOT_OWNER)) return;
                 boundOwner ??= owner;
+                if (owner === null) hydratedAnonymous = true;
             }
             hydrate(queryClient, snapshot.state);
         },

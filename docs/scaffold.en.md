@@ -74,7 +74,7 @@ In this "current directory" mode:
 
 - **Existing files are left untouched** — the CLI skips each one that already exists and **reports** what it skipped, never overwriting anything of yours.
 - **A symlink in the destination is never followed** — a `src -> ../elsewhere` (common in a monorepo or a cloned repository) is skipped and reported whole, and so is a `package.json` that is a link: the CLI never writes outside the project folder.
-- An existing `package.json` has the Tempest scripts and deps **merged** in: your `name`/`version` and the scripts/deps already there are preserved, and `tempest-react-sdk` is pinned to the **SDK's own version** running the scaffold.
+- An existing `package.json` has the Tempest scripts and deps **merged** in: your `name`/`version` and the scripts/deps already there are preserved, and `tempest-react-sdk` is pinned to the **SDK's own version** running the scaffold. The template's `overrides` come along too (an override you already declare for the same package wins): they are what keeps `npm audit` clean while a tooling dependency has not shipped its fix yet.
 
 !!! info "The `.env`"
     `.env.example` declares `VITE_API_URL`, the base used by the HTTP client in `src/lib/api.ts`. Copy it to `.env` and point it at your backend.

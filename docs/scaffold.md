@@ -74,7 +74,7 @@ Nesse modo "diretório atual":
 
 - **Arquivos existentes são preservados** — a CLI pula cada um que já existe e **reporta** o que foi pulado, sem sobrescrever nada seu.
 - **Symlink no destino nunca é atravessado** — um `src -> ../outro-lugar` (comum em monorepo ou repositório clonado) é pulado e reportado inteiro, assim como um `package.json` que seja link: a CLI não escreve fora da pasta do projeto.
-- Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold.
+- Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold. Os `overrides` do template entram junto (um override que você já declara para o mesmo pacote vence): são eles que mantêm o `npm audit` limpo enquanto uma dependência de ferramenta ainda não publicou a correção.
 
 !!! info "O `.env`"
     O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/lib/api.ts`. Copie pra `.env` e ajuste pra apontar pro seu backend.

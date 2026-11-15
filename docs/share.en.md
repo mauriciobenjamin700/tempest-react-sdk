@@ -124,6 +124,7 @@ Under the hood it calls `share({ title, files: [file] })`. If the user **shared*
 
 !!! tip "Pairs with `writeXlsx` / ZIP generation"
     Generate the spreadsheet with [`writeXlsx`](./utilities.en.md#spreadsheets-xlsx-writexlsx), wrap it in a `Blob`, and hand it to `shareOrDownloadBlob` — a full data export, from bytes to native sheet, with no extra dependency.
+    With photos alongside, [`createZip`](./utilities.en.md#zip-archives-createzip) returns the `.zip` `Blob` directly, with progress.
 
 ## Recap
 

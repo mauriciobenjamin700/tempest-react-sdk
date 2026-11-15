@@ -66,6 +66,12 @@ export interface TempestRouteObject {
     guardFallback?: ReactNode;
     /** Destination used when `guard` fails (default: `"/"`). */
     redirectTo?: string;
+    /**
+     * Send the blocked location along with the guard's redirect, as
+     * `state: { from }`, so the login screen can return there with
+     * `useReturnTo`. Same as `<RouteGuard preserveFrom>` (default: `false`).
+     */
+    preserveFrom?: boolean;
     /** Match the path case-sensitively. */
     caseSensitive?: boolean;
 }

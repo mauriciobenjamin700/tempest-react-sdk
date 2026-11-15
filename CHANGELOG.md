@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
@@ -65,6 +66,17 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Adicionado
 
+- **`RouteGuard`/rota guardada: `preserveFrom` e `useReturnTo` — voltar para onde estava depois
+  do login (#616).** `preserveFrom` (no `<RouteGuard>` e no `TempestRouteObject`, padrão `false`)
+  faz o redirect levar `state: { from: pathname + search + hash }`; `useReturnTo(fallback = "/")`
+  lê esse `from` na tela de login e o devolve **só se for caminho relativo da mesma origem** —
+  `https://…`, `//host`, `/\host`, caractere de controle e `javascript:` viram o `fallback`. A
+  leitura validada é superfície, não aviso na doc: o `from` vem do `history.state`, e seguido sem
+  checagem é open redirect. Medido no `react-router` 8.3.1: `navigate("https://evil.example")`
+  lança `External navigation is not allowed` (a tela quebra), e `window.location.assign(from)`
+  redireciona de fato. Optou-se por `preserveFrom` em vez de `state?: unknown` livre: cobre o
+  caso com uma prop booleana e fixa a forma `{ from }` que o `useReturnTo` lê. Doc em
+  `docs/routing.md` e `.en.md`.
 - **`useDraftFilters().discard()`** (#614): devolve o rascunho ao valor aplicado sem publicar e
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
@@ -108,6 +120,10 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 ### Budgets
 
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
+- **`preserveFrom` + `useReturnTo` (#616): barrel ESM 158,3 → 158,5 kB, CJS 188,1 → 188,3 kB**
+  (`npm run build && npx size-limit --json`, `main` em `300d0a0` contra este branch): ESM
+  158 263 → 158 374 B (+111 B), CJS 187 970 → 188 255 B (+285 B). `slice: typical app` 12 637 →
+  12 698 B (+61 B, o `AppRouter` arrasta o `RouteGuard`), dentro do teto de 12,7 kB já na `main`.
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da

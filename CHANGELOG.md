@@ -60,6 +60,11 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Budgets
 
+- **Mensagens por `kind` na câmera (#617): barrel ESM 158,3 → 158,6 kB, CJS 188,1 → 188,4 kB**
+  (`npm run build && npx size-limit --json`, `main` em `300d0a0` contra este branch): ESM
+  158 263 → 158 533 B (+270 B), CJS 187 970 → 188 256 B (+286 B). O grosso são as seis frases
+  pt-BR do `BarcodeScanner`: a fatia `device capture` vai de 5 465 para 5 708 B (+243 B, dentro do
+  budget); `vision entry` 16 508 → 16 526 B (+18 B, o `useMemo` do `messages`).
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da

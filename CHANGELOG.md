@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createDeviceFacts`: o `device` do `createAppErrorReporter` pronto, sem o user agent cru**
+  (#621). Devolve o getter que a opção `device` espera, com `platform` (`"web"` por padrão; shell
+  nativo passa o seu), `os_version` grosso (`"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`,
+  `"Windows"`, `"macOS"`), `device_model` (modelo Android quando o UA ainda traz;
+  `"iPhone"`/`"iPad"`), `app_version` e um `device_id` UUID v4 **aleatório** (`crypto.randomUUID`,
+  ou `getRandomValues` fora de contexto seguro; sem Web Crypto, nenhum id — nunca `Math.random`).
+  O id fica em `localStorage`; storage que lança vira id em memória na sessão, e valor guardado que
+  não é UUID v4 é substituído, nunca enviado. A issue pedia "modelo Android descartando o `K`"; a
+  medição mostra que o defeito é maior: o UA reduzido do Chrome manda `Linux; Android 10; K` em
+  **todo** Android, então a versão também é mentira — a forma reduzida vira só `"Android"`, e o
+  getter pergunta uma vez às User-Agent Client Hints (`getHighEntropyValues(["platformVersion",
+"model"])`) para recuperar `"Android 14"` + modelo (e `"Windows 10"`/`"Windows 11"`). iPad em
+  modo desktop (UA de Mac) é reconhecido por `maxTouchPoints > 1`. A doc da telemetria trocava
+  `os_version: navigator.userAgent` — o UA cru, contra a própria regra — por `createDeviceFacts`.
+  Fatia nova no `size-limit`: `{ createDeviceFacts }` = 1,16 kB br; os tetos do barrel inteiro sobem
+  157,9 → 158,8 kB (ESM) e 187,8 → 188,7 kB (CJS), medidos 158,73 / 188,65 kB com `npx size-limit`
+  — os ~0,85 kB são a função nova, que só pesa para quem a importa.
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

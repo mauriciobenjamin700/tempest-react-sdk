@@ -13,6 +13,8 @@ export type {
 } from "./app-error-reporter";
 export { createAppErrorTelemetryAdapter } from "./app-error-adapter";
 export type { CreateAppErrorTelemetryAdapterOptions } from "./app-error-adapter";
+export { createDeviceFacts } from "./device-facts";
+export type { CreateDeviceFactsOptions } from "./device-facts";
 export { describeAppError } from "./describe-app-error";
 export type { AppErrorDescription } from "./describe-app-error";
 export type { AppErrorQueueEntry, AppErrorQueueStorage } from "./app-error-queue";

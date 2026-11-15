@@ -1,3 +1,6 @@
+import { fallbackText, isAbsent, type FormatFallbackOptions } from "@/utils/absent";
+import { dateTimeFormat } from "@/utils/intl-cache";
+
 export type RelativeTimeLocale = "pt-BR" | "en";
 
 interface Strings {
@@ -111,4 +114,106 @@ export function relativeTime(
     }
     const n = Math.round(abs / YEAR);
     return past ? strings.yearsAgo(n) : strings.inYears(n);
+}
+
+/** The words {@link relativeDayLabel} uses for the two named days. */
+export interface RelativeDayLabels {
+    /** Label for a date on the current local calendar day. */
+    today: string;
+    /** Label for a date on the previous local calendar day. */
+    yesterday: string;
+}
+
+/** Options for {@link relativeDayLabel}. */
+export interface RelativeDayLabelOptions extends FormatFallbackOptions {
+    /** Language of the labels and of the date format. Defaults to `"pt-BR"`. */
+    locale?: RelativeTimeLocale;
+    /** Reference instant that defines "today". Defaults to `Date.now()`. */
+    now?: Date | number;
+    /** Override one or both labels; the rest come from `locale`. */
+    labels?: Partial<RelativeDayLabels>;
+}
+
+const DAY_LABELS: Record<RelativeTimeLocale, RelativeDayLabels> = {
+    "pt-BR": { today: "Hoje", yesterday: "Ontem" },
+    en: { today: "Today", yesterday: "Yesterday" },
+};
+
+/**
+ * Parse the accepted inputs into a `Date`, reading a bare `yyyy-MM-dd` as a
+ * **local** calendar date.
+ *
+ * `new Date("2026-05-16")` is UTC midnight, which in UTC-3 is the 15th at 21:00,
+ * so the day a backend sent would be labelled as the day before.
+ *
+ * @param input - A `Date`, epoch milliseconds or a date string.
+ * @returns The parsed date, possibly invalid.
+ */
+function toLocalDate(input: Date | string | number): Date {
+    if (input instanceof Date) return input;
+    if (typeof input === "string") {
+        const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input);
+        if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    }
+    return new Date(input);
+}
+
+/**
+ * Whether two dates fall on the same local calendar day.
+ *
+ * @param a - First date.
+ * @param b - Second date.
+ * @returns `true` when year, month and day match in the local time zone.
+ */
+function sameLocalDay(a: Date, b: Date): boolean {
+    return (
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate()
+    );
+}
+
+/**
+ * Label a date as `"Hoje"`, `"Ontem"` or the date itself (`dd/MM/yyyy` in
+ * PT-BR), for the headers of a list grouped by day.
+ *
+ * It answers a different question from {@link relativeTime}: that one measures
+ * elapsed time ("2 horas atrás"), this one names the calendar day. The two
+ * disagree around midnight on purpose — at 00:10 a message from 23:50 is
+ * "20 min atrás" and also "Ontem".
+ *
+ * Days are compared in the **local** time zone by calendar fields, never by
+ * subtracting 24 hours: "yesterday" is the local date before today's, which
+ * stays right across a daylight-saving shift where a day lasts 23 or 25 hours.
+ * A bare `yyyy-MM-dd` string is read as a local date for the same reason.
+ *
+ * Anything else — tomorrow, two days ago, last year — renders as the date.
+ * Absent input answers the fallback (`"—"`) and an unparseable value answers
+ * `""`, matching `formatDate`.
+ *
+ * @example
+ * relativeDayLabel(new Date());                                     // "Hoje"
+ * relativeDayLabel("2026-05-15", { now: new Date(2026, 4, 16) });  // "Ontem"
+ * relativeDayLabel("2026-05-10", { now: new Date(2026, 4, 16) });  // "10/05/2026"
+ * relativeDayLabel(new Date(), { locale: "en" });                   // "Today"
+ *
+ * @param input - A `Date`, epoch milliseconds, an ISO string, or `null`/`undefined`.
+ * @param options - Locale, reference instant, label overrides and fallback text.
+ * @returns The day label, the formatted date, the fallback when absent, or `""`
+ *   when the value is present and invalid.
+ */
+export function relativeDayLabel(
+    input: Date | string | number | null | undefined,
+    options: RelativeDayLabelOptions = {},
+): string {
+    if (isAbsent(input)) return fallbackText(options);
+    const date = toLocalDate(input);
+    if (Number.isNaN(date.getTime())) return "";
+    const { locale = "pt-BR", now = Date.now() } = options;
+    const labels: RelativeDayLabels = { ...DAY_LABELS[locale], ...options.labels };
+    const today = new Date(now);
+    if (sameLocalDay(date, today)) return labels.today;
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    if (sameLocalDay(date, yesterday)) return labels.yesterday;
+    return dateTimeFormat(locale).format(date);
 }

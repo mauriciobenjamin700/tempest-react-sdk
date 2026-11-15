@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`formatPercent` ganha `mode: "truncate"`** (#623). Arredondado, 0,99996 com duas casas vira
+  `"100,00%"` — em confiança de modelo isso lê como certeza; truncado vira `"99,99%"`. O corte não
+  usa `Math.trunc(valor * 10 ** n)`: medido sobre toda fração `i / 10000`, essa forma erra 573 de
+  10001 valores com duas casas (`0.57 * 10000` é `5699.999999999999` → `"56,99%"`) e 3 de 101 com
+  zero casas (`0.29 * 100`). O SDK desloca o expoente da representação textual (`"0.57e4"`), que dá
+  o inteiro exato — zero erros nas mesmas grades. O padrão continua `"round"`; `-0` vira `0`.
+- **`relativeDayLabel(data, options?)`** (#623): `"Hoje"`, `"Ontem"` ou a data (`dd/MM/yyyy`),
+  para cabeçalho de lista agrupada por dia. Compara pelo dia do calendário **local** (não por
+  `agora - 24h`, que erra em dia de horário de verão), lê `yyyy-MM-dd` puro como data local, e
+  aceita `locale` (`"pt-BR"`/`"en"`), `now`, `labels` e `fallback`, como os irmãos `relativeTime` e
+  `formatDate`. Tipos `RelativeDayLabelOptions` e `RelativeDayLabels`.
+
+### Budgets
+
+- **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
+  `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
+  branch, mesmo resto da árvore): CJS 187 674 → 188 049 B (+375 B; a `main` tinha 126 B de folga) —
+  os bytes são o `relativeDayLabel` com os rótulos pt-BR/en e o corte decimal do `mode: "truncate"`,
+  que o barrel CJS carrega sem tree-shaking. ESM 158 046 → 158 019 B (reminificação; budget 158,3 kB
+  mantido). Nenhuma fatia importada passou de ±35 B.
+
 ### Corrigido
 
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**

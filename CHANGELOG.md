@@ -43,6 +43,15 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
   `docs/hooks.md`; não há `clearDraft()` separado.
+- **`PostInstallPrompt`** (#620): overlay na aba do navegador depois que o app é instalado a
+  partir dela (abre no `installed` de `useBeforeInstallPrompt` — prompt aceito ou `appinstalled`),
+  com "Fechar esta aba" e "Continuar no navegador" (`onContinue`; `Escape` e clique fora contam
+  como continuar). **Sem botão "Abrir o app"**: nenhuma API web abre o PWA instalado a partir da
+  aba. O botão de fechar só aparece quando o navegador vai deixar o script fechar a aba — medido no
+  Chromium 153 headless: aba aberta direto na URL fecha com `history.length` 1 e deixa de fechar
+  depois de um único `pushState`; aba aberta por `window.open` fecha sempre. Fora disso, ou se o
+  `close()` for ignorado, mostra `closeBlockedMessage`. Safari e Firefox não disparam
+  `appinstalled`, então ali o overlay não abre.
 
 ### Budgets
 
@@ -55,6 +64,10 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 - **Soma de #612 + #614 remedida sobre a `main` em `578c071`** (`npm run build && npx size-limit
 --json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
   187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
+- **`PostInstallPrompt` (#620): barrel ESM 158,3 → 158,6 kB e CJS 188,1 → 188,4 kB.**
+  `npm run build && npx size-limit --json` na `main` em `5f7e537` contra este branch: ESM
+  158 075 → 158 549 B (+474 B), CJS 188 084 → 188 299 B (+215 B), `styles.css` 31 451 → 31 472 B
+  (dentro do teto). É o componente novo exportado da raiz; nenhuma fatia importada mudou.
 
 ## [0.86.0] — 2026-11-15
 

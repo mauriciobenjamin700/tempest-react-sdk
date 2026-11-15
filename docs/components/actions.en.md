@@ -608,6 +608,43 @@ export function Instalar() {
 
     A key already holding `"1"` still counts as a permanent dismissal even with `declineCooldownMs` configured: it was written under the old contract, and reviving a banner the user switched off is worse than leaving it off.
 
+## `PostInstallPrompt`
+
+Overlay shown **in the browser tab** after the app is installed from it. Without it, the user accepts the install, the tab looks unchanged, and they keep using the site without knowing the app is already on the home screen.
+
+```tsx
+import { PostInstallPrompt } from "tempest-react-sdk";
+
+export function Root() {
+    return (
+        <PostInstallPrompt
+            title="FAMACHApp installed"
+            onContinue={() => console.info("kept using the browser")}
+        />
+    );
+}
+```
+
+Mount it once, at the app root. It opens by itself when `useBeforeInstallPrompt`'s `installed` turns `true` — the user accepted the prompt or the browser fired `appinstalled` — and offers two ways out: **"Fechar esta aba"** (close this tab) and **"Continuar no navegador"** (keep using the browser; `Escape` and a backdrop click count as continuing).
+
+| Prop                  | Type         | Default                    |
+| --------------------- | ------------ | -------------------------- |
+| `title`               | `ReactNode`  | `"App instalado"`          |
+| `description`         | `ReactNode`  | PT-BR copy pointing at the home screen |
+| `closeLabel`          | `string`     | `"Fechar esta aba"`        |
+| `continueLabel`       | `string`     | `"Continuar no navegador"` |
+| `closeBlockedMessage` | `ReactNode`  | PT-BR copy asking the user to close the tab |
+| `onContinue`          | `() => void` | —                          |
+| `className`           | `string`     | —                          |
+
+!!! warning "There is no \"open the installed app\" on the web — and the component does not pretend there is"
+    No web API opens an installed PWA from a browser tab; a link to the `start_url` opens in the same tab on most browsers. That is why there is no "Open now" button: what the tab can do is **close itself**, and only when the browser allows it.
+
+    Measured in headless Chromium 153 (15/11/2026): a tab the user opened directly at the URL closes with `window.close()` while `history.length` is 1; **a single `pushState` and the call is ignored** ("Scripts may close only the windows that were opened by them."). A tab opened by `window.open` closes even after navigating. An SPA that changed route once is already past that point — so the component predicts the rule and, when it will not allow it, **does not show the button**: it shows `closeBlockedMessage`, asking the user to close the tab and open the app from its icon. If the browser ignores `close()` anyway, the button gives way to the same message.
+
+!!! note "It only opens where there is an install signal"
+    `appinstalled` is fired by Chromium browsers (Chrome, Edge, Samsung Internet), whatever the install path was — prompt, address-bar icon or menu. Safari (iOS and macOS) and Firefox do not fire it, so there the overlay never opens: there is no signal to rely on.
+
 ## Recap
 
 | Component       | Use for                                         | Trigger     |
@@ -616,6 +653,7 @@ export function Instalar() {
 | `FloatingActionButton` | Floating, persistent primary action      | click       |
 | `InstallButton` | Install the PWA, or teach how where no prompt exists | click  |
 | `InstallBanner` | Dismissible invite to install the PWA           | click       |
+| `PostInstallPrompt` | Tell the tab the app is already installed   | `appinstalled` |
 | `Tooltip`       | Non-critical context on a control               | hover/focus |
 | `DropdownMenu`  | A list of secondary actions (closes on pick)    | click       |
 | `Popover`       | A floating panel with arbitrary content         | click       |

@@ -164,6 +164,8 @@ export type { InputProps, InputSize } from "./Input";
 export { InstallBanner } from "./InstallBanner";
 export type { InstallBannerProps } from "./InstallBanner";
 
+export { PostInstallPrompt } from "./PostInstallPrompt";
+export type { PostInstallPromptProps } from "./PostInstallPrompt";
 export { InstallButton, defaultInstallHint } from "./InstallButton";
 export type {
     InstallButtonProps,

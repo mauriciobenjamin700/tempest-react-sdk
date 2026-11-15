@@ -712,6 +712,36 @@ export function AvatarUpload() {
 
     Até a 0.81.0, sem `credentialOrigin` o header ia para onde a `url` apontasse — inclusive uma URL assinada que veio de um corpo de resposta. A opção `csrf` segue exatamente o mesmo escopo. Os `headers` que você passa aqui são da chamada e vão para a `url` dela.
 
+### A resposta é da sessão que enviou (0.88.0)
+
+Um upload demora — e a sessão pode trocar enquanto ele sobe. A resposta que chega depois de `logout()` + `login(B)` é de **A**: a URL do arquivo de A, ou o envelope de erro de A. Até a 0.87.0 ela resolvia (ou rejeitava com o `TempestApiError` de A) já na continuação de B: o `onSuccess` gravava a URL de A no cache de B (#642). Desde a **0.88.0**, um upload que saiu com token de `getToken` e cuja sessão mudou antes de a resposta chegar rejeita com `SessionSupersededError`, sucesso ou erro — o mesmo contrato do [`createApiClient`](#createapiclient) com `getSessionEpoch` (#609).
+
+Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto. Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
+
+```ts
+import { SessionSupersededError, createTempestAuth, uploadWithProgress } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export async function enviarAvatar(arquivo: File): Promise<string | null> {
+  try {
+    const { url } = await uploadWithProgress<{ url: string }>({
+      url: "/api/avatar",
+      body: arquivo,
+      getToken: auth.getToken,
+    });
+    return url;
+  } catch (error) {
+    if (error instanceof SessionSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+Trate o `SessionSupersededError` como um abort: descarte o resultado e não mostre nada. Upload que saiu **sem** token não diz nada sobre conta nenhuma e continua resolvendo; um refresh do token durante o upload não muda a sessão e também resolve.
+
+Medido em `src/http/upload-with-progress.session.test.ts` (`npx vitest run src/http/upload-with-progress.session.test.ts`): na `main` b3b9337, 10 dos 16 casos falhavam — nos dois transportes (XHR e `redirect: "error"`), a resposta de A depois da troca resolvia com `{ url: "/files/of-A" }` ou rejeitava com o envelope de A.
+
 ### Redirect no `uploadWithProgress` (0.83.0)
 
 Um `XMLHttpRequest` segue todo redirect, e não existe opção para impedir. Medido no Chrome 150 (#570) com o `uploadWithProgress` empacotado por esbuild: página e `url` em `127.0.0.1:5470`, que responde `301`/`302`/`303`/`307`/`308` para `localhost:5471`, que ecoa os headers com CORS. Nos cinco códigos o outro host recebeu o `X-Api-Key` dos `headers` e o `X-CSRF-Token` do SDK — e, no `307`/`308`, o corpo inteiro (2048 B). Só o `Authorization` o navegador tirou. E o upload **resolvia** com a resposta do outro host, como se fosse a da sua API.

@@ -2011,6 +2011,11 @@ describe("createResumableUpload — the principal or the storage changes mid-run
     const file = new File([new Uint8Array(10)], "nota.webm", { lastModified: 1 });
     const recordKey = `tempest-upload:${uploadFingerprint("/api/uploads", file)}`;
 
+    /**
+     * Up to 0.87.0 this asserted A's record survived at offset 0. It is now
+     * deleted (#642): it holds A's upload URL and `Idempotency-Key` in B's
+     * storage, and nobody but A switching back in the same tab could use it.
+     */
     it("stops the run with a typed error when the principal changes, and never sends B's token to A's URL", async () => {
         let principal = "user-A";
         let token = "tok-A";
@@ -2037,10 +2042,7 @@ describe("createResumableUpload — the principal or the storage changes mid-run
         expect(
             server.requests.filter((request) => request.headers.Authorization === "Bearer tok-B"),
         ).toEqual([]);
-        const stored = JSON.parse(
-            localStorage.getItem(recordKey) ?? "null",
-        ) as ResumableUploadRecord;
-        expect(stored.offset).toBe(0);
+        expect(localStorage.getItem(recordKey)).toBeNull();
     });
 
     it("stops the run, and writes nothing back, when the storage is cleared mid-run", async () => {

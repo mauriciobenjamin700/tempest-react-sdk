@@ -4,6 +4,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`uploadWithProgress` e `createResumableUpload`: resposta de sessão encerrada não chega mais à
+  continuação da conta seguinte** (auditoria run-15 §7, #642). Os dois uploads não tinham o vínculo
+  de época que o `createApiClient` ganhou no #609: a resposta de um upload de A que chegava depois
+  de `logout()` + `login(B)` resolvia (ou rejeitava com o envelope de erro de A) no `onSuccess`/
+  `onError` de B. Agora o `uploadWithProgress` que saiu com token de `getToken` rejeita com
+  `SessionSupersededError` quando a sessão mudou antes de a resposta chegar, sucesso ou erro, nos
+  dois transportes (XHR e `redirect: "error"`). A sessão vem sozinha do `getToken: auth.getToken`
+  do `createTempestAuth`; opção nova `sessionKey` para um wrapper (`sessionKey: auth.sessionKey`) ou
+  qualquer outra identidade. Upload sem token e refresh do token durante o upload seguem
+  resolvendo. No `createResumableUpload` a checagem de dono, antes só feita antes de cada request,
+  roda também quando cada resposta chega: chunk ou criação recusados depois da troca rejeitam com
+  `ResumableUploadSupersededError` em vez do `TempestApiError` de A, e um `HEAD` respondido depois
+  da troca não cai mais na criação com o bearer de B e a `Idempotency-Key` de A. Na parada por
+  `reason: "principal"` o registro que o run gravou para A é **apagado** (guarda a URL do upload
+  de A, que muitos servidores tus tratam como credencial, no storage de B, e ninguém mais pode
+  usá-lo); um registro que B gravou na mesma chave fica. O teste de 0.78.0 que fixava o registro de
+  A intacto (`resumable-upload.test.ts`) foi invertido. Reproduzido em
+  `src/http/upload-with-progress.session.test.ts` e `src/http/resumable-upload.session.test.ts`
+  (`npx vitest run src/http/upload-with-progress.session.test.ts src/http/resumable-upload.session.test.ts`):
+  22 testes novos, 14 falham na `main` b3b9337 (10 de 16 no `uploadWithProgress`, 4 de 6 no
+  resumível); os outros 8 são controles (sem token, rotação, erro da sessão vigente, registro de B).
+
+### Budgets
+
+- A checagem de sessão custa bytes (`npm run build && npx size-limit --json`, medido contra a
+  `main` b3b9337): "http client" 5519 → 5644 B (teto 5,6 → 5,65 kB), "resumable upload" 5051 →
+  5116 B (teto 5,1 → 5,15 KB) e o barrel CJS 191299 → 191439 B (teto 191,4 → 191,5 kB).
+
 ## [0.87.0] — 2026-11-15
 
 ### Segurança

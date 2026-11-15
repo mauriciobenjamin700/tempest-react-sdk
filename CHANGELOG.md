@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.87.0] — 2026-11-15
+
 ### Segurança
 
 - **`persistQueryClientOffline` com `auth`: reset antes do logout não grava mais dados de A sob B**

@@ -35,6 +35,13 @@ function bytesOf(value: ArrayBuffer | ArrayBufferView): Uint8Array {
  *   `File`, `Error`, `Promise`) has nothing visible to compare, so it is equal
  *   only to itself. Instances that do carry own fields keep the structural
  *   comparison, as do arrays and plain objects.
+ * - Objects compare by key **set**, not key count: with the counts equal, every
+ *   own enumerable key of one must be an own key of the other. Counting alone
+ *   made `{ a: undefined }` equal to `{ b: undefined }`, since a missing key reads
+ *   as `undefined` too — a renamed filter left `useDraftFilters` clean. The check
+ *   is `Object.hasOwn`, one lookup per key; `propertyIsEnumerable` would also
+ *   catch a non-enumerable own key of the same name, but measured ~40% slower
+ *   (#645), for a shape a plain value object never has.
  *
  * @param a - First value.
  * @param b - Second value.
@@ -76,8 +83,10 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     const bKeys = Object.keys(b);
     if (aKeys.length !== bKeys.length) return false;
     if (aKeys.length === 0 && prototype !== Object.prototype && prototype !== null) return false;
-    return aKeys.every((key) =>
-        deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
+    return aKeys.every(
+        (key) =>
+            Object.hasOwn(b, key) &&
+            deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key]),
     );
 }
 

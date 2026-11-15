@@ -506,7 +506,7 @@ export async function exportHistory(
 
 Piece by piece:
 
-- **`entries`** — `{ path, data, level? }` in archive order. `data` takes a `Blob` (a `File` from an `<input>`), a `Uint8Array` or a `string` (written as UTF-8). `path` uses `/` and must be unique: an empty or repeated path throws `TypeError` before any byte is read.
+- **`entries`** — `{ path, data, level? }` in archive order. `data` takes a `Blob` (a `File` from an `<input>`), a `Uint8Array` or a `string` (written as UTF-8). `path` uses `/` and must be unique: an empty or repeated path throws `TypeError` before any byte is read. So does a name that would let a naive extractor write outside its target folder (*zip-slip*): a `..` segment, an absolute path (`/x`), a drive letter (`C:/x`, `C:x`), a backslash or a NUL. `createZip` refuses instead of rewriting the name — only you know what the path was meant to be. Subfolders with `/` (`fotos/a.jpg`) still work.
 - **`onProgress({ loaded, total })`** — in **input** bytes. `total` is known before the start (the `Blob` size, the string's UTF-8 bytes), so the percentage is real from the first call; the last one always has `loaded === total`.
 - **`level`** — deflate from `0` (store only) to `9`. Defaults to `6`.
 - **`signal`** — an `AbortSignal` cancels mid-way; the promise rejects with the signal's `reason`.
@@ -530,7 +530,7 @@ Piece by piece:
     Reproduce with `npm run build && node scripts/bench-zip.mjs 5` (shared machine, load average 13–19 while measuring — hence the wide ranges).
 
 !!! note "Bundle cost"
-    `createZip` lives in the root next to `writeXlsx` — no subpath, because `preserveModules` already splits it: `{ cn }` alone stays at 203 B. Importing `{ createZip }` costs 5.46 kB br **with** `fflate` counted; `{ createZip, writeXlsx }` together, 6.55 kB (`npx size-limit`).
+    `createZip` lives in the root next to `writeXlsx` — no subpath, because `preserveModules` already splits it: `{ cn }` alone stays at 203 B. Importing `{ createZip }` costs 5.62 kB br **with** `fflate` counted; `{ createZip, writeXlsx }` together, 6.71 kB (`npx size-limit`, measured after the name validation of #645).
 
 ---
 

@@ -21,6 +21,7 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #654** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 616 B (teto 161.4 kB → 161.7 kB); `ceiling: full barrel CJS` 191 794 B (teto 191.7 kB → 191.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #655** (`npm run build && npx size-limit --json`): `slice: http client` 5 703 B (teto 5.7 kB → 5.8 kB); `ceiling: full barrel CJS` 191 620 B (teto 191.5 kB → 191.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Allowlist do modelo e `device_id` só com Bearer (#644): barrel ESM 161,2 → 161,4 kB.**
   Medido com `npm run build && npx size-limit --json` sobre a `main` em `b3b9337` e sobre este
@@ -78,6 +79,26 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 - A checagem custa bytes no cliente HTTP (`npm run build && npx size-limit --json`, medido contra a
   `main` em `b3b9337`): a fatia "typical app" foi de 12,78 kB a 12,88 kB (teto 12,8 → 12,9 kB) e a
   fatia "http client" de 5,52 kB a 5,61 kB (teto 5,6 → 5,7 kB).
+- **`createZip` recusa nome de entrada que escapa da pasta de extração** (#645). Segmento `..` (no início ou no meio), caminho absoluto (`/x`), letra de drive (`C:\x`, `C:/x`, `C:x`), barra invertida e NUL eram gravados como vieram, e um extrator ingênuo sofria _zip-slip_. Agora lançam `TypeError` antes de ler qualquer byte, como já acontecia com caminho vazio ou repetido; o nome não é normalizado em silêncio. Subpastas com `/` continuam.
+
+### Corrigido
+
+- **Regra interna de clique em link aceita `target` em qualquer caixa** (#645). O helper interno
+  que decide se o clique de um `Sidebar`/`NavigationMenu`/`Breadcrumbs` vai para o router só
+  reconhecia `_self` exato; a palavra-chave é case-insensitive no HTML, então `_SELF` ou `_Self`
+  deixaria o browser recarregar o documento inteiro. Inalcançável hoje (nenhum componente do SDK
+  renderiza `target` no link), corrigido antes que um passe a renderizar.
+- **`useDraftFilters` e `useDeepMemo` comparam objeto pelo conjunto de chaves** (#645). A igualdade
+  estrutural conferia só a contagem de chaves, então `{ a: undefined }` era igual a
+  `{ b: undefined }` — trocar um filtro opcional por outro deixava `isDirty` em `false` e o
+  `useDeepMemo` devolvia a referência antiga. Agora cada chave de um precisa existir no outro
+  (`Object.hasOwn`).
+
+### Budgets
+
+- **`slice: createZip`** 5,6 → 5,65 kB e **`slice: createZip + writeXlsx`** 6,7 → 6,75 kB: a
+  validação de nomes do `createZip` (#645) custa +159 B / +160 B br. Medido com
+  `npm run build && npx size-limit --json`: 5457 → 5616 B e 6550 → 6710 B contra a `origin/main`.
 
 ## [0.87.0] — 2026-11-15
 

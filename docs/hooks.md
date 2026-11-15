@@ -662,6 +662,7 @@ export function FiltroDoRebanho() {
 - `discard()` devolve o rascunho ao valor **aplicado**, sem publicar e sem chamar `onApply`. Chamado ao abrir, garante que a folha mostra o que está valendo, mesmo que alguém tenha fechado no meio de uma edição.
 - **Limpar sem aplicar é `set(() => VAZIO)`.** O updater troca o rascunho inteiro — `set(VAZIO)` faria merge e deixaria para trás uma chave opcional que o vazio não tem. Não existe um `clearDraft()` porque o updater já diz exatamente isso; `clear()` continua sendo o "limpar e aplicar" da barra de filtros.
 - `Set`, `Map` e `Date` no filtro funcionam: `isDirty` e a estabilidade do `applied` comparam pelo conteúdo (membros do `Set`, chaves e valores do `Map`, instante do `Date`). Até a 0.86.0 dois `Set`s diferentes comparavam iguais e o `apply()` não publicava.
+- Objeto compara pelo **conjunto** de chaves, não pela contagem: trocar `{ de: undefined }` por `{ ate: undefined }` deixa o rascunho sujo. Até a 0.87.0 os dois comparavam iguais, porque chave ausente também lê `undefined`.
 
 ### Lista como estado — `useListState`
 

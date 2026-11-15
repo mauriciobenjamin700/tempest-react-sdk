@@ -154,3 +154,26 @@ describe("deepEqual — objects whose state is not in their own keys", () => {
         expect(result.current).not.toBe(first);
     });
 });
+
+describe("deepEqual — key sets, not key counts", () => {
+    it("tells apart objects with the same number of different keys", () => {
+        expect(deepEqual({ a: undefined }, { b: undefined })).toBe(false);
+        expect(deepEqual({ a: 1, b: undefined }, { a: 1, c: undefined })).toBe(false);
+    });
+
+    it("still treats objects with the same keys in another order as equal", () => {
+        expect(deepEqual({ a: 1, b: { c: [1] } }, { b: { c: [1] }, a: 1 })).toBe(true);
+    });
+
+    it("hands useDeepMemo a new reference when a key was renamed to one holding undefined", () => {
+        const { result, rerender } = renderHook(
+            ({ value }: { value: Record<string, unknown> }) => useDeepMemo(value),
+            {
+                initialProps: { value: { a: undefined } as Record<string, unknown> },
+            },
+        );
+        const first = result.current;
+        rerender({ value: { b: undefined } });
+        expect(result.current).not.toBe(first);
+    });
+});

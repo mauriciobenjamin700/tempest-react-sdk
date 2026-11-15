@@ -6,7 +6,8 @@ _Gerado automaticamente por `make releases-md` a partir das git tags._
 
 | Tag     | Data       | Commit  |
 | ------- | ---------- | ------- |
-| v0.85.0 | 2026-11-14 | 36a4915 |
+| v0.86.0 | 2026-11-15 | e8833e9 |
+| v0.85.0 | 2026-11-14 | 56eebd1 |
 | v0.84.0 | 2026-11-14 | 08c3b91 |
 | v0.83.0 | 2026-11-13 | 8e18770 |
 | v0.82.0 | 2026-11-02 | ca630df |

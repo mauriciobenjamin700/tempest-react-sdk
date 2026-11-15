@@ -80,6 +80,13 @@ A `navbar` gruda no topo ao rolar: o wrapper dela não gera caixa
 saía da tela junto com o conteúdo (`top: -1261px` com `scrollY` 1261, Chromium e
 Firefox a 1440×900).
 
+Enquanto a `bottomNav` está na tela, o shell publica a altura dela — safe area
+incluída — em `--tempest-bottom-nav-height` no `<html>`, e remove a variável quando a
+barra sai (viewport largo ou desmontagem). É o que deixa um overlay preso ao rodapé,
+como o [`InstallBanner`](./actions.md#installbanner) com `position="bottom"`, ficar
+**acima** da barra sem o app medir nada. A variável fica no `<html>`, e não no shell,
+porque esses overlays costumam ser renderizados ao lado do `AppShell`, não dentro dele.
+
 !!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
     Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
     espera que você passe `bottomNav`. Se a navegação principal só existe na

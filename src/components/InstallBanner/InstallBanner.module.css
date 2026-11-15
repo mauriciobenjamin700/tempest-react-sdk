@@ -65,3 +65,27 @@
 .hint a {
     color: var(--tempest-primary);
 }
+
+.guide {
+    display: block;
+    margin-top: var(--tempest-space-1);
+}
+
+/*
+ * Pinned above whatever covers the bottom of the viewport. With a bottom
+ * navigation on screen `--tempest-bottom-nav-height` (set by AppShell) already
+ * includes the safe area, so the first term wins; without one the variable is
+ * unset and the second term keeps the banner above the home indicator.
+ */
+.bottom {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: max(
+        calc(var(--tempest-bottom-nav-height, 0px) + var(--tempest-space-3)),
+        calc(var(--tempest-space-3) + var(--tempest-safe-area-bottom, 0px))
+    );
+    z-index: var(--tempest-z-sticky, 1020);
+    width: calc(100% - 2 * var(--tempest-space-3));
+    max-width: 32rem;
+}

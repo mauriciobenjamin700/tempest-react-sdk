@@ -470,7 +470,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "187.8 KB",
+    "limit": "188.1 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -780,7 +780,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "31.5 kB"
+    "limit": "31.6 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

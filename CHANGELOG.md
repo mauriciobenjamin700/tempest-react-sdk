@@ -4,7 +4,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### Corrigido
+### Adicionado
+
+- **`InstallBanner`: `visible`, `position` e `guide` (#619).** `visible={false}` esconde sem
+  desmontar — com `{mostrar && <InstallBanner />}` a dispensa sem `storageKey`, que vive no estado
+  do componente, era esquecida e o banner voltava na rota seguinte; o SDK não lê a rota sozinho,
+  então não exige contexto de router. `position="bottom"` prende o banner ao rodapé (fixo,
+  centralizado, até `32rem`) acima da safe area e de `--tempest-bottom-nav-height`; o default
+  `"inline"` mantém o comportamento anterior. `guide` é um nó renderizado depois da instrução
+  `"ios"`/`"manual"` — nó e não `href`, para o app passar o `Link` do router. Tipo novo
+  `InstallBannerPosition`. O `role="region"` pedido na issue já estava no componente.
+- **`AppShell` publica `--tempest-bottom-nav-height` no `<html>`** enquanto a `bottomNav` está na
+  tela (altura medida por `ResizeObserver`, safe area incluída) e remove a variável quando a barra
+  sai. É o que deixa o `InstallBanner position="bottom"` acima da barra do SDK sem configuração.
+  Medido em Chromium headless na gallery (seção `pwa`, "Abrir app de exemplo"): a 390×844 a
+  variável vale `57px` e o banner termina 12 px acima do topo da barra, claro e escuro; a 1280×800
+  a barra sai, a variável some e o banner fica a 12 px do rodapé.
+- **Tetos do `size-limit`: barrel CJS de 187,8 kB para 188,1 kB e `styles.css` de 31,5 kB para
+  31,6 kB.** Medido com `npx size-limit` na `main` (187,67 kB / 31,45 kB) e nesta branch
+  (187,96 kB / 31,53 kB): +290 B no CJS (flag de instalação no hook, `ResizeObserver` do
+  `AppShell`, três props do banner) e +80 B na folha (`position="bottom"` e o `guide`). As fatias
+  importadas continuam dentro dos budgets.
 
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
   O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas

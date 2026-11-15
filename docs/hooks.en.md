@@ -834,7 +834,7 @@ function InstallButton() {
 - `"native"` → the `beforeinstallprompt` event arrived; call `install()` to trigger the native prompt.
 - `"ios"` → iOS/iPadOS Safari; show the "Add to Home Screen" instructions.
 - `"manual"` → a Chromium fork without the API, **or** no event arrived within `manualFallbackDelayMs` (3s by default); show generic browser-menu instructions.
-- `"none"` → already running as an installed PWA (standalone display mode) or the decline cooldown is active.
+- `"none"` → already running as an installed PWA (standalone display mode), installed from this tab (`accepted` in the prompt or `appinstalled`), or the decline cooldown is active. The session's install is only forgotten when the browser fires a fresh `beforeinstallprompt`.
 
 When the user declines, the hook stores a timestamp in `localStorage` and hides the CTA for `declineCooldownMs` (7 days by default). It's all pluggable and browser-guarded:
 

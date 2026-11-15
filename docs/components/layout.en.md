@@ -90,6 +90,14 @@ The `navbar` sticks to the top while scrolling: its wrapper generates no box
 left the screen along with the content (`top: -1261px` at `scrollY` 1261,
 Chromium and Firefox at 1440×900).
 
+While the `bottomNav` is on screen, the shell publishes its height — safe area
+included — as `--tempest-bottom-nav-height` on `<html>`, and removes the variable when
+the bar leaves (wide viewport or unmount). That is what lets a bottom-pinned overlay,
+such as [`InstallBanner`](./actions.md#installbanner) with `position="bottom"`, sit
+**above** the bar without the app measuring anything. The variable lives on `<html>`
+rather than on the shell because such overlays are usually rendered next to the
+`AppShell`, not inside it.
+
 !!! warning "`sidebar` disappears below the breakpoint — that is not the same as being there"
     Below `sidebarBreakpoint` the `AppShell` does **not** render the sidebar; it
     expects you to pass `bottomNav`. If your primary navigation lives only in the

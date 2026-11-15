@@ -12,18 +12,39 @@ const DEFAULT_MANUAL_FALLBACK_DELAY_MS = 3000;
 const DEFAULT_DECLINE_STORAGE_KEY = "tempest:install-declined-at";
 
 let cachedEvent: BeforeInstallPromptEvent | null = null;
-const eventSubscribers = new Set<(event: BeforeInstallPromptEvent | null) => void>();
+let installedInSession = false;
+const subscribers = new Set<() => void>();
+
+/**
+ * Re-renders every mounted {@link useInstallPrompt} with the module state.
+ */
+function notifySubscribers(): void {
+    subscribers.forEach((fn) => fn());
+}
+
+/**
+ * Records that this page installed the app.
+ *
+ * Without it the hook forgot the install the moment the cached event was
+ * cleared: with no event and no standalone display mode (the tab that installed
+ * still runs in `display-mode: browser`), the fallback timer resolved to
+ * `"manual"` 3 s later and every install affordance came back offering
+ * "Como instalar" for an app that was already on the home screen (#619).
+ */
+function markInstalled(): void {
+    cachedEvent = null;
+    installedInSession = true;
+    notifySubscribers();
+}
 
 if (typeof window !== "undefined") {
     window.addEventListener("beforeinstallprompt", (event: Event) => {
         event.preventDefault();
         cachedEvent = event as BeforeInstallPromptEvent;
-        eventSubscribers.forEach((fn) => fn(cachedEvent));
+        installedInSession = false;
+        notifySubscribers();
     });
-    window.addEventListener("appinstalled", () => {
-        cachedEvent = null;
-        eventSubscribers.forEach((fn) => fn(null));
-    });
+    window.addEventListener("appinstalled", markInstalled);
 }
 
 /**
@@ -33,7 +54,8 @@ if (typeof window !== "undefined") {
  * - `"ios"`: show iOS Safari Share → Add to Home Screen instructions.
  * - `"manual"`: show generic browser-menu instructions (Chromium forks that
  *   strip the prompt API, plus the timeout fallback when no event arrives).
- * - `"none"`: nothing to offer (already installed or unsupported runtime).
+ * - `"none"`: nothing to offer (running standalone, installed from this page
+ *   — `appinstalled` fired or the prompt was accepted —, or unsupported runtime).
  */
 export type InstallMethod = "native" | "ios" | "manual" | "none";
 
@@ -144,13 +166,18 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
     } = options;
 
     const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(cachedEvent);
+    const [installed, setInstalled] = useState<boolean>(installedInSession);
     const [standalone, setStandalone] = useState<boolean>(isStandalone());
     const [promptTimedOut, setPromptTimedOut] = useState<boolean>(false);
 
     useEffect(() => {
-        eventSubscribers.add(setEvent);
+        const sync = (): void => {
+            setEvent(cachedEvent);
+            setInstalled(installedInSession);
+        };
+        subscribers.add(sync);
         return () => {
-            eventSubscribers.delete(setEvent);
+            subscribers.delete(sync);
         };
     }, []);
 
@@ -183,7 +210,7 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
     const declineActive = readDecline(declineStorageKey, declineCooldownMs);
 
     let method: InstallMethod = "none";
-    if (!standalone && !declineActive) {
+    if (!standalone && !installed && !declineActive) {
         if (event) method = "native";
         else if (ios) method = "ios";
         else if (manualAndroid || promptTimedOut) method = "manual";
@@ -202,10 +229,14 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
         if (!event) return false;
         await event.prompt();
         const choice = await event.userChoice;
-        if (choice.outcome === "dismissed") recordDecline();
+        if (choice.outcome === "accepted") {
+            markInstalled();
+            return true;
+        }
+        recordDecline();
         cachedEvent = null;
-        eventSubscribers.forEach((fn) => fn(null));
-        return choice.outcome === "accepted";
+        notifySubscribers();
+        return false;
     };
 
     return {

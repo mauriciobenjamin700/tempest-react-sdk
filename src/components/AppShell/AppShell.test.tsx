@@ -74,3 +74,36 @@ describe("AppShell — sidebar vs bottom nav by breakpoint", () => {
         expect(screen.getByText("inferior")).toBeInTheDocument();
     });
 });
+
+describe("AppShell — --tempest-bottom-nav-height", () => {
+    /**
+     * Same viewport trick as the breakpoint cases above.
+     *
+     * @param width - Viewport width to report.
+     */
+    function setViewport(width: number): void {
+        Object.defineProperty(window, "innerWidth", { configurable: true, value: width });
+        window.dispatchEvent(new Event("resize"));
+    }
+
+    const read = (): string =>
+        document.documentElement.style.getPropertyValue("--tempest-bottom-nav-height");
+
+    it("publishes the bar height on the root while the bottom nav is on screen", () => {
+        setViewport(380);
+        const { unmount } = render(<AppShell bottomNav={<nav>inferior</nav>}>conteúdo</AppShell>);
+        expect(read()).toMatch(/^\d+px$/);
+        unmount();
+        expect(read()).toBe("");
+    });
+
+    it("leaves the variable unset when the sidebar replaces the bottom nav", () => {
+        setViewport(1280);
+        render(
+            <AppShell sidebar={<nav>lateral</nav>} bottomNav={<nav>inferior</nav>}>
+                conteúdo
+            </AppShell>,
+        );
+        expect(read()).toBe("");
+    });
+});

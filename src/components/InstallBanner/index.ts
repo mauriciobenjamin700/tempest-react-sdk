@@ -1,2 +1,2 @@
 export { InstallBanner } from "./InstallBanner";
-export type { InstallBannerProps } from "./InstallBanner";
+export type { InstallBannerPosition, InstallBannerProps } from "./InstallBanner";

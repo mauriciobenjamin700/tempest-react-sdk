@@ -711,8 +711,52 @@ const cam = useCameraStream({
 !!! warning "Camera requires a secure context"
     `getUserMedia` only works over **HTTPS** (or `localhost`). On an insecure
     origin the hook returns `status: "error"` with `kind: "insecure"` — that's
-    not a bug, it's browser policy. The `error.message` strings are in
-    **English**; translate them in your i18n layer if needed.
+    not a bug, it's browser policy.
+
+#### Messages in the app's language: `messages`
+
+`error.message` is in **English** by default. To show the error in another language
+without wrapping the hook, pass `messages` — one text per `kind`:
+
+```tsx
+import { useCameraStream } from "tempest-react-sdk/vision";
+
+const CAMERA_MESSAGES = {
+  unsupported: "Este navegador não dá acesso à câmera.",
+  insecure: "A câmera só funciona em conexão segura (HTTPS).",
+  "permission-denied": "Acesso à câmera negado. Libere a permissão nas configurações do navegador.",
+  "no-camera": "Nenhuma câmera disponível neste aparelho.",
+  "in-use": "A câmera está em uso por outro app. Feche-o e tente de novo.",
+} as const;
+
+export function PortugueseCamera() {
+  const { status, error, videoRef, retry } = useCameraStream({ messages: CAMERA_MESSAGES });
+
+  if (status === "error") {
+    return (
+      <div role="alert">
+        <p>{error?.message}</p>
+        <button onClick={retry}>Tentar de novo</button>
+      </div>
+    );
+  }
+
+  return <video ref={videoRef} playsInline muted />;
+}
+```
+
+The `kind` does not change, so a UI that branches on it keeps working; only `message`
+is replaced. Any `kind` you leave out keeps its English sentence.
+
+!!! tip "Switching language does not reopen the camera"
+    The message is applied when the error is read, not when it is caught. If the user
+    switches language while the error is on screen, the text changes immediately, with
+    no new permission prompt.
+
+!!! note "Overriding `unknown` hides the original cause"
+    For `unknown`, the default `message` is the browser's own error text — the only
+    clue to the cause. Translating that `kind` swaps the clue for a generic sentence;
+    log the error first if it matters to you.
 
 ### `computeImageLuminance` + `useLiveLuminance` — measure brightness
 

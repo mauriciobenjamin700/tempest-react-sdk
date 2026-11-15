@@ -252,7 +252,7 @@ pluralize(2, "person", "people"); // "people"
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Tamanho legível em B/KB/MB/GB/TB (base 1024).              |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Notação compacta (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
 | `percentOf(part, total)`           | `(part: number, total: number) => number`      | Percentual 0–100, com base zero devolvendo `0`.            |
-| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number }) => string` | Fração 0–1 como percentual pt-BR; `decimals` default `1`.  |
+| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number; mode?: "round" \| "truncate" }) => string` | Fração 0–1 como percentual pt-BR; `decimals` default `1`, `mode` default `"round"`.  |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -292,6 +292,53 @@ formatPercent(0 / 0); // "—"
     `(ativos / total) * 100` com `total === 0` produz `NaN`, e `NaN%` no painel vazio é a forma mais comum de um dashboard anunciar que ainda não tem dado. `percentOf(5, 0)` é `0`; não-finito também vira `0`.
     Ele **não** limita em 100 — 150% de uma meta é dado real que alguém quer ver.
     Cuidado com o par: `formatPercent` recebe **fração** (0–1), então é `formatPercent(percentOf(a, b) / 100)`.
+
+### Truncar em vez de arredondar — `mode: "truncate"`
+
+Confiança de modelo é o caso em que arredondar mente: 99,996% com duas casas vira `"100,00%"`, e o usuário lê certeza que o modelo nunca afirmou. `mode: "truncate"` corta as casas excedentes em direção ao zero:
+
+```ts
+import { formatPercent } from "tempest-react-sdk";
+
+formatPercent(0.99996, { decimals: 2 }); // "100,00%"
+formatPercent(0.99996, { decimals: 2, mode: "truncate" }); // "99,99%"
+formatPercent(0.57, { decimals: 2, mode: "truncate" }); // "57,00%"
+formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
+```
+
+!!! danger "`Math.trunc(valor * 10000)` erra 573 de 10001 frações"
+    A multiplicação arredonda **antes** do corte: `0.57 * 10000` é `5699.999999999999`, então a versão ingênua mostra `"56,99%"` para 57%. Medido sobre toda fração `i / 10000` de 0 a 1, ela erra 573 dos 10001 valores com duas casas, e 3 de 101 com zero casas (`0.29 * 100` é `28.999999999999996`). O SDK desloca o expoente decimal da representação textual do número (`"0.57e4"`), que vira o inteiro exato: zero erros nas mesmas grades — fixado em `src/utils/format-percent-truncate.test.ts`.
+
+---
+
+## Rótulo de dia — `relativeDayLabel`
+
+Lista agrupada por dia (mensagens, histórico, extrato) precisa de cabeçalho "Hoje", "Ontem" ou a data. `relativeTime` responde outra pergunta — quanto tempo passou ("2 horas atrás") —, então os dois discordam perto da meia-noite, de propósito: às 00:10, uma mensagem das 23:50 é "20 min atrás" **e** "Ontem".
+
+```ts
+import { relativeDayLabel } from "tempest-react-sdk";
+
+const now = new Date(2026, 4, 16, 10, 0);
+
+relativeDayLabel(new Date(2026, 4, 16, 8, 0), { now }); // "Hoje"
+relativeDayLabel("2026-05-15", { now }); // "Ontem"
+relativeDayLabel("2026-05-10", { now }); // "10/05/2026"
+relativeDayLabel(new Date(2026, 4, 15), { now, locale: "en" }); // "Yesterday"
+relativeDayLabel(new Date(2026, 4, 16), { now, labels: { today: "Hoje cedo" } }); // "Hoje cedo"
+relativeDayLabel(null); // "—"
+```
+
+| Opção      | Tipo                                     | Padrão                         |
+| ---------- | ---------------------------------------- | ------------------------------ |
+| `locale`   | `"pt-BR" \| "en"`                        | `"pt-BR"`, o mesmo de `relativeTime` |
+| `now`      | `Date \| number`                         | `Date.now()`                   |
+| `labels`   | `{ today?: string; yesterday?: string }` | `"Hoje"` / `"Ontem"` (ou `"Today"` / `"Yesterday"`) |
+| `fallback` | `string`                                 | `"—"`                          |
+
+!!! info "Dia do calendário local, não 24 horas"
+    "Ontem" é a data local anterior à de hoje, comparada por ano/mês/dia no fuso do usuário — nunca `agora - 24h`. Num dia de horário de verão, que dura 23 ou 25 horas, subtrair 24 horas cai no dia errado. E `"2026-05-16"` sem hora é lido como data **local**: `new Date("2026-05-16")` é meia-noite UTC, que em UTC-3 é dia 15 às 21:00 — a data que o backend mandou viraria "Ontem".
+
+Qualquer outro dia — amanhã, anteontem, ano passado — vira a data formatada no `locale`. Ausente responde o `fallback` e valor que não dá para interpretar responde `""`, como o `formatDate`.
 
 ---
 
@@ -427,6 +474,62 @@ O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), se
 
 !!! tip "Do byte ao usuário"
     Combine com [`shareOrDownloadBlob`](./share.md#exportar-um-arquivo-shareordownloadblob): `writeXlsx` → `new Blob([...])` → `shareOrDownloadBlob(blob, "dados.xlsx")` abre a sheet nativa no celular e baixa no desktop.
+
+---
+
+## Arquivos `.zip` — `createZip`
+
+Exportar "a planilha **e** as fotos" é o caso comum, e um `.zip` de alguns MB montado de uma vez congela a tela. `createZip(entries, options)` monta o arquivo em fatias de ~8 ms, devolvendo o controle ao navegador entre elas — a barra de progresso anda e a rolagem não trava. É o par do `writeXlsx`, sobre o mesmo `fflate`.
+
+```ts
+import { createZip, shareOrDownloadBlob, writeXlsx } from "tempest-react-sdk";
+
+export async function exportarHistorico(
+  fotos: File[],
+  onPercent: (percent: number) => void,
+): Promise<void> {
+  const planilha = writeXlsx(["Animal", "Grau FAMACHA"], [["Ovelha 12", 3]]);
+
+  const zip = await createZip(
+    [
+      { path: "historico.xlsx", data: planilha },
+      { path: "leia-me.txt", data: "Exportado pelo app — fotos em /fotos" },
+      ...fotos.map((foto) => ({ path: `fotos/${foto.name}`, data: foto })),
+    ],
+    { onProgress: ({ loaded, total }) => onPercent(Math.round((loaded / total) * 100)) },
+  );
+
+  await shareOrDownloadBlob(zip, "historico.zip");
+}
+```
+
+Pedaço por pedaço:
+
+- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte.
+- **`onProgress({ loaded, total })`** — em bytes de **entrada**. O `total` é conhecido antes de começar (tamanho do `Blob`, bytes UTF-8 da string), então a porcentagem é real desde a primeira chamada; a última sempre traz `loaded === total`.
+- **`level`** — deflate de `0` (só guarda) a `9`. Padrão `6`.
+- **`signal`** — um `AbortSignal` cancela no meio; a promise rejeita com o `reason` do sinal.
+- Retorna um `Blob` `application/zip`, pronto para o `shareOrDownloadBlob`.
+
+!!! tip "Foto não se comprime de novo"
+    JPEG, PNG, WebP, MP4, ZIP, XLSX e companhia já são comprimidos. `createZip` os **guarda** (nível `0`) pela extensão: deflatá-los gasta CPU e não economiza nada. Medido com 4 MB de CSV + 20 × 200 KB de bytes aleatórios: 178–275 ms deflatando tudo, 48–70 ms guardando as "fotos", e o arquivo saiu do mesmo tamanho (4,11 MB contra 4,12 MB). Um `level` na entrada vence essa regra.
+
+??? info "Detalhes técnicos: por que fatias e não Web Worker"
+    O `zip()` assíncrono do `fflate` sobe **um worker por arquivo** e copia cada arquivo para ele. Medido no Node 24 com o `fflate` 0.8.3, sobre os mesmos 8,4 MB, em cinco rodadas:
+
+    | variante | total | maior travada |
+    | --- | --- | --- |
+    | `zipSync` | 131–232 ms | 131–232 ms |
+    | `zip()` (worker por arquivo) | 576–962 ms | 32–145 ms |
+    | `createZip`, tudo deflatado | 178–275 ms | 12–30 ms |
+    | `createZip`, fotos guardadas | 48–70 ms | 11–14 ms |
+
+    O worker é cerca de três vezes mais lento, trava mais e só reporta progresso quando um arquivo inteiro termina. O `createZip` usa o `Zip` em streaming do `fflate`, alimentado em blocos de 64 KB, e cede a vez por `MessageChannel` (sem o piso de 4 ms do `setTimeout` aninhado). Os `Blob`s são lidos um por vez, na vez de cada um.
+
+    Reproduza com `npm run build && node scripts/bench-zip.mjs 5` (máquina compartilhada, *load average* 13–19 durante a medição — os intervalos são largos por isso).
+
+!!! note "Custo de bundle"
+    `createZip` mora na raiz junto do `writeXlsx` — sem subpath, porque o `preserveModules` já separa: o `{ cn }` sozinho continua em 203 B. Quem importa `{ createZip }` paga 5,46 kB br **com** o `fflate` contado; `{ createZip, writeXlsx }` juntos, 6,55 kB (`npx size-limit`).
 
 ---
 
@@ -647,9 +750,10 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
+- **ZIP**: `createZip(entries, { onProgress })` monta planilha + fotos em fatias de ~8 ms, sem travar a tela, e guarda sem recomprimir o que já é comprimido.
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
 - **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.

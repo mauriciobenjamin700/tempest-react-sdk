@@ -90,6 +90,26 @@ The `navbar` sticks to the top while scrolling: its wrapper generates no box
 left the screen along with the content (`top: -1261px` at `scrollY` 1261,
 Chromium and Firefox at 1440×900).
 
+An `AppBar` (or any sticky element) the page renders **inside** the `AppShell`
+sticks too: `<main>` uses `overflow-x: clip`, which cuts the horizontal overflow
+without becoming a **scroll container**. Until #611 it used `overflow-x: auto`,
+which forces the computed `overflow-y` to `auto` and held every sticky element of
+the page to `<main>` itself — which never scrolls; the window does. Measured in
+Chromium at 390×844 and at 1280×800: the bar sat at `top: -600px` after scrolling
+600px.
+
+!!! tip "Content wider than `<main>` scrolls in its own region"
+    A child wider than `<main>` is cut at the edge instead of dragging the page
+    sideways. `Table` and `DataTable` already bring their own `overflow-x: auto`
+    region; for a wide block of your own (a `<pre>`, a fixed-width chart), wrap it
+    in a `<div style={{ overflowX: "auto" }}>` or the `.tempest-scroll-x` utility
+    class.
+
+    Why not `overflow: visible`: with it a single 1500px block made the whole page
+    scroll horizontally (`scrollWidth` 1500 at 390px) — and the usual remedy for
+    that, `body { overflow-x: hidden }`, is exactly the CSS that kills sticky (see
+    [`AppBar`](./navigation.md#appbar)).
+
 While the `bottomNav` is on screen, the shell publishes its height — safe area
 included — as `--tempest-bottom-nav-height` on `<html>`, and removes the variable when
 the bar leaves (wide viewport or unmount). That is what lets a bottom-pinned overlay,

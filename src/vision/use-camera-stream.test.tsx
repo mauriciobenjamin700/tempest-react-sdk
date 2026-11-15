@@ -4,6 +4,7 @@ import {
     useCameraStream,
     type CameraStreamStatus,
     type CameraStreamError,
+    type CameraStreamErrorKind,
     type UseCameraStreamApi,
 } from "./use-camera-stream";
 
@@ -306,5 +307,72 @@ describe("useCameraStream — lifecycle races", () => {
         view.rerender(<Toggle enabled={false} />);
         await waitFor(() => expect(observed.status).toBe("idle"));
         expect(stop).toHaveBeenCalled();
+    });
+
+    describe("messages", () => {
+        function Localized({
+            messages,
+        }: {
+            messages: Partial<Record<CameraStreamErrorKind, string>>;
+        }): React.JSX.Element {
+            const api: UseCameraStreamApi = useCameraStream({ messages });
+            observed = {
+                status: api.status,
+                error: api.error,
+                retry: api.retry,
+                video: api.videoRef.current,
+            };
+            return <video ref={api.videoRef} data-testid="cam" />;
+        }
+
+        const PT = { "permission-denied": "Acesso à câmera negado." };
+
+        it("replaces the message of a kind it covers and keeps the kind", async () => {
+            setMediaDevices(vi.fn().mockRejectedValue(new DOMException("no", "NotAllowedError")));
+            render(<Localized messages={PT} />);
+            await waitFor(() => expect(observed.status).toBe("error"));
+            expect(observed.error).toEqual({
+                kind: "permission-denied",
+                message: "Acesso à câmera negado.",
+            });
+        });
+
+        it("keeps the English default for a kind it leaves out", async () => {
+            setMediaDevices(vi.fn().mockRejectedValue(new DOMException("no", "NotFoundError")));
+            render(<Localized messages={PT} />);
+            await waitFor(() => expect(observed.status).toBe("error"));
+            expect(observed.error?.kind).toBe("no-camera");
+            expect(observed.error?.message).toBe("No camera available on this device.");
+        });
+
+        it("covers the missing-API path too, not only a rejected getUserMedia", async () => {
+            delete (navigator as { mediaDevices?: unknown }).mediaDevices;
+            render(<Localized messages={{ unsupported: "Sem câmera neste navegador." }} />);
+            await waitFor(() => expect(observed.status).toBe("error"));
+            expect(observed.error?.message).toBe("Sem câmera neste navegador.");
+        });
+
+        it("re-labels an error already on screen when the messages change, without re-opening the camera", async () => {
+            const getUserMedia = vi
+                .fn()
+                .mockRejectedValue(new DOMException("no", "NotAllowedError"));
+            setMediaDevices(getUserMedia);
+            const { rerender } = render(<Localized messages={{}} />);
+            await waitFor(() => expect(observed.status).toBe("error"));
+            expect(observed.error?.message).toMatch(/Camera permission denied/);
+
+            rerender(<Localized messages={PT} />);
+            expect(observed.error?.message).toBe("Acesso à câmera negado.");
+            expect(getUserMedia).toHaveBeenCalledTimes(1);
+        });
+
+        it("keeps the error object stable across renders with equal messages", async () => {
+            setMediaDevices(vi.fn().mockRejectedValue(new DOMException("no", "NotAllowedError")));
+            const { rerender } = render(<Localized messages={PT} />);
+            await waitFor(() => expect(observed.status).toBe("error"));
+            const first = observed.error;
+            rerender(<Localized messages={{ ...PT }} />);
+            expect(observed.error).toBe(first);
+        });
     });
 });

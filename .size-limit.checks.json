@@ -132,6 +132,28 @@
     ]
   },
   {
+    "name": "slice: device facts (UA parse + Client Hints + random id)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createDeviceFacts }"
+    },
+    "limit": "1.25 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
     "name": "slice: forms + BR masks",
     "path": "dist/tempest-react-sdk.js",
     "import": {
@@ -418,6 +440,48 @@
     ]
   },
   {
+    "name": "slice: createZip (fflate streaming Zip COUNTED — the real cost of an export)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createZip }"
+    },
+    "limit": "5.6 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router"
+    ]
+  },
+  {
+    "name": "slice: createZip + writeXlsx (the spreadsheet-plus-photos export, fflate counted)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createZip, writeXlsx }"
+    },
+    "limit": "6.7 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router"
+    ]
+  },
+  {
     "name": "slice: createLinkStatsSampler (one walk: rate, RTT, headroom, route)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
@@ -451,7 +515,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "158.6 kB",
+    "limit": "160.5 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -470,7 +534,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "188.6 kB",
+    "limit": "190.4 kB",
     "ignore": [
       "react",
       "react-dom",

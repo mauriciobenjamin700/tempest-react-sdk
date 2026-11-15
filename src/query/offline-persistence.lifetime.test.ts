@@ -1,5 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createTempestAuth } from "../auth";
 import type { TempestAuth } from "../auth";
@@ -46,6 +46,27 @@ function wait(ms: number): Promise<void> {
  *
  * @returns The fetcher, the cookie switch and the bearers `/api/orders` saw.
  */
+/**
+ * Wait until the bearer replay of `/api/orders` has reached the backend.
+ *
+ * The run-12 C1 cases end session A while that replay is on the wire, and
+ * assert `backend.seen` as a precondition. A fixed `wait(10)` after the login
+ * settled raced the refresh queue: with the whole suite running in parallel
+ * (the `make release-tag` pack) the replay had not left after 10 ms, the
+ * other-tab logout won, `refresh` rejected without replaying, and the
+ * precondition failed while the outcome under test still held. Polling every
+ * millisecond lands inside the 50 ms the fake backend holds the replay.
+ *
+ * @param backend - The fake backend whose `seen` log is watched.
+ * @returns Once the second `/api/orders` request was seen.
+ */
+async function replaySent(backend: { seen: string[] }): Promise<void> {
+    await vi.waitFor(() => expect(backend.seen).toHaveLength(2), {
+        interval: 1,
+        timeout: 5_000,
+    });
+}
+
 function replayBackend(): {
     fetcher: typeof fetch;
     cookie: { alive: boolean };
@@ -234,7 +255,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         expect(auth.isSessionKnown()).toBe(false);
         const orders = fetchOrders(client, auth);
         await login;
-        await wait(10);
+        await replaySent(backend);
         otherTabLogout();
         expect(await orders).toBeInstanceOf(SessionSupersededError);
         expect(backend.seen).toEqual(["none", "Bearer tok-1"]);
@@ -262,7 +283,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         const orders = fetchOrders(client, auth);
         await wait(1);
         await auth.login({ email: "a@example.test", password: "x" });
-        await wait(10);
+        await replaySent(backend);
         otherTabLogout();
         expect(await orders).toBeInstanceOf(SessionSupersededError);
         expect(backend.seen).toEqual(["none", "Bearer tok-1"]);
@@ -290,7 +311,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         expect(auth.isSessionKnown()).toBe(false);
         const orders = fetchOrders(client, auth);
         await restoring;
-        await wait(10);
+        await replaySent(backend);
         expect(auth.sessionKey()).not.toBeNull();
         otherTabLogout();
         expect(await orders).toBeInstanceOf(SessionSupersededError);
@@ -318,7 +339,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         const orders = fetchOrders(client, auth);
         await wait(1);
         await auth.refresh();
-        await wait(10);
+        await replaySent(backend);
         expect(auth.sessionKey()).not.toBeNull();
         otherTabLogout();
         expect(await orders).toBeInstanceOf(SessionSupersededError);

@@ -224,6 +224,8 @@ Com botão ou campo em `actions` sobre a cor da marca, use `tone="inverse"` — 
 
     Em desenvolvimento a própria `AppBar` avisa no console quando detecta esse CSS. 💡
 
+    Vale para qualquer ancestral entre a barra e o documento, não só o `body`. Até a 0.86.0 era o próprio `AppShell` do SDK: o `<main>` dele tinha `overflow-x: auto`, e uma barra renderizada pela página ficava em `top: -600px` depois de rolar 600px (#611). Agora ele usa `overflow-x: clip` — veja [`AppShell`](./layout.md#appshell). Na 0.86.0 ou antes, `.seu-shell main { overflow-x: clip; }` no CSS do app faz o mesmo.
+
 ## `Sidebar`
 
 Side nav desktop. `items: SidebarEntry[]` (itens, seções e separadores), slots

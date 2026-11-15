@@ -244,6 +244,8 @@ see [A bar in the brand color](#a-bar-in-the-brand-color).
 
     In development the `AppBar` itself warns in the console when it detects this CSS. 💡
 
+    The same goes for any ancestor between the bar and the document, not only `body`. Up to 0.86.0 it was the SDK's own `AppShell`: its `<main>` had `overflow-x: auto`, and a bar rendered by the page sat at `top: -600px` after scrolling 600px (#611). It now uses `overflow-x: clip` — see [`AppShell`](./layout.md#appshell). On 0.86.0 or earlier, `.your-shell main { overflow-x: clip; }` in the app's CSS does the same.
+
 ## `Sidebar`
 
 Desktop side nav. `items: SidebarEntry[]` (items, sections and separators),

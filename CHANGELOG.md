@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`AppShell`: a `AppBar` sticky renderizada pela página não rola mais junto com o conteúdo
+  (#611).** O `<main>` do shell tinha `overflow-x: auto`, que força o `overflow-y` computado a
+  `auto` e o transforma no scroll container de todo sticky dentro dele — só que quem rola é a
+  janela. Medido no Chromium, a 390×844 e a 1280×800: a barra ficava em `top: -600px` depois de
+  `scrollTo(0, 600)`; agora fica em `top: 0`. O `.main` passa a usar `overflow-x: clip`, que corta
+  o excesso horizontal sem criar scroll container. A issue propunha também tirar o overflow
+  (`visible`): resolve o sticky, mas um bloco de 1500px sem região própria passou a arrastar a
+  página inteira (`scrollWidth` 1500 a 390px, 1700 a 1280px) — o que empurra o app para
+  `body { overflow-x: hidden }`, que mata o sticky de novo. Com `clip` a página fica na largura da
+  viewport. **Mudança de comportamento**: um filho mais largo que o `<main>` sem região de scroll
+  própria passa a ser cortado na borda em vez de rolar dentro do `<main>`; `Table`/`DataTable`
+  não mudam (rolam na própria região: 1186px de uma tabela de 12 colunas nos três valores). Envolva
+  conteúdo largo seu num `overflow-x: auto` ou em `.tempest-scroll-x`. Guard:
+  `e2e/app-shell-sticky.spec.ts`.
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

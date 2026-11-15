@@ -35,10 +35,20 @@
     flex: 0 0 auto;
 }
 
+/*
+ * `clip`, not `auto`: a non-`visible` `overflow-x` other than `clip` forces the
+ * computed `overflow-y` to `auto`, which made `<main>` the scroll container of
+ * every sticky descendant. It never scrolls — the window does — so an `AppBar`
+ * rendered in the page sat at `top: -600px` after scrolling 600px, measured in
+ * Chromium at 390x844 and 1280x800 (#611). `overflow: visible` also fixes sticky
+ * but lets one child wider than `<main>` pan the whole page (`scrollWidth` 1500
+ * at 390); `clip` keeps the page at the viewport width without creating a
+ * scroll container. Wide content scrolls in its own region, as `Table` does.
+ */
 .main {
     flex: 1 1 auto;
     min-width: 0;
-    overflow-x: auto;
+    overflow-x: clip;
 }
 
 .footer {

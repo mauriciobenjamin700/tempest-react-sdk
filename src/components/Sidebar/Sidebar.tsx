@@ -18,10 +18,18 @@ export interface SidebarItem {
     /**
      * Renders the entry as a link to this URL instead of a button.
      *
-     * `onChange` still fires on click, so an app that tracks the active key keeps
-     * working — the difference is that the entry now behaves like navigation:
-     * middle-click, ctrl-click and "copy link address" do what the user expects,
-     * and a screen reader announces a link rather than a button.
+     * With `onChange`, a plain primary click is the app's: the anchor's default is
+     * prevented and `onChange` fires, so the app's router navigates and the
+     * browser does not also follow the `href` and reload the document — a reload
+     * drops every piece of in-memory state, such as an access token kept out of
+     * storage (#612). Every other click — ctrl/meta/shift/alt, a non-primary
+     * button — stays with the browser and does **not** fire `onChange`, so
+     * "open in new tab" opens the tab without moving the current one.
+     *
+     * Without `onChange`, the browser follows the `href` like any link. Either
+     * way the entry behaves like navigation: middle-click, ctrl-click and "copy
+     * link address" do what the user expects, and a screen reader announces a
+     * link rather than a button.
      *
      * A `disabled` entry ignores this and stays a `<button disabled>`: there is no
      * disabled state for an anchor, and dropping the `href` to fake one leaves a

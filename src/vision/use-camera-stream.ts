@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useLatestRef } from "@/hooks/use-latest-ref";
 
 import {
@@ -14,7 +14,10 @@ export type CameraStreamStatus = "idle" | "loading" | "ready" | "error";
 export type CameraStreamErrorKind =
     "unsupported" | "permission-denied" | "no-camera" | "in-use" | "insecure" | "unknown";
 
-/** A classified camera error with a human-readable, English message. */
+/**
+ * A classified camera error with a human-readable message — English by default, or
+ * the one {@link UseCameraStreamOptions.messages} supplies for its `kind`.
+ */
 export interface CameraStreamError {
     kind: CameraStreamErrorKind;
     message: string;
@@ -38,6 +41,25 @@ export interface UseCameraStreamOptions {
      * also releases a stream that is already live.
      */
     enabled?: boolean;
+    /**
+     * The text of `error.message` for each error kind, replacing the built-in English
+     * sentence — the hook's i18n. Kinds left out keep the English default.
+     *
+     * Applied when the error is read, not when it is caught, so switching locale while
+     * the error is on screen re-labels it without re-opening the camera; the `kind` is
+     * untouched, so a UI that branches on it keeps working. Overriding `"unknown"`
+     * replaces the browser's own error text, which is the only place that carries the
+     * raw cause.
+     *
+     * @example
+     * useCameraStream({
+     *     messages: {
+     *         "permission-denied": "Permita o acesso à câmera nas configurações do navegador.",
+     *         "no-camera": "Nenhuma câmera encontrada neste aparelho.",
+     *     },
+     * });
+     */
+    messages?: Partial<Record<CameraStreamErrorKind, string>>;
 }
 
 /** Value returned by {@link useCameraStream}. */
@@ -104,7 +126,7 @@ function classifyError(err: unknown): CameraStreamError {
  * Defaults to the rear ("environment") camera; desktops fall back to whatever
  * single camera they expose. Pass `options.constraints` to override, or
  * `options.enabled: false` to render the surface without prompting for the camera
- * at all.
+ * at all, and `options.messages` to show the errors in the app's language.
  *
  * Implementation notes:
  * - Cleanup detaches the stream from a *snapshotted* video node, so it releases
@@ -122,13 +144,19 @@ function classifyError(err: unknown): CameraStreamError {
  */
 export function useCameraStream(options: UseCameraStreamOptions = {}): UseCameraStreamApi {
     const [status, setStatus] = useState<CameraStreamStatus>("loading");
-    const [error, setError] = useState<CameraStreamError | null>(null);
+    const [caught, setCaught] = useState<CameraStreamError | null>(null);
     const [live, setLive] = useState<MediaStream | null>(null);
     const [retryToken, setRetryToken] = useState(0);
     const videoRef = useRef<HTMLVideoElement | null>(null);
     const constraintsRef = useLatestRef(options.constraints ?? DEFAULT_CONSTRAINTS);
 
     const enabled = options.enabled ?? true;
+    const override = caught ? options.messages?.[caught.kind] : undefined;
+    const error = useMemo<CameraStreamError | null>(
+        () =>
+            caught && override !== undefined ? { kind: caught.kind, message: override } : caught,
+        [caught, override],
+    );
 
     useEffect(() => {
         let cancelled = false;
@@ -138,11 +166,11 @@ export function useCameraStream(options: UseCameraStreamOptions = {}): UseCamera
         async function start(): Promise<void> {
             if (!enabled) {
                 setStatus("idle");
-                setError(null);
+                setCaught(null);
                 return;
             }
             setStatus("loading");
-            setError(null);
+            setCaught(null);
 
             if (
                 typeof navigator === "undefined" ||
@@ -150,7 +178,7 @@ export function useCameraStream(options: UseCameraStreamOptions = {}): UseCamera
                 typeof navigator.mediaDevices.getUserMedia !== "function"
             ) {
                 if (!cancelled) {
-                    setError(toCameraError(missingCaptureApiError("camera")));
+                    setCaught(toCameraError(missingCaptureApiError("camera")));
                     setStatus("error");
                 }
                 return;
@@ -174,7 +202,7 @@ export function useCameraStream(options: UseCameraStreamOptions = {}): UseCamera
                 if (!cancelled) setStatus("ready");
             } catch (err) {
                 if (!cancelled) {
-                    setError(classifyError(err));
+                    setCaught(classifyError(err));
                     setStatus("error");
                 }
             }

@@ -125,7 +125,7 @@ decodificador de verdade.
 | `repeatDelayMs` | `number` | `2500` | Janela em que o mesmo valor não dispara de novo. |
 | `torch` | `boolean` | `true` | Oferece a lanterna quando a câmera tem uma. |
 | `aspectRatio` | `number` | `4 / 3` | Proporção do visor. |
-| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos **e** a mensagem de erro da câmera. |
 | `footer` · `unsupported` | `ReactNode` | — | Instrução e caminho alternativo. |
 | `onError` | `(error: unknown) => void` | — | Frame que o motor recusou (rotineiro). |
 
@@ -199,6 +199,10 @@ export function LeitorProprio() {
   );
 }
 ```
+
+O `scanner.error.message` vem em inglês por padrão; `cameraMessages` (o mesmo
+`messages` do `useCameraStream`, repassado) troca o texto por `kind` — o
+`<BarcodeScanner>` já faz isso a partir do `locale`.
 
 O loop se re-agenda **depois** que cada `detect()` resolve, não num `setInterval`:
 decodificar às vezes leva mais que o intervalo, e um intervalo enfileiraria chamadas mais

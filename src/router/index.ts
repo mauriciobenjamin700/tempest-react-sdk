@@ -2,6 +2,7 @@ export { AppRouter, defineRoutes } from "./AppRouter";
 export type { AppRouterProps } from "./AppRouter";
 export { RouteGuard } from "./RouteGuard";
 export type { RouteGuardProps } from "./RouteGuard";
+export { useReturnTo } from "./return-to";
 export type { TempestRouteObject, RouteGuardResult, RouterKind } from "./types";
 
 /**

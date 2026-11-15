@@ -80,6 +80,32 @@ A `navbar` gruda no topo ao rolar: o wrapper dela não gera caixa
 saía da tela junto com o conteúdo (`top: -1261px` com `scrollY` 1261, Chromium e
 Firefox a 1440×900).
 
+Uma `AppBar` (ou qualquer elemento sticky) que a página renderiza **dentro** do
+`AppShell` também gruda: o `<main>` usa `overflow-x: clip`, que corta o excesso
+horizontal sem virar **scroll container**. Até o #611 ele usava `overflow-x: auto`,
+que força o `overflow-y` computado a `auto` e prendia todo sticky da página ao
+próprio `<main>` — que nunca rola, quem rola é a janela. Medido no Chromium, a
+390×844 e a 1280×800: a barra ficava em `top: -600px` depois de rolar 600px.
+
+!!! tip "Conteúdo mais largo que o `<main>` rola na própria região"
+    Um filho mais largo que o `<main>` é cortado na borda, não arrasta a página
+    para o lado. `Table` e `DataTable` já trazem a própria região com
+    `overflow-x: auto`; para um bloco largo seu (um `<pre>`, um gráfico de largura
+    fixa), envolva-o num `<div style={{ overflowX: "auto" }}>` ou na classe
+    utilitária `.tempest-scroll-x`.
+
+    Por que não `overflow: visible`: com ele um único bloco de 1500px fazia a página
+    inteira rolar na horizontal (`scrollWidth` 1500 a 390px) — e o remédio usual
+    para isso, `body { overflow-x: hidden }`, é justamente o CSS que mata o sticky
+    (veja [`AppBar`](./navigation.md#appbar)).
+
+Enquanto a `bottomNav` está na tela, o shell publica a altura dela — safe area
+incluída — em `--tempest-bottom-nav-height` no `<html>`, e remove a variável quando a
+barra sai (viewport largo ou desmontagem). É o que deixa um overlay preso ao rodapé,
+como o [`InstallBanner`](./actions.md#installbanner) com `position="bottom"`, ficar
+**acima** da barra sem o app medir nada. A variável fica no `<html>`, e não no shell,
+porque esses overlays costumam ser renderizados ao lado do `AppShell`, não dentro dele.
+
 !!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
     Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
     espera que você passe `bottomNav`. Se a navegação principal só existe na

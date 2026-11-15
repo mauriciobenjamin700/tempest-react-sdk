@@ -4,8 +4,65 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`formatPercent` ganha `mode: "truncate"`** (#623). Arredondado, 0,99996 com duas casas vira
+  `"100,00%"` — em confiança de modelo isso lê como certeza; truncado vira `"99,99%"`. O corte não
+  usa `Math.trunc(valor * 10 ** n)`: medido sobre toda fração `i / 10000`, essa forma erra 573 de
+  10001 valores com duas casas (`0.57 * 10000` é `5699.999999999999` → `"56,99%"`) e 3 de 101 com
+  zero casas (`0.29 * 100`). O SDK desloca o expoente da representação textual (`"0.57e4"`), que dá
+  o inteiro exato — zero erros nas mesmas grades. O padrão continua `"round"`; `-0` vira `0`.
+- **`relativeDayLabel(data, options?)`** (#623): `"Hoje"`, `"Ontem"` ou a data (`dd/MM/yyyy`),
+  para cabeçalho de lista agrupada por dia. Compara pelo dia do calendário **local** (não por
+  `agora - 24h`, que erra em dia de horário de verão), lê `yyyy-MM-dd` puro como data local, e
+  aceita `locale` (`"pt-BR"`/`"en"`), `now`, `labels` e `fallback`, como os irmãos `relativeTime` e
+  `formatDate`. Tipos `RelativeDayLabelOptions` e `RelativeDayLabels`.
+
+### Budgets
+
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #635** (`npm run build && npx size-limit --json`): ESM 160 629 B (teto 160.5 kB → 160.7 kB); CJS 190 792 B (teto 190.4 kB → 190.9 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
+- **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
+  `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
+  branch, mesmo resto da árvore): CJS 187 674 → 188 049 B (+375 B; a `main` tinha 126 B de folga) —
+  os bytes são o `relativeDayLabel` com os rótulos pt-BR/en e o corte decimal do `mode: "truncate"`,
+  que o barrel CJS carrega sem tree-shaking. ESM 158 046 → 158 019 B (reminificação; budget 158,3 kB
+  mantido). Nenhuma fatia importada passou de ±35 B.
+
 ### Corrigido
 
+- **`InstallBanner`: `visible`, `position` e `guide` (#619).** `visible={false}` esconde sem
+  desmontar — com `{mostrar && <InstallBanner />}` a dispensa sem `storageKey`, que vive no estado
+  do componente, era esquecida e o banner voltava na rota seguinte; o SDK não lê a rota sozinho,
+  então não exige contexto de router. `position="bottom"` prende o banner ao rodapé (fixo,
+  centralizado, até `32rem`) acima da safe area e de `--tempest-bottom-nav-height`; o default
+  `"inline"` mantém o comportamento anterior. `guide` é um nó renderizado depois da instrução
+  `"ios"`/`"manual"` — nó e não `href`, para o app passar o `Link` do router. Tipo novo
+  `InstallBannerPosition`. O `role="region"` pedido na issue já estava no componente.
+- **`AppShell` publica `--tempest-bottom-nav-height` no `<html>`** enquanto a `bottomNav` está na
+  tela (altura medida por `ResizeObserver`, safe area incluída) e remove a variável quando a barra
+  sai. É o que deixa o `InstallBanner position="bottom"` acima da barra do SDK sem configuração.
+  Medido em Chromium headless na gallery (seção `pwa`, "Abrir app de exemplo"): a 390×844 a
+  variável vale `57px` e o banner termina 12 px acima do topo da barra, claro e escuro; a 1280×800
+  a barra sai, a variável some e o banner fica a 12 px do rodapé.
+- **Tetos do `size-limit` (#619): barrel CJS 188,4 → 188,6 kB e `styles.css` 31,5 → 31,6 kB.**
+  `npm run build && npx size-limit --json` na `main` em `5ddf9a2` contra este branch com ela
+  mergeada: CJS 188 311 → 188 468 B (+157 B), `styles.css` 31 451 → 31 531 B (+80 B:
+  `position="bottom"` e o `guide`), ESM 158 496 → 158 573 B (+77 B, dentro do teto). Os bytes são
+  a flag de instalação no hook, o `ResizeObserver` do `AppShell` e as três props do banner; as
+  fatias importadas continuam dentro dos budgets.
+
+- **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
+  `"pt-BR"`, mas o overlay mostrava o `error.message` do `useCameraStream` cru — "Camera
+  permission denied. Enable access in your browser settings." ao lado do botão "Tentar de novo".
+  O próprio teste do componente fixava a frase em inglês; ele foi reescrito (com o porquê no
+  corpo) para afirmar a mensagem em pt-BR, e um teste novo fixa o inglês sob `locale="en"`. Doc em
+  `docs/vision.md`, `docs/device-capture.md` e `.en.md` — o aviso "traduza na sua camada de i18n"
+  saiu, porque virou superfície.
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
   O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
   vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
@@ -39,6 +96,24 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Adicionado
 
+- **`RouteGuard`/rota guardada: `preserveFrom` e `useReturnTo` — voltar para onde estava depois
+  do login (#616).** `preserveFrom` (no `<RouteGuard>` e no `TempestRouteObject`, padrão `false`)
+  faz o redirect levar `state: { from: pathname + search + hash }`; `useReturnTo(fallback = "/")`
+  lê esse `from` na tela de login e o devolve **só se for caminho relativo da mesma origem** —
+  `https://…`, `//host`, `/\host`, caractere de controle e `javascript:` viram o `fallback`. A
+  leitura validada é superfície, não aviso na doc: o `from` vem do `history.state`, e seguido sem
+  checagem é open redirect. Medido no `react-router` 8.3.1: `navigate("https://evil.example")`
+  lança `External navigation is not allowed` (a tela quebra), e `window.location.assign(from)`
+  redireciona de fato. Optou-se por `preserveFrom` em vez de `state?: unknown` livre: cobre o
+  caso com uma prop booleana e fixa a forma `{ from }` que o `useReturnTo` lê. Doc em
+  `docs/routing.md` e `.en.md`.
+- **`useCameraStream`: `messages` — o texto do erro por `kind`, na língua do app (#617).**
+  `messages?: Partial<Record<CameraStreamErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. A troca é aplicada na leitura
+  do erro, não na captura: mudar de língua com o erro na tela re-rotula na hora, sem reabrir a
+  câmera. Segue a convenção dos componentes (`labels?: Partial<…>` por instância), não o
+  `I18nProvider` — nenhum componente ou hook do SDK lê o contexto de i18n. O `useBarcodeScanner`
+  repassa o mesmo mapa como `cameraMessages`.
 - **`useDraftFilters().discard()`** (#614): devolve o rascunho ao valor aplicado sem publicar e
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
@@ -53,9 +128,53 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   `close()` for ignorado, mostra `closeBlockedMessage`. Safari e Firefox não disparam
   `appinstalled`, então ali o overlay não abre.
 
+- **`createDeviceFacts`: o `device` do `createAppErrorReporter` pronto, sem o user agent cru**
+  (#621). Devolve o getter que a opção `device` espera, com `platform` (`"web"` por padrão; shell
+  nativo passa o seu), `os_version` grosso (`"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`,
+  `"Windows"`, `"macOS"`), `device_model` (modelo Android quando o UA ainda traz;
+  `"iPhone"`/`"iPad"`), `app_version` e um `device_id` UUID v4 **aleatório** (`crypto.randomUUID`,
+  ou `getRandomValues` fora de contexto seguro; sem Web Crypto, nenhum id — nunca `Math.random`).
+  O id fica em `localStorage`; storage que lança vira id em memória na sessão, e valor guardado que
+  não é UUID v4 é substituído, nunca enviado. A issue pedia "modelo Android descartando o `K`"; a
+  medição mostra que o defeito é maior: o UA reduzido do Chrome manda `Linux; Android 10; K` em
+  **todo** Android, então a versão também é mentira — a forma reduzida vira só `"Android"`, e o
+  getter pergunta uma vez às User-Agent Client Hints (`getHighEntropyValues(["platformVersion",
+"model"])`) para recuperar `"Android 14"` + modelo (e `"Windows 10"`/`"Windows 11"`). iPad em
+  modo desktop (UA de Mac) é reconhecido por `maxTouchPoints > 1`. A doc da telemetria trocava
+  `os_version: navigator.userAgent` — o UA cru, contra a própria regra — por `createDeviceFacts`.
+  Fatia nova no `size-limit`: `{ createDeviceFacts }` = 1,16 kB br; os tetos do barrel inteiro sobem
+  158,3 → 159,2 kB (ESM) e 188,1 → 189,2 kB (CJS), medidos 159,13 / 189,16 kB com `npx size-limit` sobre a `main` em `5f7e537`
+  — os ~0,8–1,1 kB são a função nova, que só pesa para quem a importa.
+- **`createZip`: `.zip` com progresso, sem travar a tela — o par do `writeXlsx`** (#622).
+  `createZip(entries, { onProgress, level, signal })` → `Promise<Blob>` (`application/zip`); cada
+  entrada é `{ path, data: Blob | Uint8Array | string, level? }`. Usa o `Zip` em streaming do
+  `fflate`, alimentado em blocos de 64 KB, em fatias de ~8 ms que cedem a vez por `MessageChannel`;
+  o progresso é em bytes de entrada, com o `total` conhecido antes do primeiro byte. Formatos já
+  comprimidos (JPEG, PNG, WebP, MP4, ZIP, XLSX, …) são **guardados** (nível 0) pela extensão;
+  `level` na entrada vence. Caminho vazio ou repetido lança `TypeError`; `signal` cancela no meio.
+  A issue pedia o `zip()` assíncrono do `fflate` (com worker); a medição o descartou — sobre 8,4 MB
+  (4 MB de CSV + 20 × 200 KB aleatórios, nível 6, Node 24, cinco rodadas de
+  `node scripts/bench-zip.mjs 5`, script novo): `zipSync` 131–232 ms travando tudo; `zip()` com
+  worker 576–962 ms, travada de 32–145 ms e sem progresso até um arquivo inteiro acabar;
+  `createZip` 178–275 ms com travada de 12–30 ms, e 48–70 ms (travada 11–14 ms) guardando as
+  "fotos". A issue pedia também subpath próprio; não precisa — o `preserveModules` já separa
+  (`{ cn }` continua 203 B). Fatias novas no `size-limit` **com o `fflate` contado**:
+  `{ createZip }` 5,46 kB br, `{ createZip, writeXlsx }` 6,55 kB. Os tetos do barrel inteiro sobem
+  158,3 → 158,9 kB (ESM) e 188,1 → 188,7 kB (CJS), medidos 158,84 / 188,63 kB com `npx size-limit`
+  — os ~0,5 kB são a função nova, que só pesa para quem a importa.
+
 ### Budgets
 
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
+- **`preserveFrom` + `useReturnTo` (#616): barrel ESM 158,3 → 158,5 kB, CJS 188,1 → 188,3 kB**
+  (`npm run build && npx size-limit --json`, `main` em `300d0a0` contra este branch): ESM
+  158 263 → 158 374 B (+111 B), CJS 187 970 → 188 255 B (+285 B). `slice: typical app` 12 637 →
+  12 698 B (+61 B, o `AppRouter` arrasta o `RouteGuard`), dentro do teto de 12,7 kB já na `main`.
+- **Mensagens por `kind` na câmera (#617): barrel ESM 158,3 → 158,6 kB, CJS 188,1 → 188,4 kB**
+  (`npm run build && npx size-limit --json`, `main` em `300d0a0` contra este branch): ESM
+  158 263 → 158 533 B (+270 B), CJS 187 970 → 188 256 B (+286 B). O grosso são as seis frases
+  pt-BR do `BarcodeScanner`: a fatia `device capture` vai de 5 465 para 5 708 B (+243 B, dentro do
+  budget); `vision entry` 16 508 → 16 526 B (+18 B, o `useMemo` do `messages`).
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da
@@ -112,6 +231,50 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   → branch): teto do barrel ESM 157,8 → 158,1 kB, sobe 157,9 → 158,2 kB; barrel CJS 187,74 → 187,72
   kB, sem mudança. O `scripts/check-dist-guards.mjs` ganha `sw/create-push-handler` na lista de
   módulos que falam fora do `isDevBuild()`, com o motivo acima.
+- **`AppShell`: a `AppBar` sticky renderizada pela página não rola mais junto com o conteúdo
+  (#611).** O `<main>` do shell tinha `overflow-x: auto`, que força o `overflow-y` computado a
+  `auto` e o transforma no scroll container de todo sticky dentro dele — só que quem rola é a
+  janela. Medido no Chromium, a 390×844 e a 1280×800: a barra ficava em `top: -600px` depois de
+  `scrollTo(0, 600)`; agora fica em `top: 0`. O `.main` passa a usar `overflow-x: clip`, que corta
+  o excesso horizontal sem criar scroll container. A issue propunha também tirar o overflow
+  (`visible`): resolve o sticky, mas um bloco de 1500px sem região própria passou a arrastar a
+  página inteira (`scrollWidth` 1500 a 390px, 1700 a 1280px) — o que empurra o app para
+  `body { overflow-x: hidden }`, que mata o sticky de novo. Com `clip` a página fica na largura da
+  viewport. **Mudança de comportamento**: um filho mais largo que o `<main>` sem região de scroll
+  própria passa a ser cortado na borda em vez de rolar dentro do `<main>`; `Table`/`DataTable`
+  não mudam (rolam na própria região: 1186px de uma tabela de 12 colunas nos três valores). Envolva
+  conteúdo largo seu num `overflow-x: auto` ou em `.tempest-scroll-x`. Guard:
+  `e2e/app-shell-sticky.spec.ts`.
+
+### Adicionado
+
+- **`ConfirmDialog`: `confirmIcon`** (#615) — ícone à esquerda do rótulo do botão de confirmar,
+  repassado como `leftIcon` do `Button` (a mesma prop que o `Button` já aceita). Decorativo: o nome
+  acessível continua sendo o `confirmLabel`. Era o que mantinha um `ExitModal` próprio no FAMACHApp
+  só para pôr o `LogOut` no "Sair".
+
+### Corrigido
+
+- **`ConfirmDialog`: com `loading`, o diálogo não fecha mais** (#615). O Cancelar já ficava
+  desabilitado, mas o `Modal` por baixo continuava com `onClose={onCancel}`: `Esc`, clique no backdrop
+  e o × chamavam `onCancel` com a confirmação em voo — num logout que revoga a sessão no servidor, a
+  tela dizia "cancelado" e o usuário saía mesmo assim. Durante `loading` o `Modal` recebe
+  `closeOnEsc={false}`, `closeOnBackdrop={false}` e `hideCloseButton`; com o `Esc` desligado o diálogo
+  ainda engole a tecla, então ela também não cai no modal de baixo. A trava deriva de `loading`, sem
+  prop nova. O `useModals().confirm()` herda a correção: até aqui, `Esc` durante um `onConfirm`
+  assíncrono chamava `onCancel` **e** fechava o diálogo antes de a promise resolver.
+
+### Adicionado
+
+- **`shareOrDownloadBlob` aceita `text` e `textOnlyFallback`** (#618). `text` vai na mesma sheet
+  do arquivo. Num browser que tem Web Share mas recusa o arquivo (`canShare({ files })` falso), a
+  função abre uma sheet só com o texto e **depois baixa o arquivo** — ordem arquivo + texto → só
+  texto → download. O download não é trocado pelo texto: nesse browser o arquivo sempre foi
+  baixado, e trocá-lo faria o usuário que escolhe "Mail" receber a legenda sem a foto. Por isso o
+  padrão `textOnlyFallback: true` (quando há `text`) não tira nada de ninguém; `false` volta ao
+  download direto. Cancelar a sheet do arquivo continua não baixando; erro real no
+  compartilhamento do arquivo pula a sheet de texto (o gesto já foi consumido). O retorno continua
+  `Promise<void>`.
 
 ## [0.86.0] — 2026-11-15
 

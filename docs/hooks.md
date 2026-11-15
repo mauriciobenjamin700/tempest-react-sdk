@@ -904,7 +904,7 @@ O `method` é resolvido assim:
 - `"native"` → o evento `beforeinstallprompt` chegou; chame `install()` para disparar o prompt nativo.
 - `"ios"` → iOS/iPadOS Safari; mostre as instruções de "Adicionar à Tela de Início".
 - `"manual"` → fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3s por padrão); mostre instruções genéricas de menu.
-- `"none"` → já rodando como PWA instalado (display-mode standalone) ou o cooldown de recusa está ativo.
+- `"none"` → já rodando como PWA instalado (display-mode standalone), app instalado a partir desta aba (`accepted` no prompt ou `appinstalled`) ou o cooldown de recusa está ativo. A instalação da sessão só é esquecida quando o navegador dispara um `beforeinstallprompt` novo.
 
 Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e safe sem `window`:
 

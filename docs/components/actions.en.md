@@ -506,20 +506,61 @@ export function ExcluirUsuario({
 }
 ```
 
-| Prop           | Type                                            | Default       |
-| -------------- | ----------------------------------------------- | ------------- |
-| `open`         | `boolean`                                       | —             |
-| `title`        | `ReactNode`                                     | —             |
-| `description`  | `ReactNode`                                     | —             |
-| `confirmLabel` | `string`                                        | `"Confirmar"` |
-| `cancelLabel`  | `string`                                        | `"Cancelar"`  |
-| `variant`      | `"primary" \| "danger"`                         | `"primary"`   |
-| `loading`      | `boolean` (shows spinner + disables both)       | `false`       |
-| `onConfirm`    | `() => void \| Promise<void>`                   | —             |
-| `onCancel`     | `() => void`                                    | —             |
+| Prop           | Type                                                       | Default       |
+| -------------- | ---------------------------------------------------------- | ------------- |
+| `open`         | `boolean`                                                  | —             |
+| `title`        | `ReactNode`                                                | —             |
+| `description`  | `ReactNode`                                                | —             |
+| `confirmLabel` | `string`                                                   | `"Confirmar"` |
+| `cancelLabel`  | `string`                                                   | `"Cancelar"`  |
+| `variant`      | `"primary" \| "danger"`                                    | `"primary"`   |
+| `confirmIcon`  | `ReactNode` (becomes the confirm button's `leftIcon`)      | —             |
+| `loading`      | `boolean` (spinner on confirm + locks the dialog, see below) | `false`     |
+| `onConfirm`    | `() => void \| Promise<void>`                              | —             |
+| `onCancel`     | `() => void`                                               | —             |
 
 !!! tip "Control loading during the request"
-    `onConfirm` accepts a promise, but `ConfirmDialog` doesn't manage the loading state itself — pass `loading={deleting}` driven by your own state to lock both buttons while the async action runs.
+    `onConfirm` accepts a promise, but `ConfirmDialog` doesn't manage the loading state itself — pass `loading={deleting}` driven by your own state while the async action runs.
+
+### While `loading`, the dialog does not close
+
+While `loading` is `true`, **every** way out is closed, not just the Cancel button: `Esc` and a backdrop click don't call `onCancel`, and the close button (×) is hidden. Cancelling mid-request would leave the screen saying "cancelled" with the operation still in flight — on a sign-out that revokes the session server-side, the user would be signed out anyway. The lock is derived from `loading`; there is no other prop to keep in sync. `useModals().confirm()` inherits the same behaviour.
+
+With `confirmIcon`, the confirm button gets an icon before its label — the accessible name is still `confirmLabel`:
+
+```tsx
+import { useState } from "react";
+import { LogOut } from "lucide-react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function SignOut({ signOut }: { signOut: () => Promise<void> }) {
+    const [open, setOpen] = useState(false);
+    const [leaving, setLeaving] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Sign out"
+            description="You will need to sign in again on this device."
+            confirmLabel="Sign out"
+            cancelLabel="Cancel"
+            confirmIcon={<LogOut size={16} />}
+            variant="danger"
+            loading={leaving}
+            onConfirm={async () => {
+                setLeaving(true);
+                try {
+                    await signOut();
+                    setOpen(false);
+                } finally {
+                    setLeaving(false);
+                }
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
+```
 
 !!! info "Default labels are Portuguese"
     `confirmLabel`/`cancelLabel` default to `"Confirmar"`/`"Cancelar"`. Pass explicit English strings in EN-locale apps.
@@ -601,7 +642,43 @@ export function Instalar() {
 | `declineCooldownMs` | `number` | — (permanent)   |
 | `renderHint`   | `(input: InstallHintInput) => ReactNode` | `defaultInstallHint` |
 | `manualFallbackDelayMs` | `number` | `3000`        |
+| `visible`      | `boolean`   | `true`            |
+| `position`     | `"inline" \| "bottom"` | `"inline"` |
+| `guide`        | `ReactNode` | —                 |
 | `onResult`     | `(o) => void` | —               |
+
+### Per route, above the bottom nav, and with a guide
+
+Three decisions every app used to make around its own copy of the banner, now props:
+
+```tsx
+import { Link, useLocation } from "react-router";
+import { InstallBanner } from "tempest-react-sdk";
+
+const NO_BANNER = ["/camera", "/login", "/install"];
+
+export function InstallPromptBanner() {
+    const { pathname } = useLocation();
+
+    return (
+        <InstallBanner
+            title="Install the app"
+            description="Offline access and a home-screen shortcut."
+            storageKey="meu-app:install-dismissed"
+            visible={!NO_BANNER.some((route) => pathname.startsWith(route))}
+            position="bottom"
+            guide={<Link to="/install">See the full guide</Link>}
+        />
+    );
+}
+```
+
+- **`visible`** hides without unmounting. It looks the same as `{show && <InstallBanner />}`, but it is not: without `storageKey` the dismissal lives in component state, and unmounting forgot it — the dismissed banner came back on the next route that showed it. The SDK does not read the route itself on purpose: that way it needs no router context to render, and the rule of which routes hide it stays with the app.
+- **`position="bottom"`** pins the banner to the bottom of the viewport (fixed, centered, up to `32rem`), above the safe area **and** above `--tempest-bottom-nav-height`. Inside an [`AppShell`](./layout.md#appshell) with `bottomNav`, the shell measures and publishes that variable itself — the banner sits above the bar with no configuration. With a bar of your own, publish its height in the same variable. The `"inline"` default keeps the usual behavior: the banner stays where you render it.
+- **`guide`** shows right after the platform instruction (`"ios"` and `"manual"`), when the user opens **"Como instalar"**. It is a node, not an `href`, so you pass your router's `Link` and the guide page opens without reloading the app.
+
+!!! check "Accepting closes the banner — and it stays closed"
+    Up to v0.86.0 the banner disappeared on accept and **came back 3 s later** offering "Como instalar": the stored event was dropped, the tab that installed is still in `display-mode: browser`, and the manual fallback took over. Measured with the component itself in jsdom: visible `false` right after `accepted`, `true` with the "Como instalar" button at 3.5 s, even after `appinstalled`. Now `useInstallPrompt` remembers the session's install (`accepted` or `appinstalled`) and resolves `method: "none"` until the browser fires a fresh `beforeinstallprompt` — which only happens if the app is uninstalled. The same holds for `InstallButton`.
 
 !!! note "`declineCooldownMs` changes what is stored — and respects what was already there"
     Without it, a dismissal written to `storageKey` is **permanent**, which is what the component always did (it stores `"1"`). With it, a timestamp is stored and the banner returns after the window.

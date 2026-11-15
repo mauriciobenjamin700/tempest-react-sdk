@@ -64,6 +64,15 @@ const STRINGS = {
         torchOff: "Ligar lanterna",
         unsupported: "Este navegador não decodifica códigos de barras.",
         retry: "Tentar de novo",
+        camera: {
+            unsupported: "Este navegador não dá acesso à câmera.",
+            insecure: "A câmera só funciona em conexão segura (HTTPS).",
+            "permission-denied":
+                "Acesso à câmera negado. Libere a permissão nas configurações do navegador.",
+            "no-camera": "Nenhuma câmera disponível neste aparelho.",
+            "in-use": "A câmera está em uso por outro app. Feche-o e tente de novo.",
+            unknown: "Não foi possível abrir a câmera.",
+        },
     },
     en: {
         viewport: "Camera viewport",
@@ -76,6 +85,7 @@ const STRINGS = {
         torchOff: "Turn torch on",
         unsupported: "This browser cannot decode barcodes.",
         retry: "Try again",
+        camera: undefined,
     },
 } as const;
 
@@ -142,6 +152,7 @@ export function BarcodeScanner({
         repeatDelayMs,
         onScan,
         onError,
+        cameraMessages: strings.camera,
     });
 
     if (!supported) {

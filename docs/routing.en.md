@@ -58,6 +58,7 @@ Each `TempestRouteObject` accepts:
 | `guard`         | `boolean \| (() => RouteGuardResult)`       | `false` redirects, `true` renders, `"pending"` holds the decision.            |
 | `guardFallback` | `ReactNode`                                 | Rendered while the guard answers `"pending"`. Defaults to the `<AppRouter>` `fallback`. |
 | `redirectTo`    | `string`                                    | The guard's redirect target. Default `"/"`.                                   |
+| `preserveFrom`  | `boolean`                                   | Carries the blocked path in the redirect, so login can return to it. Default `false`. |
 | `caseSensitive` | `boolean`                                   | Makes the `path` match case-sensitive.                                        |
 
 !!! tip "A `lazy` page may declare props"
@@ -337,10 +338,69 @@ export function ProtectedDashboard() {
 | `fallback`   | `ReactNode`        | `null`  | Rendered while `when` is `"pending"`.          |
 | `redirectTo` | `string`           | `"/"`   | Target when `when` is false.                   |
 | `replace`    | `boolean`          | `true`  | Replaces the history entry instead of pushing. |
+| `preserveFrom` | `boolean`        | `false` | Carries `state: { from }` in the redirect — see the next section. |
 | `children`   | `ReactNode`        | —       | What to protect.                               |
 
 !!! tip "Same state-reading rule"
     Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes. The tree's `guard` runs **inside** the render too, so it has both options: `getState()` for a simple imperative read, or hooks — as long as the function is named `use…`, as in the `"pending"` section above.
+
+## Going back to where you were after signing in
+
+The classic flow: someone opens `/reports/42?year=2026`, is not signed in, lands on `/login` — and after signing in should **go back to `/reports/42?year=2026`**, not to the home page. For that, the redirect has to carry where it came from, and the login screen has to read it back.
+
+There are two pieces:
+
+- **`preserveFrom`** on the guard (on `<RouteGuard>` or on the route object) makes the redirect carry `state: { from: pathname + search + hash }`.
+- **`useReturnTo(fallback)`** on the login screen returns that `from` — or `fallback` when there is nothing valid to go back to.
+
+```tsx
+// routes.tsx
+import { defineRoutes } from "tempest-react-sdk";
+import { useAuth } from "@/stores/auth";
+import { Dashboard } from "@/pages/Dashboard";
+import { Login } from "@/pages/Login";
+
+export const routes = defineRoutes([
+  { path: "login", element: <Login /> },
+  {
+    path: "dashboard",
+    element: <Dashboard />,
+    guard: () => useAuth.getState().isAuthenticated,
+    redirectTo: "/login",
+    preserveFrom: true,
+  },
+]);
+```
+
+```tsx
+// pages/Login.tsx
+import { Button, useNavigate, useReturnTo } from "tempest-react-sdk";
+import { signIn } from "@/lib/auth";
+
+export function Login() {
+  const navigate = useNavigate();
+  const returnTo = useReturnTo("/dashboard");
+
+  async function handleSignIn() {
+    await signIn({ email: "ana@example.com", password: "secret" });
+    navigate(returnTo, { replace: true });
+  }
+
+  return <Button onClick={handleSignIn}>Sign in</Button>;
+}
+```
+
+On `<RouteGuard>` it is the same prop: `<RouteGuard when={isAuthenticated} redirectTo="/login" preserveFrom>`.
+
+`useReturnTo` falls back to `fallback` (default `"/"`) when the login page is opened directly, when it is reloaded without state, or when `from` is not a path inside this app.
+
+!!! danger "Why not read `location.state?.from` by hand"
+    `from` travels in `history.state`, which any same-origin code can write. Followed without a check, it is an **open redirect**: `https://fake-site.example/login` in place of the path sends the freshly signed-in person out of the app. `useReturnTo` accepts **only a same-origin relative path** — starts with `/`, no `//`, no backslash, no control character (the URL parser turns `/\host` and `/<TAB>/host` into `//host`). Anything else becomes the `fallback`.
+
+    Measured on `react-router` 8.3.1: `navigate("https://fake-site.example")` does not redirect, but **throws** `External navigation is not allowed` — the login screen breaks instead of following it. With `window.location.assign(from)` the redirect does happen. With `useReturnTo`, neither ever does.
+
+!!! tip "Use the value with `navigate`, not `window.location`"
+    The path is relative to the router's `basename`, exactly like `useLocation()`. `navigate()` puts the `basename` back; `window.location` does not.
 
 ## Choosing the router kind
 
@@ -423,6 +483,7 @@ The most used types come along too: `Location`, `NavigateFunction`, `NavigateOpt
 - Nested layouts render children in the `<Outlet>`; navigate with `<Link>`.
 - `lazy` does code-splitting with automatic retry on a stale chunk; show the Suspense `fallback` while it loads.
 - Protect routes with `guard` (boolean or function) + `redirectTo`, or with `<RouteGuard when={...}>` in JSX. The guard runs on render, so it may call hooks — name the function `use…` for ESLint to accept it.
+- `preserveFrom` carries the blocked path in the redirect; `useReturnTo(fallback)` reads it back on the login screen, accepting only a same-origin path.
 - A permission that resolves asynchronously answers `"pending"`: the decision is held and `guardFallback` (or the `<AppRouter>` `fallback`) shows, instead of redirecting someone who has access or leaking the screen to someone who does not.
 - Pick the router with the `router` prop: `"browser"` in production, `"memory"` + `initialEntries` in tests.
 - Need `matchPath`, `generatePath`, `useOutletContext` or any other client-side React Router name? It also comes from `"tempest-react-sdk"`; its `Form` ships as `RouterForm`.

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import {
+    AppShell,
+    BottomNavigation,
     Button,
     InstallBanner,
     InstallButton,
@@ -16,6 +18,12 @@ import { Example } from "../Example";
 
 const TONES: SyncTone[] = ["idle", "syncing", "pending", "offline", "error"];
 
+const SHELL_TABS = [
+    { key: "inicio", label: "Início" },
+    { key: "rebanho", label: "Rebanho" },
+    { key: "perfil", label: "Perfil" },
+];
+
 /**
  * Recursos de PWA do SDK: o prompt de instalação (`beforeinstallprompt`) e a
  * inscrição de Web Push. Esta galeria não tem service worker/backend reais, então
@@ -29,6 +37,8 @@ export function PWASection() {
     });
     const [tone, setTone] = useState<SyncTone>("pending");
     const [updateOpen, setUpdateOpen] = useState(false);
+    const [shellOpen, setShellOpen] = useState(false);
+    const [shellTab, setShellTab] = useState("inicio");
     const storage = useStorageEstimate();
 
     return (
@@ -72,6 +82,47 @@ export function PWASection() {
                     title="Instale o app"
                     description="Acesso offline e atalho na tela inicial."
                 />
+            </Example>
+
+            <Example
+                title="InstallBanner acima da bottom nav"
+                note='position="bottom" fixa o banner no rodapé, acima de --tempest-bottom-nav-height, que o AppShell mede e publica sozinho. guide aparece depois da instrução de "Como instalar".'
+                code={`<AppShell bottomNav={<BottomNavigation items={TABS} value={tab} onChange={setTab} />}>
+  <InstallBanner
+    position="bottom"
+    visible={!pathname.startsWith("/camera")}
+    guide={<Link to="/instalar">Ver guia completo</Link>}
+  />
+</AppShell>`}
+            >
+                <Button onClick={() => setShellOpen(true)}>Abrir app de exemplo</Button>
+                {shellOpen ? (
+                    <div className="gallery-install-shell" data-testid="install-shell">
+                        <AppShell
+                            bottomNav={
+                                <BottomNavigation
+                                    items={SHELL_TABS}
+                                    value={shellTab}
+                                    onChange={setShellTab}
+                                />
+                            }
+                        >
+                            <div style={{ padding: 16 }}>
+                                <p>Conteúdo da aba {shellTab}.</p>
+                                <Button variant="outline" onClick={() => setShellOpen(false)}>
+                                    Fechar exemplo
+                                </Button>
+                            </div>
+                            <InstallBanner
+                                title="Instale o app"
+                                description="Acesso offline e atalho na tela inicial."
+                                position="bottom"
+                                manualFallbackDelayMs={0}
+                                guide={<a href="#pwa">Ver guia completo</a>}
+                            />
+                        </AppShell>
+                    </div>
+                ) : null}
             </Example>
 
             <Example

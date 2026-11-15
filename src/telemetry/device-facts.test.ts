@@ -28,6 +28,35 @@ const UA = {
         "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
 } as const;
 
+const REAL_MODELS = [
+    "SM-S918B",
+    "Pixel 8 Pro",
+    "moto g(60)",
+    "M2101K6G",
+    "CPH2449",
+    "2201117TG",
+    "ONEPLUS A6013",
+    "Redmi Note 9 Pro",
+    "ASUS_X00TD",
+    "Nokia 7.2",
+    "Redmi Note 12 Pro+ 5G",
+] as const;
+
+const NOT_MODELS = [
+    "user=alice@example.com token=abc123",
+    "alice@example.com",
+    "https://evil.test/x",
+    "key:value",
+    "a/b",
+    "-leading-dash",
+    "SM-S918B\u0000",
+    "A".repeat(41),
+] as const;
+
+function androidUa(model: string): string {
+    return `Mozilla/5.0 (Linux; Android 13; ${model}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36`;
+}
+
 const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function stubNavigator(
@@ -72,6 +101,37 @@ describe("parseUserAgent", () => {
 
     it("does not take Firefox's `Mobile` token for a model", () => {
         expect(parseUserAgent(UA.androidFirefox)).toEqual({ os_version: "Android 14" });
+    });
+
+    it.each(REAL_MODELS)("keeps the real model %s from the user agent", (model) => {
+        expect(parseUserAgent(androidUa(model))).toEqual({
+            os_version: "Android 13",
+            device_model: model,
+        });
+    });
+
+    it("keeps a model up to 40 characters", () => {
+        const model = "A".repeat(40);
+        expect(parseUserAgent(androidUa(model)).device_model).toBe(model);
+    });
+
+    it.each(NOT_MODELS)("drops a user-agent segment that is not a model: %j", (segment) => {
+        expect(parseUserAgent(androidUa(segment))).toEqual({ os_version: "Android 13" });
+    });
+
+    it("does not let a custom user agent put free text in device_model (#644)", () => {
+        const ua =
+            "Mozilla/5.0 (Linux; Android 13; user=alice@example.com token=abc123) AppleWebKit/537.36";
+        const facts = parseUserAgent(ua);
+        expect(facts).toEqual({ os_version: "Android 13" });
+        expect(JSON.stringify(facts)).not.toContain("alice");
+    });
+
+    it("does not cut Motorola's parenthesised model at its own `)`", () => {
+        expect(
+            parseUserAgent("Mozilla/5.0 (Linux; Android 11; moto g(60)) AppleWebKit/537.36")
+                .device_model,
+        ).toBe("moto g(60)");
     });
 
     it("does not take an old user agent's locale token for a model", () => {
@@ -127,6 +187,27 @@ describe("applyDeviceHints", () => {
             os_version: "Android 14",
             device_model: "SM-A105M",
         });
+    });
+
+    it.each(REAL_MODELS)("keeps the real hinted model %s", (model) => {
+        expect(applyDeviceHints({ os_version: "Android" }, { platform: "Android", model })).toEqual(
+            { os_version: "Android", device_model: model },
+        );
+    });
+
+    it.each(NOT_MODELS)("drops a hinted model that is not a model: %j", (model) => {
+        expect(applyDeviceHints({ os_version: "Android" }, { platform: "Android", model })).toEqual(
+            { os_version: "Android", device_model: undefined },
+        );
+    });
+
+    it("keeps the user agent's model when the hinted one is not a model", () => {
+        expect(
+            applyDeviceHints(
+                { os_version: "Android 11", device_model: "SM-A105M" },
+                { platform: "Android", model: "user=alice@example.com token=abc123" },
+            ),
+        ).toEqual({ os_version: "Android 11", device_model: "SM-A105M" });
     });
 
     it("keeps what the user agent said when the hints are empty", () => {
@@ -323,5 +404,57 @@ describe("createDeviceFacts with createAppErrorReporter", () => {
             device_id: expect.stringMatching(UUID_V4),
         });
         expect(body).not.toContain("Mozilla");
+    });
+
+    it("sends device_id only alongside a bearer, so an anonymous report is not tied to the user (#644)", async () => {
+        stubNavigator(UA.androidModel);
+        let token: string | null = "tok-A";
+        const fetchMock = vi.fn(async () => new Response("{}", { status: 201 }));
+        const reporter = createAppErrorReporter({
+            endpoint: "https://api.example.test/api/app-errors",
+            fetch: fetchMock as unknown as typeof fetch,
+            storage: null,
+            autoFlush: false,
+            getToken: () => token,
+            device: createDeviceFacts(),
+        });
+        reporter.report("signed in");
+        await reporter.flush();
+        reporter.report("raised as A, sent after logout");
+        token = null;
+        reporter.report("after logout");
+        await reporter.flush();
+        reporter.dispose();
+        const sent = (fetchMock.mock.calls as unknown as Array<[string, RequestInit]>).map(
+            ([, init]) => ({
+                bearer: (init.headers as Record<string, string>).Authorization ?? null,
+                body: JSON.parse(init.body as string) as Record<string, unknown>,
+            }),
+        );
+        expect(sent).toHaveLength(3);
+        expect(sent[0]?.bearer).toBe("Bearer tok-A");
+        expect(sent[0]?.body.device_id).toEqual(expect.stringMatching(UUID_V4));
+        for (const anonymous of sent.slice(1)) {
+            expect(anonymous.bearer).toBeNull();
+            expect(anonymous.body).not.toHaveProperty("device_id");
+            expect(anonymous.body).toMatchObject({ platform: "web", device_model: "SM-A105M" });
+        }
+    });
+
+    it("keeps device_id on every report when the reporter has no getToken to attribute any", async () => {
+        stubNavigator(UA.androidModel);
+        const fetchMock = vi.fn(async () => new Response("{}", { status: 201 }));
+        const reporter = createAppErrorReporter({
+            endpoint: "https://api.example.test/api/app-errors",
+            fetch: fetchMock as unknown as typeof fetch,
+            storage: null,
+            autoFlush: false,
+            device: createDeviceFacts(),
+        });
+        reporter.report("public app");
+        await reporter.flush();
+        reporter.dispose();
+        const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+        expect(JSON.parse(init.body as string).device_id).toEqual(expect.stringMatching(UUID_V4));
     });
 });

@@ -405,6 +405,21 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     /**
+     * Whether the attempt carried a bearer token of a session epoch that has
+     * ended since it left.
+     *
+     * @param context - The credential and epoch the attempt left with.
+     * @returns `true` when the attempt had a token and `getSessionEpoch` now
+     * returns another epoch; `false` without `getSessionEpoch`.
+     */
+    function sessionEndedSince(context: RequestAuthContext): boolean {
+        if (context.token === null || context.epoch === null || !config.getSessionEpoch) {
+            return false;
+        }
+        return config.getSessionEpoch() !== context.epoch;
+    }
+
+    /**
      * One request, with the `401` refresh-and-replay around it.
      *
      * The refresh path runs only for a target inside the credential scope. A
@@ -412,6 +427,17 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * session's credential, so it says nothing about the session; until 0.82.0
      * it still drove `refresh()` and `onUnauthorized()`, so a foreign host could
      * spend a refresh and end the user's session (#530).
+     *
+     * A response that answers an attempt sent with a bearer token under a
+     * session epoch that has since ended rejects with
+     * {@link SessionSupersededError} instead of resolving, checked once the
+     * body is decoded. The response holds the ended account's data, and the
+     * caller's continuation — a mutation's `onSuccess` writing to a cache, a
+     * `setState` — would hand it to the account signed in now: up to 0.86.0 a
+     * mutation sent by account A before `logout()` resolved under account B,
+     * and its `setQueryData` reached B's screens and B's offline snapshot
+     * (security audit run-14, U7, #609). An attempt that carried no token says
+     * nothing about any account, so it resolves as before.
      *
      * @param path - The path as the call site wrote it.
      * @param options - Request options, policy fields included.
@@ -429,6 +455,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const url = buildApiUrl(config.baseURL, path, { prefix: config.prefix, params });
         const inScope = isTrustedCredentialTarget(url, config.baseURL, config.trustedOrigins);
         const sent = authContext(skipAuth);
+        let answered = sent;
         let response = await send(path, url, inScope, init, requestId, method, skipAuth);
 
         if (response.status === 401 && inScope && !skipAuth && !skipAuthRetry) {
@@ -437,6 +464,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                 try {
                     await config.refresh(sent);
                     replayed = authContext(skipAuth);
+                    answered = replayed;
                     response = await send(path, url, inScope, init, requestId, method, skipAuth);
                 } catch (error) {
                     if (error instanceof SessionSupersededError) throw error;
@@ -455,7 +483,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
             throw await parseError(response, requestId);
         }
 
-        return decode(response);
+        const value = await decode(response);
+        if (sessionEndedSince(answered)) throw new SessionSupersededError();
+        return value;
     }
 
     async function run<T>(

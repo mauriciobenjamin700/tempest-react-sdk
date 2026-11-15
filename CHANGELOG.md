@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
 - **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
   `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
   branch, mesmo resto da árvore): CJS 187 674 → 188 049 B (+375 B; a `main` tinha 126 B de folga) —

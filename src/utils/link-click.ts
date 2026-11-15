@@ -9,6 +9,12 @@ import type { MouseEvent } from "react";
  * a non-primary button, `target="_blank"` — asks the browser for something the
  * router cannot do, so it stays with the `href`.
  *
+ * `target` keywords are ASCII case-insensitive in the HTML spec ("rules for
+ * choosing a navigable"), so `_SELF` and `_Self` open in the same context as
+ * `_self` and are routed too; matching them case-sensitively would let the
+ * browser reload the whole document. A name with surrounding spaces is not
+ * trimmed by the browser, so it is a named context and stays with it.
+ *
  * @param event The click event the anchor received.
  * @returns `true` when the click should be routed in place.
  */
@@ -16,7 +22,7 @@ function isPlainPrimaryClick(event: MouseEvent<HTMLAnchorElement>): boolean {
     if (event.button !== 0) return false;
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return false;
     const target = event.currentTarget.getAttribute("target");
-    return target === null || target === "" || target === "_self";
+    return target === null || target === "" || target.toLowerCase() === "_self";
 }
 
 /**

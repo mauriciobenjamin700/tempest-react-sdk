@@ -8,6 +8,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 - **`createZip` recusa nome de entrada que escapa da pasta de extração** (#645). Segmento `..` (no início ou no meio), caminho absoluto (`/x`), letra de drive (`C:\x`, `C:/x`, `C:x`), barra invertida e NUL eram gravados como vieram, e um extrator ingênuo sofria _zip-slip_. Agora lançam `TypeError` antes de ler qualquer byte, como já acontecia com caminho vazio ou repetido; o nome não é normalizado em silêncio. Subpastas com `/` continuam.
 
+### Corrigido
+
+- **Regra interna de clique em link aceita `target` em qualquer caixa** (#645). O helper interno
+  que decide se o clique de um `Sidebar`/`NavigationMenu`/`Breadcrumbs` vai para o router só
+  reconhecia `_self` exato; a palavra-chave é case-insensitive no HTML, então `_SELF` ou `_Self`
+  deixaria o browser recarregar o documento inteiro. Inalcançável hoje (nenhum componente do SDK
+  renderiza `target` no link), corrigido antes que um passe a renderizar.
+
 ### Budgets
 
 - **`slice: createZip`** 5,6 → 5,65 kB e **`slice: createZip + writeXlsx`** 6,7 → 6,75 kB: a

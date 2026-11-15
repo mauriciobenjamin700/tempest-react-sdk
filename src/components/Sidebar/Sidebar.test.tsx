@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { Sidebar } from "./Sidebar";
@@ -204,6 +204,37 @@ describe("Sidebar — href", () => {
         render(<Sidebar items={[{ key: "docs", label: "Docs", href: "/docs", disabled: true }]} />);
         expect(screen.queryByRole("link")).toBeNull();
         expect(screen.getByRole("button", { name: "Docs" })).toBeDisabled();
+    });
+});
+
+describe("Sidebar — href with onChange (#612)", () => {
+    const docs = [{ key: "docs", label: "Docs", href: "/docs" }];
+
+    it("keeps the browser from following the href on a plain primary click, so the app's router owns the navigation", () => {
+        const onChange = vi.fn();
+        render(<Sidebar items={docs} onChange={onChange} />);
+        const followed = fireEvent.click(screen.getByRole("link", { name: "Docs" }));
+        expect(followed).toBe(false);
+        expect(onChange).toHaveBeenCalledWith("docs");
+    });
+
+    it.each([
+        ["ctrl", { ctrlKey: true }],
+        ["meta", { metaKey: true }],
+        ["shift", { shiftKey: true }],
+        ["alt", { altKey: true }],
+        ["non-primary-button", { button: 1 }],
+    ])("leaves a %s click to the browser and does not route the current tab", (_name, init) => {
+        const onChange = vi.fn();
+        render(<Sidebar items={docs} onChange={onChange} />);
+        const followed = fireEvent.click(screen.getByRole("link", { name: "Docs" }), init);
+        expect(followed).toBe(true);
+        expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it("lets the browser follow the href when there is no onChange", () => {
+        render(<Sidebar items={docs} />);
+        expect(fireEvent.click(screen.getByRole("link", { name: "Docs" }))).toBe(true);
     });
 });
 

@@ -787,6 +787,14 @@ Two rules apply since 0.82.0:
     DevTools → Application → Service workers → the worker's link opens its
     console.
 
+    **Backend on `tempest-fastapi-sdk`:** since 0.363.0 its
+    `WebPushPayloadSchema` has the top-level `url` and, so that code following the
+    old example keeps working, lifts a string `data["url"]` into `url` when no
+    top-level `url` was given — with `tempest-fastapi-sdk>=0.363.0` the payload
+    already ships in the right shape and the warning above never fires. The
+    contract between both sides is pinned by `tests/webpush/test_payload_contract.py`
+    in that repository.
+
 ```ts
 /// <reference lib="webworker" />
 import { installNotificationClickHandler } from "tempest-react-sdk/sw";

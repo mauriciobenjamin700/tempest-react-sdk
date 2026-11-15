@@ -28354,6 +28354,13 @@ Duas regras valem desde a 0.82.0:
     chegar primeiro em produção — e não repete a URL. Para vê-lo: DevTools →
     Application → Service workers → o link do worker abre o console dele.
 
+    **Backend com o `tempest-fastapi-sdk`:** a partir da 0.363.0 o
+    `WebPushPayloadSchema` tem o `url` de topo e, para não quebrar quem seguia o
+    exemplo antigo, promove um `data["url"]` string para `url` quando o `url` de
+    topo não veio — com `tempest-fastapi-sdk>=0.363.0` o payload já sai no formato
+    certo e o aviso acima não dispara. O contrato entre os dois lados é fixado por
+    `tests/webpush/test_payload_contract.py` naquele repositório.
+
 ```ts
 /// <reference lib="webworker" />
 import { installNotificationClickHandler } from "tempest-react-sdk/sw";

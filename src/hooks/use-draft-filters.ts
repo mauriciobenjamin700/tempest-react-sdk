@@ -37,6 +37,13 @@ export interface UseDraftFiltersResult<T> {
     apply: (patch?: DraftFiltersPatch<T>) => void;
     /** Reset the draft and the applied value to the initial one, together. */
     clear: () => void;
+    /**
+     * Throw the draft away: it goes back to `applied`, and nothing is published —
+     * `onApply` does not run. The "Cancel" (or tap outside) of a filter sheet, and
+     * also what to call when the sheet opens, so it shows what is applied.
+     * Clearing only the draft is `set(() => initial)`.
+     */
+    discard: () => void;
 }
 
 /** Both halves, kept in one state so they can never be committed apart. */
@@ -81,6 +88,13 @@ function patchDraft<T>(draft: T, patch: DraftFiltersPatch<T>): T {
  *
  * Like `useState`, the initial value is read on the first render only; `clear()`
  * returns to it.
+ *
+ * A filter sheet (open, edit, cancel, clear, apply) needs one gesture more than a
+ * filter bar: `discard()`, which drops the draft back to `applied` without
+ * publishing. "Clear" inside the sheet is `set(() => initial)` — it zeroes only
+ * the draft, and the sheet's own "Apply" publishes it. There is no separate
+ * `clearDraft()`: the updater already expresses it exactly, including optional
+ * keys a partial merge would leave behind.
  *
  * @param initial - The empty filter form: what the screen shows and queries first.
  * @param options - `onApply` and `isEqual`.
@@ -145,6 +159,12 @@ export function useDraftFilters<T extends object>(
 
     const clear = useCallback((): void => publish(initialRef.current), [publish]);
 
+    const discard = useCallback((): void => {
+        const current = stateRef.current;
+        if (current.draft === current.applied) return;
+        commit({ draft: current.applied, applied: current.applied });
+    }, [commit]);
+
     return {
         draft: state.draft,
         applied: state.applied,
@@ -152,5 +172,6 @@ export function useDraftFilters<T extends object>(
         set,
         apply,
         clear,
+        discard,
     };
 }

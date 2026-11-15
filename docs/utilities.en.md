@@ -252,7 +252,7 @@ pluralize(2, "person", "people"); // "people"
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Human-readable size in B/KB/MB/GB/TB (base 1024).          |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Compact notation (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
 | `percentOf(part, total)`           | `(part: number, total: number) => number`      | 0–100 percentage, with a zero base returning `0`.          |
-| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number }) => string` | 0–1 fraction as a pt-BR percentage; `decimals` defaults to `1`. |
+| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number; mode?: "round" \| "truncate" }) => string` | 0–1 fraction as a pt-BR percentage; `decimals` defaults to `1`, `mode` to `"round"`. |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -293,6 +293,53 @@ formatPercent(0 / 0); // "—"
     `(active / total) * 100` with `total === 0` produces `NaN`, and `NaN%` on an empty panel is the most common way a dashboard announces that it has no data yet. `percentOf(5, 0)` is `0`; non-finite inputs are `0` too.
     It does **not** cap at 100 — 150% of a target is real data somebody wants to see.
     Mind the pairing: `formatPercent` takes a **fraction** (0–1), so it reads `formatPercent(percentOf(a, b) / 100)`.
+
+### Truncate instead of round — `mode: "truncate"`
+
+Model confidence is the case where rounding lies: 99.996% at two decimals becomes `"100,00%"`, and the user reads a certainty the model never claimed. `mode: "truncate"` cuts the extra digits toward zero:
+
+```ts
+import { formatPercent } from "tempest-react-sdk";
+
+formatPercent(0.99996, { decimals: 2 }); // "100,00%"
+formatPercent(0.99996, { decimals: 2, mode: "truncate" }); // "99,99%"
+formatPercent(0.57, { decimals: 2, mode: "truncate" }); // "57,00%"
+formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
+```
+
+!!! danger "`Math.trunc(value * 10000)` gets 573 of 10001 fractions wrong"
+    The multiplication rounds **before** the cut: `0.57 * 10000` is `5699.999999999999`, so the naive version shows `"56,99%"` for 57%. Measured over every fraction `i / 10000` from 0 to 1, it is wrong for 573 of the 10001 values at two decimals, and for 3 of 101 at zero decimals (`0.29 * 100` is `28.999999999999996`). The SDK shifts the decimal exponent of the number's string form (`"0.57e4"`), which parses to the exact integer: zero errors on the same grids — pinned in `src/utils/format-percent-truncate.test.ts`.
+
+---
+
+## Day label — `relativeDayLabel`
+
+A list grouped by day (messages, history, a statement) needs a "Hoje", "Ontem" or date header. `relativeTime` answers a different question — how much time has passed ("2 horas atrás") —, so the two disagree around midnight, on purpose: at 00:10, a message from 23:50 is "20 min atrás" **and** "Ontem".
+
+```ts
+import { relativeDayLabel } from "tempest-react-sdk";
+
+const now = new Date(2026, 4, 16, 10, 0);
+
+relativeDayLabel(new Date(2026, 4, 16, 8, 0), { now }); // "Hoje"
+relativeDayLabel("2026-05-15", { now }); // "Ontem"
+relativeDayLabel("2026-05-10", { now }); // "10/05/2026"
+relativeDayLabel(new Date(2026, 4, 15), { now, locale: "en" }); // "Yesterday"
+relativeDayLabel(new Date(2026, 4, 16), { now, labels: { today: "Hoje cedo" } }); // "Hoje cedo"
+relativeDayLabel(null); // "—"
+```
+
+| Option     | Type                                     | Default                        |
+| ---------- | ---------------------------------------- | ------------------------------ |
+| `locale`   | `"pt-BR" \| "en"`                        | `"pt-BR"`, same as `relativeTime` |
+| `now`      | `Date \| number`                         | `Date.now()`                   |
+| `labels`   | `{ today?: string; yesterday?: string }` | `"Hoje"` / `"Ontem"` (or `"Today"` / `"Yesterday"`) |
+| `fallback` | `string`                                 | `"—"`                          |
+
+!!! info "Local calendar day, not 24 hours"
+    "Yesterday" is the local date before today's, compared by year/month/day in the user's time zone — never `now - 24h`. On a daylight-saving day, which lasts 23 or 25 hours, subtracting 24 hours lands on the wrong day. And `"2026-05-16"` with no time is read as a **local** date: `new Date("2026-05-16")` is UTC midnight, which in UTC-3 is the 15th at 21:00 — the date the backend sent would become "Ontem".
+
+Any other day — tomorrow, the day before yesterday, last year — renders as the date formatted in `locale`. Absent input answers the `fallback` and a value that cannot be parsed answers `""`, like `formatDate`.
 
 ---
 
@@ -706,7 +753,7 @@ Same best-effort policy as the JSON pair: SSR-safe, never throws, swallows quota
 - **ZIP**: `createZip(entries, { onProgress })` packs spreadsheet + photos in ~8 ms slices without freezing the screen, and stores already-compressed files instead of recompressing them.
 - **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM, and neutralizes formulas by default; `downloadCsv(...)` hands it straight to the user.
 - **User URLs**: `safeLinkUrl`, `safeImageUrl` and `safeAttachmentUrl` return the URL or `null` — a scheme allowlist before any `href`/`src`.
-- **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero.
+- **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero; `formatPercent(v, { mode: "truncate" })` cuts without floating-point error; `relativeDayLabel` gives "Hoje"/"Ontem"/the date by local calendar day.
 - **Compressed storage**: `compressedStorage.get/set` gzips what it writes; the self-describing format (`~tgz1:`) reads older values with no migration. In React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.

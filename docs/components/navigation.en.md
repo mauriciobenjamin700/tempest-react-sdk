@@ -379,21 +379,23 @@ What comes out in the HTML:
 
 ### An item that is a link
 
-`href` renders an `<a>` instead of a `<button>`, and `onChange` still fires on
-click:
+`href` renders an `<a>` instead of a `<button>`. With `onChange`, your router is
+what navigates on click:
 
 ```tsx
-import { useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Sidebar } from "tempest-react-sdk";
 
 export function ComLink() {
-    const [tab, setTab] = useState("overview");
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
 
     return (
         <Sidebar
-            items={[{ key: "overview", label: "Overview", href: "/overview" }]}
-            value={tab}
-            onChange={setTab}
+            items={[{ key: "/overview", label: "Overview", href: "/overview" }]}
+            value={pathname}
+            match="route"
+            onChange={(key) => navigate(key)}
         />
     );
 }
@@ -407,6 +409,17 @@ that announces itself as actionable and is not.
 
 !!! check "Only a safe scheme becomes a link"
     The item's `href` goes through `safeLinkUrl`'s list (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs). With any other scheme the item becomes a `<button>`, like an item without `href` — a menu built from API data cannot put a clickable `javascript:` in the sidebar on React 18.
+
+!!! info "A plain click belongs to the app; a modified click belongs to the browser"
+    With `onChange`, a primary click without modifiers calls `preventDefault()` on
+    the `<a>` and fires `onChange`: the router changes the route and the browser
+    does **not** follow the `href` afterwards. Up to 0.86.0 it did, and the whole
+    document reloaded — dropping every piece of in-memory state, such as an
+    access token kept out of storage (#612). Ctrl/meta/shift/alt-click and the
+    middle button keep the native `href` (new tab, new window, download) and do
+    **not** fire `onChange`, so the current tab does not move as well. Without
+    `onChange`, the browser follows the `href` like any link. `NavigationMenu`
+    (`onSelect`) and `Breadcrumbs` (`onClick`) follow the same rule.
 
 ### Active item from the route
 
@@ -698,6 +711,8 @@ export function Trilha() {
 **A11y**: the last item is marked with `aria-current="page"`.
 
 Each `href` goes through `safeLinkUrl`'s list (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs). An item with any other scheme loses the `href` and renders as text — or stays clickable through its `onClick`, when it has one. A trail built from folder names that came from the API never becomes a script link.
+
+An item with `href` **and** `onClick`: a plain click goes to `onClick` without the browser following the `href`; ctrl/meta/shift/alt-click and the middle button stay with the browser and do not call `onClick` — "open in new tab" works.
 
 ## `Pagination`
 

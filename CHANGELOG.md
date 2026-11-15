@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
+  O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
+  vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
+  documento e derrubando todo estado em memória (no FAMACHApp, o access token — cada clique levava
+  para `/login`). Agora o clique primário sem modificador num `<a>` com `onChange` chama
+  `preventDefault()` e dispara `onChange`; ctrl/meta/shift/alt-click, botão diferente do primário e
+  `target` que não seja `_self` ficam com o navegador (nova aba, nova janela, download) e **não**
+  disparam `onChange`, para a aba atual não mudar junto. Sem `onChange`, o `href` é seguido como em
+  qualquer link. O JSDoc do `href`, que prometia o contrário, foi corrigido.
+- **`NavigationMenu` (`href` + `onSelect`) tinha o mesmo defeito** e segue a mesma regra; o painel
+  fecha nos dois casos. **`Breadcrumbs` (`href` + `onClick`)** já chamava `preventDefault`, mas em
+  todo clique — ctrl-click não abria nova aba; agora o clique com modificador fica com o navegador e
+  não chama `onClick`. As três usam o mesmo helper interno (`src/utils/link-click.ts`).
+  `NavigationRail` e `BottomNavigation` não renderizam `href` e não mudam.
+- **Teto do barrel ESM no `size-limit` sobe de 157,9 kB para 158,3 kB.** O helper e o JSDoc das
+  três entradas somam ~150 B ao barrel inteiro (158,05 kB medido com `npx size-limit` nesta
+  branch); as fatias importadas continuam dentro dos budgets.
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

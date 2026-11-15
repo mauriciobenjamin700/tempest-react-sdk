@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #639** (`npm run build && npx size-limit --json`): ESM 161 109 B (teto 160.7 kB → 161.2 kB); CJS 191 097 B (teto 190.9 kB → 191.2 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #635** (`npm run build && npx size-limit --json`): ESM 160 629 B (teto 160.5 kB → 160.7 kB); CJS 190 792 B (teto 190.4 kB → 190.9 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
@@ -118,6 +119,15 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
   `docs/hooks.md`; não há `clearDraft()` separado.
+- **`PostInstallPrompt`** (#620): overlay na aba do navegador depois que o app é instalado a
+  partir dela (abre no `installed` de `useBeforeInstallPrompt` — prompt aceito ou `appinstalled`),
+  com "Fechar esta aba" e "Continuar no navegador" (`onContinue`; `Escape` e clique fora contam
+  como continuar). **Sem botão "Abrir o app"**: nenhuma API web abre o PWA instalado a partir da
+  aba. O botão de fechar só aparece quando o navegador vai deixar o script fechar a aba — medido no
+  Chromium 153 headless: aba aberta direto na URL fecha com `history.length` 1 e deixa de fechar
+  depois de um único `pushState`; aba aberta por `window.open` fecha sempre. Fora disso, ou se o
+  `close()` for ignorado, mostra `closeBlockedMessage`. Safari e Firefox não disparam
+  `appinstalled`, então ali o overlay não abre.
 
 - **`createDeviceFacts`: o `device` do `createAppErrorReporter` pronto, sem o user agent cru**
   (#621). Devolve o getter que a opção `device` espera, com `platform` (`"web"` por padrão; shell
@@ -175,6 +185,11 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 - **Soma de #612 + #614 remedida sobre a `main` em `578c071`** (`npm run build && npx size-limit
 --json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
   187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
+- **`PostInstallPrompt` (#620): barrel ESM 158,6 → 158,7 kB e CJS 188,4 → 188,8 kB.**
+  `npm run build && npx size-limit --json` na `main` em `5ddf9a2` contra este branch com ela
+  mergeada: ESM 158 496 → 158 659 B (+163 B), CJS 188 311 → 188 750 B (+439 B; o CJS reminifica e
+  oscila — sobre `5f7e537` o mesmo componente media +215 B), `styles.css` 31 451 → 31 472 B
+  (dentro do teto). É o componente novo exportado da raiz; nenhuma fatia importada mudou.
 
 ### Segurança
 

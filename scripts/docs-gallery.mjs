@@ -59,6 +59,7 @@ const SECTION_OVERRIDES = {
     SyncStatusBadge: "pwa",
     Toggle: "form-primitives",
     ToggleGroupItem: "feedback-extra",
+    PostInstallPrompt: "pwa",
     UpdatePrompt: "pwa",
 };
 

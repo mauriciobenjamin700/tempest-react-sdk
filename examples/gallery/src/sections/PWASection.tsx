@@ -5,6 +5,7 @@ import {
     Button,
     InstallBanner,
     InstallButton,
+    PostInstallPrompt,
     SyncStatusBadge,
     UpdatePrompt,
     isPushSupported,
@@ -122,6 +123,17 @@ export function PWASection() {
                         </AppShell>
                     </div>
                 ) : null}
+            </Example>
+
+            <Example
+                title="PostInstallPrompt"
+                note="Abre em appinstalled (Chromium). Não há API web que abra o app instalado: o botão de fechar a aba só aparece quando o navegador deixa o script fechá-la."
+                code={`<PostInstallPrompt onContinue={() => console.info("seguiu no navegador")} />`}
+            >
+                <Button onClick={() => window.dispatchEvent(new Event("appinstalled"))}>
+                    Simular appinstalled
+                </Button>
+                <PostInstallPrompt />
             </Example>
 
             <Example

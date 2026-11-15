@@ -1,0 +1,16 @@
+.prompt {
+    font-family: var(--tempest-font-sans);
+}
+
+.description {
+    margin: 0;
+    color: var(--tempest-text);
+    line-height: var(--tempest-leading-normal);
+}
+
+.note {
+    margin: var(--tempest-space-3) 0 0;
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-sm);
+    line-height: var(--tempest-leading-snug);
+}

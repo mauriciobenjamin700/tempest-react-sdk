@@ -679,6 +679,43 @@ export function BannerDeInstalacao() {
 
     Uma chave que já contém `"1"` continua valendo como dispensa permanente mesmo com `declineCooldownMs` configurado: ela foi escrita sob o contrato antigo, e ressuscitar um banner que o usuário desligou é pior do que mantê-lo desligado.
 
+## `PostInstallPrompt`
+
+Overlay que aparece **na aba do navegador** depois que o app é instalado a partir dela. Sem ele, o usuário aceita a instalação, a aba continua igual e ele segue usando o site sem saber que o app já está na tela inicial.
+
+```tsx
+import { PostInstallPrompt } from "tempest-react-sdk";
+
+export function Raiz() {
+    return (
+        <PostInstallPrompt
+            title="FAMACHApp instalado"
+            onContinue={() => console.info("seguiu no navegador")}
+        />
+    );
+}
+```
+
+Monte-o uma vez, na raiz do app. Ele abre sozinho quando o `installed` de `useBeforeInstallPrompt` vira `true` — o usuário aceitou o prompt ou o navegador disparou `appinstalled` — e oferece duas saídas: **"Fechar esta aba"** e **"Continuar no navegador"** (`Escape` e clique fora contam como continuar).
+
+| Prop                  | Tipo         | Default                    |
+| --------------------- | ------------ | -------------------------- |
+| `title`               | `ReactNode`  | `"App instalado"`          |
+| `description`         | `ReactNode`  | cópia PT-BR apontando a tela inicial |
+| `closeLabel`          | `string`     | `"Fechar esta aba"`        |
+| `continueLabel`       | `string`     | `"Continuar no navegador"` |
+| `closeBlockedMessage` | `ReactNode`  | cópia PT-BR pedindo para fechar a aba |
+| `onContinue`          | `() => void` | —                          |
+| `className`           | `string`     | —                          |
+
+!!! warning "Não existe \"abrir o app instalado\" na web — e o componente não finge que existe"
+    Nenhuma API web abre um PWA instalado a partir de uma aba do navegador; um link para a `start_url` abre na mesma aba na maioria dos navegadores. Por isso não há botão "Abrir agora": o que a aba consegue fazer é **se fechar**, e só quando o navegador deixa.
+
+    Medido no Chromium 153 headless (15/11/2026): uma aba aberta pelo usuário direto na URL fecha com `window.close()` enquanto `history.length` é 1; **um único `pushState` e a chamada é ignorada** ("Scripts may close only the windows that were opened by them."). Aba aberta por `window.open` fecha mesmo depois de navegar. Um SPA que trocou de rota uma vez já passou desse ponto — então o componente prevê a regra e, quando ela não vai deixar, **não mostra o botão**: mostra `closeBlockedMessage`, pedindo que o usuário feche a aba e abra o app pelo ícone. Se o navegador ignorar o `close()` mesmo assim, o botão dá lugar à mesma mensagem.
+
+!!! note "Só abre onde existe sinal de instalação"
+    `appinstalled` é disparado pelos navegadores Chromium (Chrome, Edge, Samsung Internet), qualquer que tenha sido o caminho da instalação — prompt, ícone da barra de endereço ou menu. Safari (iOS e macOS) e Firefox não disparam o evento, então ali o overlay nunca abre: não há sinal em que se apoiar.
+
 ## Resumo
 
 | Componente      | Use para                                       | Gatilho    |
@@ -687,6 +724,7 @@ export function BannerDeInstalacao() {
 | `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
 | `InstallButton` | Instalar o PWA, ou ensinar como onde não há prompt | clique  |
 | `InstallBanner` | Convite dispensável pra instalar o PWA         | clique     |
+| `PostInstallPrompt` | Avisar, na aba, que o app já foi instalado  | `appinstalled` |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |

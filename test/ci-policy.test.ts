@@ -115,10 +115,17 @@ describe("nothing publishes outside make release-tag (#532)", () => {
         expect(run.stdout).toContain("make release-tag TAG=X.Y.Z");
     });
 
+    /**
+     * Only regular files are read: `scripts/` also holds gitignored caches such as
+     * `scripts/.geodata-cache/` (written by `gen-br-geodata.mjs`), and reading a
+     * directory threw `EISDIR` on any checkout that had run that script — which
+     * stopped `make release TAG=0.86.0` at validation.
+     */
     it("keeps npm publish in scripts/release-tag.sh only", () => {
-        const publishers = readdirSync(join(ROOT, "scripts")).filter((file) =>
-            /\bnpm publish\b(?! --dry-run)/.test(code(read("scripts", file))),
-        );
+        const publishers = readdirSync(join(ROOT, "scripts"), { withFileTypes: true })
+            .filter((entry) => entry.isFile())
+            .map((entry) => entry.name)
+            .filter((file) => /\bnpm publish\b(?! --dry-run)/.test(code(read("scripts", file))));
         expect(publishers).toEqual(["release-tag.sh"]);
     });
 });

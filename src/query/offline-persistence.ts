@@ -156,9 +156,12 @@ export interface OfflineQueryPersistenceOptions {
      *   token rotation keeps the key;
      * - that record belongs to the `QueryClient`, not to the handle, so a new
      *   handle on the same client keeps deleting. Only a reset drops it:
-     *   `clear({ resetClient: true })`, after which nothing of the ended
+     *   `clear({ resetClient: true })` once nobody is signed in — call it in
+     *   `onSessionEnd` or after `logout()` —, after which nothing of the ended
      *   session stays in memory, or creating a handle on a client with empty
-     *   caches. `clear()` without `resetClient` leaves the client as it is,
+     *   caches. A reset while the session is still installed keeps the record
+     *   ended, since a response of that session can still land after it
+     *   (security audit run-14, C1). `clear()` without `resetClient` leaves the client as it is,
      *   so it marks the record ended instead: no handle on that client
      *   persists until it is reset (security audit run-13, C1);
      * - a handle only records sessions while it observes them: after
@@ -194,7 +197,9 @@ export interface OfflineQueryClearOptions {
      * the user-scoped keys with `removeQueries`.
      *
      * With `auth`, only the reset lets a new handle on the same client persist
-     * the next session. Without it the client still holds the ended session's
+     * the next session, and only a reset made once nobody is signed in: one
+     * made while the session is still installed keeps the record ended, until
+     * a handle is created on an empty client (security audit run-14, C1). Without it the client still holds the ended session's
      * responses, so `clear()` marks the client's session record ended and
      * every handle on it deletes its row instead of writing, until the client
      * is reset or a handle is created on it with empty caches. Before 0.85.0,
@@ -260,8 +265,12 @@ export interface OfflineQueryPersistence {
      *
      * With `auth`, the reset decides whether the next session persists on the
      * same client. With it, the client's session record is dropped after
-     * `queryClient.clear()`, and a handle created at login persists the new
-     * account. Without it, the client still holds this session's responses,
+     * `queryClient.clear()` when nobody is signed in by then, and a handle
+     * created at login persists the new account. Reset in `onSessionEnd` or
+     * after `logout()`: a reset while the session is still installed keeps the
+     * record ended, because a query of that session landing before the logout
+     * would otherwise be stamped with the next account (security audit run-14,
+     * C1). Without it, the client still holds this session's responses,
      * so the record is marked ended — never dropped — and every handle on the
      * client, a new one or one on another `key`, deletes its row instead of
      * writing until the client is reset or a handle is created on it with
@@ -300,7 +309,8 @@ function principalKnown(isPrincipalKnown: (() => boolean) | undefined): boolean 
  * still sits on the cache that holds the ended session's responses, and used to
  * stamp them with the session signed in when it was created (security audit
  * run-12, hardening). The entry is dropped only once the client is reset: by
- * `clear({ resetClient: true })`, after `queryClient.clear()`, and when a
+ * `clear({ resetClient: true })`, after `queryClient.clear()` and only when
+ * nobody is signed in by then (security audit run-14, C1), and when a
  * handle is created on a client whose caches are empty. `clear()` without the
  * reset marks it ended instead, because the client still holds the session's
  * responses, and it may be shared by a handle on another `key` (security audit
@@ -348,6 +358,21 @@ function recordSession(lineage: ClientSessions, current: string | null): void {
         return;
     }
     lineage.session = current;
+}
+
+/**
+ * Whether nobody is signed in on `auth`.
+ *
+ * @param auth - The session the handle follows.
+ * @returns `true` only when `sessionKey()` returns `null`; a throw reads as
+ * signed in, so the caller fails closed.
+ */
+function sessionIsOver(auth: OfflineQuerySession): boolean {
+    try {
+        return auth.sessionKey() === null;
+    } catch {
+        return false;
+    }
 }
 
 /**
@@ -624,9 +649,18 @@ export function persistQueryClientOffline(
 
     /**
      * Wait for the writes in flight, delete the row and, with `resetClient`,
-     * reset the client. Only that reset drops the client's lineage, after
-     * `queryClient.clear()`: nothing of an ended session is left in memory to
-     * stamp, so the next session starts a new one.
+     * reset the client.
+     *
+     * Only that reset drops the client's lineage, after `queryClient.clear()`,
+     * and only once nobody is signed in: the session is then over, nothing of
+     * it is left in memory to stamp, and the next session starts a new lineage.
+     * A reset while a session is still installed keeps the lineage ended, as
+     * `clear()` marked it: this handle no longer observes the session, so a
+     * response of it fetched after the reset (a refetch, an interval, a focus)
+     * would otherwise reach the next account's handle as anonymous data and be
+     * stamped with that account (security audit run-14, C1, #609). A new handle
+     * created on an empty client still starts afresh. A `sessionKey()` that
+     * throws reads as signed in, so the lineage is kept.
      *
      * @param resetClient - Whether to clear the in-memory `QueryClient`.
      */
@@ -637,7 +671,7 @@ export function persistQueryClientOffline(
         } finally {
             if (resetClient) {
                 queryClient.clear();
-                if (auth) clientSessions.delete(queryClient);
+                if (auth && sessionIsOver(auth)) clientSessions.delete(queryClient);
             }
         }
     }

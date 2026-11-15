@@ -4,6 +4,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`shareOrDownloadBlob` aceita `text` e `textOnlyFallback`** (#618). `text` vai na mesma sheet
+  do arquivo. Num browser que tem Web Share mas recusa o arquivo (`canShare({ files })` falso), a
+  função abre uma sheet só com o texto e **depois baixa o arquivo** — ordem arquivo + texto → só
+  texto → download. O download não é trocado pelo texto: nesse browser o arquivo sempre foi
+  baixado, e trocá-lo faria o usuário que escolhe "Mail" receber a legenda sem a foto. Por isso o
+  padrão `textOnlyFallback: true` (quando há `text`) não tira nada de ninguém; `false` volta ao
+  download direto. Cancelar a sheet do arquivo continua não baixando; erro real no
+  compartilhamento do arquivo pula a sheet de texto (o gesto já foi consumido). O retorno continua
+  `Promise<void>`.
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

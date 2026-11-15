@@ -64,10 +64,12 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 - **Soma de #612 + #614 remedida sobre a `main` em `578c071`** (`npm run build && npx size-limit
 --json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
   187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
-- **`PostInstallPrompt` (#620): barrel ESM 158,3 → 158,6 kB e CJS 188,1 → 188,4 kB.**
-  `npm run build && npx size-limit --json` na `main` em `5f7e537` contra este branch: ESM
-  158 075 → 158 549 B (+474 B), CJS 188 084 → 188 299 B (+215 B), `styles.css` 31 451 → 31 472 B
-  (dentro do teto). É o componente novo exportado da raiz; nenhuma fatia importada mudou.
+- **`PostInstallPrompt` (#620): barrel ESM 158,3 → 158,7 kB e CJS 188,1 → 188,9 kB.**
+  `npm run build && npx size-limit --json` na `main` em `300d0a0` contra este branch com ela
+  mergeada: ESM 158 263 → 158 660 B (+397 B), CJS 187 970 → 188 813 B (+843 B; na base anterior,
+  `5f7e537`, o mesmo componente media +215 B — o CJS reminifica e oscila), `styles.css`
+  31 451 → 31 472 B (dentro do teto). É o componente novo exportado da raiz; nenhuma fatia
+  importada mudou.
 
 ### Segurança
 

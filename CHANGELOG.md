@@ -4,6 +4,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`RouteGuard`/rota guardada: `preserveFrom` e `useReturnTo` — voltar para onde estava depois
+  do login (#616).** `preserveFrom` (no `<RouteGuard>` e no `TempestRouteObject`, padrão `false`)
+  faz o redirect levar `state: { from: pathname + search + hash }`; `useReturnTo(fallback = "/")`
+  lê esse `from` na tela de login e o devolve **só se for caminho relativo da mesma origem** —
+  `https://…`, `//host`, `/\host`, caractere de controle e `javascript:` viram o `fallback`. A
+  leitura validada é superfície, não aviso na doc: o `from` vem do `history.state`, e seguido sem
+  checagem é open redirect. Medido no `react-router` 8.3.1: `navigate("https://evil.example")`
+  lança `External navigation is not allowed` (a tela quebra), e `window.location.assign(from)`
+  redireciona de fato. Optou-se por `preserveFrom` em vez de `state?: unknown` livre: cobre o
+  caso com uma prop booleana e fixa a forma `{ from }` que o `useReturnTo` lê. Doc em
+  `docs/routing.md` e `.en.md`. **Budgets do `size-limit` remedidos** (`npx size-limit --json`,
+  `main` em 9d5c28a contra este branch): `slice: typical app` 12 549 → 12 655 B (+106 B, o
+  `AppRouter` arrasta o `RouteGuard`), teto 12,6 → 12,7 kB; `full barrel ESM` 157 796 → 157 972 B,
+  teto 157,9 → 158,1 kB; `full barrel CJS` 187 741 → 188 062 B, teto 187,8 → 188,1 kB.
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

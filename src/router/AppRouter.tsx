@@ -45,16 +45,23 @@ function GuardedElement({
     guard,
     guardFallback,
     redirectTo,
+    preserveFrom,
     children,
 }: {
     guard: boolean | (() => RouteGuardResult);
     guardFallback?: ReactNode;
     redirectTo?: string;
+    preserveFrom?: boolean;
     children: ReactNode;
 }) {
     const allowed = typeof guard === "function" ? guard() : guard;
     return (
-        <RouteGuard when={allowed} fallback={guardFallback} redirectTo={redirectTo}>
+        <RouteGuard
+            when={allowed}
+            fallback={guardFallback}
+            redirectTo={redirectTo}
+            preserveFrom={preserveFrom}
+        >
             {children}
         </RouteGuard>
     );
@@ -98,6 +105,7 @@ function toRouteElements(routes: TempestRouteObject[], fallback: ReactNode): Rea
                     guard={route.guard}
                     guardFallback={route.guardFallback ?? fallback}
                     redirectTo={route.redirectTo}
+                    preserveFrom={route.preserveFrom}
                 >
                     {element}
                 </GuardedElement>

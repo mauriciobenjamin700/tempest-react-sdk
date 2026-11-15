@@ -6985,20 +6985,60 @@ export function ExcluirUsuario({
 }
 ```
 
-| Prop           | Tipo                                                    | Default       |
-| -------------- | ------------------------------------------------------- | ------------- |
-| `open`         | `boolean`                                               | —             |
-| `title`        | `ReactNode`                                             | —             |
-| `description`  | `ReactNode`                                             | —             |
-| `confirmLabel` | `string`                                                | `"Confirmar"` |
-| `cancelLabel`  | `string`                                                | `"Cancelar"`  |
-| `variant`      | `"primary" \| "danger"`                                 | `"primary"`   |
-| `loading`      | `boolean` (mostra spinner + desabilita ambos os botões) | `false`       |
-| `onConfirm`    | `() => void \| Promise<void>`                           | —             |
-| `onCancel`     | `() => void`                                            | —             |
+| Prop           | Tipo                                                         | Default       |
+| -------------- | ------------------------------------------------------------ | ------------- |
+| `open`         | `boolean`                                                    | —             |
+| `title`        | `ReactNode`                                                  | —             |
+| `description`  | `ReactNode`                                                  | —             |
+| `confirmLabel` | `string`                                                     | `"Confirmar"` |
+| `cancelLabel`  | `string`                                                     | `"Cancelar"`  |
+| `variant`      | `"primary" \| "danger"`                                      | `"primary"`   |
+| `confirmIcon`  | `ReactNode` (vira o `leftIcon` do botão de confirmar)        | —             |
+| `loading`      | `boolean` (spinner no confirmar + trava o diálogo, ver abaixo) | `false`     |
+| `onConfirm`    | `() => void \| Promise<void>`                                | —             |
+| `onCancel`     | `() => void`                                                 | —             |
 
 !!! tip "Controle o loading durante a request"
-    `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
+    `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado enquanto a ação assíncrona corre.
+
+### Com `loading`, o diálogo não fecha
+
+Enquanto `loading` é `true`, **toda** saída fica fechada, não só o botão Cancelar: `Esc` e clique no backdrop não chamam `onCancel`, e o botão de fechar (×) some. Cancelar no meio da request deixaria a tela dizendo "cancelado" com a operação ainda em voo — num logout que revoga a sessão no servidor, o usuário sairia mesmo assim. A trava deriva de `loading`; não há outra prop para manter em sincronia. O `confirm()` do `useModals()` herda o mesmo comportamento.
+
+Com `confirmIcon`, o botão de confirmar ganha um ícone à esquerda do rótulo — o nome acessível continua sendo o `confirmLabel`:
+
+```tsx
+import { useState } from "react";
+import { LogOut } from "lucide-react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function SairDaConta({ signOut }: { signOut: () => Promise<void> }) {
+    const [open, setOpen] = useState(false);
+    const [leaving, setLeaving] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Sair da conta"
+            description="Você vai precisar entrar de novo neste aparelho."
+            confirmLabel="Sair"
+            confirmIcon={<LogOut size={16} />}
+            variant="danger"
+            loading={leaving}
+            onConfirm={async () => {
+                setLeaving(true);
+                try {
+                    await signOut();
+                    setOpen(false);
+                } finally {
+                    setLeaving(false);
+                }
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
+```
 
 ## `InstallButton`
 
@@ -7077,12 +7117,85 @@ export function Instalar() {
 | `declineCooldownMs` | `number`         | — (dispensa permanente) |
 | `renderHint`   | `(input: InstallHintInput) => ReactNode` | `defaultInstallHint` |
 | `manualFallbackDelayMs` | `number`     | `3000`         |
+| `visible`      | `boolean`             | `true`         |
+| `position`     | `"inline" \| "bottom"` | `"inline"`   |
+| `guide`        | `ReactNode`           | —              |
 | `onResult`     | `(o) => void`         | —              |
+
+### Por rota, acima da bottom nav e com guia
+
+Três decisões que todo app tomava em volta da própria cópia do banner, agora props:
+
+```tsx
+import { Link, useLocation } from "react-router";
+import { InstallBanner } from "tempest-react-sdk";
+
+const SEM_BANNER = ["/camera", "/login", "/instalar"];
+
+export function BannerDeInstalacao() {
+    const { pathname } = useLocation();
+
+    return (
+        <InstallBanner
+            title="Instale o app"
+            description="Acesso offline e atalho na tela inicial."
+            storageKey="meu-app:install-dismissed"
+            visible={!SEM_BANNER.some((rota) => pathname.startsWith(rota))}
+            position="bottom"
+            guide={<Link to="/instalar">Ver guia completo</Link>}
+        />
+    );
+}
+```
+
+- **`visible`** esconde sem desmontar. Parece igual a `{mostrar && <InstallBanner />}`, mas não é: sem `storageKey` a dispensa vive no estado do componente, e desmontar a esquecia — o banner dispensado voltava na próxima rota que o mostrasse. O SDK não lê a rota sozinho de propósito: assim ele não exige contexto de router para renderizar, e a regra de quais rotas escondem continua do app.
+- **`position="bottom"`** prende o banner ao rodapé da viewport (fixo, centralizado, até `32rem`), acima da safe area **e** acima de `--tempest-bottom-nav-height`. Dentro de um [`AppShell`](./layout.md#appshell) com `bottomNav`, essa variável é medida e publicada pelo próprio shell — o banner fica acima da barra sem configuração nenhuma. Com uma barra própria, publique a altura dela na mesma variável. O default `"inline"` mantém o comportamento de sempre: o banner fica onde você o renderiza.
+- **`guide`** aparece logo depois da instrução da plataforma (`"ios"` e `"manual"`), quando o usuário abre **"Como instalar"**. É um nó, não um `href`, para você passar o `Link` do seu router e a página de guia abrir sem recarregar o app.
+
+!!! check "Aceitar fecha o banner — e ele não volta"
+    Até a v0.86.0 o banner sumia ao aceitar a instalação e **voltava 3 s depois** oferecendo "Como instalar": o evento guardado era descartado, a aba que instalou continua em `display-mode: browser`, e o fallback manual assumia. Medido com o próprio componente no jsdom: visível `false` logo após o `accepted`, `true` com o botão "Como instalar" aos 3,5 s, mesmo depois de `appinstalled`. Agora o `useInstallPrompt` lembra a instalação da sessão (`accepted` ou `appinstalled`) e resolve `method: "none"` até o navegador disparar um `beforeinstallprompt` novo — o que só acontece se o app for desinstalado. Vale também para o `InstallButton`.
 
 !!! note "`declineCooldownMs` muda o que é gravado — e respeita o que já estava lá"
     Sem ele, a dispensa gravada em `storageKey` é **permanente**, que é o que o componente sempre fez (grava `"1"`). Com ele, grava um timestamp e o banner volta depois da janela.
 
     Uma chave que já contém `"1"` continua valendo como dispensa permanente mesmo com `declineCooldownMs` configurado: ela foi escrita sob o contrato antigo, e ressuscitar um banner que o usuário desligou é pior do que mantê-lo desligado.
+
+## `PostInstallPrompt`
+
+Overlay que aparece **na aba do navegador** depois que o app é instalado a partir dela. Sem ele, o usuário aceita a instalação, a aba continua igual e ele segue usando o site sem saber que o app já está na tela inicial.
+
+```tsx
+import { PostInstallPrompt } from "tempest-react-sdk";
+
+export function Raiz() {
+    return (
+        <PostInstallPrompt
+            title="FAMACHApp instalado"
+            onContinue={() => console.info("seguiu no navegador")}
+        />
+    );
+}
+```
+
+Monte-o uma vez, na raiz do app. Ele abre sozinho quando o `installed` de `useBeforeInstallPrompt` vira `true` — o usuário aceitou o prompt ou o navegador disparou `appinstalled` — e oferece duas saídas: **"Fechar esta aba"** e **"Continuar no navegador"** (`Escape` e clique fora contam como continuar).
+
+| Prop                  | Tipo         | Default                    |
+| --------------------- | ------------ | -------------------------- |
+| `title`               | `ReactNode`  | `"App instalado"`          |
+| `description`         | `ReactNode`  | cópia PT-BR apontando a tela inicial |
+| `closeLabel`          | `string`     | `"Fechar esta aba"`        |
+| `continueLabel`       | `string`     | `"Continuar no navegador"` |
+| `closeBlockedMessage` | `ReactNode`  | cópia PT-BR pedindo para fechar a aba |
+| `onContinue`          | `() => void` | —                          |
+| `className`           | `string`     | —                          |
+
+!!! warning "Não existe \"abrir o app instalado\" na web — e o componente não finge que existe"
+    Nenhuma API web abre um PWA instalado a partir de uma aba do navegador; um link para a `start_url` abre na mesma aba na maioria dos navegadores. Por isso não há botão "Abrir agora": o que a aba consegue fazer é **se fechar**, e só quando o navegador deixa.
+
+    Medido no Chromium 153 headless (15/11/2026): uma aba aberta pelo usuário direto na URL fecha com `window.close()` enquanto `history.length` é 1; **um único `pushState` e a chamada é ignorada** ("Scripts may close only the windows that were opened by them."). Aba aberta por `window.open` fecha mesmo depois de navegar. Um SPA que trocou de rota uma vez já passou desse ponto — então o componente prevê a regra e, quando ela não vai deixar, **não mostra o botão**: mostra `closeBlockedMessage`, pedindo que o usuário feche a aba e abra o app pelo ícone. Se o navegador ignorar o `close()` mesmo assim, o botão dá lugar à mesma mensagem.
+
+!!! note "Só abre onde existe sinal de instalação"
+    `appinstalled` é disparado pelos navegadores Chromium (Chrome, Edge, Samsung Internet), qualquer que tenha sido o caminho da instalação — prompt, ícone da barra de endereço ou menu. Safari (iOS e macOS) e Firefox não disparam o evento, então ali o overlay nunca abre: não há sinal em que se apoiar.
 
 ## Resumo
 
@@ -7092,6 +7205,7 @@ export function Instalar() {
 | `FloatingActionButton` | Ação primária flutuante e persistente   | clique     |
 | `InstallButton` | Instalar o PWA, ou ensinar como onde não há prompt | clique  |
 | `InstallBanner` | Convite dispensável pra instalar o PWA         | clique     |
+| `PostInstallPrompt` | Avisar, na aba, que o app já foi instalado  | `appinstalled` |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |
@@ -8932,6 +9046,9 @@ import { NavigationMenu } from "tempest-react-sdk";
 
 !!! check "Só esquema seguro vira link"
     O `href` de cada entrada passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema a entrada vira `<button>` e continua chamando `onSelect`.
+
+!!! info "`href` com `onSelect`: o clique simples é do app"
+    Numa entrada com `href` e `onSelect`, o clique primário sem modificador chama `preventDefault()` e vai para o `onSelect` — o router navega sem o documento recarregar (#612). Ctrl/meta/shift/alt-click e botão do meio ficam com o navegador (nova aba) e não chamam `onSelect`. Sem `onSelect`, o navegador segue o `href`. O painel fecha nos dois casos.
 
 ## `Menubar`
 
@@ -12689,6 +12806,32 @@ A `navbar` gruda no topo ao rolar: o wrapper dela não gera caixa
 saía da tela junto com o conteúdo (`top: -1261px` com `scrollY` 1261, Chromium e
 Firefox a 1440×900).
 
+Uma `AppBar` (ou qualquer elemento sticky) que a página renderiza **dentro** do
+`AppShell` também gruda: o `<main>` usa `overflow-x: clip`, que corta o excesso
+horizontal sem virar **scroll container**. Até o #611 ele usava `overflow-x: auto`,
+que força o `overflow-y` computado a `auto` e prendia todo sticky da página ao
+próprio `<main>` — que nunca rola, quem rola é a janela. Medido no Chromium, a
+390×844 e a 1280×800: a barra ficava em `top: -600px` depois de rolar 600px.
+
+!!! tip "Conteúdo mais largo que o `<main>` rola na própria região"
+    Um filho mais largo que o `<main>` é cortado na borda, não arrasta a página
+    para o lado. `Table` e `DataTable` já trazem a própria região com
+    `overflow-x: auto`; para um bloco largo seu (um `<pre>`, um gráfico de largura
+    fixa), envolva-o num `<div style={{ overflowX: "auto" }}>` ou na classe
+    utilitária `.tempest-scroll-x`.
+
+    Por que não `overflow: visible`: com ele um único bloco de 1500px fazia a página
+    inteira rolar na horizontal (`scrollWidth` 1500 a 390px) — e o remédio usual
+    para isso, `body { overflow-x: hidden }`, é justamente o CSS que mata o sticky
+    (veja [`AppBar`](./navigation.md#appbar)).
+
+Enquanto a `bottomNav` está na tela, o shell publica a altura dela — safe area
+incluída — em `--tempest-bottom-nav-height` no `<html>`, e remove a variável quando a
+barra sai (viewport largo ou desmontagem). É o que deixa um overlay preso ao rodapé,
+como o [`InstallBanner`](./actions.md#installbanner) com `position="bottom"`, ficar
+**acima** da barra sem o app medir nada. A variável fica no `<html>`, e não no shell,
+porque esses overlays costumam ser renderizados ao lado do `AppShell`, não dentro dele.
+
 !!! warning "`sidebar` some abaixo do breakpoint — não é o mesmo que estar lá"
     Abaixo de `sidebarBreakpoint` o `AppShell` **não renderiza** a sidebar; ele
     espera que você passe `bottomNav`. Se a navegação principal só existe na
@@ -13452,6 +13595,8 @@ Com botão ou campo em `actions` sobre a cor da marca, use `tone="inverse"` — 
 
     Em desenvolvimento a própria `AppBar` avisa no console quando detecta esse CSS. 💡
 
+    Vale para qualquer ancestral entre a barra e o documento, não só o `body`. Até a 0.86.0 era o próprio `AppShell` do SDK: o `<main>` dele tinha `overflow-x: auto`, e uma barra renderizada pela página ficava em `top: -600px` depois de rolar 600px (#611). Agora ele usa `overflow-x: clip` — veja [`AppShell`](./layout.md#appshell). Na 0.86.0 ou antes, `.seu-shell main { overflow-x: clip; }` no CSS do app faz o mesmo.
+
 ## `Sidebar`
 
 Side nav desktop. `items: SidebarEntry[]` (itens, seções e separadores), slots
@@ -13587,21 +13732,23 @@ O que sai no HTML:
 
 ### Item que é link
 
-`href` renderiza um `<a>` em vez de `<button>`, e `onChange` continua disparando
-no clique:
+`href` renderiza um `<a>` em vez de `<button>`. Com `onChange`, quem navega no
+clique é o seu router:
 
 ```tsx
-import { useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Sidebar } from "tempest-react-sdk";
 
 export function ComLink() {
-    const [tab, setTab] = useState("overview");
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
 
     return (
         <Sidebar
-            items={[{ key: "overview", label: "Visão geral", href: "/overview" }]}
-            value={tab}
-            onChange={setTab}
+            items={[{ key: "/overview", label: "Visão geral", href: "/overview" }]}
+            value={pathname}
+            match="route"
+            onChange={(key) => navigate(key)}
         />
     );
 }
@@ -13615,6 +13762,17 @@ anuncia acionável e não é.
 
 !!! check "Só esquema seguro vira link"
     O `href` do item passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema o item vira `<button>`, como um item sem `href` — um menu montado com dado de API não põe um `javascript:` clicável na barra lateral no React 18.
+
+!!! info "Clique simples é do app; clique com modificador é do navegador"
+    Com `onChange`, o clique primário sem modificador chama `preventDefault()` no
+    `<a>` e dispara `onChange`: o router troca a rota e o navegador **não** segue o
+    `href` em seguida. Até a 0.86.0 ele seguia, e o documento inteiro recarregava —
+    derrubando todo estado em memória, como um access token que não vai pro
+    storage (#612). Ctrl/meta/shift/alt-click e botão do meio continuam com o
+    `href` nativo (nova aba, nova janela, download) e **não** disparam `onChange`,
+    para a aba atual não mudar junto. Sem `onChange`, o navegador segue o `href`
+    como em qualquer link. `NavigationMenu` (`onSelect`) e `Breadcrumbs`
+    (`onClick`) seguem a mesma regra.
 
 ### Item ativo a partir da rota
 
@@ -13892,6 +14050,8 @@ export function Trilha() {
 **A11y**: último item é marcado com `aria-current="page"`.
 
 Cada `href` passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Um item com outro esquema perde o `href` e vira texto — ou continua clicável pelo `onClick`, se tiver um. Uma trilha montada com nomes de pasta vindos da API não vira link de script.
+
+Item com `href` **e** `onClick`: o clique simples vai para o `onClick` sem o navegador seguir o `href`; ctrl/meta/shift/alt-click e botão do meio ficam com o navegador e não chamam o `onClick` — "abrir em nova aba" funciona.
 
 ## `Pagination`
 
@@ -18880,7 +19040,7 @@ decodificador de verdade.
 | `repeatDelayMs` | `number` | `2500` | Janela em que o mesmo valor não dispara de novo. |
 | `torch` | `boolean` | `true` | Oferece a lanterna quando a câmera tem uma. |
 | `aspectRatio` | `number` | `4 / 3` | Proporção do visor. |
-| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos **e** a mensagem de erro da câmera. |
 | `footer` · `unsupported` | `ReactNode` | — | Instrução e caminho alternativo. |
 | `onError` | `(error: unknown) => void` | — | Frame que o motor recusou (rotineiro). |
 
@@ -18954,6 +19114,10 @@ export function LeitorProprio() {
   );
 }
 ```
+
+O `scanner.error.message` vem em inglês por padrão; `cameraMessages` (o mesmo
+`messages` do `useCameraStream`, repassado) troca o texto por `kind` — o
+`<BarcodeScanner>` já faz isso a partir do `locale`.
 
 O loop se re-agenda **depois** que cada `detect()` resolve, não num `setInterval`:
 decodificar às vezes leva mais que o intervalo, e um intervalo enfileiraria chamadas mais
@@ -21106,7 +21270,7 @@ granulares, testados e independentes — importe só o que precisar.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
 | `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado). Os itens são objetos (`T extends Record<string, unknown>`). |
-| `useDraftFilters(initial, { onApply?, isEqual? })` | Rascunho × aplicado de filtro server-side: `{ draft, applied, isDirty, set, apply, clear }`. Aplicar acontece no evento, nunca num efeito — um clique, uma requisição. |
+| `useDraftFilters(initial, { onApply?, isEqual? })` | Rascunho × aplicado de filtro server-side: `{ draft, applied, isDirty, set, apply, clear, discard }`. Aplicar acontece no evento, nunca num efeito — um clique, uma requisição. |
 | `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
@@ -21622,6 +21786,78 @@ export function Logs() {
 !!! info "Nenhum efeito lá dentro"
     Aplicar acontece no evento que pediu, nunca num `useEffect` observando o rascunho. É o que garante uma requisição por clique.
 
+#### Filtro num bottom sheet — `discard()`
+
+Num bottom sheet o rascunho vive enquanto a folha está aberta: **Cancelar** (ou tocar fora) joga a edição fora, **Limpar** zera só o rascunho, e só **Aplicar** publica.
+
+```tsx
+import { useState } from "react";
+import { BottomSheet, Button, Checkbox, useDraftFilters } from "tempest-react-sdk";
+
+interface FiltroRebanho {
+  especies: Set<string>;
+}
+
+const VAZIO: FiltroRebanho = { especies: new Set() };
+const ESPECIES = ["ovino", "caprino"];
+
+export function FiltroDoRebanho() {
+  const [aberto, setAberto] = useState(false);
+  const filtros = useDraftFilters(VAZIO);
+
+  function abrir() {
+    filtros.discard();
+    setAberto(true);
+  }
+
+  function cancelar() {
+    filtros.discard();
+    setAberto(false);
+  }
+
+  function alternar(especie: string) {
+    filtros.set((rascunho) => {
+      const especies = new Set(rascunho.especies);
+      if (especies.has(especie)) especies.delete(especie);
+      else especies.add(especie);
+      return { especies };
+    });
+  }
+
+  return (
+    <>
+      <Button onClick={abrir}>Filtros ({filtros.applied.especies.size})</Button>
+      <BottomSheet open={aberto} onClose={cancelar} title="Filtrar rebanho">
+        {ESPECIES.map((especie) => (
+          <Checkbox
+            key={especie}
+            label={especie}
+            checked={filtros.draft.especies.has(especie)}
+            onChange={() => alternar(especie)}
+          />
+        ))}
+        <Button variant="ghost" onClick={() => filtros.set(() => VAZIO)}>
+          Limpar
+        </Button>
+        <Button
+          disabled={!filtros.isDirty}
+          onClick={() => {
+            filtros.apply();
+            setAberto(false);
+          }}
+        >
+          Aplicar
+        </Button>
+      </BottomSheet>
+    </>
+  );
+}
+```
+
+- `discard()` devolve o rascunho ao valor **aplicado**, sem publicar e sem chamar `onApply`. Chamado ao abrir, garante que a folha mostra o que está valendo, mesmo que alguém tenha fechado no meio de uma edição.
+- **Limpar sem aplicar é `set(() => VAZIO)`.** O updater troca o rascunho inteiro — `set(VAZIO)` faria merge e deixaria para trás uma chave opcional que o vazio não tem. Não existe um `clearDraft()` porque o updater já diz exatamente isso; `clear()` continua sendo o "limpar e aplicar" da barra de filtros.
+- `Set`, `Map` e `Date` no filtro funcionam: `isDirty` e a estabilidade do `applied` comparam pelo conteúdo (membros do `Set`, chaves e valores do `Map`, instante do `Date`). Até a 0.86.0 dois `Set`s diferentes comparavam iguais e o `apply()` não publicava.
+
 ### Lista como estado — `useListState`
 
 ```tsx
@@ -21863,7 +22099,7 @@ O `method` é resolvido assim:
 - `"native"` → o evento `beforeinstallprompt` chegou; chame `install()` para disparar o prompt nativo.
 - `"ios"` → iOS/iPadOS Safari; mostre as instruções de "Adicionar à Tela de Início".
 - `"manual"` → fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3s por padrão); mostre instruções genéricas de menu.
-- `"none"` → já rodando como PWA instalado (display-mode standalone) ou o cooldown de recusa está ativo.
+- `"none"` → já rodando como PWA instalado (display-mode standalone), app instalado a partir desta aba (`accepted` no prompt ou `appinstalled`) ou o cooldown de recusa está ativo. A instalação da sessão só é esquecida quando o navegador dispara um `beforeinstallprompt` novo.
 
 Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e safe sem `window`:
 
@@ -28096,6 +28332,28 @@ Duas regras valem desde a 0.82.0:
 - **`data` não sobrescreve o destino.** O `installPushHandler` espalha o `data` do payload **antes** de gravar `url` e `actionUrls`. Até a 0.81.0 era depois, e `{ "url": "/orders/9", "data": { "url": "https://outro.site" } }` abria `https://outro.site` — e o `data` costuma ser preenchido com o registro que disparou o push.
 - **O resolver padrão só abre página da própria origem.** URL de outra origem, ou com esquema que não seja `http:`/`https:` (`javascript:`, `data:`), vira `"/"`. Um `resolveUrl` seu é como o app escolhe outra origem — o que ele devolver pode ir para qualquer `http(s)`, e esquema diferente disso continua virando `"/"`.
 
+!!! warning "Migrando da 0.81 ou anterior: o destino sai de `data.url`"
+    Quem mandava o destino **só** em `data.url` passou a abrir `"/"` na 0.82.0 —
+    sem erro: a notificação aparece igual, só o clique perde o deep link. O SDK
+    **não** volta a ler `data.url` (é a regra acima), então a correção é no
+    servidor, movendo o destino para o `url` de topo:
+
+    ```json
+    { "title": "Novo aviso", "data": { "url": "/avisos/42", "avisoId": 42 } }
+    ```
+
+    vira
+
+    ```json
+    { "title": "Novo aviso", "url": "/avisos/42", "data": { "avisoId": 42 } }
+    ```
+
+    Desde a 0.87.0 o `installPushHandler` loga **um** `console.warn` por worker
+    quando chega um payload no formato antigo (`data.url` string e nenhum `url` de
+    topo). O aviso não depende de build de desenvolvimento — o push real costuma
+    chegar primeiro em produção — e não repete a URL. Para vê-lo: DevTools →
+    Application → Service workers → o link do worker abre o console dele.
+
 ```ts
 /// <reference lib="webworker" />
 import { installNotificationClickHandler } from "tempest-react-sdk/sw";
@@ -28282,6 +28540,7 @@ import { Icon } from "tempest-react-sdk/icons";
 | Notificação duplicada | dois handlers de `push` no SW, ou `POST` não é upsert por endpoint | o seu `sw.ts`; a tabela de inscrições |
 | Usuário recebe notificação de outra conta | não desinscreveu no logout | [logout e troca de usuário](#logout-e-troca-de-usuario) |
 | `ReferenceError: window is not defined` no SW | SDK anterior a 0.28.1 usando `urlBase64ToUint8Array` no worker | atualize o SDK |
+| Clique abre `/` em vez do deep link | o servidor manda o destino só em `data.url`, que o SDK não lê desde a 0.82.0 | o console do worker (aviso do `installPushHandler`); [migração](#para-onde-o-clique-pode-ir) |
 
 ## Resumo
 
@@ -29677,6 +29936,7 @@ Cada `TempestRouteObject` aceita:
 | `guard`         | `boolean \| (() => RouteGuardResult)`       | `false` redireciona, `true` renderiza, `"pending"` segura a decisão.            |
 | `guardFallback` | `ReactNode`                                 | Renderizado enquanto o guard responde `"pending"`. Padrão: o `fallback` do `<AppRouter>`. |
 | `redirectTo`    | `string`                                    | Destino do redirect do guard. Padrão `"/"`.                                     |
+| `preserveFrom`  | `boolean`                                   | Leva o caminho bloqueado no redirect, para o login voltar a ele. Padrão `false`. |
 | `caseSensitive` | `boolean`                                   | Faz o match de `path` diferenciar maiúsculas/minúsculas.                        |
 
 !!! tip "A página do `lazy` pode declarar props"
@@ -29956,10 +30216,69 @@ Props do `<RouteGuard>`:
 | `fallback`   | `ReactNode`         | `null` | Renderizado enquanto `when` é `"pending"`.           |
 | `redirectTo` | `string`            | `"/"`  | Destino quando `when` é falso.                       |
 | `replace`    | `boolean`           | `true` | Substitui a entrada no histórico em vez de empilhar. |
+| `preserveFrom` | `boolean`         | `false` | Leva `state: { from }` no redirect — veja a seção seguinte. |
 | `children`   | `ReactNode`         | —      | O que proteger.                                      |
 
 !!! tip "Mesma regra de leitura de estado"
     Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, então ele tem as duas opções: `getState()` para leitura imperativa simples, ou hooks — desde que a função seja nomeada `use…`, como na seção de `"pending"` acima.
+
+## Voltar para onde estava depois do login
+
+O fluxo clássico: a pessoa abre `/relatorios/42?ano=2026`, não está logada, cai no `/login` — e depois de entrar deveria **voltar para `/relatorios/42?ano=2026`**, não para a home. Para isso o redirect precisa levar junto de onde veio, e a tela de login precisa ler esse valor de volta.
+
+São duas peças:
+
+- **`preserveFrom`** no guard (no `<RouteGuard>` ou no objeto de rota) faz o redirect carregar `state: { from: pathname + search + hash }`.
+- **`useReturnTo(fallback)`** na tela de login devolve esse `from` — ou o `fallback` quando não há nada válido para voltar.
+
+```tsx
+// routes.tsx
+import { defineRoutes } from "tempest-react-sdk";
+import { useAuth } from "@/stores/auth";
+import { Dashboard } from "@/pages/Dashboard";
+import { Login } from "@/pages/Login";
+
+export const routes = defineRoutes([
+  { path: "login", element: <Login /> },
+  {
+    path: "dashboard",
+    element: <Dashboard />,
+    guard: () => useAuth.getState().isAuthenticated,
+    redirectTo: "/login",
+    preserveFrom: true,
+  },
+]);
+```
+
+```tsx
+// pages/Login.tsx
+import { Button, useNavigate, useReturnTo } from "tempest-react-sdk";
+import { signIn } from "@/lib/auth";
+
+export function Login() {
+  const navigate = useNavigate();
+  const returnTo = useReturnTo("/dashboard");
+
+  async function handleSignIn() {
+    await signIn({ email: "ana@exemplo.com", password: "segredo" });
+    navigate(returnTo, { replace: true });
+  }
+
+  return <Button onClick={handleSignIn}>Entrar</Button>;
+}
+```
+
+No `<RouteGuard>` é a mesma prop: `<RouteGuard when={isAuthenticated} redirectTo="/login" preserveFrom>`.
+
+O `useReturnTo` cai no `fallback` (padrão `"/"`) quando a página de login é aberta direto, quando ela é recarregada sem state, ou quando o `from` não é um caminho deste app.
+
+!!! danger "Por que não ler `location.state?.from` na mão"
+    O `from` viaja no `history.state`, que qualquer código da mesma origem consegue escrever. Seguido sem checagem, ele é um **open redirect**: `https://site-falso.example/login` no lugar do caminho manda a pessoa, recém-autenticada, para fora do app. O `useReturnTo` aceita **só caminho relativo da mesma origem** — começa com `/`, sem `//`, sem barra invertida, sem caractere de controle (o parser de URL transforma `/\host` e `/<TAB>/host` em `//host`). Qualquer outra coisa vira o `fallback`.
+
+    Medido no `react-router` 8.3.1: `navigate("https://site-falso.example")` não redireciona, mas **lança** `External navigation is not allowed` — a tela de login quebra em vez de seguir. Com `window.location.assign(from)` o redirect acontece de fato. Com o `useReturnTo`, nenhum dos dois chega a acontecer.
+
+!!! tip "Use o valor com `navigate`, não com `window.location`"
+    O caminho vem relativo ao `basename` do router, igual ao `useLocation()`. O `navigate()` recoloca o `basename`; o `window.location` não.
 
 ## Escolhendo o tipo de router
 
@@ -30042,6 +30361,7 @@ Os tipos mais usados também vêm junto: `Location`, `NavigateFunction`, `Naviga
 - Layouts aninhados renderizam filhos no `<Outlet>`; navegue com `<Link>`.
 - `lazy` faz code-split com retry automático em chunk velho; mostre o `fallback` do Suspense enquanto carrega.
 - Proteja rotas com `guard` (booleano ou função) + `redirectTo`, ou com `<RouteGuard when={...}>` no JSX. O guard roda na renderização, então pode chamar hooks — nomeie a função `use…` para o ESLint aceitar.
+- `preserveFrom` leva o caminho bloqueado no redirect; `useReturnTo(fallback)` o lê de volta no login, aceitando só caminho da mesma origem.
 - Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.
 - Precisa de `matchPath`, `generatePath`, `useOutletContext` ou qualquer outro nome client-side do React Router? Também vem de `"tempest-react-sdk"`; o `Form` dele sai como `RouterForm`.
@@ -30616,14 +30936,45 @@ Por baixo ele chama `share({ title, files: [file] })`. Se o usuário **compartil
 | `blob`          | `Blob`   | O conteúdo binário a compartilhar/baixar             |
 | `fileName`      | `string` | Nome do arquivo apresentado ao usuário               |
 | `options.title` | `string` | Título da sheet de compartilhamento (padrão: o nome) |
+| `options.text` | `string` | Texto enviado na mesma sheet do arquivo |
+| `options.textOnlyFallback` | `boolean` | Compartilhar só o texto quando o arquivo não é suportado (padrão: `true` quando há `text`) |
+
+### Texto junto do arquivo
+
+Passe `text` para mandar uma legenda junto do arquivo — o resultado de uma análise ao lado da foto, por exemplo:
+
+```ts
+import { shareOrDownloadBlob } from "tempest-react-sdk";
+
+async function shareResult(photo: Blob, score: number) {
+  await shareOrDownloadBlob(photo, "resultado.webp", {
+    title: "Resultado da análise",
+    text: `Grau FAMACHA ${score}`,
+  });
+}
+```
+
+A ordem é **arquivo + texto → só texto → download**:
+
+1. O browser compartilha arquivos: abre **uma** sheet com o arquivo e o texto. Compartilhou ou cancelou, acabou.
+2. O browser tem Web Share mas `canShare({ files })` recusa o arquivo: abre uma sheet **só com o texto** e, em seguida, **baixa o arquivo** — seja qual for o desfecho dessa sheet.
+3. O browser não tem Web Share: baixa o arquivo, como antes.
+
+!!! info "Por que o download acontece mesmo depois do texto?"
+    Quem chama `shareOrDownloadBlob` pediu que um **arquivo** chegue ao usuário. Nesse browser o arquivo sempre foi baixado; a sheet de texto é um acréscimo sobre esse comportamento, não um substituto. Se ela substituísse o download, o usuário que escolhe "Mail" receberia a legenda e perderia a foto, sem aviso. Por isso o padrão `textOnlyFallback: true` é seguro: o que muda é só que o texto também chega. Quer só o download, como antes? Passe `textOnlyFallback: false`.
+
+!!! note "Erro real pula a sheet de texto"
+    Se o compartilhamento do arquivo falha com um erro que não é cancelamento nem falta de suporte (um `NotAllowedError`, por exemplo), a função vai direto para o download: a chamada que falhou costuma ter consumido o gesto do usuário, e uma segunda sheet seria rejeitada também. `text: ""` conta como sem texto.
 
 !!! tip "Combina com `writeXlsx` / geração de ZIP"
     Gere a planilha com [`writeXlsx`](./utilities.md#planilhas-xlsx-writexlsx), embrulhe num `Blob` e passe pro `shareOrDownloadBlob` — exportação de dados completa, do byte à sheet nativa, sem dependência extra.
+    Com fotos junto, [`createZip`](./utilities.md#arquivos-zip-createzip) já devolve o `Blob` do `.zip`, com progresso.
 
 ## Recap
 
 - `share(payload)` envolve `navigator.share` e devolve `ShareResult` em vez de lançar.
 - `shareOrDownloadBlob(blob, fileName)` compartilha o arquivo quando dá, senão baixa via `<a download>`.
+- Com `text`, a ordem é arquivo + texto → só texto → download, e o download nunca é trocado pelo texto.
 - Cheque na ordem: `unsupported` → fallback, `cancelled` → silêncio, `shared` → sucesso, `error` → telemetria.
 - `SharePayload` aceita `title`, `text`, `url`, `files` (todos opcionais).
 - `isShareSupported()` decide antecipadamente entre o botão nativo e o fallback.
@@ -33744,16 +34095,12 @@ Mapeamento:
 O erro que importa acontece no celular do usuário, muitas vezes **sem sinal**, e some ali mesmo. Se o seu backend usa o `tempest-fastapi-sdk`, ele já tem onde guardar esse erro: o módulo `app_errors` monta `POST /api/app-errors` e uma tabela consultável no admin. Falta só o lado do app — e é isso que `createAppErrorReporter` entrega. 🚀
 
 ```ts
-import { createAppErrorReporter } from "tempest-react-sdk";
+import { createAppErrorReporter, createDeviceFacts } from "tempest-react-sdk";
 
 export const reporter = createAppErrorReporter({
     endpoint: `${import.meta.env.VITE_API_URL}/api/app-errors`,
     getToken: () => sessionStorage.getItem("access_token"),
-    device: () => ({
-        platform: "web",
-        app_version: import.meta.env.VITE_APP_VERSION,
-        os_version: navigator.userAgent,
-    }),
+    device: createDeviceFacts({ appVersion: import.meta.env.VITE_APP_VERSION }),
 });
 
 try {
@@ -33768,8 +34115,61 @@ Pedaço por pedaço:
 - **`endpoint`** — a URL inteira da rota.
 - **`getToken`** — opcional. A rota é pública: erro antes do login, ou com sessão vencida, também tem que chegar. Token ausente, vazio ou que lança vira envio anônimo; o backend tira o `user_id` do token, **nunca** do body.
 - **`getPrincipal`** — opcional. Quem está logado, lido na hora do erro, para o `foreignReports: "drop"`; veja [Logout e de quem é cada relato](#logout-e-de-quem-e-cada-relato).
-- **`device`** — lido **na hora do erro**, não na hora do envio. Um relato enfileirado offline na `1.4.0` não pode sair rotulado `1.5.0`.
+- **`device`** — lido **na hora do erro**, não na hora do envio. Um relato enfileirado offline na `1.4.0` não pode sair rotulado `1.5.0`. `createDeviceFacts` monta esse getter sem o user agent cru; veja [Fatos do aparelho](#fatos-do-aparelho-createdevicefacts).
 - **`report(error, context)`** — nunca lança. Descreve o erro, carimba o aparelho, enfileira e tenta enviar.
+
+### Fatos do aparelho: `createDeviceFacts`
+
+Todo app monta o mesmo `device`: plataforma, SO, modelo, versão do app e um id para agrupar os relatos do mesmo aparelho. `createDeviceFacts` devolve esse getter pronto — é exatamente o tipo que a opção `device` espera:
+
+```ts
+import { createAppErrorReporter, createDeviceFacts } from "tempest-react-sdk";
+
+const device = createDeviceFacts({ appVersion: "1.4.0" });
+
+export const reporter = createAppErrorReporter({ endpoint: "/api/app-errors", device });
+
+console.log(device());
+```
+
+Num Android com Chrome, a saída é algo como:
+
+```text
+{ platform: "web", os_version: "Android 14", device_model: "SM-A105M",
+  app_version: "1.4.0", device_id: "3f0c…-4…" }
+```
+
+O que ele lê, e o que ele **não** manda:
+
+| Campo | De onde vem |
+| --- | --- |
+| `platform` | `"web"` (navegador e PWA); um shell nativo passa `platform: "android"` / `"ios"` |
+| `os_version` | família do SO e versão — `"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`, `"Windows"`, `"macOS"` |
+| `device_model` | o modelo Android quando o user agent ainda traz; `"iPhone"`/`"iPad"` na Apple |
+| `device_id` | UUID v4 **aleatório** (`crypto.randomUUID`, ou `getRandomValues` fora de contexto seguro), guardado em `localStorage` |
+
+!!! check "O user agent cru nunca sobe"
+    O user agent inteiro é impressão digital do aparelho — dado pessoal pela LGPD.
+    `createDeviceFacts` reduz a família, a versão e o modelo e descarta o resto.
+    O `device_id` agrupa relatos sem dizer de quem são, e um valor guardado sob a
+    chave que não seja UUID v4 é **substituído**, nunca enviado.
+
+!!! note "`Android 10; K` não é Android 10"
+    O Chrome reduziu o user agent: **todo** Android manda `Linux; Android 10; K`, com a versão
+    congelada em 10 e o modelo trocado por `K`. Reportar isso como `"Android 10"` seria errado com
+    confiança, então a forma reduzida vira só `"Android"`. Para recuperar versão e modelo, o getter
+    pergunta uma vez, em segundo plano, às User-Agent Client Hints
+    (`navigator.userAgentData.getHighEntropyValues`); quando respondem, os relatos seguintes já saem
+    com `"Android 14"` e `"SM-A105M"` — e o Windows ganha `"Windows 10"`/`"Windows 11"`. Fora do
+    Chromium não há hints e fica a forma reduzida. `clientHints: false` desliga a consulta.
+
+??? info "Detalhes: iPad, storage e SSR"
+    - **iPad em modo desktop** manda user agent de Mac; `navigator.maxTouchPoints > 1` é o que o
+      denuncia, e a versão sai do token `Version/` do Safari.
+    - **`localStorage` que lança** (aba privada do Safari, cota, iframe bloqueado) não derruba nada:
+      o id vive em memória durante a sessão.
+    - **Sem `navigator`** (SSR) o getter devolve só `platform`, `app_version` e o id.
+    - `storageKey` troca a chave (padrão `"tempest:device-id"`) quando dois apps dividem a origem.
 
 ### O que vai no `message`
 
@@ -33918,6 +34318,7 @@ const telemetry = useTelemetry();
 - **Adapters injetam a instância** (`{ sentry }`, `{ posthog }`) — nunca peer dep.
 - **Adapter custom** é ~20 linhas mapeando 4 métodos.
 - **`createAppErrorReporter`** leva erro do campo ao `/api/app-errors` do backend Tempest, com fila offline, dedup e respeito ao 429 — e cada relato só sai com Bearer sob o mesmo token com que foi levantado (`clear()` no logout).
+- **`createDeviceFacts`** monta o `device` — SO grosso, modelo, versão e um id aleatório — sem o user agent cru (LGPD).
 
 ### Veja também
 
@@ -34256,7 +34657,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 134 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 135 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 
@@ -36523,7 +36924,7 @@ pluralize(2, "person", "people"); // "people"
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Tamanho legível em B/KB/MB/GB/TB (base 1024).              |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Notação compacta (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
 | `percentOf(part, total)`           | `(part: number, total: number) => number`      | Percentual 0–100, com base zero devolvendo `0`.            |
-| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number }) => string` | Fração 0–1 como percentual pt-BR; `decimals` default `1`.  |
+| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number; mode?: "round" \| "truncate" }) => string` | Fração 0–1 como percentual pt-BR; `decimals` default `1`, `mode` default `"round"`.  |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -36563,6 +36964,53 @@ formatPercent(0 / 0); // "—"
     `(ativos / total) * 100` com `total === 0` produz `NaN`, e `NaN%` no painel vazio é a forma mais comum de um dashboard anunciar que ainda não tem dado. `percentOf(5, 0)` é `0`; não-finito também vira `0`.
     Ele **não** limita em 100 — 150% de uma meta é dado real que alguém quer ver.
     Cuidado com o par: `formatPercent` recebe **fração** (0–1), então é `formatPercent(percentOf(a, b) / 100)`.
+
+### Truncar em vez de arredondar — `mode: "truncate"`
+
+Confiança de modelo é o caso em que arredondar mente: 99,996% com duas casas vira `"100,00%"`, e o usuário lê certeza que o modelo nunca afirmou. `mode: "truncate"` corta as casas excedentes em direção ao zero:
+
+```ts
+import { formatPercent } from "tempest-react-sdk";
+
+formatPercent(0.99996, { decimals: 2 }); // "100,00%"
+formatPercent(0.99996, { decimals: 2, mode: "truncate" }); // "99,99%"
+formatPercent(0.57, { decimals: 2, mode: "truncate" }); // "57,00%"
+formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
+```
+
+!!! danger "`Math.trunc(valor * 10000)` erra 573 de 10001 frações"
+    A multiplicação arredonda **antes** do corte: `0.57 * 10000` é `5699.999999999999`, então a versão ingênua mostra `"56,99%"` para 57%. Medido sobre toda fração `i / 10000` de 0 a 1, ela erra 573 dos 10001 valores com duas casas, e 3 de 101 com zero casas (`0.29 * 100` é `28.999999999999996`). O SDK desloca o expoente decimal da representação textual do número (`"0.57e4"`), que vira o inteiro exato: zero erros nas mesmas grades — fixado em `src/utils/format-percent-truncate.test.ts`.
+
+---
+
+## Rótulo de dia — `relativeDayLabel`
+
+Lista agrupada por dia (mensagens, histórico, extrato) precisa de cabeçalho "Hoje", "Ontem" ou a data. `relativeTime` responde outra pergunta — quanto tempo passou ("2 horas atrás") —, então os dois discordam perto da meia-noite, de propósito: às 00:10, uma mensagem das 23:50 é "20 min atrás" **e** "Ontem".
+
+```ts
+import { relativeDayLabel } from "tempest-react-sdk";
+
+const now = new Date(2026, 4, 16, 10, 0);
+
+relativeDayLabel(new Date(2026, 4, 16, 8, 0), { now }); // "Hoje"
+relativeDayLabel("2026-05-15", { now }); // "Ontem"
+relativeDayLabel("2026-05-10", { now }); // "10/05/2026"
+relativeDayLabel(new Date(2026, 4, 15), { now, locale: "en" }); // "Yesterday"
+relativeDayLabel(new Date(2026, 4, 16), { now, labels: { today: "Hoje cedo" } }); // "Hoje cedo"
+relativeDayLabel(null); // "—"
+```
+
+| Opção      | Tipo                                     | Padrão                         |
+| ---------- | ---------------------------------------- | ------------------------------ |
+| `locale`   | `"pt-BR" \| "en"`                        | `"pt-BR"`, o mesmo de `relativeTime` |
+| `now`      | `Date \| number`                         | `Date.now()`                   |
+| `labels`   | `{ today?: string; yesterday?: string }` | `"Hoje"` / `"Ontem"` (ou `"Today"` / `"Yesterday"`) |
+| `fallback` | `string`                                 | `"—"`                          |
+
+!!! info "Dia do calendário local, não 24 horas"
+    "Ontem" é a data local anterior à de hoje, comparada por ano/mês/dia no fuso do usuário — nunca `agora - 24h`. Num dia de horário de verão, que dura 23 ou 25 horas, subtrair 24 horas cai no dia errado. E `"2026-05-16"` sem hora é lido como data **local**: `new Date("2026-05-16")` é meia-noite UTC, que em UTC-3 é dia 15 às 21:00 — a data que o backend mandou viraria "Ontem".
+
+Qualquer outro dia — amanhã, anteontem, ano passado — vira a data formatada no `locale`. Ausente responde o `fallback` e valor que não dá para interpretar responde `""`, como o `formatDate`.
 
 ---
 
@@ -36698,6 +37146,62 @@ O XML é enxuto de propósito: strings inline (sem tabela de shared-strings), se
 
 !!! tip "Do byte ao usuário"
     Combine com [`shareOrDownloadBlob`](./share.md#exportar-um-arquivo-shareordownloadblob): `writeXlsx` → `new Blob([...])` → `shareOrDownloadBlob(blob, "dados.xlsx")` abre a sheet nativa no celular e baixa no desktop.
+
+---
+
+## Arquivos `.zip` — `createZip`
+
+Exportar "a planilha **e** as fotos" é o caso comum, e um `.zip` de alguns MB montado de uma vez congela a tela. `createZip(entries, options)` monta o arquivo em fatias de ~8 ms, devolvendo o controle ao navegador entre elas — a barra de progresso anda e a rolagem não trava. É o par do `writeXlsx`, sobre o mesmo `fflate`.
+
+```ts
+import { createZip, shareOrDownloadBlob, writeXlsx } from "tempest-react-sdk";
+
+export async function exportarHistorico(
+  fotos: File[],
+  onPercent: (percent: number) => void,
+): Promise<void> {
+  const planilha = writeXlsx(["Animal", "Grau FAMACHA"], [["Ovelha 12", 3]]);
+
+  const zip = await createZip(
+    [
+      { path: "historico.xlsx", data: planilha },
+      { path: "leia-me.txt", data: "Exportado pelo app — fotos em /fotos" },
+      ...fotos.map((foto) => ({ path: `fotos/${foto.name}`, data: foto })),
+    ],
+    { onProgress: ({ loaded, total }) => onPercent(Math.round((loaded / total) * 100)) },
+  );
+
+  await shareOrDownloadBlob(zip, "historico.zip");
+}
+```
+
+Pedaço por pedaço:
+
+- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte.
+- **`onProgress({ loaded, total })`** — em bytes de **entrada**. O `total` é conhecido antes de começar (tamanho do `Blob`, bytes UTF-8 da string), então a porcentagem é real desde a primeira chamada; a última sempre traz `loaded === total`.
+- **`level`** — deflate de `0` (só guarda) a `9`. Padrão `6`.
+- **`signal`** — um `AbortSignal` cancela no meio; a promise rejeita com o `reason` do sinal.
+- Retorna um `Blob` `application/zip`, pronto para o `shareOrDownloadBlob`.
+
+!!! tip "Foto não se comprime de novo"
+    JPEG, PNG, WebP, MP4, ZIP, XLSX e companhia já são comprimidos. `createZip` os **guarda** (nível `0`) pela extensão: deflatá-los gasta CPU e não economiza nada. Medido com 4 MB de CSV + 20 × 200 KB de bytes aleatórios: 178–275 ms deflatando tudo, 48–70 ms guardando as "fotos", e o arquivo saiu do mesmo tamanho (4,11 MB contra 4,12 MB). Um `level` na entrada vence essa regra.
+
+??? info "Detalhes técnicos: por que fatias e não Web Worker"
+    O `zip()` assíncrono do `fflate` sobe **um worker por arquivo** e copia cada arquivo para ele. Medido no Node 24 com o `fflate` 0.8.3, sobre os mesmos 8,4 MB, em cinco rodadas:
+
+    | variante | total | maior travada |
+    | --- | --- | --- |
+    | `zipSync` | 131–232 ms | 131–232 ms |
+    | `zip()` (worker por arquivo) | 576–962 ms | 32–145 ms |
+    | `createZip`, tudo deflatado | 178–275 ms | 12–30 ms |
+    | `createZip`, fotos guardadas | 48–70 ms | 11–14 ms |
+
+    O worker é cerca de três vezes mais lento, trava mais e só reporta progresso quando um arquivo inteiro termina. O `createZip` usa o `Zip` em streaming do `fflate`, alimentado em blocos de 64 KB, e cede a vez por `MessageChannel` (sem o piso de 4 ms do `setTimeout` aninhado). Os `Blob`s são lidos um por vez, na vez de cada um.
+
+    Reproduza com `npm run build && node scripts/bench-zip.mjs 5` (máquina compartilhada, *load average* 13–19 durante a medição — os intervalos são largos por isso).
+
+!!! note "Custo de bundle"
+    `createZip` mora na raiz junto do `writeXlsx` — sem subpath, porque o `preserveModules` já separa: o `{ cn }` sozinho continua em 203 B. Quem importa `{ createZip }` paga 5,46 kB br **com** o `fflate` contado; `{ createZip, writeXlsx }` juntos, 6,55 kB (`npx size-limit`).
 
 ---
 
@@ -36918,9 +37422,10 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 
 - Importe qualquer helper direto de `tempest-react-sdk` — todos são exports nomeados, puros e tree-shakable.
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
+- **ZIP**: `createZip(entries, { onProgress })` monta planilha + fotos em fatias de ~8 ms, sem travar a tela, e guarda sem recomprimir o que já é comprimido.
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
 - **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
@@ -37650,8 +38155,51 @@ O `error.kind` é um enum estável — mapeie-o pra UI, não pra `error.message`
 !!! warning "Câmera só em contexto seguro"
     `getUserMedia` só funciona sob **HTTPS** (ou `localhost`). Numa origem
     insegura o hook devolve `status: "error"` com `kind: "insecure"` — não é bug,
-    é política do navegador. As mensagens em `error.message` são em **inglês**;
-    traduza na sua camada de i18n se precisar.
+    é política do navegador.
+
+#### Mensagens na língua do app: `messages`
+
+O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra língua sem
+embrulhar o hook, passe `messages` — um texto por `kind`:
+
+```tsx
+import { useCameraStream } from "tempest-react-sdk/vision";
+
+const MENSAGENS_DA_CAMERA = {
+  unsupported: "Este navegador não dá acesso à câmera.",
+  insecure: "A câmera só funciona em conexão segura (HTTPS).",
+  "permission-denied": "Acesso à câmera negado. Libere a permissão nas configurações do navegador.",
+  "no-camera": "Nenhuma câmera disponível neste aparelho.",
+  "in-use": "A câmera está em uso por outro app. Feche-o e tente de novo.",
+} as const;
+
+export function CameraEmPortugues() {
+  const { status, error, videoRef, retry } = useCameraStream({ messages: MENSAGENS_DA_CAMERA });
+
+  if (status === "error") {
+    return (
+      <div role="alert">
+        <p>{error?.message}</p>
+        <button onClick={retry}>Tentar de novo</button>
+      </div>
+    );
+  }
+
+  return <video ref={videoRef} playsInline muted />;
+}
+```
+
+O `kind` não muda, então a UI que decide por tipo continua funcionando; só o `message`
+é trocado. O `kind` que você não listar mantém a frase em inglês.
+
+!!! tip "Trocar de língua não reabre a câmera"
+    A mensagem é aplicada na leitura do erro, não na captura. Se o usuário trocar de
+    língua com o erro na tela, o texto muda na hora, sem novo pedido de permissão.
+
+!!! note "Sobrescrever `unknown` esconde a causa original"
+    Em `unknown` o `message` padrão é o texto do próprio erro do navegador — a única
+    pista da causa. Traduzir esse `kind` troca a pista por uma frase genérica; registre
+    o erro no seu logger antes, se ele importa.
 
 ### `computeImageLuminance` + `useLiveLuminance` — medir o brilho
 

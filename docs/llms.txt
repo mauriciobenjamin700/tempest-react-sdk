@@ -59,6 +59,7 @@
 - [Offline (IndexedDB)](https://mauriciobenjamin700.github.io/tempest-react-sdk/offline/): createOfflineStore empacota o Dexie com scoping opcional por owner.
 - [Gerar serviços do OpenAPI (`tempest gen api`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/openapi/): Se o seu backend é FastAPI (ou qualquer API que exponha um OpenAPI 3.x), o
 - [Passkeys (WebAuthn)](https://mauriciobenjamin700.github.io/tempest-react-sdk/passkeys/): Login sem senha, com a biometria que o usuário já usa pra desbloquear o aparelho.
+- [Pagamentos (Pix e cartão via Mercado Pago)](https://mauriciobenjamin700.github.io/tempest-react-sdk/payments/): O módulo payments é a metade frontend do checkout do tempest-fastapi-sdk: a tela do Pix que o pagador vê, a tokenização do cartão no browser e o texto que explica uma recusa.
 - [Custo de inferência on-device](https://mauriciobenjamin700.github.io/tempest-react-sdk/perf/): Quando a inferência roda no dispositivo do usuário, você perde o gráfico do
 - [Web Push + Service Worker](https://mauriciobenjamin700.github.io/tempest-react-sdk/push/): Notificações push no navegador têm duas metades que conversam: a main thread (sua UI pede permissão e cria a inscrição) e a worker thread (o service worker recebe o push e desenha a notificação, mesmo com a aba fechada).
 - [PWA & Offline-First](https://mauriciobenjamin700.github.io/tempest-react-sdk/pwa/): O tempest-react-sdk traz tudo que um app Tempest precisa pra virar um PWA offline-first — sem depender de Workbox nem de vite-plugin-pwa.
@@ -109,4 +110,4 @@
 ## Receitas
 
 - [Gallery — catálogo visual + funcional](https://mauriciobenjamin700.github.io/tempest-react-sdk/gallery/): Demo interativo de todos os componentes e features do SDK.
-- [Release pipeline](https://mauriciobenjamin700.github.io/tempest-react-sdk/release/): Como o tempest-react-sdk é publicado no npm — workflow tag-push automático, com fallback manual.
+- [Release pipeline](https://mauriciobenjamin700.github.io/tempest-react-sdk/release/): Como o tempest-react-sdk é publicado no npm e como o site de docs vai ao ar — tudo na máquina de quem mantém o pacote, sem GitHub Actions.

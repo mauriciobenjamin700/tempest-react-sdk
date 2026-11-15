@@ -48,6 +48,33 @@ describe("ModalsManager", () => {
         await waitFor(() => expect(screen.queryByText("Delete it?")).toBeNull());
     });
 
+    it("confirm() with an async onConfirm cannot be dismissed with Escape while pending", async () => {
+        const user = userEvent.setup();
+        const onCancel = vi.fn();
+        let resolve: () => void = () => undefined;
+        const onConfirm = (): Promise<void> =>
+            new Promise<void>((done) => {
+                resolve = done;
+            });
+        render(
+            <ModalsProvider>
+                <Harness
+                    onReady={(api) =>
+                        api.confirm({ message: "Sair da conta?", onConfirm, onCancel })
+                    }
+                />
+            </ModalsProvider>,
+        );
+        await user.click(screen.getByText("trigger"));
+        await user.click(screen.getByText("Confirmar"));
+        await user.keyboard("{Escape}");
+        expect(onCancel).not.toHaveBeenCalled();
+        expect(screen.getByText("Sair da conta?")).toBeInTheDocument();
+        resolve();
+        await waitFor(() => expect(screen.queryByText("Sair da conta?")).toBeNull());
+        expect(onCancel).not.toHaveBeenCalled();
+    });
+
     it("confirm() cancel fires onCancel and closes", async () => {
         const user = userEvent.setup();
         const onCancel = vi.fn();

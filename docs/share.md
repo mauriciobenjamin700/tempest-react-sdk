@@ -121,6 +121,35 @@ Por baixo ele chama `share({ title, files: [file] })`. Se o usuário **compartil
 | `blob`          | `Blob`   | O conteúdo binário a compartilhar/baixar             |
 | `fileName`      | `string` | Nome do arquivo apresentado ao usuário               |
 | `options.title` | `string` | Título da sheet de compartilhamento (padrão: o nome) |
+| `options.text` | `string` | Texto enviado na mesma sheet do arquivo |
+| `options.textOnlyFallback` | `boolean` | Compartilhar só o texto quando o arquivo não é suportado (padrão: `true` quando há `text`) |
+
+### Texto junto do arquivo
+
+Passe `text` para mandar uma legenda junto do arquivo — o resultado de uma análise ao lado da foto, por exemplo:
+
+```ts
+import { shareOrDownloadBlob } from "tempest-react-sdk";
+
+async function shareResult(photo: Blob, score: number) {
+  await shareOrDownloadBlob(photo, "resultado.webp", {
+    title: "Resultado da análise",
+    text: `Grau FAMACHA ${score}`,
+  });
+}
+```
+
+A ordem é **arquivo + texto → só texto → download**:
+
+1. O browser compartilha arquivos: abre **uma** sheet com o arquivo e o texto. Compartilhou ou cancelou, acabou.
+2. O browser tem Web Share mas `canShare({ files })` recusa o arquivo: abre uma sheet **só com o texto** e, em seguida, **baixa o arquivo** — seja qual for o desfecho dessa sheet.
+3. O browser não tem Web Share: baixa o arquivo, como antes.
+
+!!! info "Por que o download acontece mesmo depois do texto?"
+    Quem chama `shareOrDownloadBlob` pediu que um **arquivo** chegue ao usuário. Nesse browser o arquivo sempre foi baixado; a sheet de texto é um acréscimo sobre esse comportamento, não um substituto. Se ela substituísse o download, o usuário que escolhe "Mail" receberia a legenda e perderia a foto, sem aviso. Por isso o padrão `textOnlyFallback: true` é seguro: o que muda é só que o texto também chega. Quer só o download, como antes? Passe `textOnlyFallback: false`.
+
+!!! note "Erro real pula a sheet de texto"
+    Se o compartilhamento do arquivo falha com um erro que não é cancelamento nem falta de suporte (um `NotAllowedError`, por exemplo), a função vai direto para o download: a chamada que falhou costuma ter consumido o gesto do usuário, e uma segunda sheet seria rejeitada também. `text: ""` conta como sem texto.
 
 !!! tip "Combina com `writeXlsx` / geração de ZIP"
     Gere a planilha com [`writeXlsx`](./utilities.md#planilhas-xlsx-writexlsx), embrulhe num `Blob` e passe pro `shareOrDownloadBlob` — exportação de dados completa, do byte à sheet nativa, sem dependência extra.
@@ -129,6 +158,7 @@ Por baixo ele chama `share({ title, files: [file] })`. Se o usuário **compartil
 
 - `share(payload)` envolve `navigator.share` e devolve `ShareResult` em vez de lançar.
 - `shareOrDownloadBlob(blob, fileName)` compartilha o arquivo quando dá, senão baixa via `<a download>`.
+- Com `text`, a ordem é arquivo + texto → só texto → download, e o download nunca é trocado pelo texto.
 - Cheque na ordem: `unsupported` → fallback, `cancelled` → silêncio, `shared` → sucesso, `error` → telemetria.
 - `SharePayload` aceita `title`, `text`, `url`, `files` (todos opcionais).
 - `isShareSupported()` decide antecipadamente entre o botão nativo e o fallback.

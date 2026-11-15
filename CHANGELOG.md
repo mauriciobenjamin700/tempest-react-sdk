@@ -4,6 +4,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`formatPercent` ganha `mode: "truncate"`** (#623). Arredondado, 0,99996 com duas casas vira
+  `"100,00%"` — em confiança de modelo isso lê como certeza; truncado vira `"99,99%"`. O corte não
+  usa `Math.trunc(valor * 10 ** n)`: medido sobre toda fração `i / 10000`, essa forma erra 573 de
+  10001 valores com duas casas (`0.57 * 10000` é `5699.999999999999` → `"56,99%"`) e 3 de 101 com
+  zero casas (`0.29 * 100`). O SDK desloca o expoente da representação textual (`"0.57e4"`), que dá
+  o inteiro exato — zero erros nas mesmas grades. O padrão continua `"round"`; `-0` vira `0`.
+- **`relativeDayLabel(data, options?)`** (#623): `"Hoje"`, `"Ontem"` ou a data (`dd/MM/yyyy`),
+  para cabeçalho de lista agrupada por dia. Compara pelo dia do calendário **local** (não por
+  `agora - 24h`, que erra em dia de horário de verão), lê `yyyy-MM-dd` puro como data local, e
+  aceita `locale` (`"pt-BR"`/`"en"`), `now`, `labels` e `fallback`, como os irmãos `relativeTime` e
+  `formatDate`. Tipos `RelativeDayLabelOptions` e `RelativeDayLabels`.
+
+### Budgets
+
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
+- **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
+  `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
+  branch, mesmo resto da árvore): CJS 187 674 → 188 049 B (+375 B; a `main` tinha 126 B de folga) —
+  os bytes são o `relativeDayLabel` com os rótulos pt-BR/en e o corte decimal do `mode: "truncate"`,
+  que o barrel CJS carrega sem tree-shaking. ESM 158 046 → 158 019 B (reminificação; budget 158,3 kB
+  mantido). Nenhuma fatia importada passou de ±35 B.
+
 ### Corrigido
 
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
@@ -64,6 +88,7 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da
@@ -99,6 +124,66 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   (`npx vitest run src/query/offline-persistence.session-end.test.ts src/http/api-client.session-epoch.test.ts`).
   A checagem custa bytes no cliente HTTP (`npx size-limit`): a fatia "typical app" foi a 12,64 kB
   (teto 12,6 → 12,7 kB) e o barrel CJS a 187,82 kB (teto 187,8 → 187,9 kB).
+- **Push com o destino só em `data.url` não abre mais `/` em silêncio (#613).** Desde a 0.82.0 o
+  `installPushHandler` grava o `url` de topo por cima de `payload.data` (#534), então quem mandava o
+  destino só em `data.url` — o formato que a 0.81.0 respeitava — passou a abrir `"/"` sem erro nem
+  aviso. A regra de segurança fica: `data.url` continua **não** sendo lido como destino. O que muda é
+  que o primeiro payload nesse formato (`data.url` string e nenhum `url` de topo, avaliado depois do
+  `transform`) loga **um** `console.warn` por worker, sem repetir a URL. O aviso não passa pelo
+  `isDevBuild()`: o push real costuma chegar primeiro num build de produção, e num worker que nenhum
+  bundler compilou o `isDevBuild()` responde `false` — os dois lugares onde a quebra aparece.
+  Reproduzido com `npx vitest run src/sw/create-push-handler.data-url.test.ts` sobre a `main`: o
+  clique com `{ data: { url: "/broadcasts/42" } }` abre `"/"` e 4 dos 11 casos novos falhavam (nenhum
+  `console.warn`). **Migração** (do servidor, também na receita de push):
+  `{ "title": "Novo aviso", "data": { "url": "/avisos/42" } }` passa a ser
+  `{ "title": "Novo aviso", "url": "/avisos/42", "data": {} }`. Budget (`npx size-limit`, `main`
+  → branch): teto do barrel ESM 157,8 → 158,1 kB, sobe 157,9 → 158,2 kB; barrel CJS 187,74 → 187,72
+  kB, sem mudança. O `scripts/check-dist-guards.mjs` ganha `sw/create-push-handler` na lista de
+  módulos que falam fora do `isDevBuild()`, com o motivo acima.
+- **`AppShell`: a `AppBar` sticky renderizada pela página não rola mais junto com o conteúdo
+  (#611).** O `<main>` do shell tinha `overflow-x: auto`, que força o `overflow-y` computado a
+  `auto` e o transforma no scroll container de todo sticky dentro dele — só que quem rola é a
+  janela. Medido no Chromium, a 390×844 e a 1280×800: a barra ficava em `top: -600px` depois de
+  `scrollTo(0, 600)`; agora fica em `top: 0`. O `.main` passa a usar `overflow-x: clip`, que corta
+  o excesso horizontal sem criar scroll container. A issue propunha também tirar o overflow
+  (`visible`): resolve o sticky, mas um bloco de 1500px sem região própria passou a arrastar a
+  página inteira (`scrollWidth` 1500 a 390px, 1700 a 1280px) — o que empurra o app para
+  `body { overflow-x: hidden }`, que mata o sticky de novo. Com `clip` a página fica na largura da
+  viewport. **Mudança de comportamento**: um filho mais largo que o `<main>` sem região de scroll
+  própria passa a ser cortado na borda em vez de rolar dentro do `<main>`; `Table`/`DataTable`
+  não mudam (rolam na própria região: 1186px de uma tabela de 12 colunas nos três valores). Envolva
+  conteúdo largo seu num `overflow-x: auto` ou em `.tempest-scroll-x`. Guard:
+  `e2e/app-shell-sticky.spec.ts`.
+
+### Adicionado
+
+- **`ConfirmDialog`: `confirmIcon`** (#615) — ícone à esquerda do rótulo do botão de confirmar,
+  repassado como `leftIcon` do `Button` (a mesma prop que o `Button` já aceita). Decorativo: o nome
+  acessível continua sendo o `confirmLabel`. Era o que mantinha um `ExitModal` próprio no FAMACHApp
+  só para pôr o `LogOut` no "Sair".
+
+### Corrigido
+
+- **`ConfirmDialog`: com `loading`, o diálogo não fecha mais** (#615). O Cancelar já ficava
+  desabilitado, mas o `Modal` por baixo continuava com `onClose={onCancel}`: `Esc`, clique no backdrop
+  e o × chamavam `onCancel` com a confirmação em voo — num logout que revoga a sessão no servidor, a
+  tela dizia "cancelado" e o usuário saía mesmo assim. Durante `loading` o `Modal` recebe
+  `closeOnEsc={false}`, `closeOnBackdrop={false}` e `hideCloseButton`; com o `Esc` desligado o diálogo
+  ainda engole a tecla, então ela também não cai no modal de baixo. A trava deriva de `loading`, sem
+  prop nova. O `useModals().confirm()` herda a correção: até aqui, `Esc` durante um `onConfirm`
+  assíncrono chamava `onCancel` **e** fechava o diálogo antes de a promise resolver.
+
+### Adicionado
+
+- **`shareOrDownloadBlob` aceita `text` e `textOnlyFallback`** (#618). `text` vai na mesma sheet
+  do arquivo. Num browser que tem Web Share mas recusa o arquivo (`canShare({ files })` falso), a
+  função abre uma sheet só com o texto e **depois baixa o arquivo** — ordem arquivo + texto → só
+  texto → download. O download não é trocado pelo texto: nesse browser o arquivo sempre foi
+  baixado, e trocá-lo faria o usuário que escolhe "Mail" receber a legenda sem a foto. Por isso o
+  padrão `textOnlyFallback: true` (quando há `text`) não tira nada de ninguém; `false` volta ao
+  download direto. Cancelar a sheet do arquivo continua não baixando; erro real no
+  compartilhamento do arquivo pula a sheet de texto (o gesto já foi consumido). O retorno continua
+  `Promise<void>`.
 
 ## [0.86.0] — 2026-11-15
 

@@ -252,7 +252,7 @@ pluralize(2, "person", "people"); // "people"
 | `formatBytes(bytes, decimals?)`    | `(bytes: number, decimals?: number) => string` | Tamanho legível em B/KB/MB/GB/TB (base 1024).              |
 | `formatCompactNumber(value, loc?)` | `(value: number, locale?: string) => string`   | Notação compacta (`1.2K`, `3.4M`) via `Intl.NumberFormat`. |
 | `percentOf(part, total)`           | `(part: number, total: number) => number`      | Percentual 0–100, com base zero devolvendo `0`.            |
-| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number }) => string` | Fração 0–1 como percentual pt-BR; `decimals` default `1`.  |
+| `formatPercent(value, options?)`   | `(value: number, options?: { decimals?: number; mode?: "round" \| "truncate" }) => string` | Fração 0–1 como percentual pt-BR; `decimals` default `1`, `mode` default `"round"`.  |
 
 ```ts
 import { formatBytes, formatCompactNumber, clamp } from "tempest-react-sdk";
@@ -292,6 +292,53 @@ formatPercent(0 / 0); // "—"
     `(ativos / total) * 100` com `total === 0` produz `NaN`, e `NaN%` no painel vazio é a forma mais comum de um dashboard anunciar que ainda não tem dado. `percentOf(5, 0)` é `0`; não-finito também vira `0`.
     Ele **não** limita em 100 — 150% de uma meta é dado real que alguém quer ver.
     Cuidado com o par: `formatPercent` recebe **fração** (0–1), então é `formatPercent(percentOf(a, b) / 100)`.
+
+### Truncar em vez de arredondar — `mode: "truncate"`
+
+Confiança de modelo é o caso em que arredondar mente: 99,996% com duas casas vira `"100,00%"`, e o usuário lê certeza que o modelo nunca afirmou. `mode: "truncate"` corta as casas excedentes em direção ao zero:
+
+```ts
+import { formatPercent } from "tempest-react-sdk";
+
+formatPercent(0.99996, { decimals: 2 }); // "100,00%"
+formatPercent(0.99996, { decimals: 2, mode: "truncate" }); // "99,99%"
+formatPercent(0.57, { decimals: 2, mode: "truncate" }); // "57,00%"
+formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
+```
+
+!!! danger "`Math.trunc(valor * 10000)` erra 573 de 10001 frações"
+    A multiplicação arredonda **antes** do corte: `0.57 * 10000` é `5699.999999999999`, então a versão ingênua mostra `"56,99%"` para 57%. Medido sobre toda fração `i / 10000` de 0 a 1, ela erra 573 dos 10001 valores com duas casas, e 3 de 101 com zero casas (`0.29 * 100` é `28.999999999999996`). O SDK desloca o expoente decimal da representação textual do número (`"0.57e4"`), que vira o inteiro exato: zero erros nas mesmas grades — fixado em `src/utils/format-percent-truncate.test.ts`.
+
+---
+
+## Rótulo de dia — `relativeDayLabel`
+
+Lista agrupada por dia (mensagens, histórico, extrato) precisa de cabeçalho "Hoje", "Ontem" ou a data. `relativeTime` responde outra pergunta — quanto tempo passou ("2 horas atrás") —, então os dois discordam perto da meia-noite, de propósito: às 00:10, uma mensagem das 23:50 é "20 min atrás" **e** "Ontem".
+
+```ts
+import { relativeDayLabel } from "tempest-react-sdk";
+
+const now = new Date(2026, 4, 16, 10, 0);
+
+relativeDayLabel(new Date(2026, 4, 16, 8, 0), { now }); // "Hoje"
+relativeDayLabel("2026-05-15", { now }); // "Ontem"
+relativeDayLabel("2026-05-10", { now }); // "10/05/2026"
+relativeDayLabel(new Date(2026, 4, 15), { now, locale: "en" }); // "Yesterday"
+relativeDayLabel(new Date(2026, 4, 16), { now, labels: { today: "Hoje cedo" } }); // "Hoje cedo"
+relativeDayLabel(null); // "—"
+```
+
+| Opção      | Tipo                                     | Padrão                         |
+| ---------- | ---------------------------------------- | ------------------------------ |
+| `locale`   | `"pt-BR" \| "en"`                        | `"pt-BR"`, o mesmo de `relativeTime` |
+| `now`      | `Date \| number`                         | `Date.now()`                   |
+| `labels`   | `{ today?: string; yesterday?: string }` | `"Hoje"` / `"Ontem"` (ou `"Today"` / `"Yesterday"`) |
+| `fallback` | `string`                                 | `"—"`                          |
+
+!!! info "Dia do calendário local, não 24 horas"
+    "Ontem" é a data local anterior à de hoje, comparada por ano/mês/dia no fuso do usuário — nunca `agora - 24h`. Num dia de horário de verão, que dura 23 ou 25 horas, subtrair 24 horas cai no dia errado. E `"2026-05-16"` sem hora é lido como data **local**: `new Date("2026-05-16")` é meia-noite UTC, que em UTC-3 é dia 15 às 21:00 — a data que o backend mandou viraria "Ontem".
+
+Qualquer outro dia — amanhã, anteontem, ano passado — vira a data formatada no `locale`. Ausente responde o `fallback` e valor que não dá para interpretar responde `""`, como o `formatDate`.
 
 ---
 
@@ -649,7 +696,7 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 - **Planilhas**: `writeXlsx(headers, rows)` gera um `.xlsx` UTF-8 de uma aba como `Uint8Array` (sem drama de BOM do CSV).
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
 - **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero.
+- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.

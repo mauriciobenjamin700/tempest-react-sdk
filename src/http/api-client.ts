@@ -535,6 +535,60 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         return value;
     }
 
+    /**
+     * Whether a replay would leave under another session than the request's
+     * first attempt did.
+     *
+     * Two shapes count: the first attempt carried a token and its epoch has
+     * ended (a `logout()`, with or without the next `login()`), or the replay
+     * would pick up a token the first attempt never had — a `login()` during the
+     * backoff of a request sent signed out. In both, the replay is not the same
+     * request any more: it carries another authority than the call site sent,
+     * and its response would settle a continuation started under the first
+     * session. A request whose attempts all go out without a token (`skipAuth`,
+     * or signed out on both sides) carries no account, so the epoch moving
+     * under it is no reason to stop.
+     *
+     * @param first - The credential and epoch of the first attempt.
+     * @param next - The credential and epoch the replay would leave with.
+     * @returns `true` when the epochs differ and either side has a token;
+     * `false` without `getSessionEpoch`, which is what tells sessions apart.
+     */
+    function sessionChangedBetween(first: RequestAuthContext, next: RequestAuthContext): boolean {
+        if (first.epoch === null || next.epoch === null || first.epoch === next.epoch) {
+            return false;
+        }
+        return first.token !== null || next.token !== null;
+    }
+
+    /**
+     * The request with its retry policy around it.
+     *
+     * The retry wrapper calls `attempt` once per try, and `attempt` reads the
+     * credential when it leaves — so up to 0.87.0 a replay scheduled for account
+     * A left with account B's bearer when `logout()` + `login(B)` ran during the
+     * backoff, and resolved into the continuation A started; with a
+     * `shouldRetry` that replays writes, A's `POST` ran in B's account (security
+     * audit run-15 §6, #643). The session of the first attempt is now the
+     * request's session: a replay that would leave under another one (see
+     * `sessionChangedBetween`) is never sent, and the request rejects with
+     * {@link SessionSupersededError}.
+     *
+     * The check runs twice. When an attempt fails, before asking `shouldRetry`:
+     * a session that had already changed then changed during that attempt —
+     * possibly *because of* it, as a `401` whose `onUnauthorized` signs out — and
+     * the attempt's own error is the answer (`attempt` already turned it into
+     * `SessionSupersededError` when the session ended in flight), so it is
+     * thrown as is. And right before a replay leaves, after the backoff: a
+     * change there is the backoff's, and nothing about it is the last error's.
+     * A `SessionSupersededError` is never replayed, whatever `shouldRetry`
+     * says.
+     *
+     * @param path - The path as the call site wrote it.
+     * @param options - Request options, the `retry` override included.
+     * @param decode - How to turn the response into a value.
+     * @returns The decoded value.
+     */
     async function run<T>(
         path: string,
         options: RequestOptions,
@@ -545,11 +599,27 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         if (!retryOptions) return attempt<T>(path, rest, decode);
 
         const method = (rest.method ?? "GET").toUpperCase();
-        return retryWithBackoff(() => attempt<T>(path, rest, decode), {
-            ...retryOptions,
-            shouldRetry:
-                retryOptions.shouldRetry ?? ((error: unknown) => isRetriableFailure(error, method)),
-        });
+        const skipAuth = rest.skipAuth ?? false;
+        const first = authContext(skipAuth);
+        const changed = (): boolean => sessionChangedBetween(first, authContext(skipAuth));
+        const policy =
+            retryOptions.shouldRetry ?? ((error: unknown) => isRetriableFailure(error, method));
+        let started = false;
+
+        return retryWithBackoff(
+            async () => {
+                if (started && changed()) throw new SessionSupersededError();
+                started = true;
+                return attempt<T>(path, rest, decode);
+            },
+            {
+                ...retryOptions,
+                shouldRetry: (error: unknown, count: number) =>
+                    !(error instanceof SessionSupersededError) &&
+                    !changed() &&
+                    policy(error, count),
+            },
+        );
     }
 
     async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {

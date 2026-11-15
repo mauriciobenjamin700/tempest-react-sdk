@@ -21,6 +21,7 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #655** (`npm run build && npx size-limit --json`): `slice: http client` 5 703 B (teto 5.7 kB → 5.8 kB); `ceiling: full barrel CJS` 191 620 B (teto 191.5 kB → 191.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Allowlist do modelo e `device_id` só com Bearer (#644): barrel ESM 161,2 → 161,4 kB.**
   Medido com `npm run build && npx size-limit --json` sobre a `main` em `b3b9337` e sobre este
   branch: ESM 161 069 → 161 341 B (+272), acima do teto em 141 B. As fatias tocadas seguem dentro
@@ -53,6 +54,30 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 - A checagem de sessão custa bytes (`npm run build && npx size-limit --json`, medido contra a
   `main` b3b9337): "http client" 5519 → 5644 B (teto 5,6 → 5,65 kB), "resumable upload" 5051 →
   5116 B (teto 5,1 → 5,15 KB) e o barrel CJS 191299 → 191439 B (teto 191,4 → 191,5 kB).
+- **`createApiClient` com `retry` e `getSessionEpoch`: a repetição não sai mais com o bearer da
+  próxima conta** (auditoria run-15 §6, #643). O `retry` chamava a tentativa de novo a cada
+  repetição, e a tentativa lê o token na saída: com `logout()` + `login(B)` durante o backoff, a
+  repetição de uma request de A saía com o bearer de B e resolvia na continuação que A começou; com
+  um `shouldRetry` que repete escrita, o `POST` de A rodava na conta de B. A checagem de época do
+  #609 não pegava, porque cada tentativa compara com a época do **próprio** envio. Agora a sessão
+  da primeira tentativa é a da request: se ela acabou, ou se a repetição pegaria um token que a
+  primeira não tinha (login no meio de uma request deslogada), a repetição não é enviada e a request
+  rejeita com `SessionSupersededError`. Request com `skipAuth`, ou deslogada nas duas pontas, segue
+  repetindo. Um `SessionSupersededError` nunca é repetido, mesmo sob `shouldRetry: () => true` — na
+  `main` ele era, e a repetição de A resolvia como B. Um `401` cujo `onUnauthorized` encerra a sessão
+  continua rejeitando com o `401` (regra do #646), sem repetição. Cliente só com cookie
+  (`withCredentials`, sem `getToken`) segue sem essa proteção, agora documentado: sem token, o cliente
+  não distingue request deslogada de logada, e estender a checagem para todo `withCredentials`
+  rejeitaria toda request anônima em voo num login do `createTempestAuth` com cookie. Reproduzido
+  com `npx vitest run src/http/api-client.retry-session.test.ts`: 10 testes, 6 falham na `main`
+  (`b3b9337`) — medido lá, os headers enviados foram `["Bearer A-token", "Bearer B-token"]` no
+  `GET` e no `POST`.
+
+### Budgets
+
+- A checagem custa bytes no cliente HTTP (`npm run build && npx size-limit --json`, medido contra a
+  `main` em `b3b9337`): a fatia "typical app" foi de 12,78 kB a 12,88 kB (teto 12,8 → 12,9 kB) e a
+  fatia "http client" de 5,52 kB a 5,61 kB (teto 5,6 → 5,7 kB).
 
 ## [0.87.0] — 2026-11-15
 

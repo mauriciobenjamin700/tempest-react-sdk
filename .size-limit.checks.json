@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "12.8 kB",
+    "limit": "12.9 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -93,7 +93,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "5.65 kB",
+    "limit": "5.8 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -534,7 +534,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "191.5 kB",
+    "limit": "191.7 kB",
     "ignore": [
       "react",
       "react-dom",

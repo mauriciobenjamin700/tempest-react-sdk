@@ -642,7 +642,43 @@ export function Instalar() {
 | `declineCooldownMs` | `number` | — (permanent)   |
 | `renderHint`   | `(input: InstallHintInput) => ReactNode` | `defaultInstallHint` |
 | `manualFallbackDelayMs` | `number` | `3000`        |
+| `visible`      | `boolean`   | `true`            |
+| `position`     | `"inline" \| "bottom"` | `"inline"` |
+| `guide`        | `ReactNode` | —                 |
 | `onResult`     | `(o) => void` | —               |
+
+### Per route, above the bottom nav, and with a guide
+
+Three decisions every app used to make around its own copy of the banner, now props:
+
+```tsx
+import { Link, useLocation } from "react-router";
+import { InstallBanner } from "tempest-react-sdk";
+
+const NO_BANNER = ["/camera", "/login", "/install"];
+
+export function InstallPromptBanner() {
+    const { pathname } = useLocation();
+
+    return (
+        <InstallBanner
+            title="Install the app"
+            description="Offline access and a home-screen shortcut."
+            storageKey="meu-app:install-dismissed"
+            visible={!NO_BANNER.some((route) => pathname.startsWith(route))}
+            position="bottom"
+            guide={<Link to="/install">See the full guide</Link>}
+        />
+    );
+}
+```
+
+- **`visible`** hides without unmounting. It looks the same as `{show && <InstallBanner />}`, but it is not: without `storageKey` the dismissal lives in component state, and unmounting forgot it — the dismissed banner came back on the next route that showed it. The SDK does not read the route itself on purpose: that way it needs no router context to render, and the rule of which routes hide it stays with the app.
+- **`position="bottom"`** pins the banner to the bottom of the viewport (fixed, centered, up to `32rem`), above the safe area **and** above `--tempest-bottom-nav-height`. Inside an [`AppShell`](./layout.md#appshell) with `bottomNav`, the shell measures and publishes that variable itself — the banner sits above the bar with no configuration. With a bar of your own, publish its height in the same variable. The `"inline"` default keeps the usual behavior: the banner stays where you render it.
+- **`guide`** shows right after the platform instruction (`"ios"` and `"manual"`), when the user opens **"Como instalar"**. It is a node, not an `href`, so you pass your router's `Link` and the guide page opens without reloading the app.
+
+!!! check "Accepting closes the banner — and it stays closed"
+    Up to v0.86.0 the banner disappeared on accept and **came back 3 s later** offering "Como instalar": the stored event was dropped, the tab that installed is still in `display-mode: browser`, and the manual fallback took over. Measured with the component itself in jsdom: visible `false` right after `accepted`, `true` with the "Como instalar" button at 3.5 s, even after `appinstalled`. Now `useInstallPrompt` remembers the session's install (`accepted` or `appinstalled`) and resolves `method: "none"` until the browser fires a fresh `beforeinstallprompt` — which only happens if the app is uninstalled. The same holds for `InstallButton`.
 
 !!! note "`declineCooldownMs` changes what is stored — and respects what was already there"
     Without it, a dismissal written to `storageKey` is **permanent**, which is what the component always did (it stores `"1"`). With it, a timestamp is stored and the banner returns after the window.

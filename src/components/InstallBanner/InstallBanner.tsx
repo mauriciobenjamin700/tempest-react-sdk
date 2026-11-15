@@ -1,8 +1,11 @@
 /**
  * @tempest-limits props-count — title, description, installLabel and dismissLabel
  * are four strings the app has to write, icon and className the look, storageKey the
- * dismissal memory and onResult the outcome. An install prompt with SDK-authored
- * copy is the one thing nobody ships.
+ * dismissal memory and onResult the outcome. visible, position and guide are the
+ * three placement decisions every app made around its own copy (#619): which route
+ * shows it, whether it floats above the bottom navigation, and where the full
+ * install guide lives. An install prompt with SDK-authored copy is the one thing
+ * nobody ships.
  */
 import { useId, useState } from "react";
 import type { ReactNode } from "react";
@@ -14,6 +17,9 @@ import { defaultInstallHint } from "@/components/InstallButton/install-hints";
 import type { RenderInstallHint } from "@/components/InstallButton/install-hints";
 import type { InstallOutcome } from "@/components/InstallButton";
 import styles from "./InstallBanner.module.css";
+
+/** Where {@link InstallBanner} lays itself out. */
+export type InstallBannerPosition = "inline" | "bottom";
 
 export interface InstallBannerProps {
     /** Headline. Default `"Instale o app"`. */
@@ -58,7 +64,34 @@ export interface InstallBannerProps {
      * 3000 there.
      */
     manualFallbackDelayMs?: number;
-    /** Called with the user's choice after the install prompt resolves. */
+    /**
+     * Whether the banner renders. Default `true`.
+     *
+     * Hiding with this prop instead of unmounting keeps the banner's state: a
+     * dismissal without `storageKey` lives only in component state, so
+     * `{show && <InstallBanner />}` brought a dismissed banner back on the next
+     * route that showed it. Drive it from the app's own router —
+     * `visible={!pathname.startsWith("/camera")}` — so the SDK never needs a
+     * router context to render.
+     */
+    visible?: boolean;
+    /**
+     * `"inline"` (default) lays the banner out where it is rendered. `"bottom"`
+     * pins it to the bottom of the viewport, above the safe area and above the
+     * height in `--tempest-bottom-nav-height`, which `AppShell` measures and sets
+     * by itself whenever its `bottomNav` is on screen.
+     */
+    position?: InstallBannerPosition;
+    /**
+     * Rendered after the install instruction, e.g. a link to a full install
+     * guide page. A node rather than an `href` so the app passes its own
+     * router link and the guide opens without a full page reload.
+     */
+    guide?: ReactNode;
+    /**
+     * Called with the user's choice after the install prompt resolves. On
+     * `"accepted"` the banner closes for the rest of the session.
+     */
     onResult?: (outcome: InstallOutcome) => void;
     className?: string;
 }
@@ -102,6 +135,10 @@ function readDismissed(storageKey?: string, declineCooldownMs?: number): boolean
  * the user has no other way to find the install entry, which is why every app
  * kept a local copy of this component just to add the two missing paths.
  *
+ * Accepting the native prompt closes the banner for the rest of the session: the
+ * hook remembers the install, so the manual fallback no longer brings it back
+ * offering "Como instalar" 3 s later, which is what it did before #619.
+ *
  * @tempest-limits empty-catch — persisting the dismissal is a courtesy, not the
  * feature. When `localStorage` refuses the write (quota, private mode) the banner
  * still hides for this session; the worst case is that it comes back next visit,
@@ -125,6 +162,9 @@ export function InstallBanner({
     declineCooldownMs,
     renderHint = defaultInstallHint,
     manualFallbackDelayMs,
+    visible = true,
+    position = "inline",
+    guide,
     onResult,
     className,
 }: InstallBannerProps) {
@@ -135,7 +175,7 @@ export function InstallBanner({
     const [hintOpen, setHintOpen] = useState(false);
     const hintId = useId();
 
-    if (method === "none" || dismissed) return null;
+    if (!visible || method === "none" || dismissed) return null;
 
     const dismiss = (): void => {
         setDismissed(true);
@@ -154,7 +194,11 @@ export function InstallBanner({
     const hint = method === "native" ? null : renderHint({ method, openInChromeIntent });
 
     return (
-        <div className={cn(styles.banner, className)} role="region" aria-label={String(title)}>
+        <div
+            className={cn(styles.banner, position === "bottom" && styles.bottom, className)}
+            role="region"
+            aria-label={String(title)}
+        >
             {icon && <span className={styles.icon}>{icon}</span>}
             <div className={styles.body}>
                 <p className={styles.title}>{title}</p>
@@ -162,6 +206,7 @@ export function InstallBanner({
                 {hintOpen && hint ? (
                     <p className={styles.hint} id={hintId}>
                         {hint}
+                        {guide ? <span className={styles.guide}>{guide}</span> : null}
                     </p>
                 ) : null}
             </div>

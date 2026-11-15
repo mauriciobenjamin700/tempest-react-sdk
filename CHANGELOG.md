@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #635** (`npm run build && npx size-limit --json`): ESM 160 629 B (teto 160.5 kB → 160.7 kB); CJS 190 792 B (teto 190.4 kB → 190.9 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
@@ -33,6 +34,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mantido). Nenhuma fatia importada passou de ±35 B.
 
 ### Corrigido
+
+- **`InstallBanner`: `visible`, `position` e `guide` (#619).** `visible={false}` esconde sem
+  desmontar — com `{mostrar && <InstallBanner />}` a dispensa sem `storageKey`, que vive no estado
+  do componente, era esquecida e o banner voltava na rota seguinte; o SDK não lê a rota sozinho,
+  então não exige contexto de router. `position="bottom"` prende o banner ao rodapé (fixo,
+  centralizado, até `32rem`) acima da safe area e de `--tempest-bottom-nav-height`; o default
+  `"inline"` mantém o comportamento anterior. `guide` é um nó renderizado depois da instrução
+  `"ios"`/`"manual"` — nó e não `href`, para o app passar o `Link` do router. Tipo novo
+  `InstallBannerPosition`. O `role="region"` pedido na issue já estava no componente.
+- **`AppShell` publica `--tempest-bottom-nav-height` no `<html>`** enquanto a `bottomNav` está na
+  tela (altura medida por `ResizeObserver`, safe area incluída) e remove a variável quando a barra
+  sai. É o que deixa o `InstallBanner position="bottom"` acima da barra do SDK sem configuração.
+  Medido em Chromium headless na gallery (seção `pwa`, "Abrir app de exemplo"): a 390×844 a
+  variável vale `57px` e o banner termina 12 px acima do topo da barra, claro e escuro; a 1280×800
+  a barra sai, a variável some e o banner fica a 12 px do rodapé.
+- **Tetos do `size-limit` (#619): barrel CJS 188,4 → 188,6 kB e `styles.css` 31,5 → 31,6 kB.**
+  `npm run build && npx size-limit --json` na `main` em `5ddf9a2` contra este branch com ela
+  mergeada: CJS 188 311 → 188 468 B (+157 B), `styles.css` 31 451 → 31 531 B (+80 B:
+  `position="bottom"` e o `guide`), ESM 158 496 → 158 573 B (+77 B, dentro do teto). Os bytes são
+  a flag de instalação no hook, o `ResizeObserver` do `AppShell` e as três props do banner; as
+  fatias importadas continuam dentro dos budgets.
 
 - **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
   `"pt-BR"`, mas o overlay mostrava o `error.message` do `useCameraStream` cru — "Camera

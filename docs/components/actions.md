@@ -636,7 +636,43 @@ export function Instalar() {
 | `declineCooldownMs` | `number`         | — (dispensa permanente) |
 | `renderHint`   | `(input: InstallHintInput) => ReactNode` | `defaultInstallHint` |
 | `manualFallbackDelayMs` | `number`     | `3000`         |
+| `visible`      | `boolean`             | `true`         |
+| `position`     | `"inline" \| "bottom"` | `"inline"`   |
+| `guide`        | `ReactNode`           | —              |
 | `onResult`     | `(o) => void`         | —              |
+
+### Por rota, acima da bottom nav e com guia
+
+Três decisões que todo app tomava em volta da própria cópia do banner, agora props:
+
+```tsx
+import { Link, useLocation } from "react-router";
+import { InstallBanner } from "tempest-react-sdk";
+
+const SEM_BANNER = ["/camera", "/login", "/instalar"];
+
+export function BannerDeInstalacao() {
+    const { pathname } = useLocation();
+
+    return (
+        <InstallBanner
+            title="Instale o app"
+            description="Acesso offline e atalho na tela inicial."
+            storageKey="meu-app:install-dismissed"
+            visible={!SEM_BANNER.some((rota) => pathname.startsWith(rota))}
+            position="bottom"
+            guide={<Link to="/instalar">Ver guia completo</Link>}
+        />
+    );
+}
+```
+
+- **`visible`** esconde sem desmontar. Parece igual a `{mostrar && <InstallBanner />}`, mas não é: sem `storageKey` a dispensa vive no estado do componente, e desmontar a esquecia — o banner dispensado voltava na próxima rota que o mostrasse. O SDK não lê a rota sozinho de propósito: assim ele não exige contexto de router para renderizar, e a regra de quais rotas escondem continua do app.
+- **`position="bottom"`** prende o banner ao rodapé da viewport (fixo, centralizado, até `32rem`), acima da safe area **e** acima de `--tempest-bottom-nav-height`. Dentro de um [`AppShell`](./layout.md#appshell) com `bottomNav`, essa variável é medida e publicada pelo próprio shell — o banner fica acima da barra sem configuração nenhuma. Com uma barra própria, publique a altura dela na mesma variável. O default `"inline"` mantém o comportamento de sempre: o banner fica onde você o renderiza.
+- **`guide`** aparece logo depois da instrução da plataforma (`"ios"` e `"manual"`), quando o usuário abre **"Como instalar"**. É um nó, não um `href`, para você passar o `Link` do seu router e a página de guia abrir sem recarregar o app.
+
+!!! check "Aceitar fecha o banner — e ele não volta"
+    Até a v0.86.0 o banner sumia ao aceitar a instalação e **voltava 3 s depois** oferecendo "Como instalar": o evento guardado era descartado, a aba que instalou continua em `display-mode: browser`, e o fallback manual assumia. Medido com o próprio componente no jsdom: visível `false` logo após o `accepted`, `true` com o botão "Como instalar" aos 3,5 s, mesmo depois de `appinstalled`. Agora o `useInstallPrompt` lembra a instalação da sessão (`accepted` ou `appinstalled`) e resolve `method: "none"` até o navegador disparar um `beforeinstallprompt` novo — o que só acontece se o app for desinstalado. Vale também para o `InstallButton`.
 
 !!! note "`declineCooldownMs` muda o que é gravado — e respeita o que já estava lá"
     Sem ele, a dispensa gravada em `storageKey` é **permanente**, que é o que o componente sempre fez (grava `"1"`). Com ele, grava um timestamp e o banner volta depois da janela.

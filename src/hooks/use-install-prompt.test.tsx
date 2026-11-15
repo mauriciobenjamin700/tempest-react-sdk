@@ -205,4 +205,49 @@ describe("useInstallPrompt — native flow and standalone", () => {
         fireBeforeInstallPrompt("accepted");
         expect(result.current.method).toBe("native");
     });
+
+    it("drops to none when the app is installed from the browser menu mid-fallback", async () => {
+        vi.resetModules();
+        const fresh = await import("./use-install-prompt");
+        vi.useFakeTimers();
+        setUserAgent("Mozilla/5.0 (Windows NT 10.0)");
+        const { result } = renderHook(() =>
+            fresh.useInstallPrompt({ manualFallbackDelayMs: 1000 }),
+        );
+        act(() => {
+            vi.advanceTimersByTime(1000);
+        });
+        expect(result.current.method).toBe("manual");
+
+        act(() => {
+            window.dispatchEvent(new Event("appinstalled"));
+        });
+        expect(result.current.method).toBe("none");
+        vi.useRealTimers();
+    });
+
+    it("offers install again when the browser fires a fresh beforeinstallprompt", () => {
+        const { result } = renderHook(() => useInstallPrompt());
+        act(() => {
+            window.dispatchEvent(new Event("appinstalled"));
+        });
+        expect(result.current.method).toBe("none");
+
+        fireBeforeInstallPrompt("dismissed");
+        expect(result.current.method).toBe("native");
+    });
+
+    it("stays at none after an accepted install outlives the fallback timer", async () => {
+        vi.useFakeTimers();
+        const { result } = renderHook(() => useInstallPrompt({ manualFallbackDelayMs: 1000 }));
+        fireBeforeInstallPrompt("accepted");
+        await act(async () => {
+            await result.current.install();
+        });
+        act(() => {
+            vi.advanceTimersByTime(5000);
+        });
+        expect(result.current.method).toBe("none");
+        vi.useRealTimers();
+    });
 });

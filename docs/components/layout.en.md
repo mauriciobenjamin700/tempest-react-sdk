@@ -110,6 +110,14 @@ Chromium at 390×844 and at 1280×800: the bar sat at `top: -600px` after scroll
     that, `body { overflow-x: hidden }`, is exactly the CSS that kills sticky (see
     [`AppBar`](./navigation.md#appbar)).
 
+While the `bottomNav` is on screen, the shell publishes its height — safe area
+included — as `--tempest-bottom-nav-height` on `<html>`, and removes the variable when
+the bar leaves (wide viewport or unmount). That is what lets a bottom-pinned overlay,
+such as [`InstallBanner`](./actions.md#installbanner) with `position="bottom"`, sit
+**above** the bar without the app measuring anything. The variable lives on `<html>`
+rather than on the shell because such overlays are usually rendered next to the
+`AppShell`, not inside it.
+
 !!! warning "`sidebar` disappears below the breakpoint — that is not the same as being there"
     Below `sidebarBreakpoint` the `AppShell` does **not** render the sidebar; it
     expects you to pass `bottomNav`. If your primary navigation lives only in the

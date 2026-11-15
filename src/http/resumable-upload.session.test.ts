@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createTempestAuth, type TempestAuth } from "../auth/create-tempest-auth";
+import { TempestApiError } from "./errors";
 import {
     createLocalUploadStorage,
     createResumableUpload,
@@ -11,6 +12,7 @@ interface Seen {
     method: string;
     url: string;
     authorization: string | undefined;
+    idempotencyKey: string | undefined;
 }
 
 type Auth = TempestAuth<{ id: string }, { email: string; password: string }>;
@@ -19,7 +21,9 @@ type Auth = TempestAuth<{ id: string }, { email: string; password: string }>;
  * A tus server reached through an `XMLHttpRequest` double: creation answers
  * `Location: /api/uploads/<n>`, `HEAD` the offset it holds, `PATCH` advances
  * it — unless `failPatchAt` names the PATCH (1-based) that answers `500`.
- * `beforePatch` runs as each PATCH is sent, so a test can act mid-run.
+ * `beforePatch` runs as each PATCH is sent, so a test can act mid-run;
+ * `beforeHead` and `beforePost` do the same for the probe and the creation,
+ * and `refusePost` makes the creation answer `403` with an error envelope.
  */
 class TusDouble {
     seen: Seen[] = [];
@@ -28,6 +32,9 @@ class TusDouble {
     patches = 0;
     failPatchAt: number | null = null;
     beforePatch: ((n: number) => Promise<void> | void) | null = null;
+    beforeHead: (() => Promise<void> | void) | null = null;
+    beforePost: (() => Promise<void> | void) | null = null;
+    refusePost = false;
 }
 
 /**
@@ -70,16 +77,23 @@ function installXhr(server: TusDouble): void {
                 method: this.method,
                 url: this.target,
                 authorization: this.headers.Authorization,
+                idempotencyKey: this.headers["Idempotency-Key"],
             });
             void (async () => {
                 let status = 204;
-                if (this.method === "POST") {
+                if (this.method === "POST" && server.refusePost) {
+                    await server.beforePost?.();
+                    status = 403;
+                    this.responseText = JSON.stringify({ detail: "Cota de A esgotada." });
+                } else if (this.method === "POST") {
+                    await server.beforePost?.();
                     server.created += 1;
                     const location = `/api/uploads/${server.created}`;
                     server.offsets.set(`http://localhost:3000${location}`, 0);
                     status = 201;
                     this.reply = { Location: location };
                 } else if (this.method === "HEAD") {
+                    await server.beforeHead?.();
                     status = 200;
                     this.reply = {
                         "Upload-Offset": String(server.offsets.get(this.target) ?? 0),
@@ -379,5 +393,131 @@ describe("createResumableUpload — a refresh that redeems another account does 
             authorization: `Bearer ${jwtOf("B", issued)}`,
         });
         auth.dispose();
+    });
+});
+
+/**
+ * #642, audit run-15 §7: a tus answer of account A that lands after the session
+ * moved to B. The chunk loop checked the session before each request, never
+ * when an answer arrived, so A's error envelope reached B's `catch`, a probe
+ * answered after the switch let the creation go out with B's bearer and A's
+ * `Idempotency-Key`, and A's record — upload URL and key — stayed in B's
+ * storage. Failed against b3b9337.
+ */
+describe("createResumableUpload — an answer of the session before the switch (#642)", () => {
+    let auth: Auth;
+    let tus: TusDouble;
+    const recordKey = uploadFingerprint("/api/uploads", file);
+
+    beforeEach(async () => {
+        localStorage.clear();
+        auth = createTempestAuth({ baseURL: "https://api.example.com", fetcher: authBackend() });
+        await auth.login({ email: "a@x.test", password: "x" });
+        tus = new TusDouble();
+        installXhr(tus);
+    });
+
+    afterEach(() => {
+        auth.dispose();
+        vi.unstubAllGlobals();
+    });
+
+    function upload(chunkSize = 4) {
+        return createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize,
+            getToken: auth.getToken,
+            retry: { shouldRetry: () => false },
+        });
+    }
+
+    it("rejects A's refused chunk that lands after login(B) with the supersession, not A's envelope", async () => {
+        tus.failPatchAt = 1;
+        tus.beforePatch = async () => {
+            await auth.login({ email: "b@x.test", password: "x" });
+        };
+
+        const outcome = upload()
+            .start()
+            .catch((error: unknown) => error);
+
+        expect(await outcome).toBeInstanceOf(ResumableUploadSupersededError);
+    });
+
+    it("rejects A's refused creation that lands after login(B)", async () => {
+        tus.refusePost = true;
+        tus.beforePost = async () => {
+            await auth.login({ email: "b@x.test", password: "x" });
+        };
+
+        const outcome = await upload()
+            .start()
+            .catch((error: unknown) => error);
+
+        expect(outcome).toBeInstanceOf(ResumableUploadSupersededError);
+        expect(outcome).not.toBeInstanceOf(TempestApiError);
+    });
+
+    it("does not complete A's upload as B, and forgets A's record, when the last chunk lands after the switch", async () => {
+        tus.beforePatch = async () => {
+            await auth.login({ email: "b@x.test", password: "x" });
+        };
+
+        await expect(upload(12).start()).rejects.toBeInstanceOf(ResumableUploadSupersededError);
+
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+    });
+
+    it("stops instead of creating as B with A's Idempotency-Key when the probe lands after the switch", async () => {
+        tus.failPatchAt = 2;
+        await upload()
+            .start()
+            .catch(() => undefined);
+        tus.failPatchAt = null;
+        const keyOfA = (await createLocalUploadStorage().get(recordKey))?.idempotencyKey;
+        expect(keyOfA).toBeTruthy();
+        tus.seen = [];
+        tus.beforeHead = async () => {
+            tus.beforeHead = null;
+            await auth.login({ email: "b@x.test", password: "x" });
+        };
+
+        await expect(upload().start()).rejects.toBeInstanceOf(ResumableUploadSupersededError);
+
+        expect(tus.seen.filter((request) => request.method === "POST")).toEqual([]);
+        expect(tus.seen.map((request) => request.idempotencyKey)).not.toContain(keyOfA);
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+    });
+
+    it("keeps a record B wrote under the same key", async () => {
+        tus.beforePatch = async (n) => {
+            if (n !== 1) return;
+            await auth.login({ email: "b@x.test", password: "x" });
+            await createLocalUploadStorage().set(recordKey, {
+                url: "http://localhost:3000/api/uploads/of-B",
+                offset: 0,
+                size: file.size,
+                idempotencyKey: "key-of-B",
+                updatedAt: 1,
+            });
+        };
+
+        await expect(upload().start()).rejects.toBeInstanceOf(ResumableUploadSupersededError);
+
+        expect((await createLocalUploadStorage().get(recordKey))?.idempotencyKey).toBe("key-of-B");
+    });
+
+    it("still finishes an anonymous upload", async () => {
+        await auth.logout();
+
+        const result = await createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+        }).start();
+
+        expect(result?.size).toBe(12);
+        expect(tus.seen.every((request) => request.authorization === undefined)).toBe(true);
     });
 });

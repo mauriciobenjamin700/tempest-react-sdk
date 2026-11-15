@@ -155,6 +155,8 @@ export function onSessionEnd(): void {
 
 And if the account switch happens **while the upload runs**? `getPrincipal` is read again before every chunk and every record write: once it names someone else, the run stops with `ResumableUploadSupersededError` (`reason: "principal"`), before the new account's token reaches the previous one's upload URL. A `clear()` mid-run does the same (`reason: "cleared"`) instead of the record being written back. It is not a pause — the run cannot go on as the new account: the state moves to `"error"`.
 
+Since **0.88.0** the check also runs when each **answer arrives** (#642). An answer A's request got back after the switch — a confirmed chunk, a creation refused with A's error envelope, the offset `HEAD` — rejects with `ResumableUploadSupersededError` instead of landing in B's `catch` with A's data; and a `HEAD` answered after the switch no longer falls through to a creation sent with B's bearer and A's `Idempotency-Key`. With `reason: "principal"`, the record the run wrote for A is **deleted** too: it holds A's upload URL — which many tus servers treat as the credential — and A's key, now in B's storage, and nobody can use it (the owner stamp keeps B from adopting it, and an `auth.getToken` session never comes back under the same key). A record B wrote under the same key in the meantime stays. Up to 0.87.0 A's record was left as it was.
+
 ```ts
 import { ResumableUploadSupersededError, createResumableUpload } from "tempest-react-sdk";
 

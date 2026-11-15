@@ -49,6 +49,9 @@ import { NavigationMenu } from "tempest-react-sdk";
 !!! check "Só esquema seguro vira link"
     O `href` de cada entrada passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema a entrada vira `<button>` e continua chamando `onSelect`.
 
+!!! info "`href` com `onSelect`: o clique simples é do app"
+    Numa entrada com `href` e `onSelect`, o clique primário sem modificador chama `preventDefault()` e vai para o `onSelect` — o router navega sem o documento recarregar (#612). Ctrl/meta/shift/alt-click e botão do meio ficam com o navegador (nova aba) e não chamam `onSelect`. Sem `onSelect`, o navegador segue o `href`. O painel fecha nos dois casos.
+
 ## `Menubar`
 
 <!-- gallery:overlays -->

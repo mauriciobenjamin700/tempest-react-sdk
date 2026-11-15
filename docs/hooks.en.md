@@ -75,7 +75,7 @@ browser-guarded and independent hooks — import only what you need.
 | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                        |
 | `useClientFilter(items, search, keysOrPredicate)` | Client-side filter by keys or predicate (memoized). Items are objects (`T extends Record<string, unknown>`).       |
-| `useDraftFilters(initial, { onApply?, isEqual? })` | Draft vs applied state for a server-side filter: `{ draft, applied, isDirty, set, apply, clear }`. Applying happens in the event, never in an effect — one click, one request. |
+| `useDraftFilters(initial, { onApply?, isEqual? })` | Draft vs applied state for a server-side filter: `{ draft, applied, isDirty, set, apply, clear, discard }`. Applying happens in the event, never in an effect — one click, one request. |
 | `useLocalStorage<T>(key, default)`                | State persisted to localStorage + synced cross-tab via the `storage` event. browser-guarded.                             |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — sugar for boolean state.                                          |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Tracks `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinct from React Query (no cache). |
@@ -592,6 +592,78 @@ export function Logs() {
 
 !!! info "No effect in there"
     Applying happens in the event that asked for it, never in a `useEffect` watching the draft. That is what guarantees one request per click.
+
+#### Filter in a bottom sheet — `discard()`
+
+In a bottom sheet the draft lives while the sheet is open: **Cancel** (or tapping outside) throws the edit away, **Clear** zeroes only the draft, and only **Apply** publishes.
+
+```tsx
+import { useState } from "react";
+import { BottomSheet, Button, Checkbox, useDraftFilters } from "tempest-react-sdk";
+
+interface HerdFilter {
+  species: Set<string>;
+}
+
+const EMPTY: HerdFilter = { species: new Set() };
+const SPECIES = ["sheep", "goat"];
+
+export function HerdFilterSheet() {
+  const [open, setOpen] = useState(false);
+  const filters = useDraftFilters(EMPTY);
+
+  function openSheet() {
+    filters.discard();
+    setOpen(true);
+  }
+
+  function cancel() {
+    filters.discard();
+    setOpen(false);
+  }
+
+  function toggle(name: string) {
+    filters.set((draft) => {
+      const species = new Set(draft.species);
+      if (species.has(name)) species.delete(name);
+      else species.add(name);
+      return { species };
+    });
+  }
+
+  return (
+    <>
+      <Button onClick={openSheet}>Filters ({filters.applied.species.size})</Button>
+      <BottomSheet open={open} onClose={cancel} title="Filter herd">
+        {SPECIES.map((name) => (
+          <Checkbox
+            key={name}
+            label={name}
+            checked={filters.draft.species.has(name)}
+            onChange={() => toggle(name)}
+          />
+        ))}
+        <Button variant="ghost" onClick={() => filters.set(() => EMPTY)}>
+          Clear
+        </Button>
+        <Button
+          disabled={!filters.isDirty}
+          onClick={() => {
+            filters.apply();
+            setOpen(false);
+          }}
+        >
+          Apply
+        </Button>
+      </BottomSheet>
+    </>
+  );
+}
+```
+
+- `discard()` returns the draft to the **applied** value, without publishing and without calling `onApply`. Called on open, it makes the sheet show what is in effect, even if someone closed it mid-edit.
+- **Clearing without applying is `set(() => EMPTY)`.** The updater replaces the whole draft — `set(EMPTY)` would merge and leave behind an optional key the empty value does not have. There is no `clearDraft()` because the updater already says exactly that; `clear()` is still the "clear and apply" of a filter bar.
+- `Set`, `Map` and `Date` in the filter work: `isDirty` and the stability of `applied` compare by content (`Set` members, `Map` keys and values, the `Date` instant). Up to 0.86.0 two different `Set`s compared equal and `apply()` did not publish.
 
 ### List as state — `useListState`
 

@@ -171,3 +171,66 @@ describe("useDraftFilters — clear moves both halves together", () => {
         expect(result.current.applied).toBe(EMPTY);
     });
 });
+
+interface SpeciesFilter {
+    species: Set<string>;
+}
+
+describe("useDraftFilters — a Set in the filter is compared by its members", () => {
+    it("marks the draft dirty when a Set member changes, and apply publishes it", () => {
+        const initial: SpeciesFilter = { species: new Set(["ovino"]) };
+        const { result } = renderHook(() => useDraftFilters(initial));
+
+        act(() => result.current.set({ species: new Set(["caprino"]) }));
+        expect(result.current.isDirty).toBe(true);
+
+        act(() => result.current.apply());
+        expect(result.current.applied).not.toBe(initial);
+        expect([...result.current.applied.species]).toEqual(["caprino"]);
+    });
+});
+
+describe("useDraftFilters — discard drops the draft without publishing", () => {
+    it("returns the draft to the applied value and never calls onApply", () => {
+        const onApply = vi.fn();
+        const { result } = renderHook(() => useDraftFilters(EMPTY, { onApply }));
+        act(() => result.current.apply({ code: "AUTH" }));
+        const applied = result.current.applied;
+        onApply.mockClear();
+        act(() => result.current.set({ level: "error" }));
+
+        act(() => result.current.discard());
+
+        expect(result.current.draft).toBe(applied);
+        expect(result.current.applied).toBe(applied);
+        expect(result.current.isDirty).toBe(false);
+        expect(onApply).not.toHaveBeenCalled();
+    });
+
+    it("lets a bottom sheet clear only the draft with an updater, and still cancel it", () => {
+        const onApply = vi.fn();
+        const { result } = renderHook(() => useDraftFilters(EMPTY, { onApply }));
+        act(() => result.current.apply({ code: "AUTH" }));
+        const applied = result.current.applied;
+        onApply.mockClear();
+
+        act(() => result.current.set(() => EMPTY));
+        expect(result.current.draft).toBe(EMPTY);
+        expect(result.current.applied).toBe(applied);
+        expect(result.current.isDirty).toBe(true);
+
+        act(() => result.current.discard());
+        expect(result.current.draft).toBe(applied);
+        expect(onApply).not.toHaveBeenCalled();
+    });
+
+    it("keeps the state untouched when there is nothing to discard", () => {
+        const { result } = renderHook(() => useDraftFilters(EMPTY));
+        const before = result.current;
+
+        act(() => result.current.discard());
+
+        expect(result.current.draft).toBe(before.draft);
+        expect(result.current.discard).toBe(before.discard);
+    });
+});

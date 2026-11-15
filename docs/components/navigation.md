@@ -361,21 +361,23 @@ O que sai no HTML:
 
 ### Item que é link
 
-`href` renderiza um `<a>` em vez de `<button>`, e `onChange` continua disparando
-no clique:
+`href` renderiza um `<a>` em vez de `<button>`. Com `onChange`, quem navega no
+clique é o seu router:
 
 ```tsx
-import { useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Sidebar } from "tempest-react-sdk";
 
 export function ComLink() {
-    const [tab, setTab] = useState("overview");
+    const navigate = useNavigate();
+    const { pathname } = useLocation();
 
     return (
         <Sidebar
-            items={[{ key: "overview", label: "Visão geral", href: "/overview" }]}
-            value={tab}
-            onChange={setTab}
+            items={[{ key: "/overview", label: "Visão geral", href: "/overview" }]}
+            value={pathname}
+            match="route"
+            onChange={(key) => navigate(key)}
         />
     );
 }
@@ -389,6 +391,17 @@ anuncia acionável e não é.
 
 !!! check "Só esquema seguro vira link"
     O `href` do item passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema o item vira `<button>`, como um item sem `href` — um menu montado com dado de API não põe um `javascript:` clicável na barra lateral no React 18.
+
+!!! info "Clique simples é do app; clique com modificador é do navegador"
+    Com `onChange`, o clique primário sem modificador chama `preventDefault()` no
+    `<a>` e dispara `onChange`: o router troca a rota e o navegador **não** segue o
+    `href` em seguida. Até a 0.86.0 ele seguia, e o documento inteiro recarregava —
+    derrubando todo estado em memória, como um access token que não vai pro
+    storage (#612). Ctrl/meta/shift/alt-click e botão do meio continuam com o
+    `href` nativo (nova aba, nova janela, download) e **não** disparam `onChange`,
+    para a aba atual não mudar junto. Sem `onChange`, o navegador segue o `href`
+    como em qualquer link. `NavigationMenu` (`onSelect`) e `Breadcrumbs`
+    (`onClick`) seguem a mesma regra.
 
 ### Item ativo a partir da rota
 
@@ -666,6 +679,8 @@ export function Trilha() {
 **A11y**: último item é marcado com `aria-current="page"`.
 
 Cada `href` passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Um item com outro esquema perde o `href` e vira texto — ou continua clicável pelo `onClick`, se tiver um. Uma trilha montada com nomes de pasta vindos da API não vira link de script.
+
+Item com `href` **e** `onClick`: o clique simples vai para o `onClick` sem o navegador seguir o `href`; ctrl/meta/shift/alt-click e botão do meio ficam com o navegador e não chamam o `onClick` — "abrir em nova aba" funciona.
 
 ## `Pagination`
 

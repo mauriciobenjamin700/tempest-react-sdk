@@ -83,6 +83,11 @@ const ALLOWED = new Map([
         "vendored ort-vision-sdk: warns when mean/std contradict an Ultralytics export, " +
             "which degrades accuracy in production too, not only in dev",
     ],
+    [
+        "sw/create-push-handler",
+        "a payload with its destination only in data.url opens / in production builds and in " +
+            "uncompiled workers, both where isDevBuild() is false (#613); warns once, no URL",
+    ],
 ]);
 
 const CONSOLE_CALL = /console\s*[.[]/;

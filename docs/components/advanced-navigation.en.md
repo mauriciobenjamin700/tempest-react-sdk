@@ -49,6 +49,9 @@ import { NavigationMenu } from "tempest-react-sdk";
 !!! check "Only a safe scheme becomes a link"
     Each entry's `href` goes through `safeLinkUrl`'s list (`http:`, `https:`, `mailto:`, `tel:`, `sms:` and relative URLs). With any other scheme the entry becomes a `<button>` and still calls `onSelect`.
 
+!!! info "`href` with `onSelect`: a plain click belongs to the app"
+    On an entry with `href` and `onSelect`, a primary click without modifiers calls `preventDefault()` and goes to `onSelect` — the router navigates without the document reloading (#612). Ctrl/meta/shift/alt-click and the middle button stay with the browser (new tab) and do not call `onSelect`. Without `onSelect`, the browser follows the `href`. The panel closes either way.
+
 ## `Menubar`
 
 <!-- gallery:overlays -->

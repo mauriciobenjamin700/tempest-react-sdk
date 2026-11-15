@@ -712,8 +712,51 @@ O `error.kind` é um enum estável — mapeie-o pra UI, não pra `error.message`
 !!! warning "Câmera só em contexto seguro"
     `getUserMedia` só funciona sob **HTTPS** (ou `localhost`). Numa origem
     insegura o hook devolve `status: "error"` com `kind: "insecure"` — não é bug,
-    é política do navegador. As mensagens em `error.message` são em **inglês**;
-    traduza na sua camada de i18n se precisar.
+    é política do navegador.
+
+#### Mensagens na língua do app: `messages`
+
+O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra língua sem
+embrulhar o hook, passe `messages` — um texto por `kind`:
+
+```tsx
+import { useCameraStream } from "tempest-react-sdk/vision";
+
+const MENSAGENS_DA_CAMERA = {
+  unsupported: "Este navegador não dá acesso à câmera.",
+  insecure: "A câmera só funciona em conexão segura (HTTPS).",
+  "permission-denied": "Acesso à câmera negado. Libere a permissão nas configurações do navegador.",
+  "no-camera": "Nenhuma câmera disponível neste aparelho.",
+  "in-use": "A câmera está em uso por outro app. Feche-o e tente de novo.",
+} as const;
+
+export function CameraEmPortugues() {
+  const { status, error, videoRef, retry } = useCameraStream({ messages: MENSAGENS_DA_CAMERA });
+
+  if (status === "error") {
+    return (
+      <div role="alert">
+        <p>{error?.message}</p>
+        <button onClick={retry}>Tentar de novo</button>
+      </div>
+    );
+  }
+
+  return <video ref={videoRef} playsInline muted />;
+}
+```
+
+O `kind` não muda, então a UI que decide por tipo continua funcionando; só o `message`
+é trocado. O `kind` que você não listar mantém a frase em inglês.
+
+!!! tip "Trocar de língua não reabre a câmera"
+    A mensagem é aplicada na leitura do erro, não na captura. Se o usuário trocar de
+    língua com o erro na tela, o texto muda na hora, sem novo pedido de permissão.
+
+!!! note "Sobrescrever `unknown` esconde a causa original"
+    Em `unknown` o `message` padrão é o texto do próprio erro do navegador — a única
+    pista da causa. Traduzir esse `kind` troca a pista por uma frase genérica; registre
+    o erro no seu logger antes, se ele importa.
 
 ### `computeImageLuminance` + `useLiveLuminance` — medir o brilho
 

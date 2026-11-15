@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`useCameraStream`: `messages` — o texto do erro por `kind`, na língua do app (#617).**
+  `messages?: Partial<Record<CameraStreamErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. A troca é aplicada na leitura
+  do erro, não na captura: mudar de língua com o erro na tela re-rotula na hora, sem reabrir a
+  câmera. Segue a convenção dos componentes (`labels?: Partial<…>` por instância), não o
+  `I18nProvider` — nenhum componente ou hook do SDK lê o contexto de i18n. O `useBarcodeScanner`
+  repassa o mesmo mapa como `cameraMessages`.
+
+### Corrigido
+
+- **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
+  `"pt-BR"`, mas o overlay mostrava o `error.message` do `useCameraStream` cru — "Camera
+  permission denied. Enable access in your browser settings." ao lado do botão "Tentar de novo".
+  O próprio teste do componente fixava a frase em inglês; ele foi reescrito (com o porquê no
+  corpo) para afirmar a mensagem em pt-BR, e um teste novo fixa o inglês sob `locale="en"`. Doc em
+  `docs/vision.md`, `docs/device-capture.md` e `.en.md` — o aviso "traduza na sua camada de i18n"
+  saiu, porque virou superfície.
+
 ### Corrigido
 
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**

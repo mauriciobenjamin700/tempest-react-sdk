@@ -10,6 +10,7 @@ import {
     useCameraStream,
     type CameraStreamError,
     type CameraStreamStatus,
+    type UseCameraStreamOptions,
 } from "@/vision/use-camera-stream";
 
 import {
@@ -59,6 +60,11 @@ export interface UseBarcodeScannerOptions {
     detector?: BarcodeDetectorLike;
     /** Camera constraints, forwarded to `useCameraStream`. Defaults to the rear camera. */
     constraints?: MediaStreamConstraints;
+    /**
+     * Text of `error.message` per camera error kind, forwarded to `useCameraStream`'s
+     * `messages`. Kinds left out keep the English default.
+     */
+    cameraMessages?: UseCameraStreamOptions["messages"];
     /**
      * A frame the engine refused to decode.
      *
@@ -135,6 +141,7 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions = {}): UseBa
         paused = false,
         detector: injected,
         constraints,
+        cameraMessages,
         onError,
     } = options;
 
@@ -149,7 +156,7 @@ export function useBarcodeScanner(options: UseBarcodeScannerOptions = {}): UseBa
      * permission prompt on nothing — and a refusal is permanent, so it also spends the
      * *next* feature that needs the camera.
      */
-    const camera = useCameraStream({ constraints, enabled: supported });
+    const camera = useCameraStream({ constraints, enabled: supported, messages: cameraMessages });
     const torch = useTorch(camera.stream);
 
     const [formats, setFormats] = useState<readonly BarcodeFormat[]>(

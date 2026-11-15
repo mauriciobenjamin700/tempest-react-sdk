@@ -4,6 +4,7 @@
  * load, error, abort, timeout and progress against one request object, plus the
  * AbortSignal bridge.
  */
+import { sessionIdentityOf } from "@/auth/session-identity";
 import { randomId } from "../utils";
 import {
     isTrustedCredentialTarget,
@@ -12,7 +13,7 @@ import {
 } from "./credential-scope";
 import { csrfHeaders } from "./csrf";
 import type { CsrfOptions } from "./csrf";
-import { buildApiError, TempestApiError } from "./errors";
+import { buildApiError, SessionSupersededError, TempestApiError } from "./errors";
 
 export interface UploadProgressEvent {
     /** Bytes already uploaded. */
@@ -31,6 +32,29 @@ export interface UploadWithProgressOptions {
     headers?: Record<string, string>;
     /** Returns the current bearer token. */
     getToken?: () => string | null | undefined;
+    /**
+     * Who the session is — anything that changes when the session ends or
+     * another one begins and stays put while its token rotates, such as
+     * `auth.sessionKey` of `createTempestAuth` or the signed-in user's id.
+     *
+     * Read when the upload leaves and again when its answer arrives. An upload
+     * sent with a `getToken` token whose session changed in between rejects
+     * with `SessionSupersededError` — success or error alike — instead of
+     * handing the previous account's answer to the continuation of whoever is
+     * signed in now: an `onSuccess` storing the file URL in the next account's
+     * cache, an `onError` showing it the previous account's envelope. The
+     * contract `createApiClient` applies with `getSessionEpoch` (#609); up to
+     * 0.87.0 uploads had none (#642). An upload sent without a token says
+     * nothing about any account, and settles as before.
+     *
+     * Defaults to the session of `getToken` when it is the getter
+     * `createTempestAuth` returned (`getToken: auth.getToken`), so the preset
+     * needs no extra option. A wrapper around it (`() => auth.getToken()`) is
+     * another function and carries no session: pass
+     * `sessionKey: auth.sessionKey` with it. Without either the upload is not
+     * bound, as before.
+     */
+    sessionKey?: () => string | number | null | undefined;
     /**
      * Origin the `getToken` credential belongs to, normally the API's.
      * Defaults to the page's own origin (`location.origin`).
@@ -278,6 +302,24 @@ async function sendWithoutRedirects(init: ManualUpload): Promise<UploadAnswer> {
 }
 
 /**
+ * Whether an upload's answer arrived after the session it was sent under
+ * ended, see {@link UploadWithProgressOptions.sessionKey}.
+ *
+ * @param token - The bearer token read when the upload left.
+ * @param readSession - The session reader, when the upload is bound.
+ * @returns A check to run when the answer arrives: `true` when the upload
+ *   carried a token and the session reads differently now.
+ */
+function sessionWatch(
+    token: string | null | undefined,
+    readSession: (() => string | number | null | undefined) | undefined,
+): () => boolean {
+    if (!token || !readSession) return () => false;
+    const sentUnder = readSession();
+    return () => readSession() !== sentUnder;
+}
+
+/**
  * Upload a file (or any payload) with byte-level progress reporting.
  *
  * `fetch` cannot report upload progress in browsers, so this helper falls
@@ -290,7 +332,12 @@ async function sendWithoutRedirects(init: ManualUpload): Promise<UploadAnswer> {
  * following, and when that path is the default (fixed headers and no
  * `onProgress`, since 0.84.0).
  *
+ * The answer is bound to the session the upload left under (since 0.88.0):
+ * see {@link UploadWithProgressOptions.sessionKey}.
+ *
  * @returns The parsed JSON response, or the raw text when the response is not JSON.
+ * @throws {SessionSupersededError} When the upload carried a token and its
+ *   session changed before the answer arrived.
  */
 export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptions): Promise<T> {
     const {
@@ -299,6 +346,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
         method = "POST",
         headers = {},
         getToken,
+        sessionKey,
         credentialOrigin,
         trustedOrigins,
         withCredentials = false,
@@ -313,6 +361,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
     if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
 
     const token = getToken?.();
+    const superseded = sessionWatch(token, sessionKey ?? sessionIdentityOf(getToken)?.current);
     const sentRequestId = requestId ? requestId() : randomId();
     const finalHeaders: Record<string, string> = { ...headers };
     const scope = credentialOrigin ?? globalThis.location?.origin ?? url;
@@ -348,6 +397,7 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
             signal,
             requestId: sentRequestId,
         }).then((answer) => {
+            if (superseded()) throw new SessionSupersededError();
             const sized = body instanceof Blob;
             const total = sized ? body.size : 0;
             onProgress?.({
@@ -386,6 +436,10 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
 
         xhr.onload = () => {
             signal?.removeEventListener("abort", handleAbort);
+            if (superseded()) {
+                reject(new SessionSupersededError());
+                return;
+            }
             const landed = xhr.responseURL ? originOf(xhr.responseURL) : null;
             if (landed !== null && landed !== originOf(url)) {
                 reject(

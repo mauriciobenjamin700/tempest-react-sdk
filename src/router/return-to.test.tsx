@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { MemoryRouter, Routes, Route, useLocation } from "react-router";
+import { MemoryRouter, Routes, Route, useHref, useLocation } from "react-router";
 import { AppRouter, defineRoutes } from "./AppRouter";
 import { RouteGuard } from "./RouteGuard";
 import { safeReturnPath, useReturnTo } from "./return-to";
@@ -110,6 +110,36 @@ describe("useReturnTo", () => {
     it("refuses an absolute URL to another site instead of becoming an open redirect", () => {
         renderLoginWithState({ from: "https://evil.example/phish" }, "/home");
         expect(screen.getByTestId("return-to")).toHaveTextContent("/home");
+    });
+
+    it("returns a basename-relative path, which the router resolves under the basename and location.assign would not", () => {
+        function LoginThenBack() {
+            const returnTo = useReturnTo("/");
+            const href = useHref(returnTo);
+            return (
+                <>
+                    <span data-testid="return-to">{returnTo}</span>
+                    <span data-testid="href">{href}</span>
+                </>
+            );
+        }
+        render(
+            <MemoryRouter basename="/app" initialEntries={["/app/secret/42"]}>
+                <Routes>
+                    <Route path="/login" element={<LoginThenBack />} />
+                    <Route
+                        path="/secret/:id"
+                        element={
+                            <RouteGuard when={false} redirectTo="/login" preserveFrom>
+                                <span>secret</span>
+                            </RouteGuard>
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>,
+        );
+        expect(screen.getByTestId("return-to")).toHaveTextContent(/^\/secret\/42$/);
+        expect(screen.getByTestId("href")).toHaveTextContent(/^\/app\/secret\/42$/);
     });
 });
 

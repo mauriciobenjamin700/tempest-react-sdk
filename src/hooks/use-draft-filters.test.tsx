@@ -234,3 +234,15 @@ describe("useDraftFilters — discard drops the draft without publishing", () =>
         expect(result.current.discard).toBe(before.discard);
     });
 });
+
+describe("useDraftFilters — dirty by key set, not key count", () => {
+    it("is dirty when the draft swaps an optional key for another, both undefined", () => {
+        type Optional = Partial<Record<"from" | "until", string>>;
+        const initial: Optional = { from: undefined };
+        const { result } = renderHook(() => useDraftFilters(initial));
+
+        act(() => result.current.set(() => ({ until: undefined })));
+
+        expect(result.current.isDirty).toBe(true);
+    });
+});

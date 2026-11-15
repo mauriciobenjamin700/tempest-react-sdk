@@ -5,7 +5,11 @@ export type ZipLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 /** One file inside the archive. */
 export interface ZipEntry {
-    /** Path inside the archive, `/`-separated (`"photos/0001.jpg"`). Must be unique. */
+    /**
+     * Path inside the archive, relative and `/`-separated (`"photos/0001.jpg"`).
+     * Must be unique; `..` segments, absolute paths, drive letters, backslashes
+     * and NUL are refused.
+     */
     path: string;
     /** Contents. A string is written as UTF-8. */
     data: Blob | Uint8Array | string;
@@ -95,6 +99,40 @@ function levelFor(entry: ZipEntry, level: ZipLevel): ZipLevel {
 }
 
 /**
+ * A drive prefix (`C:`), with or without a separator after it. On Windows
+ * `C:evil.exe` is relative to the drive's current directory, so it escapes the
+ * extraction folder just like `C:\evil.exe`.
+ */
+const DRIVE_PREFIX = /^[A-Za-z]:/;
+
+/**
+ * Why a path is unsafe to hand to an extractor, or `null` when it is safe.
+ *
+ * The zip format stores names verbatim and leaves interpretation to whoever
+ * unpacks the archive. An extractor that joins the name onto its target folder
+ * without checking (the zip-slip shape) writes `../evil.sh` beside the folder,
+ * `/etc/x` or `C:\x` anywhere on disk, and treats `\` as a separator on Windows.
+ * NUL truncates the name in C-based tools, so `a.txt<NUL>.jpg` lands as `a.txt`.
+ * Each of those is refused instead of normalized: rewriting a name silently would
+ * ship an archive whose layout differs from what the caller asked for, and only
+ * the caller knows what the name was meant to be.
+ *
+ * A dot inside a segment (`a..b.txt`, `..config`) and a `./` segment are left
+ * alone — neither leaves the extraction folder.
+ *
+ * @param path - The entry path.
+ * @returns A short reason, or `null` when the path is safe.
+ */
+function unsafePathReason(path: string): string | null {
+    if (path.includes("\u0000")) return "contains NUL";
+    if (path.includes("\\")) return "uses a backslash; separate folders with /";
+    if (path.startsWith("/")) return "is absolute";
+    if (DRIVE_PREFIX.test(path)) return "starts with a drive letter";
+    if (path.split("/").includes("..")) return "has a .. segment";
+    return null;
+}
+
+/**
  * Hand control back to the event loop.
  *
  * A `MessageChannel` message is a macrotask without the 4 ms clamp browsers put
@@ -159,10 +197,17 @@ async function bytesOf(data: ZipEntry["data"], encoded: Uint8Array | null): Prom
  * level `0` by extension — deflating them costs time and saves nothing. A
  * per-entry `level` overrides that.
  *
- * @param entries - Files to archive, in order. Paths must be unique.
+ * Entry names are checked before any byte is read. A name that would let a
+ * naive extractor write outside its target folder (zip-slip) is refused with a
+ * `TypeError` rather than rewritten: a `..` segment, an absolute path (`/x`), a
+ * drive letter (`C:\x`, `C:/x`, `C:x`), a backslash, or a NUL. Subfolders with
+ * `/` (`fotos/a.jpg`) are the supported shape.
+ *
+ * @param entries - Files to archive, in order. Paths must be unique, relative
+ *     and `/`-separated.
  * @param options - Progress callback, deflate level and abort signal.
  * @returns The archive as a `Blob` of type `application/zip`.
- * @throws {TypeError} When a path is empty or repeated.
+ * @throws {TypeError} When a path is empty, repeated, or unsafe to extract.
  * @throws The signal's reason when aborted.
  *
  * @example
@@ -189,6 +234,10 @@ export async function createZip(
     const seen = new Set<string>();
     for (const entry of entries) {
         if (entry.path === "") throw new TypeError("createZip: an entry has an empty path");
+        const unsafe = unsafePathReason(entry.path);
+        if (unsafe !== null) {
+            throw new TypeError(`createZip: unsafe path "${entry.path}" (${unsafe})`);
+        }
         if (seen.has(entry.path)) {
             throw new TypeError(`createZip: duplicate path "${entry.path}"`);
         }

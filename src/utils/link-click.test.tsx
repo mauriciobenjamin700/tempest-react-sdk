@@ -37,6 +37,16 @@ describe("routeLinkClick", () => {
         expect(route).toHaveBeenCalledTimes(1);
     });
 
+    it.each(["_SELF", "_Self"])(
+        "routes a plain click whatever the case of target=%j, as browsers match it",
+        (target) => {
+            const route = vi.fn();
+            render(<Anchor route={route} target={target} />);
+            expect(fireEvent.click(screen.getByText("Docs"))).toBe(false);
+            expect(route).toHaveBeenCalledTimes(1);
+        },
+    );
+
     it.each([
         ["ctrl", { ctrlKey: true }],
         ["meta", { metaKey: true }],
@@ -53,6 +63,13 @@ describe("routeLinkClick", () => {
     it('leaves a click on a target="_blank" anchor to the browser without routing', () => {
         const route = vi.fn();
         render(<Anchor route={route} target="_blank" />);
+        expect(fireEvent.click(screen.getByText("Docs"))).toBe(true);
+        expect(route).not.toHaveBeenCalled();
+    });
+
+    it("leaves a padded target to the browser, which treats it as a named context", () => {
+        const route = vi.fn();
+        render(<Anchor route={route} target=" _self " />);
         expect(fireEvent.click(screen.getByText("Docs"))).toBe(true);
         expect(route).not.toHaveBeenCalled();
     });

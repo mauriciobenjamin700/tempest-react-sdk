@@ -66,9 +66,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `422`/`500` a uma request da conta A que chegava depois de `logout()` + `login(B)` virava
   `TempestApiError` com o envelope de A (`detail`, `code`, erros de campo) e chegava ao `onError`
   de B. Agora os dois caminhos de erro do `attempt()` (a resposta não-ok e o `401` de um `refresh`
-  que falhou) passam pela mesma checagem depois de decodificar o corpo. Request sem token continua
-  rejeitando com o erro da API. Testes em `src/http/api-client.session-epoch.test.ts` — **5 dos 7
-  novos falham sobre a `main` em `b0c482d`** (`npx vitest run src/http/api-client.session-epoch.test.ts`).
+  que falhou) passam pela mesma checagem, com a época lida **na chegada** da resposta: um `401` cujo próprio tratamento encerra a sessão (`refresh()` que falha e desloga, `onUnauthorized` que chama `logout()`) continua rejeitando com o `401`, como antes. Request sem token continua
+  rejeitando com o erro da API. Testes em `src/http/api-client.session-epoch.test.ts` — **5 dos 9 novos falham sobre a `main` em `b0c482d`** (`npx vitest run src/http/api-client.session-epoch.test.ts`).
 
 ### Adicionado
 

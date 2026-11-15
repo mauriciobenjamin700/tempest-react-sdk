@@ -425,26 +425,39 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * An error response answers the attempt it belongs to just as a success
      * does: its envelope (`detail`, `code`, field errors) is the ended
      * account's data, and the caller's `onError` runs under whoever is signed
-     * in now. So an attempt sent with a bearer token under an epoch that has
-     * ended by the time the body is decoded rejects with
-     * {@link SessionSupersededError}, like a success would. Up to 0.86.0 only
-     * a 2xx was checked, and a `404`/`409`/`500` to account A's request that
+     * in now. So an attempt sent with a bearer token under an epoch that had
+     * ended when its response arrived rejects with
+     * {@link SessionSupersededError}, like a success would. Up to 0.86.0 only a
+     * 2xx was checked, and a `404`/`409`/`500` to account A's request that
      * landed after `logout()` + `login(B)` reached B's `onError` carrying A's
      * body (security audit run-15).
+     *
+     * The reference point is the response's arrival, not the throw: a `401`
+     * whose own handling ends the session — `refresh()` failing and signing
+     * out, `onUnauthorized` calling `logout()` — moves the epoch *because of*
+     * this response, and its caller must still see the `401`. Only when no
+     * `401` handling ran is the epoch read again after decoding, to catch a
+     * session change during the decode itself.
      *
      * @param response - The failed response.
      * @param requestId - The correlation id of the attempt.
      * @param context - The credential and epoch the answered attempt left with.
+     * @param endedOnArrival - Whether that session had ended when the response
+     * arrived, read before any `401` handling ran.
+     * @param handled - Whether `refresh`/`onUnauthorized` ran for this response.
      * @returns The `TempestApiError` to throw, or `SessionSupersededError`
-     * when the attempt's session has ended.
+     * when the attempt's session had ended.
      */
     async function failure(
         response: Response,
         requestId: string,
         context: RequestAuthContext,
+        endedOnArrival: boolean,
+        handled: boolean,
     ): Promise<Error> {
         const error = await parseError(response, requestId);
-        return sessionEndedSince(context) ? new SessionSupersededError() : error;
+        const ended = endedOnArrival || (!handled && sessionEndedSince(context));
+        return ended ? new SessionSupersededError() : error;
     }
 
     /**
@@ -486,8 +499,11 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const sent = authContext(skipAuth);
         let answered = sent;
         let response = await send(path, url, inScope, init, requestId, method, skipAuth);
+        let endedOnArrival = sessionEndedSince(sent);
+        let handled = false;
 
         if (response.status === 401 && inScope && !skipAuth && !skipAuthRetry) {
+            handled = true;
             if (config.refresh) {
                 let replayed: RequestAuthContext;
                 try {
@@ -495,10 +511,12 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                     replayed = authContext(skipAuth);
                     answered = replayed;
                     response = await send(path, url, inScope, init, requestId, method, skipAuth);
+                    endedOnArrival = sessionEndedSince(replayed);
+                    handled = response.status === 401;
                 } catch (error) {
                     if (error instanceof SessionSupersededError) throw error;
                     await notifyUnauthorized(response, requestId, sent);
-                    throw await failure(response, requestId, sent);
+                    throw await failure(response, requestId, sent, endedOnArrival, true);
                 }
                 if (response.status === 401) {
                     await notifyUnauthorized(response, requestId, replayed);
@@ -509,7 +527,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         }
 
         if (!response.ok) {
-            throw await failure(response, requestId, answered);
+            throw await failure(response, requestId, answered, endedOnArrival, handled);
         }
 
         const value = await decode(response);

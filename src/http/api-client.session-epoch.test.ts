@@ -176,10 +176,30 @@ describe("createApiClient — error responses of an ended session (run-15)", () 
         await expect(pending).rejects.toMatchObject({ status: 404 });
     });
 
-    it("rejects the 401 of a failed refresh with SessionSupersededError once the session changed", async () => {
+    it("rejects the 401 of a failed refresh with SessionSupersededError when the session changed in flight", async () => {
+        const { fetcher, release } = heldErrorFetcher(401, { detail: "private-of-A" });
+        let epoch = 0;
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => "A-token",
+            getSessionEpoch: () => epoch,
+            refresh: async () => {
+                throw new Error("refresh failed");
+            },
+        });
+
+        const pending = api.get("/me");
+        epoch += 1;
+        release();
+
+        await expect(pending).rejects.toBeInstanceOf(SessionSupersededError);
+    });
+
+    it("keeps the 401 when the refresh failure itself ends the session", async () => {
         let epoch = 0;
         const fetcher = (async () =>
-            new Response(JSON.stringify({ detail: "private-of-A" }), {
+            new Response(JSON.stringify({ detail: "expired" }), {
                 status: 401,
                 headers: { "content-type": "application/json" },
             })) as typeof fetch;
@@ -194,6 +214,26 @@ describe("createApiClient — error responses of an ended session (run-15)", () 
             },
         });
 
-        await expect(api.get("/me")).rejects.toBeInstanceOf(SessionSupersededError);
+        await expect(api.get("/me")).rejects.toMatchObject({ status: 401 });
+    });
+
+    it("keeps the 401 when onUnauthorized signs out because of it", async () => {
+        let epoch = 0;
+        const fetcher = (async () =>
+            new Response(JSON.stringify({ detail: "expired" }), {
+                status: 401,
+                headers: { "content-type": "application/json" },
+            })) as typeof fetch;
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => "A-token",
+            getSessionEpoch: () => epoch,
+            onUnauthorized: () => {
+                epoch += 1;
+            },
+        });
+
+        await expect(api.get("/me")).rejects.toMatchObject({ status: 401 });
     });
 });

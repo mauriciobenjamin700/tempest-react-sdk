@@ -212,16 +212,12 @@ Mapping:
 The error that matters happens on the user's phone, often **with no signal**, and dies right there. If your backend uses `tempest-fastapi-sdk`, it already has a place for it: the `app_errors` module mounts `POST /api/app-errors` and a table you can query from the admin. Only the app side is missing — and that is what `createAppErrorReporter` delivers. 🚀
 
 ```ts
-import { createAppErrorReporter } from "tempest-react-sdk";
+import { createAppErrorReporter, createDeviceFacts } from "tempest-react-sdk";
 
 export const reporter = createAppErrorReporter({
     endpoint: `${import.meta.env.VITE_API_URL}/api/app-errors`,
     getToken: () => sessionStorage.getItem("access_token"),
-    device: () => ({
-        platform: "web",
-        app_version: import.meta.env.VITE_APP_VERSION,
-        os_version: navigator.userAgent,
-    }),
+    device: createDeviceFacts({ appVersion: import.meta.env.VITE_APP_VERSION }),
 });
 
 try {
@@ -236,8 +232,61 @@ Piece by piece:
 - **`endpoint`** — the full URL of the route.
 - **`getToken`** — optional. The route is public: an error before login, or with an expired session, still has to get through. A missing, empty or throwing token sends anonymously; the backend takes `user_id` from the token, **never** from the body.
 - **`getPrincipal`** — optional. Who is signed in, read when the error happens, for `foreignReports: "drop"`; see [Logout and who owns each report](#logout-and-who-owns-each-report).
-- **`device`** — read **when the error happens**, not when it is sent. A report queued offline on `1.4.0` must not go out labelled `1.5.0`.
+- **`device`** — read **when the error happens**, not when it is sent. A report queued offline on `1.4.0` must not go out labelled `1.5.0`. `createDeviceFacts` builds that getter without the raw user agent; see [Device facts](#device-facts-createdevicefacts).
 - **`report(error, context)`** — never throws. It describes the error, stamps the device, queues it and tries to send.
+
+### Device facts: `createDeviceFacts`
+
+Every app builds the same `device`: platform, OS, model, app version and an id that groups reports from one device. `createDeviceFacts` returns that getter ready-made — exactly the type the `device` option expects:
+
+```ts
+import { createAppErrorReporter, createDeviceFacts } from "tempest-react-sdk";
+
+const device = createDeviceFacts({ appVersion: "1.4.0" });
+
+export const reporter = createAppErrorReporter({ endpoint: "/api/app-errors", device });
+
+console.log(device());
+```
+
+On an Android phone running Chrome the output looks like:
+
+```text
+{ platform: "web", os_version: "Android 14", device_model: "SM-A105M",
+  app_version: "1.4.0", device_id: "3f0c…-4…" }
+```
+
+What it reads, and what it does **not** send:
+
+| Field | Where it comes from |
+| --- | --- |
+| `platform` | `"web"` (browser and PWA); a native shell passes `platform: "android"` / `"ios"` |
+| `os_version` | OS family and version — `"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`, `"Windows"`, `"macOS"` |
+| `device_model` | the Android model when the user agent still carries it; `"iPhone"`/`"iPad"` on Apple |
+| `device_id` | a **random** v4 UUID (`crypto.randomUUID`, or `getRandomValues` outside a secure context), kept in `localStorage` |
+
+!!! check "The raw user agent never leaves"
+    The full user agent fingerprints the device — personal data under LGPD/GDPR.
+    `createDeviceFacts` keeps the family, version and model and drops the rest.
+    The `device_id` groups reports without saying whose they are, and a stored value
+    under the key that is not a v4 UUID is **replaced**, never sent.
+
+!!! note "`Android 10; K` is not Android 10"
+    Chrome reduced its user agent: **every** Android sends `Linux; Android 10; K`, with the version
+    frozen at 10 and the model replaced by `K`. Reporting that as `"Android 10"` would be confidently
+    wrong, so the reduced form becomes plain `"Android"`. To recover version and model, the getter
+    asks the User-Agent Client Hints once, in the background
+    (`navigator.userAgentData.getHighEntropyValues`); once they answer, later reports carry
+    `"Android 14"` and `"SM-A105M"` — and Windows gains `"Windows 10"`/`"Windows 11"`. Outside
+    Chromium there are no hints and the reduced form stays. `clientHints: false` turns the request off.
+
+??? info "Details: iPad, storage and SSR"
+    - **An iPad in desktop mode** sends a Mac user agent; `navigator.maxTouchPoints > 1` gives it
+      away, and the version comes from Safari's `Version/` token.
+    - **`localStorage` that throws** (Safari private tab, quota, blocked frame) breaks nothing: the id
+      lives in memory for the session.
+    - **Without `navigator`** (SSR) the getter returns only `platform`, `app_version` and the id.
+    - `storageKey` changes the key (default `"tempest:device-id"`) when two apps share an origin.
 
 ### What goes in `message`
 
@@ -387,6 +436,7 @@ const telemetry = useTelemetry();
 - **Adapters inject the instance** (`{ sentry }`, `{ posthog }`) — never a peer dep.
 - **A custom adapter** is ~20 lines mapping 4 methods.
 - **`createAppErrorReporter`** takes field errors to a Tempest backend's `/api/app-errors`, with an offline queue, dedup and 429 handling — and each report only leaves with a bearer under the same token it was raised with (`clear()` on logout).
+- **`createDeviceFacts`** builds the `device` — coarse OS, model, version and a random id — without the raw user agent (LGPD).
 
 ### See also
 

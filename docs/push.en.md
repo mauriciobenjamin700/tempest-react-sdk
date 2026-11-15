@@ -763,6 +763,30 @@ Two rules apply since 0.82.0:
 - **`data` does not override the destination.** `installPushHandler` spreads the payload's `data` **before** writing `url` and `actionUrls`. Until 0.81.0 it was after, and `{ "url": "/orders/9", "data": { "url": "https://other.site" } }` opened `https://other.site` — and `data` is often filled from the record that triggered the push.
 - **The default resolver only opens pages of the worker's own origin.** A URL on another origin, or with a scheme other than `http:`/`https:` (`javascript:`, `data:`), becomes `"/"`. A `resolveUrl` of your own is how an app picks another origin — what it returns may go to any `http(s)`, and any other scheme still becomes `"/"`.
 
+!!! warning "Upgrading from 0.81 or earlier: the destination leaves `data.url`"
+    A server that sent the destination **only** in `data.url` started opening
+    `"/"` in 0.82.0 — with no error: the notification looks the same, only the
+    click loses its deep link. The SDK does **not** go back to reading `data.url`
+    (that is the rule above), so the fix is on the server, moving the destination
+    to the top-level `url`:
+
+    ```json
+    { "title": "New notice", "data": { "url": "/notices/42", "noticeId": 42 } }
+    ```
+
+    becomes
+
+    ```json
+    { "title": "New notice", "url": "/notices/42", "data": { "noticeId": 42 } }
+    ```
+
+    Since 0.87.0 `installPushHandler` logs **one** `console.warn` per worker when
+    a payload arrives in the old shape (a string `data.url` and no top-level
+    `url`). The warning does not depend on a development build — real pushes
+    usually reach production first — and does not echo the URL. To see it:
+    DevTools → Application → Service workers → the worker's link opens its
+    console.
+
 ```ts
 /// <reference lib="webworker" />
 import { installNotificationClickHandler } from "tempest-react-sdk/sw";
@@ -940,6 +964,7 @@ import { Icon } from "tempest-react-sdk/icons";
 | Duplicated notification | two `push` handlers in the SW, or a `POST` that is not an upsert by endpoint | your `sw.ts`; the subscriptions table |
 | A user gets another account's notification | no unsubscribe on logout | [logout and user switching](#logout-and-user-switching) |
 | `ReferenceError: window is not defined` in the SW | SDK older than 0.28.1 using `urlBase64ToUint8Array` in the worker | upgrade the SDK |
+| A click opens `/` instead of the deep link | the server sends the destination only in `data.url`, which the SDK has not read since 0.82.0 | the worker console (`installPushHandler` warning); [migration](#where-a-click-may-go) |
 
 ## Recap
 

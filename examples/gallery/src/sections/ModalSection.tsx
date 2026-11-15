@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trash } from "lucide-react";
 import {
     Button,
     ConfirmDialog,
@@ -36,7 +37,7 @@ export function ModalSection() {
 
             <Example
                 title="Modal e ConfirmDialog"
-                note="Esc e click no backdrop fecham. ConfirmDialog tem loading state."
+                note="Esc e click no backdrop fecham. No ConfirmDialog, enquanto loading, nada fecha: Esc, backdrop e × ficam travados até a ação terminar."
                 code={`<Button onClick={() => setOpen(true)}>Abrir Modal</Button>
 <Button variant="danger" onClick={() => setConfirm(true)}>
     Excluir item (Confirm)
@@ -64,6 +65,7 @@ export function ModalSection() {
     description="Essa ação não pode ser desfeita."
     variant="danger"
     confirmLabel="Excluir"
+    confirmIcon={<Trash size={16} />}
     loading={loading}
     onConfirm={handleConfirm}
     onCancel={() => setConfirm(false)}
@@ -98,6 +100,7 @@ export function ModalSection() {
                     description="Essa ação não pode ser desfeita."
                     variant="danger"
                     confirmLabel="Excluir"
+                    confirmIcon={<Trash size={16} />}
                     loading={loading}
                     onConfirm={handleConfirm}
                     onCancel={() => setConfirm(false)}

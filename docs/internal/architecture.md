@@ -45,7 +45,7 @@ src/
 ├── telemetry/       Provider + console + Sentry + PostHog
 ├── testing/      ⇢  createMockHandlers (MSW-shaped)
 ├── theme/           ThemeProvider, useTheme, createTheme, themeInitScript
-├── utils/           cn, format BR, storage, writeXlsx, coleções
+├── utils/           cn, format BR, storage, writeXlsx, createZip, coleções
 ├── vision/       ⇢  inferência ONNX (ort-vision-sdk-web vendorizado)
 ├── vite/         ⇢  createViteConfig
 ├── webrtc/          tuneOpus, setTunedLocalDescription, createPeerMesh

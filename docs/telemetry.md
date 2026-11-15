@@ -212,16 +212,12 @@ Mapeamento:
 O erro que importa acontece no celular do usuário, muitas vezes **sem sinal**, e some ali mesmo. Se o seu backend usa o `tempest-fastapi-sdk`, ele já tem onde guardar esse erro: o módulo `app_errors` monta `POST /api/app-errors` e uma tabela consultável no admin. Falta só o lado do app — e é isso que `createAppErrorReporter` entrega. 🚀
 
 ```ts
-import { createAppErrorReporter } from "tempest-react-sdk";
+import { createAppErrorReporter, createDeviceFacts } from "tempest-react-sdk";
 
 export const reporter = createAppErrorReporter({
     endpoint: `${import.meta.env.VITE_API_URL}/api/app-errors`,
     getToken: () => sessionStorage.getItem("access_token"),
-    device: () => ({
-        platform: "web",
-        app_version: import.meta.env.VITE_APP_VERSION,
-        os_version: navigator.userAgent,
-    }),
+    device: createDeviceFacts({ appVersion: import.meta.env.VITE_APP_VERSION }),
 });
 
 try {
@@ -236,8 +232,61 @@ Pedaço por pedaço:
 - **`endpoint`** — a URL inteira da rota.
 - **`getToken`** — opcional. A rota é pública: erro antes do login, ou com sessão vencida, também tem que chegar. Token ausente, vazio ou que lança vira envio anônimo; o backend tira o `user_id` do token, **nunca** do body.
 - **`getPrincipal`** — opcional. Quem está logado, lido na hora do erro, para o `foreignReports: "drop"`; veja [Logout e de quem é cada relato](#logout-e-de-quem-e-cada-relato).
-- **`device`** — lido **na hora do erro**, não na hora do envio. Um relato enfileirado offline na `1.4.0` não pode sair rotulado `1.5.0`.
+- **`device`** — lido **na hora do erro**, não na hora do envio. Um relato enfileirado offline na `1.4.0` não pode sair rotulado `1.5.0`. `createDeviceFacts` monta esse getter sem o user agent cru; veja [Fatos do aparelho](#fatos-do-aparelho-createdevicefacts).
 - **`report(error, context)`** — nunca lança. Descreve o erro, carimba o aparelho, enfileira e tenta enviar.
+
+### Fatos do aparelho: `createDeviceFacts`
+
+Todo app monta o mesmo `device`: plataforma, SO, modelo, versão do app e um id para agrupar os relatos do mesmo aparelho. `createDeviceFacts` devolve esse getter pronto — é exatamente o tipo que a opção `device` espera:
+
+```ts
+import { createAppErrorReporter, createDeviceFacts } from "tempest-react-sdk";
+
+const device = createDeviceFacts({ appVersion: "1.4.0" });
+
+export const reporter = createAppErrorReporter({ endpoint: "/api/app-errors", device });
+
+console.log(device());
+```
+
+Num Android com Chrome, a saída é algo como:
+
+```text
+{ platform: "web", os_version: "Android 14", device_model: "SM-A105M",
+  app_version: "1.4.0", device_id: "3f0c…-4…" }
+```
+
+O que ele lê, e o que ele **não** manda:
+
+| Campo | De onde vem |
+| --- | --- |
+| `platform` | `"web"` (navegador e PWA); um shell nativo passa `platform: "android"` / `"ios"` |
+| `os_version` | família do SO e versão — `"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`, `"Windows"`, `"macOS"` |
+| `device_model` | o modelo Android quando o user agent ainda traz; `"iPhone"`/`"iPad"` na Apple |
+| `device_id` | UUID v4 **aleatório** (`crypto.randomUUID`, ou `getRandomValues` fora de contexto seguro), guardado em `localStorage` |
+
+!!! check "O user agent cru nunca sobe"
+    O user agent inteiro é impressão digital do aparelho — dado pessoal pela LGPD.
+    `createDeviceFacts` reduz a família, a versão e o modelo e descarta o resto.
+    O `device_id` agrupa relatos sem dizer de quem são, e um valor guardado sob a
+    chave que não seja UUID v4 é **substituído**, nunca enviado.
+
+!!! note "`Android 10; K` não é Android 10"
+    O Chrome reduziu o user agent: **todo** Android manda `Linux; Android 10; K`, com a versão
+    congelada em 10 e o modelo trocado por `K`. Reportar isso como `"Android 10"` seria errado com
+    confiança, então a forma reduzida vira só `"Android"`. Para recuperar versão e modelo, o getter
+    pergunta uma vez, em segundo plano, às User-Agent Client Hints
+    (`navigator.userAgentData.getHighEntropyValues`); quando respondem, os relatos seguintes já saem
+    com `"Android 14"` e `"SM-A105M"` — e o Windows ganha `"Windows 10"`/`"Windows 11"`. Fora do
+    Chromium não há hints e fica a forma reduzida. `clientHints: false` desliga a consulta.
+
+??? info "Detalhes: iPad, storage e SSR"
+    - **iPad em modo desktop** manda user agent de Mac; `navigator.maxTouchPoints > 1` é o que o
+      denuncia, e a versão sai do token `Version/` do Safari.
+    - **`localStorage` que lança** (aba privada do Safari, cota, iframe bloqueado) não derruba nada:
+      o id vive em memória durante a sessão.
+    - **Sem `navigator`** (SSR) o getter devolve só `platform`, `app_version` e o id.
+    - `storageKey` troca a chave (padrão `"tempest:device-id"`) quando dois apps dividem a origem.
 
 ### O que vai no `message`
 
@@ -386,6 +435,7 @@ const telemetry = useTelemetry();
 - **Adapters injetam a instância** (`{ sentry }`, `{ posthog }`) — nunca peer dep.
 - **Adapter custom** é ~20 linhas mapeando 4 métodos.
 - **`createAppErrorReporter`** leva erro do campo ao `/api/app-errors` do backend Tempest, com fila offline, dedup e respeito ao 429 — e cada relato só sai com Bearer sob o mesmo token com que foi levantado (`clear()` no logout).
+- **`createDeviceFacts`** monta o `device` — SO grosso, modelo, versão e um id aleatório — sem o user agent cru (LGPD).
 
 ### Veja também
 

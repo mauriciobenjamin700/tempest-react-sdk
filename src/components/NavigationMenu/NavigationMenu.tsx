@@ -10,6 +10,7 @@ import { useAnchorPosition } from "@/components/Portal/anchor-position";
 import { useEscapeLayer } from "@/components/Portal/escape-layer";
 import { usePortalTabOrder } from "@/components/Portal/tab-bridge";
 import { cn } from "@/utils/cn";
+import { routeLinkClick } from "@/utils/link-click";
 import { vettedHref } from "@/utils/safe-url";
 import styles from "./NavigationMenu.module.css";
 
@@ -23,7 +24,15 @@ export interface NavigationMenuItem {
      * put a clickable `javascript:` link on the page under React 18.
      */
     href?: string;
-    /** Invoked when the entry is activated (click / Enter). */
+    /**
+     * Invoked when the entry is activated (click / Enter).
+     *
+     * On an entry with `href`, a plain primary click is handed to `onSelect` and
+     * the anchor's default is prevented, so an app that routes in `onSelect`
+     * does not also get a full document reload from the `href` (#612). A
+     * ctrl/meta/shift/alt or non-primary click stays with the browser and does
+     * not call `onSelect`. Without `onSelect`, the browser follows the `href`.
+     */
     onSelect?: () => void;
     /** Nested entries — presence turns the item into a submenu trigger. */
     children?: NavigationMenuItem[];
@@ -131,7 +140,10 @@ export function NavigationMenu({ items, portal = true, className, ...props }: Na
                     href={href}
                     role={role === "menuitem" ? "menuitem" : undefined}
                     className={styles.link}
-                    onClick={handleClick}
+                    onClick={(event) => {
+                        routeLinkClick(event, item.onSelect);
+                        close();
+                    }}
                 >
                     {item.label}
                 </a>

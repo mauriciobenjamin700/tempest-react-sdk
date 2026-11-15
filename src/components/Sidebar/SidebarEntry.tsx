@@ -1,4 +1,5 @@
 import { cn } from "@/utils/cn";
+import { routeLinkClick } from "@/utils/link-click";
 import { vettedHref } from "@/utils/safe-url";
 
 import type { SidebarItem } from "./Sidebar";
@@ -8,7 +9,9 @@ import styles from "./Sidebar.module.css";
  * One navigation entry: an anchor when it carries an `href`, a button otherwise.
  *
  * A link that navigates has to be a link — middle-click, "open in new tab" and
- * the status bar preview all come from the element, not from the handler. A
+ * the status bar preview all come from the element, not from the handler. With
+ * `onSelect`, a plain click is the app's to route and the anchor's default is
+ * prevented; any other click stays with the browser (`routeLinkClick`, #612). A
  * disabled entry falls back to the button, because a disabled anchor does not
  * exist in HTML.
  *
@@ -45,7 +48,7 @@ export function SidebarEntry({
                 href={href}
                 className={cn(styles.item, active && styles.active)}
                 aria-current={active ? "page" : undefined}
-                onClick={() => onSelect?.(item.key)}
+                onClick={(event) => routeLinkClick(event, onSelect && (() => onSelect(item.key)))}
                 title={title}
             >
                 {body}

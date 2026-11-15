@@ -126,4 +126,32 @@ describe("NavigationMenu — hover exit, outside click and link items", () => {
         const action = screen.getByRole("menuitem", { name: "Billing" });
         expect(action.tagName).toBe("BUTTON");
     });
+
+    it("routes a plain click on an href entry through onSelect without a document reload (#612)", () => {
+        const onSelect = vi.fn();
+        render(<NavigationMenu items={[{ label: "Docs", href: "/docs", onSelect }]} />);
+        expect(fireEvent.click(screen.getByRole("link", { name: "Docs" }))).toBe(false);
+        expect(onSelect).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves a ctrl-click on an href entry to the browser without calling onSelect", () => {
+        const onSelect = vi.fn();
+        render(<NavigationMenu items={[{ label: "Docs", href: "/docs", onSelect }]} />);
+        expect(fireEvent.click(screen.getByRole("link", { name: "Docs" }), { ctrlKey: true })).toBe(
+            true,
+        );
+        expect(onSelect).not.toHaveBeenCalled();
+    });
+
+    it("lets the browser follow an href entry without onSelect", () => {
+        render(<NavigationMenu items={[{ label: "Docs", href: "/docs" }]} />);
+        expect(fireEvent.click(screen.getByRole("link", { name: "Docs" }))).toBe(true);
+    });
+
+    it("closes the open panel after a ctrl-click on a child link", () => {
+        render(<NavigationMenu items={items} />);
+        fireEvent.click(screen.getByRole("button", { name: "Products" }));
+        fireEvent.click(screen.getByRole("menuitem", { name: "Analytics" }), { ctrlKey: true });
+        expect(screen.queryByText("Analytics")).not.toBeInTheDocument();
+    });
 });

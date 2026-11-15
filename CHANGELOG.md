@@ -6,6 +6,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
+  O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
+  vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
+  documento e derrubando todo estado em memória (no FAMACHApp, o access token — cada clique levava
+  para `/login`). Agora o clique primário sem modificador num `<a>` com `onChange` chama
+  `preventDefault()` e dispara `onChange`; ctrl/meta/shift/alt-click, botão diferente do primário e
+  `target` que não seja `_self` ficam com o navegador (nova aba, nova janela, download) e **não**
+  disparam `onChange`, para a aba atual não mudar junto. Sem `onChange`, o `href` é seguido como em
+  qualquer link. O JSDoc do `href`, que prometia o contrário, foi corrigido.
+- **`NavigationMenu` (`href` + `onSelect`) tinha o mesmo defeito** e segue a mesma regra; o painel
+  fecha nos dois casos. **`Breadcrumbs` (`href` + `onClick`)** já chamava `preventDefault`, mas em
+  todo clique — ctrl-click não abria nova aba; agora o clique com modificador fica com o navegador e
+  não chama `onClick`. As três usam o mesmo helper interno (`src/utils/link-click.ts`).
+  `NavigationRail` e `BottomNavigation` não renderizam `href` e não mudam.
+- **Teto do barrel ESM no `size-limit` sobe de 157,9 kB para 158,3 kB.** O helper e o JSDoc das
+  três entradas somam ~150 B ao barrel inteiro (158,05 kB medido com `npx size-limit` nesta
+  branch); as fatias importadas continuam dentro dos budgets.
 - **`useDraftFilters` e `useDeepMemo`: `Set`, `Map`, `Date` e afins deixam de comparar iguais
   (#614).** A comparação estrutural compartilhada olhava só `Object.keys`, e
   `Object.keys(new Set(["ovino"]))` é `[]`: `new Set(["ovino"])` e `new Set(["caprino"])` eram
@@ -35,6 +52,9 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   árvore): ESM 157 796 → 158 113 B (+317 B; havia 104 B de folga); CJS 187 741 → 187 711 B
   (reminificação; budget 187,8 kB mantido). Nenhuma fatia importada mudou (`admin plumbing`
   2 218 B nos dois).
+- **Soma de #612 + #614 remedida sobre a `main` em `578c071`** (`npm run build && npx size-limit
+--json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
+  187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
 
 ## [0.86.0] — 2026-11-15
 

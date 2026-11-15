@@ -504,20 +504,60 @@ export function ExcluirUsuario({
 }
 ```
 
-| Prop           | Tipo                                                    | Default       |
-| -------------- | ------------------------------------------------------- | ------------- |
-| `open`         | `boolean`                                               | —             |
-| `title`        | `ReactNode`                                             | —             |
-| `description`  | `ReactNode`                                             | —             |
-| `confirmLabel` | `string`                                                | `"Confirmar"` |
-| `cancelLabel`  | `string`                                                | `"Cancelar"`  |
-| `variant`      | `"primary" \| "danger"`                                 | `"primary"`   |
-| `loading`      | `boolean` (mostra spinner + desabilita ambos os botões) | `false`       |
-| `onConfirm`    | `() => void \| Promise<void>`                           | —             |
-| `onCancel`     | `() => void`                                            | —             |
+| Prop           | Tipo                                                         | Default       |
+| -------------- | ------------------------------------------------------------ | ------------- |
+| `open`         | `boolean`                                                    | —             |
+| `title`        | `ReactNode`                                                  | —             |
+| `description`  | `ReactNode`                                                  | —             |
+| `confirmLabel` | `string`                                                     | `"Confirmar"` |
+| `cancelLabel`  | `string`                                                     | `"Cancelar"`  |
+| `variant`      | `"primary" \| "danger"`                                      | `"primary"`   |
+| `confirmIcon`  | `ReactNode` (vira o `leftIcon` do botão de confirmar)        | —             |
+| `loading`      | `boolean` (spinner no confirmar + trava o diálogo, ver abaixo) | `false`     |
+| `onConfirm`    | `() => void \| Promise<void>`                                | —             |
+| `onCancel`     | `() => void`                                                 | —             |
 
 !!! tip "Controle o loading durante a request"
-    `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado para travar ambos os botões enquanto a ação assíncrona corre.
+    `onConfirm` aceita uma promise, mas o `ConfirmDialog` não gerencia o estado de loading sozinho — passe `loading={deleting}` controlado pelo seu estado enquanto a ação assíncrona corre.
+
+### Com `loading`, o diálogo não fecha
+
+Enquanto `loading` é `true`, **toda** saída fica fechada, não só o botão Cancelar: `Esc` e clique no backdrop não chamam `onCancel`, e o botão de fechar (×) some. Cancelar no meio da request deixaria a tela dizendo "cancelado" com a operação ainda em voo — num logout que revoga a sessão no servidor, o usuário sairia mesmo assim. A trava deriva de `loading`; não há outra prop para manter em sincronia. O `confirm()` do `useModals()` herda o mesmo comportamento.
+
+Com `confirmIcon`, o botão de confirmar ganha um ícone à esquerda do rótulo — o nome acessível continua sendo o `confirmLabel`:
+
+```tsx
+import { useState } from "react";
+import { LogOut } from "lucide-react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function SairDaConta({ signOut }: { signOut: () => Promise<void> }) {
+    const [open, setOpen] = useState(false);
+    const [leaving, setLeaving] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Sair da conta"
+            description="Você vai precisar entrar de novo neste aparelho."
+            confirmLabel="Sair"
+            confirmIcon={<LogOut size={16} />}
+            variant="danger"
+            loading={leaving}
+            onConfirm={async () => {
+                setLeaving(true);
+                try {
+                    await signOut();
+                    setOpen(false);
+                } finally {
+                    setLeaving(false);
+                }
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
+```
 
 ## `InstallButton`
 

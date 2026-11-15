@@ -23,8 +23,12 @@ export {
 } from "./compressed-storage";
 export { slugify, truncate, capitalize, camelCase, kebabCase, pluralize } from "./strings";
 export { clamp, formatBytes, formatCompactNumber, percentOf } from "./numbers";
-export { relativeTime } from "./relative-time";
-export type { RelativeTimeLocale } from "./relative-time";
+export { relativeDayLabel, relativeTime } from "./relative-time";
+export type {
+    RelativeDayLabelOptions,
+    RelativeDayLabels,
+    RelativeTimeLocale,
+} from "./relative-time";
 export { chunk, groupBy, range, uniqueBy } from "./arrays";
 export { deepMerge, isEmpty, omit, pick } from "./objects";
 export { assertNever, isDefined, isNumber, isPlainObject, isString } from "./guards";
@@ -32,6 +36,8 @@ export { debounce, throttle, once, memoizeOne } from "./functions";
 export { sleep, withTimeout } from "./promises";
 export { randomId } from "./ids";
 export { writeXlsx } from "./xlsx";
+export { createZip } from "./zip";
+export type { CreateZipOptions, ZipEntry, ZipLevel, ZipProgress } from "./zip";
 export { downloadCsv, toCsv } from "./csv";
 export { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "./safe-url";
 export type { CsvColumn, CsvOptions } from "./csv";

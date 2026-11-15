@@ -506,20 +506,61 @@ export function ExcluirUsuario({
 }
 ```
 
-| Prop           | Type                                            | Default       |
-| -------------- | ----------------------------------------------- | ------------- |
-| `open`         | `boolean`                                       | —             |
-| `title`        | `ReactNode`                                     | —             |
-| `description`  | `ReactNode`                                     | —             |
-| `confirmLabel` | `string`                                        | `"Confirmar"` |
-| `cancelLabel`  | `string`                                        | `"Cancelar"`  |
-| `variant`      | `"primary" \| "danger"`                         | `"primary"`   |
-| `loading`      | `boolean` (shows spinner + disables both)       | `false`       |
-| `onConfirm`    | `() => void \| Promise<void>`                   | —             |
-| `onCancel`     | `() => void`                                    | —             |
+| Prop           | Type                                                       | Default       |
+| -------------- | ---------------------------------------------------------- | ------------- |
+| `open`         | `boolean`                                                  | —             |
+| `title`        | `ReactNode`                                                | —             |
+| `description`  | `ReactNode`                                                | —             |
+| `confirmLabel` | `string`                                                   | `"Confirmar"` |
+| `cancelLabel`  | `string`                                                   | `"Cancelar"`  |
+| `variant`      | `"primary" \| "danger"`                                    | `"primary"`   |
+| `confirmIcon`  | `ReactNode` (becomes the confirm button's `leftIcon`)      | —             |
+| `loading`      | `boolean` (spinner on confirm + locks the dialog, see below) | `false`     |
+| `onConfirm`    | `() => void \| Promise<void>`                              | —             |
+| `onCancel`     | `() => void`                                               | —             |
 
 !!! tip "Control loading during the request"
-    `onConfirm` accepts a promise, but `ConfirmDialog` doesn't manage the loading state itself — pass `loading={deleting}` driven by your own state to lock both buttons while the async action runs.
+    `onConfirm` accepts a promise, but `ConfirmDialog` doesn't manage the loading state itself — pass `loading={deleting}` driven by your own state while the async action runs.
+
+### While `loading`, the dialog does not close
+
+While `loading` is `true`, **every** way out is closed, not just the Cancel button: `Esc` and a backdrop click don't call `onCancel`, and the close button (×) is hidden. Cancelling mid-request would leave the screen saying "cancelled" with the operation still in flight — on a sign-out that revokes the session server-side, the user would be signed out anyway. The lock is derived from `loading`; there is no other prop to keep in sync. `useModals().confirm()` inherits the same behaviour.
+
+With `confirmIcon`, the confirm button gets an icon before its label — the accessible name is still `confirmLabel`:
+
+```tsx
+import { useState } from "react";
+import { LogOut } from "lucide-react";
+import { ConfirmDialog } from "tempest-react-sdk";
+
+export function SignOut({ signOut }: { signOut: () => Promise<void> }) {
+    const [open, setOpen] = useState(false);
+    const [leaving, setLeaving] = useState(false);
+
+    return (
+        <ConfirmDialog
+            open={open}
+            title="Sign out"
+            description="You will need to sign in again on this device."
+            confirmLabel="Sign out"
+            cancelLabel="Cancel"
+            confirmIcon={<LogOut size={16} />}
+            variant="danger"
+            loading={leaving}
+            onConfirm={async () => {
+                setLeaving(true);
+                try {
+                    await signOut();
+                    setOpen(false);
+                } finally {
+                    setLeaving(false);
+                }
+            }}
+            onCancel={() => setOpen(false)}
+        />
+    );
+}
+```
 
 !!! info "Default labels are Portuguese"
     `confirmLabel`/`cancelLabel` default to `"Confirmar"`/`"Cancelar"`. Pass explicit English strings in EN-locale apps.

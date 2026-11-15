@@ -4,6 +4,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`ConfirmDialog`: `confirmIcon`** (#615) — ícone à esquerda do rótulo do botão de confirmar,
+  repassado como `leftIcon` do `Button` (a mesma prop que o `Button` já aceita). Decorativo: o nome
+  acessível continua sendo o `confirmLabel`. Era o que mantinha um `ExitModal` próprio no FAMACHApp
+  só para pôr o `LogOut` no "Sair".
+
+### Corrigido
+
+- **`ConfirmDialog`: com `loading`, o diálogo não fecha mais** (#615). O Cancelar já ficava
+  desabilitado, mas o `Modal` por baixo continuava com `onClose={onCancel}`: `Esc`, clique no backdrop
+  e o × chamavam `onCancel` com a confirmação em voo — num logout que revoga a sessão no servidor, a
+  tela dizia "cancelado" e o usuário saía mesmo assim. Durante `loading` o `Modal` recebe
+  `closeOnEsc={false}`, `closeOnBackdrop={false}` e `hideCloseButton`; com o `Esc` desligado o diálogo
+  ainda engole a tecla, então ela também não cai no modal de baixo. A trava deriva de `loading`, sem
+  prop nova. O `useModals().confirm()` herda a correção: até aqui, `Esc` durante um `onConfirm`
+  assíncrono chamava `onCancel` **e** fechava o diálogo antes de a promise resolver.
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

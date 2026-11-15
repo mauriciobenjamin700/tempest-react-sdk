@@ -46,6 +46,7 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da

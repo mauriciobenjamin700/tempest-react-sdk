@@ -233,7 +233,14 @@ describe("AudioRecorder", () => {
         expect(screen.getByText(/bloqueado/)).toBeInTheDocument();
     });
 
-    it("shows the classified error when the microphone cannot be opened", async () => {
+    /**
+     * Rewritten in #640. Until 0.87.0 this asserted `/in use by another app/` — the
+     * English sentence from `useMicrophone` — in a component whose default locale is
+     * pt-BR. That was the defect, not the contract: the microphone error now follows
+     * `locale` like every other string here, as the `BarcodeScanner` camera error does
+     * since #617.
+     */
+    it("shows the classified error in the recorder's locale when the microphone cannot be opened", async () => {
         const devices = installMediaDevices({
             getUserMedia: () => Promise.reject(new DOMException("busy", "NotReadableError")),
         });
@@ -242,7 +249,45 @@ describe("AudioRecorder", () => {
         render(<AudioRecorder />);
         await userEvent.click(screen.getByRole("button", { name: "Gravar" }));
 
-        await waitFor(() => expect(screen.getByText(/in use by another app/)).toBeInTheDocument());
+        await waitFor(() =>
+            expect(screen.getByRole("status")).toHaveTextContent(
+                "O microfone está em uso por outro app. Feche-o e tente de novo.",
+            ),
+        );
+        expect(screen.queryByText(/in use by another app/)).not.toBeInTheDocument();
+    });
+
+    it("shows a microphone denied at the prompt in Portuguese under the default locale", async () => {
+        const devices = installMediaDevices({
+            getUserMedia: () => Promise.reject(new DOMException("no", "NotAllowedError")),
+        });
+        restores.push(devices.restore);
+
+        render(<AudioRecorder />);
+        await userEvent.click(screen.getByRole("button", { name: "Gravar" }));
+
+        await waitFor(() =>
+            expect(screen.getByRole("status")).toHaveTextContent(
+                "Acesso ao microfone negado. Libere a permissão nas configurações do navegador.",
+            ),
+        );
+        expect(screen.queryByText(/Microphone permission denied/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the English microphone error under the en locale", async () => {
+        const devices = installMediaDevices({
+            getUserMedia: () => Promise.reject(new DOMException("no", "NotAllowedError")),
+        });
+        restores.push(devices.restore);
+
+        render(<AudioRecorder locale="en" />);
+        await userEvent.click(screen.getByRole("button", { name: "Record" }));
+
+        await waitFor(() =>
+            expect(screen.getByRole("status")).toHaveTextContent(
+                "Microphone permission denied. Enable access in your browser settings.",
+            ),
+        );
     });
 
     it("stops on its own at maxDurationMs and shows the cap", async () => {

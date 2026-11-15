@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import type { JSX } from "react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -9,6 +10,7 @@ import {
     removeMediaDevices,
     setSecureContext,
 } from "../../test/audio-mocks";
+import type { MediaAccessError, MediaAccessErrorKind } from "./media-access";
 import { useMicrophone, type UseMicrophoneOptions } from "./use-microphone";
 
 /**
@@ -266,5 +268,100 @@ describe("useMicrophone", () => {
         render(<Capture />);
 
         await waitFor(() => expect(seen).toHaveBeenCalledWith(stream));
+    });
+});
+
+describe("useMicrophone — messages", () => {
+    const restores: Array<() => void> = [];
+    let observed: MediaAccessError | null = null;
+
+    afterEach(() => {
+        observed = null;
+        while (restores.length) restores.pop()?.();
+    });
+
+    function Localized({
+        messages,
+    }: {
+        messages: Partial<Record<MediaAccessErrorKind, string>>;
+    }): JSX.Element {
+        const mic = useMicrophone({ messages });
+        observed = mic.error;
+        return (
+            <div>
+                <span data-testid="status">{mic.status}</span>
+                <button type="button" onClick={mic.start}>
+                    start
+                </button>
+            </div>
+        );
+    }
+
+    const PT = { "permission-denied": "Acesso ao microfone negado." };
+
+    function rejectWith(name: string): ReturnType<typeof installMediaDevices> {
+        restores.push(setSecureContext(true));
+        const devices = installMediaDevices({
+            getUserMedia: () => Promise.reject(new DOMException("no", name)),
+        });
+        restores.push(devices.restore);
+        return devices;
+    }
+
+    it("replaces the message of a kind it covers and keeps the kind", async () => {
+        rejectWith("NotAllowedError");
+        render(<Localized messages={PT} />);
+        await userEvent.click(screen.getByRole("button", { name: "start" }));
+
+        await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+        expect(observed).toEqual({
+            kind: "permission-denied",
+            message: "Acesso ao microfone negado.",
+        });
+    });
+
+    it("keeps the English default for a kind it leaves out", async () => {
+        rejectWith("NotFoundError");
+        render(<Localized messages={PT} />);
+        await userEvent.click(screen.getByRole("button", { name: "start" }));
+
+        await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+        expect(observed).toEqual({
+            kind: "not-found",
+            message: "No microphone available on this device.",
+        });
+    });
+
+    it("covers the missing-API path too, not only a rejected getUserMedia", async () => {
+        restores.push(setSecureContext(true));
+        restores.push(removeMediaDevices());
+        render(<Localized messages={{ unsupported: "Sem microfone neste navegador." }} />);
+        await userEvent.click(screen.getByRole("button", { name: "start" }));
+
+        await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+        expect(observed?.message).toBe("Sem microfone neste navegador.");
+    });
+
+    it("re-labels an error already on screen when the messages change, without asking for the microphone again", async () => {
+        const devices = rejectWith("NotAllowedError");
+        const { rerender } = render(<Localized messages={{}} />);
+        await userEvent.click(screen.getByRole("button", { name: "start" }));
+        await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+        expect(observed?.message).toMatch(/Microphone permission denied/);
+
+        rerender(<Localized messages={PT} />);
+        expect(observed?.message).toBe("Acesso ao microfone negado.");
+        expect(devices.getUserMedia).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the error object stable across renders with equal messages", async () => {
+        rejectWith("NotAllowedError");
+        const { rerender } = render(<Localized messages={PT} />);
+        await userEvent.click(screen.getByRole("button", { name: "start" }));
+        await waitFor(() => expect(screen.getByTestId("status")).toHaveTextContent("error"));
+        const first = observed;
+
+        rerender(<Localized messages={{ ...PT }} />);
+        expect(observed).toBe(first);
     });
 });

@@ -11,7 +11,10 @@ export type MediaDeviceKindLabel = "microphone" | "camera" | "screen";
 export type MediaAccessErrorKind =
     "unsupported" | "insecure" | "permission-denied" | "not-found" | "in-use" | "unknown";
 
-/** A classified capture error with a human-readable, English message. */
+/**
+ * A classified capture error with a human-readable message — English by default, or
+ * the one a hook's `messages` option supplies for its `kind`.
+ */
 export interface MediaAccessError {
     kind: MediaAccessErrorKind;
     message: string;

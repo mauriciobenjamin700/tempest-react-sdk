@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
     classifyMediaError,
     isMediaCaptureSupported,
     missingCaptureApiError,
     type MediaAccessError,
+    type MediaAccessErrorKind,
 } from "./media-access";
 
 /** Lifecycle of a microphone stream. */
@@ -33,6 +34,25 @@ export interface UseMicrophoneOptions {
     autoGainControl?: boolean;
     /** Escape hatch: full constraints, replacing everything above. */
     constraints?: MediaStreamConstraints;
+    /**
+     * The text of `error.message` for each error kind, replacing the built-in English
+     * sentence — the hook's i18n. Kinds left out keep the English default.
+     *
+     * Applied when the error is read, not when it is caught, so switching locale while
+     * the error is on screen re-labels it without asking for the microphone again; the
+     * `kind` is untouched, so a UI that branches on it keeps working. Overriding
+     * `"unknown"` replaces the browser's own error text, which is the only place that
+     * carries the raw cause.
+     *
+     * @example
+     * useMicrophone({
+     *     messages: {
+     *         "permission-denied": "Acesso ao microfone negado. Libere nas configurações do navegador.",
+     *         "not-found": "Nenhum microfone encontrado neste aparelho.",
+     *     },
+     * });
+     */
+    messages?: Partial<Record<MediaAccessErrorKind, string>>;
 }
 
 /** Value returned by {@link useMicrophone}. */
@@ -40,7 +60,10 @@ export interface UseMicrophoneResult {
     status: MicrophoneStatus;
     /** The live stream, or `null`. Feed it to {@link useAudioRecorder} or an analyser. */
     stream: MediaStream | null;
-    /** Classified error, or `null` outside the `error` status. */
+    /**
+     * Classified error, or `null` outside the `error` status. Its `message` is English
+     * unless {@link UseMicrophoneOptions.messages} covers its `kind`.
+     */
     error: MediaAccessError | null;
     /** Open the stream. Safe to call when already open — it is a no-op. */
     start: () => void;
@@ -59,6 +82,8 @@ export interface UseMicrophoneResult {
  * `NotReadableError` in another tab. The hook stops tracks on `stop()`, on unmount,
  * and before re-opening.
  *
+ * Pass `options.messages` to show the errors in the app's language.
+ *
  * @param options - See {@link UseMicrophoneOptions}.
  * @returns The stream, its status, a classified error, and `start`/`stop`.
  *
@@ -75,11 +100,18 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
         noiseSuppression = true,
         autoGainControl = true,
         constraints,
+        messages,
     } = options;
 
     const [status, setStatus] = useState<MicrophoneStatus>("idle");
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const [error, setError] = useState<MediaAccessError | null>(null);
+    const [caught, setCaught] = useState<MediaAccessError | null>(null);
+    const override = caught ? messages?.[caught.kind] : undefined;
+    const error = useMemo<MediaAccessError | null>(
+        () =>
+            caught && override !== undefined ? { kind: caught.kind, message: override } : caught,
+        [caught, override],
+    );
     const streamRef = useRef<MediaStream | null>(null);
     const generation = useRef(0);
 
@@ -93,17 +125,17 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
         release();
         setStream(null);
         setStatus("idle");
-        setError(null);
+        setCaught(null);
     }, [release]);
 
     const start = useCallback((): void => {
         if (streamRef.current) return;
         const run = (generation.current += 1);
         setStatus("requesting");
-        setError(null);
+        setCaught(null);
 
         if (!isMediaCaptureSupported()) {
-            setError(missingCaptureApiError("microphone"));
+            setCaught(missingCaptureApiError("microphone"));
             setStatus("error");
             return;
         }
@@ -131,7 +163,7 @@ export function useMicrophone(options: UseMicrophoneOptions = {}): UseMicrophone
             })
             .catch((err: unknown) => {
                 if (run !== generation.current) return;
-                setError(classifyMediaError(err, "microphone"));
+                setCaught(classifyMediaError(err, "microphone"));
                 setStatus("error");
             });
     }, [constraints, deviceId, echoCancellation, noiseSuppression, autoGainControl]);

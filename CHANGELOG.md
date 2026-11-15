@@ -21,6 +21,7 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #650** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 782 B (teto 161.7 kB → 161.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #654** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 616 B (teto 161.4 kB → 161.7 kB); `ceiling: full barrel CJS` 191 794 B (teto 191.7 kB → 191.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #655** (`npm run build && npx size-limit --json`): `slice: http client` 5 703 B (teto 5.7 kB → 5.8 kB); `ceiling: full barrel CJS` 191 620 B (teto 191.5 kB → 191.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Allowlist do modelo e `device_id` só com Bearer (#644): barrel ESM 161,2 → 161,4 kB.**
@@ -99,6 +100,26 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 - **`slice: createZip`** 5,6 → 5,65 kB e **`slice: createZip + writeXlsx`** 6,7 → 6,75 kB: a
   validação de nomes do `createZip` (#645) custa +159 B / +160 B br. Medido com
   `npm run build && npx size-limit --json`: 5457 → 5616 B e 6550 → 6710 B contra a `origin/main`.
+
+### Adicionado
+
+- **`useMicrophone`: `messages` — o texto do erro por `kind`, na língua do app (#640).**
+  `messages?: Partial<Record<MediaAccessErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. Mesmo contrato do `messages`
+  do `useCameraStream` (#617): a troca é aplicada na leitura do erro, então mudar de língua com o
+  erro na tela re-rotula na hora, sem pedir o microfone de novo. `useAudioRecorder` e
+  `createAudioRecorder` recebem só o stream e nunca mostram o erro do microfone — nada a repassar.
+  Doc em `docs/audio.md` e `.en.md`.
+
+### Corrigido
+
+- **`AudioRecorder`: o erro do microfone saía em inglês num gravador em pt-BR (#640).** O `locale`
+  padrão é `"pt-BR"`, mas a linha de status mostrava o `error.message` do `useMicrophone` cru —
+  "Microphone permission denied. Enable access in your browser settings." quando o usuário negava
+  no prompt (reproduzido na `main` com `NotAllowedError` no `getUserMedia`). Agora o componente
+  traz as seis frases por `kind` nas strings do `locale` e as repassa como `messages`; `locale="en"`
+  mantém o inglês. O teste que fixava `/in use by another app/` sob pt-BR foi reescrito (com o
+  porquê no corpo) para afirmar a frase em português.
 
 ## [0.87.0] — 2026-11-15
 

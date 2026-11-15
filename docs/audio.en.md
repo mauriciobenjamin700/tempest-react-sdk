@@ -229,7 +229,7 @@ What you get without writing any of it:
 | `wavOptions` | `WavOptions` | — | `{ mono: true, sampleRate: 16000 }` suits speech. |
 | `audioBitsPerSecond` | `number` | — | 32000–64000 is plenty for voice in Opus. |
 | `review` | `boolean` | `true` | Review player before handing over. |
-| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels **and** the microphone error message. |
 | `footer` | `ReactNode` | — | A hint, a count, a legal notice. |
 | `onError` | `(error: unknown) => void` | — | Recorder failure, or a WAV conversion that did not work. |
 
@@ -512,6 +512,49 @@ export function OwnRecorder() {
 
 The order matters: a missing `mediaDevices` is almost never "this browser cannot do audio" — it is a page on HTTP, where the whole API simply does not exist. Reporting `unsupported` there sends the developer looking for a polyfill for a problem an `https://` URL fixes.
 
+#### Messages in the app's language: `messages`
+
+`error.message` is **English** by default. To show the error in another language without
+wrapping the hook, pass `messages` — one text per `kind`:
+
+```tsx
+import { useMicrophone } from "tempest-react-sdk";
+
+const MICROPHONE_MESSAGES = {
+  unsupported: "Este navegador não dá acesso ao microfone.",
+  insecure: "O microfone só funciona em conexão segura (HTTPS).",
+  "permission-denied": "Acesso ao microfone negado. Libere a permissão nas configurações do navegador.",
+  "not-found": "Nenhum microfone disponível neste aparelho.",
+  "in-use": "O microfone está em uso por outro app. Feche-o e tente de novo.",
+} as const;
+
+export function PortugueseMicrophone() {
+  const mic = useMicrophone({ messages: MICROPHONE_MESSAGES });
+
+  return (
+    <>
+      <button onClick={mic.start}>Allow microphone</button>
+      {mic.error && <p role="alert">{mic.error.message}</p>}
+    </>
+  );
+}
+```
+
+The `kind` does not change, so a UI that branches on it keeps working; only `message` is
+replaced. A `kind` you leave out keeps the English sentence. `AudioRecorder` already does
+this from its `locale`: under `"pt-BR"` (the default) the microphone error is in Portuguese,
+under `"en"` it is the hook's sentence.
+
+!!! tip "Switching language does not ask for the microphone again"
+    The message is applied when the error is read, not when it is caught. If the user
+    switches language with the error on screen, the text changes at once, with no new
+    `getUserMedia`.
+
+!!! note "Overriding `unknown` hides the original cause"
+    Under `unknown` the default `message` is the browser's own error text — the only clue
+    to the cause. Translating that `kind` trades the clue for a generic sentence; log the
+    error first if it matters.
+
 ## Recording level
 
 `useAudioRecorder` already publishes `level` (0–1) at 10 Hz. For a per-frame bar, use `createLevelMeter` directly and write to the DOM:
@@ -609,7 +652,7 @@ Without `timesliceMs` the whole recording sits in memory until `stop()` — fine
 - `AudioPlayer` — a transport for one clip; takes a `Blob` and **needs** `durationMs` for a fresh recording.
 - `useMediaPermission` — permission state **without** firing the prompt; separates "never asked" from "denied" (which is sticky).
 - `useMediaDevices` — mics and outputs, reacts to `devicechange`; `labelsAvailable` says when a picker is worth showing.
-- `useMicrophone` — stream plus classified error; `stop()` **must** be called or the recording indicator never clears.
+- `useMicrophone` — stream plus classified error; `stop()` **must** be called or the recording indicator never clears. `messages` puts the error in the app's language.
 - `useAudioRecorder` — status, a clock that subtracts pauses, level, `maxDurationMs`, chunks.
 - `blobToWav` — WAV with no dependency, about 10× the bytes; MP3 stays on the server.
 - `setAudioOutput` / `isAudioOutputSelectionSupported` — output routing, Chromium only.

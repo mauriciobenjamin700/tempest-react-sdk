@@ -4,16 +4,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
-### Adicionado
-
-- **`useCameraStream`: `messages` — o texto do erro por `kind`, na língua do app (#617).**
-  `messages?: Partial<Record<CameraStreamErrorKind, string>>` troca o `error.message` dos `kind`
-  listados; os outros mantêm a frase em inglês e o `kind` não muda. A troca é aplicada na leitura
-  do erro, não na captura: mudar de língua com o erro na tela re-rotula na hora, sem reabrir a
-  câmera. Segue a convenção dos componentes (`labels?: Partial<…>` por instância), não o
-  `I18nProvider` — nenhum componente ou hook do SDK lê o contexto de i18n. O `useBarcodeScanner`
-  repassa o mesmo mapa como `cameraMessages`.
-
 ### Corrigido
 
 - **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
@@ -23,9 +13,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   corpo) para afirmar a mensagem em pt-BR, e um teste novo fixa o inglês sob `locale="en"`. Doc em
   `docs/vision.md`, `docs/device-capture.md` e `.en.md` — o aviso "traduza na sua camada de i18n"
   saiu, porque virou superfície.
-
-### Corrigido
-
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
   O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
   vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
@@ -59,6 +46,13 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Adicionado
 
+- **`useCameraStream`: `messages` — o texto do erro por `kind`, na língua do app (#617).**
+  `messages?: Partial<Record<CameraStreamErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. A troca é aplicada na leitura
+  do erro, não na captura: mudar de língua com o erro na tela re-rotula na hora, sem reabrir a
+  câmera. Segue a convenção dos componentes (`labels?: Partial<…>` por instância), não o
+  `I18nProvider` — nenhum componente ou hook do SDK lê o contexto de i18n. O `useBarcodeScanner`
+  repassa o mesmo mapa como `cameraMessages`.
 - **`useDraftFilters().discard()`** (#614): devolve o rascunho ao valor aplicado sem publicar e
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em

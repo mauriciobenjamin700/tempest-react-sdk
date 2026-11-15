@@ -6,6 +6,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **`createDeviceFacts`: `device_model` só aceita texto com formato de modelo** (auditoria run-15,
+  §6, #644). O `parseAndroid` pegava o trecho inteiro do user agent depois de `Android[ ver];`, e
+  um WebView ou UA customizado punha texto livre no relato — `user=alice@example.com
+token=abc123` chegava em `device_model`; o `model` das Client Hints passava igual. Agora as duas
+  fontes passam por uma allowlist (letras, dígitos, espaço e `._()+-`, começando por letra ou
+  dígito, até 40 caracteres), fixada com modelos reais; fora dela o modelo é omitido. De quebra, o
+  modelo da Motorola (`moto g(60)`) deixou de ser cortado em `moto g(60` pelo `)` interno.
+- **`createAppErrorReporter` com `getToken`: `device_id` não vai mais em relato anônimo** (auditoria
+  run-15, §6, #644). O id do aparelho sobrevive ao logout e ia também nos envios sem Bearer (antes
+  do login, depois do logout, relato de outra sessão), deixando o backend ligar o relato anônimo
+  aos atribuídos do mesmo aparelho. Agora todo envio sem Bearer sai sem `device_id`, sem passo do
+  app no logout. Sem `getToken` nada é atribuído e o id continua indo sempre.
+
+### Budgets
+
+- **Allowlist do modelo e `device_id` só com Bearer (#644): barrel ESM 161,2 → 161,4 kB.**
+  Medido com `npm run build && npx size-limit --json` sobre a `main` em `b3b9337` e sobre este
+  branch: ESM 161 069 → 161 341 B (+272), acima do teto em 141 B. As fatias tocadas seguem dentro
+  do limite: `device facts` 1 159 → 1 240 B (+81), `app error reporter` 2 316 → 2 349 B (+33); CJS
+  191 299 → 191 324 B (+25).
 - **`uploadWithProgress` e `createResumableUpload`: resposta de sessão encerrada não chega mais à
   continuação da conta seguinte** (auditoria run-15 §7, #642). Os dois uploads não tinham o vínculo
   de época que o `createApiClient` ganhou no #609: a resposta de um upload de A que chegava depois

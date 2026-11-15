@@ -138,6 +138,7 @@ describe("make check runs every gate the CI used to", () => {
         ["the bundler and bare-Node smoke on the tarball", "scripts/smoke-bundle.sh"],
         ["the consumer Vitest smoke on the tarball", "scripts/smoke-vitest.sh"],
         ["the CLI smoke on the tarball", "scripts/smoke-cli.sh"],
+        ["the npm audit of a fresh scaffold", "scripts/smoke-scaffold-audit.sh"],
         ["the gallery e2e", "npm run e2e"],
     ])("runs %s", (_, command) => {
         expect(CHECK).toContain(command);
@@ -154,9 +155,14 @@ describe("make check runs every gate the CI used to", () => {
         expect(check).toBeLessThan(release.indexOf('git push -u origin "$RELEASE_BRANCH"'));
     });
 
-    it("runs the same three tarball smokes before every publish", () => {
+    it("runs the same tarball smokes before every publish", () => {
         const pack = code(read("scripts", "release-pack.sh"));
-        for (const smoke of ["smoke-bundle.sh", "smoke-vitest.sh", "smoke-cli.sh"]) {
+        for (const smoke of [
+            "smoke-bundle.sh",
+            "smoke-vitest.sh",
+            "smoke-cli.sh",
+            "smoke-scaffold-audit.sh",
+        ]) {
             expect(pack).toContain(`scripts/${smoke}`);
         }
         expect(pack.indexOf("npm run test:run")).toBeLessThan(pack.indexOf("npm pack"));

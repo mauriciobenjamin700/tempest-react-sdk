@@ -77,7 +77,7 @@ seção na gallery (ou isenção escrita em `scripts/docs-gallery.mjs`).
 **`make check`** (`scripts/check.sh`, ~6 min medido em 26/10/2026, e2e incluso):
 `npm ci` · ícones × lucide · `format:check` · `lint` · `typecheck` ·
 `test:coverage` (pisos) · `build` · `size-limit` · `docs:gallery -- --check` ·
-smokes do tarball (bundler + Node cru, Vitest do consumidor, CLI) · e2e da gallery
+smokes do tarball (bundler + Node cru, Vitest do consumidor, CLI, `npm audit` do scaffold) · e2e da gallery
 (Playwright + axe).
 `SKIP_E2E=1` só para iterar. `make test-matrix` repete a suíte no node 22.
 

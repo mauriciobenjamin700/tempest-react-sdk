@@ -86,7 +86,7 @@ status`), working tree limpo, commit do merge na `main`, linha no `RELEASES.md`,
 existente só no mesmo commit (retomada), guard de ref + dist-tag **copiados de
 `origin/main`** (#527) contra o `latest` do registry, `scripts/release-pack.sh` do
 commit num `git worktree` descartável (npm ci, lint, format, typecheck, testes,
-build, pack, três smokes), re-pick do dist-tag, `npm publish <tarball>` (o arquivo
+build, pack, quatro smokes), re-pick do dist-tag, `npm publish <tarball>` (o arquivo
 smokado; sem `--provenance`, que exige OIDC de CI), read-back de versão e dist-tag
 (30 min), push da tag, `gh release create --verify-tag` com o tarball só se o sha512
 bate com o `dist.integrity` do npm. Rodar de novo retoma uma run que parou no meio.

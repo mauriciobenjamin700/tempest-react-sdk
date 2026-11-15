@@ -4,6 +4,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`create-tempest-app`: o app gerado nasce com `npm audit` limpo.** Até a 0.85.0 o primeiro
+  `npm install` de um projeto novo mostrava 7 avisos moderados (GHSA-g3hv-75wg-m249,
+  `minimatch >=7.0.0 <11.0.1`, DoS por amplificação de globparts): o
+  `@typescript-eslint/typescript-estree@8.72.2`, `latest` do `typescript-eslint`, ainda declara
+  `minimatch ^10.2.2`, e a 10.x não tem correção. O `npm audit fix --force` sugerido **rebaixava** o
+  `typescript-eslint` para 8.36.0 — não rode. O risco real é baixo (dev-only; o único uso é casar
+  o `allowDefaultProject` do próprio projeto), mas o aviso aparecia em todo scaffold. O
+  `template/package.json` agora traz um `overrides` escopado
+  (`"@typescript-eslint/typescript-estree": { "minimatch": "^11.0.1" }` — escopado porque um
+  `"minimatch"` de topo arrastaria consumidores de `minimatch@3`/`9` para uma major que eles não
+  conhecem) e sobe o piso do `eslint` para `^10.15.0` (a primeira com `minimatch ^11`). O merge
+  mode (`create-tempest-app .` num projeto existente) carrega os `overrides` do template; um override
+  que o projeto já declara para o mesmo pacote vence. A correção já está no canary
+  `8.72.3-alpha.8` do `typescript-eslint` (`minimatch ^11.0.1`); `test/scaffold-template.test.ts`
+  reprova assim que o `typescript-eslint` instalado declarar a 11, pedindo para apagar o override.
+  **Projeto já criado**: cole o mesmo bloco `overrides` no `package.json` e rode
+  `rm -rf node_modules package-lock.json && npm install` (com o lockfile antigo a 10.2.6 fica,
+  marcada `invalid`).
+- **Novo smoke `scripts/smoke-scaffold-audit.sh`** no `make check` e no `release-pack.sh`: roda a
+  CLI do tarball numa pasta vazia, aponta `tempest-react-sdk` para o próprio tarball, resolve a
+  árvore com `npm install --package-lock-only` e reprova em qualquer aviso moderado ou pior. Nenhum
+  gate olhava a árvore que o template resolve — o lockfile do SDK não é o do consumidor. Usa o
+  registry, então um advisory novo reprova o próximo `make check`: o template se corrige antes de
+  chegar em alguém. Medido (Node 24.15, npm 11.12.1): 22 s; sobre o template da `main` em `56eebd1`
+  reprova com os 7 avisos.
+- O repositório do SDK também zerou o `npm audit` (eram 10 moderados): o mesmo override, um para o
+  `@microsoft/api-extractor@7.59.0` (via `vite-plugin-dts`; a `latest` 7.60.1 ainda fixa
+  `minimatch 10.2.3`) e `eslint` 10.10.0 → 10.15.0 no lockfile.
+
 ## [0.85.0] — 2026-11-14
 
 ### Segurança

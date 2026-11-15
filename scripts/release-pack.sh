@@ -13,7 +13,7 @@
 # Roda `npm ci`, lint, format, typecheck, a suíte e o build sobre a árvore
 # taggeada: o PR de release passou no `make check` na branch, mas o commit do
 # merge é outra árvore quando a `main` andou no meio. Depois empacota e roda os
-# três smokes do consumidor (bundler + Node cru, Vitest, CLI). O diretório do pack
+# smokes do consumidor (bundler + Node cru, Vitest, CLI, `npm audit` do scaffold). O diretório do pack
 # termina com exatamente um `.tgz`; outra contagem reprova.
 
 set -euo pipefail
@@ -48,3 +48,4 @@ fi
 step "smoke: bundler + Node cru" scripts/smoke-bundle.sh "${TARBALLS[0]}"
 step "smoke: Vitest do consumidor" scripts/smoke-vitest.sh "${TARBALLS[0]}"
 step "smoke: CLI" scripts/smoke-cli.sh "${TARBALLS[0]}"
+step "smoke: npm audit do scaffold" scripts/smoke-scaffold-audit.sh "${TARBALLS[0]}"

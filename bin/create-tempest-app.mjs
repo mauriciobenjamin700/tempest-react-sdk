@@ -172,7 +172,15 @@ async function writeFreshPackageJson(destDir, name, sdkVersion) {
     await writeFile(join(destDir, "package.json"), JSON.stringify(pkg, null, 2) + "\n");
 }
 
-/** Merge Tempest scripts + deps into an existing package.json (non-destructive). */
+/**
+ * Merge Tempest scripts + deps into an existing package.json (non-destructive).
+ *
+ * The template's `overrides` are merged too: they carry dependency-tree fixes
+ * (e.g. forcing a patched `minimatch` under `@typescript-eslint/typescript-estree`
+ * until upstream ships it), and dropping them would leave a merged project with
+ * the `npm audit` findings a fresh scaffold does not have. An override the
+ * project already declares for the same package wins.
+ */
 async function mergePackageJson(destDir, sdkVersion) {
     const tpl = JSON.parse(await readFile(join(TEMPLATE_DIR, "package.json"), "utf8"));
     const target = JSON.parse(await readFile(join(destDir, "package.json"), "utf8"));
@@ -182,6 +190,7 @@ async function mergePackageJson(destDir, sdkVersion) {
     target.dependencies = { ...(target.dependencies ?? {}), ...tpl.dependencies };
     target.dependencies["tempest-react-sdk"] = `^${sdkVersion}`;
     target.devDependencies = { ...(target.devDependencies ?? {}), ...tpl.devDependencies };
+    if (tpl.overrides) target.overrides = { ...tpl.overrides, ...(target.overrides ?? {}) };
 
     await writeFile(join(destDir, "package.json"), JSON.stringify(target, null, 2) + "\n");
 }

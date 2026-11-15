@@ -43,6 +43,7 @@ smoke_tarball() {
   scripts/smoke-bundle.sh "$tarball"
   scripts/smoke-vitest.sh "$tarball"
   scripts/smoke-cli.sh "$tarball"
+  scripts/smoke-scaffold-audit.sh "$tarball"
 }
 
 gallery_e2e() {

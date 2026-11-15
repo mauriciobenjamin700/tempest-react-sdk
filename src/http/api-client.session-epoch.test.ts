@@ -136,7 +136,7 @@ describe("createApiClient — error responses of an ended session (run-15)", () 
                 getSessionEpoch: () => epoch,
             });
 
-            const pending = api.post("/orders", { item: 1 });
+            const pending = api.post("/orders", { body: JSON.stringify({ item: 1 }) });
             epoch += 1;
             release();
 
@@ -153,7 +153,7 @@ describe("createApiClient — error responses of an ended session (run-15)", () 
             getSessionEpoch: () => 0,
         });
 
-        const pending = api.post("/orders", { item: 1 });
+        const pending = api.post("/orders", { body: JSON.stringify({ item: 1 }) });
         release();
 
         await expect(pending).rejects.toMatchObject({ status: 409, detail: "conflict" });

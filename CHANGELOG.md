@@ -4,6 +4,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`useMicrophone`: `messages` — o texto do erro por `kind`, na língua do app (#640).**
+  `messages?: Partial<Record<MediaAccessErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. Mesmo contrato do `messages`
+  do `useCameraStream` (#617): a troca é aplicada na leitura do erro, então mudar de língua com o
+  erro na tela re-rotula na hora, sem pedir o microfone de novo. `useAudioRecorder` e
+  `createAudioRecorder` recebem só o stream e nunca mostram o erro do microfone — nada a repassar.
+  Doc em `docs/audio.md` e `.en.md`.
+
+### Corrigido
+
+- **`AudioRecorder`: o erro do microfone saía em inglês num gravador em pt-BR (#640).** O `locale`
+  padrão é `"pt-BR"`, mas a linha de status mostrava o `error.message` do `useMicrophone` cru —
+  "Microphone permission denied. Enable access in your browser settings." quando o usuário negava
+  no prompt (reproduzido na `main` com `NotAllowedError` no `getUserMedia`). Agora o componente
+  traz as seis frases por `kind` nas strings do `locale` e as repassa como `messages`; `locale="en"`
+  mantém o inglês. O teste que fixava `/in use by another app/` sob pt-BR foi reescrito (com o
+  porquê no corpo) para afirmar a frase em português.
+
 ## [0.87.0] — 2026-11-15
 
 ### Segurança

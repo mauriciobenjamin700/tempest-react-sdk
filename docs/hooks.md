@@ -75,7 +75,7 @@ granulares, testados e independentes — importe só o que precisar.
 | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | `usePagination(initialPage?, initialSize?)`       | `{ page, size, setPage, setSize, reset }`.                                                                      |
 | `useClientFilter(items, search, keysOrPredicate)` | Filtro client-side por keys ou predicado (memoizado). Os itens são objetos (`T extends Record<string, unknown>`). |
-| `useDraftFilters(initial, { onApply?, isEqual? })` | Rascunho × aplicado de filtro server-side: `{ draft, applied, isDirty, set, apply, clear }`. Aplicar acontece no evento, nunca num efeito — um clique, uma requisição. |
+| `useDraftFilters(initial, { onApply?, isEqual? })` | Rascunho × aplicado de filtro server-side: `{ draft, applied, isDirty, set, apply, clear, discard }`. Aplicar acontece no evento, nunca num efeito — um clique, uma requisição. |
 | `useLocalStorage<T>(key, default)`                | State persistido em localStorage + sincronizado cross-tab via `storage` event. safe sem `window`.                        |
 | `useToggle(initial?)`                             | `[value, { toggle, setTrue, setFalse, set }]` — açúcar pra boolean state.                                       |
 | `useAsync<T>(fn, deps?, { immediate? })`          | Track `idle/pending/success/error`. `{ status, data, error, run, reset }`. Distinto de React Query (sem cache). |
@@ -590,6 +590,78 @@ export function Logs() {
 
 !!! info "Nenhum efeito lá dentro"
     Aplicar acontece no evento que pediu, nunca num `useEffect` observando o rascunho. É o que garante uma requisição por clique.
+
+#### Filtro num bottom sheet — `discard()`
+
+Num bottom sheet o rascunho vive enquanto a folha está aberta: **Cancelar** (ou tocar fora) joga a edição fora, **Limpar** zera só o rascunho, e só **Aplicar** publica.
+
+```tsx
+import { useState } from "react";
+import { BottomSheet, Button, Checkbox, useDraftFilters } from "tempest-react-sdk";
+
+interface FiltroRebanho {
+  especies: Set<string>;
+}
+
+const VAZIO: FiltroRebanho = { especies: new Set() };
+const ESPECIES = ["ovino", "caprino"];
+
+export function FiltroDoRebanho() {
+  const [aberto, setAberto] = useState(false);
+  const filtros = useDraftFilters(VAZIO);
+
+  function abrir() {
+    filtros.discard();
+    setAberto(true);
+  }
+
+  function cancelar() {
+    filtros.discard();
+    setAberto(false);
+  }
+
+  function alternar(especie: string) {
+    filtros.set((rascunho) => {
+      const especies = new Set(rascunho.especies);
+      if (especies.has(especie)) especies.delete(especie);
+      else especies.add(especie);
+      return { especies };
+    });
+  }
+
+  return (
+    <>
+      <Button onClick={abrir}>Filtros ({filtros.applied.especies.size})</Button>
+      <BottomSheet open={aberto} onClose={cancelar} title="Filtrar rebanho">
+        {ESPECIES.map((especie) => (
+          <Checkbox
+            key={especie}
+            label={especie}
+            checked={filtros.draft.especies.has(especie)}
+            onChange={() => alternar(especie)}
+          />
+        ))}
+        <Button variant="ghost" onClick={() => filtros.set(() => VAZIO)}>
+          Limpar
+        </Button>
+        <Button
+          disabled={!filtros.isDirty}
+          onClick={() => {
+            filtros.apply();
+            setAberto(false);
+          }}
+        >
+          Aplicar
+        </Button>
+      </BottomSheet>
+    </>
+  );
+}
+```
+
+- `discard()` devolve o rascunho ao valor **aplicado**, sem publicar e sem chamar `onApply`. Chamado ao abrir, garante que a folha mostra o que está valendo, mesmo que alguém tenha fechado no meio de uma edição.
+- **Limpar sem aplicar é `set(() => VAZIO)`.** O updater troca o rascunho inteiro — `set(VAZIO)` faria merge e deixaria para trás uma chave opcional que o vazio não tem. Não existe um `clearDraft()` porque o updater já diz exatamente isso; `clear()` continua sendo o "limpar e aplicar" da barra de filtros.
+- `Set`, `Map` e `Date` no filtro funcionam: `isDirty` e a estabilidade do `applied` comparam pelo conteúdo (membros do `Set`, chaves e valores do `Map`, instante do `Date`). Até a 0.86.0 dois `Set`s diferentes comparavam iguais e o `apply()` não publicava.
 
 ### Lista como estado — `useListState`
 

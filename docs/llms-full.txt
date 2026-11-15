@@ -135,6 +135,9 @@ export function PostActions({ postId }: { postId: string }) {
 !!! note "`reason` explica o `false`"
     Quando `allowed` é `false`, `reason` costuma trazer o motivo (`"missing permission"` vindo do `createRoleAccessControl`, ou a mensagem de erro de uma política async que rejeitou). Útil para tooltip ("Você não tem permissão para X") em vez de só esconder.
 
+!!! check "Trocar de recurso não reaproveita a resposta anterior"
+    A resposta fica guardada junto com o `control` e os params que ela responde, e só é devolvida enquanto os dois batem. Até a 0.81.0, no render entre a troca dos params e o efeito que refaz a checagem, o `useCan` devolvia o `allowed` do recurso anterior com `isLoading: false` — e o `<Can>` mostrava os filhos do recurso novo por um frame. Agora o primeiro render com params novos lê `{ allowed: false, isLoading: true }`.
+
 ## `<Can>` — render condicional
 
 `<Can action resource fallback>` renderiza `children` quando a action é permitida, senão o `fallback` (ou nada):
@@ -1585,7 +1588,7 @@ E o `unsubscribe()` do push libera a inscrição do navegador **mesmo quando o `
 !!! tip "Limpe aqui todo estado por usuário"
     O hook é o ponto único de teardown: o push acima, e ao lado dele qualquer outro estado que pertence à conta — o cache de queries persistido, a fila de background sync do service worker, os caches de resposta autenticada, o usuário da telemetria, os registros de upload resumível. Componha tudo dentro do mesmo `onSessionEnd`; cada passo independente com seu próprio `.catch`, para uma falha não pular os outros.
 
-    Os registros de upload resumível guardam a URL de upload e a `Idempotency-Key` da conta que saiu, e só somem quando o upload completa ou num `abort({ discard: true })`. Limpe com `createLocalUploadStorage().clear()` (apaga tudo sob o prefixo `tempest-upload:`) e passe `getPrincipal` ao `createResumableUpload` — detalhes em [Upload resumível → Um registro por usuário](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear):
+    Os registros de upload resumível guardam a URL de upload e a `Idempotency-Key` da conta que saiu, e só somem quando o upload completa ou num `abort({ discard: true })`. Limpe com `createLocalUploadStorage().clear()` (apaga tudo sob o prefixo `tempest-upload:`) e passe ao `createResumableUpload` o próprio `getToken: auth.getToken` (que amarra o registro à sessão, ver [`auth.sessionKey()`](#a-sessao-como-chave-authsessionkey)) ou `getPrincipal` — detalhes em [Upload resumível → Um registro por usuário](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear):
 
     ```ts
     import { createLocalUploadStorage, createTempestAuth } from "tempest-react-sdk";
@@ -1606,7 +1609,7 @@ Nos três caminhos — `logout()`, o encerramento automático e a troca de conta
 | --- | --- | --- |
 | 1 | Todo refresh em voo é **superado**: não pode mais reinstalar os tokens da sessão que está acabando | sim |
 | 2 | O store e o refresh token guardado são limpos — `isAuthenticated` já é `false` | sim |
-| 3 | `onSessionEnd` roda com `{ reason, user, token, api }` | pode ser `async` |
+| 3 | `onSessionEnd` roda com `{ reason, user, token, api, elsewhere }` — `elsewhere` é `false` nos três caminhos desta aba | pode ser `async` |
 | 4 | No encerramento automático com `redirectTo`, o navegador navega; na troca de conta, a sessão nova é instalada — nos dois, **depois** do hook, mesmo que ele lance | — |
 
 `reason` é `"logout"` no `logout()` explícito, `"expired"` quando o cliente encerrou e `"switch"` quando um `login()` substituiu a sessão. No `"logout"` e no `"switch"` o token normalmente ainda vale; no `"expired"` o servidor já o recusou, então trate a chamada autenticada como tentativa e deixe a parte local do teardown independente dela.
@@ -1634,6 +1637,8 @@ Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `lo
 
 Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu durante uma sessão encerrada e volta 401 é recusada do mesmo jeito — inclusive a repetição depois de um refresh — em vez de ser repetida como a conta que está logada agora ou de encerrar a sessão dela. E uma request que saiu **sem** token e volta 401 depois que uma conta entrou só rejeita com o 401: não renova nem encerra a sessão nova.
 
+Vale também para a resposta **de sucesso**: uma request que saiu com o token de uma sessão que acabou antes de a resposta chegar rejeita com `SessionSupersededError` em vez de resolver. Os dados são da conta que saiu, e a continuação de quem chamou — o `onSuccess` de uma `mutation` com `setQueryData`, um `setState` — os entregaria à conta que está logada agora; até a 0.86.0, uma `mutation` de A que atravessava o `logout()` gravava os dados de A no cache de B, na tela e no snapshot offline (auditoria run-14, #609). Request que saiu sem token não é de conta nenhuma e resolve normalmente. Reproduzido em `src/query/offline-persistence.session-end.test.ts` (`npx vitest run src/query/offline-persistence.session-end.test.ts`).
+
 Antes da 0.77.0, um refresh em voo durante o `logout()` reinstalava os tokens antigos e voltava `isAuthenticated` para `true`; com `logout()` + `login(B)` no meio, trocava o token de B pelo de A — a tela mostrava B, e toda request saía como A.
 
 Trate o erro como uma request abortada: descarte o resultado e não mostre nada.
@@ -1654,6 +1659,148 @@ export async function loadOrders(): Promise<unknown[] | null> {
 ```
 
 Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
+
+### Várias abas — a sessão é da origem, não da aba
+
+Com `storage: "local"` (o default), todas as abas do app leem e gravam as **mesmas** chaves: `tempest-auth` (o `{ user, token }`), `tempest-auth-refresh` e `tempest-auth-lineage`. Então a sessão é uma só para a origem inteira, e cada aba **segue** o que outra gravou — no evento `storage` do navegador e, antes de qualquer refresh, `logout()`, encerramento ou gravação do usuário do `mePath`, comparando a sessão guardada com a que ela tem em memória.
+
+A comparação é pela **linhagem** da sessão: um identificador que o `login()` cria e que toda renovação mantém. Mesma linhagem é a mesma sessão, renovada; outra linhagem é outro login — de outra conta ou da mesma:
+
+| Na outra aba | Nesta aba |
+| --- | --- |
+| renovou a mesma sessão | adota o token novo; a request que voltou 401 repete com ele, **sem** renovar de novo |
+| `logout()` | a sessão acaba aqui também: store limpo, `onSessionEnd` com `reason: "logout"` e `elsewhere: true` |
+| `login()` — de outra conta ou da mesma | a sessão desta aba acaba aqui (`reason: "switch"`, `elsewhere: true`) e a nova é adotada |
+
+O que esta aba **nunca** faz é resgatar um refresh token que não é o da sessão dela, nem gravar por cima da sessão que outra aba instalou. Uma request em voo da sessão que acabou rejeita com `SessionSupersededError`, como na troca de conta da mesma aba — e um `login()` desta aba que ainda esperava o `mePath` também: o perfil que chega é descartado em vez de ser gravado ao lado do token de outra conta.
+
+Duas abas que renovam juntas — o caso típico é o navegador reabrindo várias abas, cada uma chamando `auth.refresh()` no boot — **não** resgatam o mesmo refresh token duas vezes: o resgate roda sob um [Web Lock](https://developer.mozilla.org/docs/Web/API/Web_Locks_API) da origem, e a aba que esperou adota o token que a outra trouxe. Isso importa com backend que detecta reuso (o tempest-fastapi-sdk detecta): o segundo resgate do mesmo token revoga a família inteira e derruba a sessão em todas as abas. Sem a API (SSR, navegador antigo) ou depois de 10 segundos esperando, o resgate segue sem o lock, como antes.
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const queryClient = new QueryClient();
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  onSessionEnd: async (session) => {
+    queryClient.clear();
+    if (session.elsewhere) return;
+    await session.api.post("/api/telemetry/session-end", { body: { reason: session.reason } });
+  },
+});
+```
+
+Repare no `elsewhere`. O cache em memória (`queryClient.clear()`) é desta aba, então sai em toda aba. Já o que é **compartilhado pela origem** — IndexedDB, Cache Storage, inscrição de push, uma chamada ao servidor — a outra aba já limpou quando rodou o hook dela. No `"switch"`, refazer aqui apagaria o que a conta nova já gravou: pule quando `session.elsewhere` for `true`.
+
+!!! info "Por que antes era diferente"
+    Até a 0.80.0 cada aba tinha a sessão só em memória e relia o refresh token guardado a cada refresh. Uma aba deixada aberta como A depois do logout, com B logando no mesmo navegador, resgatava no próximo 401 o refresh token de **B** e gravava `{ user: A, token: B }` — a tela mostrava A e toda request saía como B (#524). E uma renovação numa aba fazia a outra renovar de novo no próximo 401, derrubando o token da primeira.
+
+    Até a 0.81.0 a continuidade era decidida comparando o **usuário**. Uma aba cujo `login()` ainda esperava o `mePath` tinha usuário `null`; se outra aba entrasse com outra conta nesse intervalo, o usuário guardado também era `null`, e `null === null` passava por "mesma conta": a aba adotava o token de B como renovação e o `/me` dela gravava `{ user: A, token: B }` (#544). Se o evento `storage` ainda não tinha chegado, era a aba de B que terminava mostrando A ao lado do refresh token de B. Uma sessão gravada antes da linhagem existir continua seguindo a regra antiga até o próximo login.
+
+!!! tip "Com `sessionStorage`, nada muda"
+    Com `storage: "session"`, cada aba tem o próprio `sessionStorage` e a própria sessão — nada disso se aplica.
+
+Em teste, ou com hot reload, quando vários presets nascem na mesma janela, `auth.dispose()` remove o listener de `storage`. Um app tem um preset para a vida da página e não precisa chamar.
+
+### A sessão como chave — `auth.sessionKey()`
+
+Recurso que pertence a **uma** sessão — um stream SSE, um upload em andamento — precisa saber quando a sessão trocou, e não quando o token trocou: o token roda a cada refresh, a sessão não. `auth.sessionKey()` responde exatamente isso. É a linhagem da seção anterior quando há alguém logado, e `null` quando não há:
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+await auth.login({ email: "a@exemplo.com", password: "segredo" });
+const sessaoDeA = auth.sessionKey();
+
+await auth.refresh();
+console.log(auth.sessionKey() === sessaoDeA);
+
+await auth.login({ email: "b@exemplo.com", password: "segredo" });
+console.log(auth.sessionKey() === sessaoDeA);
+
+await auth.logout();
+console.log(auth.sessionKey());
+```
+
+```text
+true
+false
+null
+```
+
+Você quase nunca chama à mão — as peças que dependem dela leem sozinhas do que o preset devolveu (desde a 0.82.0):
+
+| Você passa | Quem lê a sessão | O que muda |
+| --- | --- | --- |
+| `client: auth.api` em `useTicketEventStream` / `createTicketEventStream` | o stream SSE | fecha o stream de A no `login()` de B, não reabre na rotação, fica parado deslogado — ver [SSE → troca de conta](./sse.md#troca-de-conta-na-mesma-aba-sessionkey) |
+| `getToken: auth.getToken` em `createResumableUpload` | o upload resumível | o registro sobrevive à rotação e a troca de conta para o upload — ver [Upload resumível](./resumable-upload.md#um-registro-por-usuario-getprincipal-e-clear) |
+
+O vínculo é com o **objeto** que o preset devolveu: `auth.api` e `auth.getToken`. Um wrapper (`() => auth.getToken()`), um cliente seu ou uma cópia com spread não carregam a sessão e continuam com o comportamento de antes — para eles, passe `auth.sessionKey` como `sessionKey`/`getPrincipal`.
+
+Uma sessão **restaurada** por `auth.refresh()` sem nenhuma instalada — o restore do boot por cookie, o callback de OAuth — é um login como outro qualquer e ganha linhagem própria, como o `login()`. Uma segunda aba que restaura ao mesmo tempo adota essa sessão, linhagem incluída, sem ver troca de conta nem rodar o `onSessionEnd`; e um reload na mesma sessão mantém a chave.
+
+Uma sessão gravada **antes** da linhagem existir não tem linhagem no storage; a chave dela é criada pelo preset, em memória, e vale enquanto aquela sessão durar: sobrevive às rotações, muda quando ela termina ou é trocada, e nunca é a de outra sessão. Gravar uma linhagem para ela faria toda outra aba com a mesma sessão enxergar troca de conta, por isso fica em memória — o custo é que um reload cria outra chave, e um upload amarrado a essa sessão recomeça em vez de retomar. O próximo `login()` dá linhagem à sessão e o custo some.
+
+!!! info "Até a 0.82.0: uma chave só para toda sessão sem linhagem (#561)"
+    As duas sessões acima respondiam a mesma constante, `"unlineaged"`, qualquer que fosse a conta. A conta A restaurada do cookie deixava um upload pela metade com `getToken: auth.getToken`, saía, e a conta B restaurada do mesmo jeito tinha a **mesma** chave: o upload de B mandava `HEAD`/`PATCH` para a URL do upload de A com o Bearer de B e reaproveitava a `Idempotency-Key` de A. Reproduzido em `src/auth/create-tempest-auth.restore.test.ts` e `src/http/resumable-upload.session.test.ts` (`npx vitest run src/auth/create-tempest-auth.restore.test.ts src/http/resumable-upload.session.test.ts`).
+
+### Login fora do `login()` — `auth.restore()`
+
+O cookie de refresh é do **navegador**, não da sessão que o store guarda. Ele troca de dono sem passar pelo `login()`: o callback de OAuth ou de magic link grava o cookie da conta que acabou de entrar, e com `storage: "session"` outra aba que loga como B troca o cookie debaixo da aba que ainda mostra A. O próximo `refresh()` dessa aba resgata o cookie de **B** com a sessão de **A** ainda instalada.
+
+Quando os dois access tokens são JWT com `sub` — o caso do tempest-fastapi-sdk —, o preset vê que o `sub` mudou e trata o resgate como **troca de conta**, igual a um `login()`: a sessão de A termina com `onSessionEnd` `"switch"`, B ganha linhagem e `sessionKey()` próprias, o usuário de B é carregado (`parseUser`, depois `mePath`), e o `refresh()` resolve com B instalado. A request de A que disparou o refresh **não** é repetida como B: rejeita com `SessionSupersededError`. A rotação da mesma conta (mesmo `sub`) continua sendo rotação — mesma chave, nenhum `onSessionEnd`, o upload retoma. Um `logout()` ou `login()` que chegue entre o resgate e a troca vence: a troca é descartada (o refresh token de B, revogado no modo body) e o `refresh()` rejeita com `SessionSupersededError`, em vez de instalar B por cima de quem saiu ou de quem acabou de entrar (#591).
+
+**Login explícito vence a troca** (#595). Com um `login(C)` em voo — chamado pelo usuário, não um `restore()` nem outra troca —, o `refresh()` que resgata B descarta a troca do mesmo jeito: o refresh token de B é revogado no modo body, o `refresh()` rejeita com `SessionSupersededError` e o `login(C)` instala C. Até a 0.84.0 valia "a primeira resposta vence": a troca para B movia a época antes, o `login(C)` chegava depois e era ele o descartado — o usuário pedia C e terminava como B. Se o `login(C)` falhar, a sessão que estava instalada continua; se a troca já estava em andamento quando o `login(C)` começou, o login a supera ao instalar C. Reproduzido em `src/auth/create-tempest-auth.explicit-login.test.ts` (`npx vitest run src/auth/create-tempest-auth.explicit-login.test.ts`).
+
+Com token **opaco** não há `sub` para comparar, e o cliente não distingue "A rodou o token" de "o cookie agora é de B". Comparar o usuário do `mePath` custaria uma request por rotação e reabriria o #544 (dois logins cujo usuário ainda não carregou parecem iguais). Por isso, aí o resgate continua contando como rotação, e quem sabe que houve um login fora do `login()` — o app, na rota de callback — diz isso com `auth.restore()`:
+
+```ts
+import { createTempestAuth } from "tempest-react-sdk";
+
+interface User {
+  id: string;
+  name: string;
+}
+
+export const auth = createTempestAuth<User>({
+  baseURL: "https://api.exemplo.com",
+  mePath: "/api/auth/me",
+  withCredentials: true,
+  logoutPath: "/api/auth/logout",
+});
+
+export async function bootSession(): Promise<boolean> {
+  try {
+    await auth.refresh();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function finishOAuthCallback(): Promise<User | null> {
+  return auth.restore();
+}
+```
+
+- `restore()` resgata o refresh credential (o cookie, ou o refresh token guardado no modo corpo) **como um login novo**: o que ele trouxer substitui a sessão instalada, com `onSessionEnd` `"switch"` se havia uma, linhagem nova e usuário carregado. Resolve com o usuário, como o `login()`.
+- Resgate que falha deixa a sessão atual intacta. Um `logout()` ou `login()` durante o `restore()` o supera: rejeita com `SessionSupersededError` e o token novo é descartado.
+- **Duas abas chamando `restore()` juntas resgatam uma vez só** (#594). O resgate segura um segundo Web Lock da origem até a sessão nova estar instalada; a outra aba espera, adota essa sessão (a dela, se havia, termina com `"switch"` e `elsewhere: true`) e resolve com o mesmo usuário. Um `refresh()` que esperou atrás do `restore()` segue a sessão nova e rejeita com `SessionSupersededError`, em vez de reapresentar o refresh token que o `restore()` já gastou. Até a 0.84.0 a segunda aba resgatava de novo: o token gasto — e o backend com detecção de reuso revogava a família — ou nenhum, porque o teardown da primeira já tinha limpado o storage. Reproduzido em `src/auth/create-tempest-auth.restore-tabs.test.ts` (`npx vitest run src/auth/create-tempest-auth.restore-tabs.test.ts`).
+- **No boot continua o `refresh()`**: um reload não pode encerrar a sessão. `restore()` onde não houve login custa uma troca à toa — o upload amarrado à sessão recomeça em vez de retomar.
+
+**Sessão conhecida: `auth.isSessionKnown()`** (#596). É `false` enquanto a sessão ainda está sendo decidida — um `login()`, um `restore()` ou uma troca de conta em voo, ou o `refresh()` do boot restaurando a sessão do cookie sem token instalado — e `true` no resto, logado ou deslogado. É o sinal que um store por conta precisa para não carimbar dado enquanto o dono é desconhecido; `persistQueryClientOffline({ queryClient, auth })` o lê sozinho (ver [cache offline](query.md)). Não diz nada sobre o perfil: o `refresh()` que restaura a sessão instala token e `sessionKey()` sem carregar o usuário.
+
+!!! info "Até a 0.83.0: o cookie de outra conta contava como rotação (#579)"
+    Com A ainda instalada, o `refresh()` que resgatava o cookie de B mantinha a linhagem de A: `sessionKey()` respondia a chave de A para B, o upload resumível de B mandava `HEAD`/`PATCH` para a URL do upload de A com o Bearer de B e a `Idempotency-Key` de A, o store guardava o usuário de A ao lado do token de B, e a request de A que disparou o refresh era repetida **como B**. Com o controle — A faz logout antes — B recebia outra chave. Reproduzido em `src/auth/create-tempest-auth.subject.test.ts` e `src/http/resumable-upload.session.test.ts` (`npx vitest run src/auth/create-tempest-auth.subject.test.ts src/http/resumable-upload.session.test.ts`).
 
 ### Refresh por cookie e logout no servidor — `logoutPath`
 
@@ -1706,13 +1853,15 @@ export async function signOut(): Promise<void> {
 - A promise do `logout()` espera a revogação. Por isso o `await auth.logout()` antes de navegar importa: uma navegação dura aborta a request em voo.
 - A revogação é **best-effort**: falha de rede, `4xx` ou `5xx` é engolida, e o usuário sai do mesmo jeito.
 - Um `login()` que começa com a revogação em voo espera por ela, porque a resposta do logout apaga os cookies de auth e, chegando depois, apagaria os da conta nova.
-- Só o `logout()` explícito revoga. Na troca de conta (`"switch"`) o cookie no navegador já é o da conta nova; no `"expired"` o servidor já recusou a sessão.
+- O `logout()` explícito revoga, e a troca de conta (`"switch"`) também — **só no modo corpo**: o refresh token da sessão substituída ainda está no cliente, e o tempest-fastapi-sdk revoga por família de rotação, então a sessão nova não é afetada nem quando é a mesma conta. No modo cookie a troca não revoga, porque o cookie no navegador já é o da conta nova. No `"expired"` o servidor já recusou a sessão.
 - Dois `logout()` sobrepostos mandam cada um a sua revogação, e o `login()` espera **todas** — no máximo 10 segundos: uma revogação que nunca volta atrasa o login, não o trava.
 - Um `logout()` durante um `login()` ou refresh em voo: no modo cookie, a revogação espera a resposta dele (no mesmo limite de 10 segundos), porque é ela que grava o cookie da sessão que está acabando; no modo corpo, o refresh token que essa resposta superada traz é revogado à parte.
 - Uma revogação que falha chama `onLogoutError(error)` e, em build de dev, avisa no console — o `logout()` resolve do mesmo jeito.
 
 !!! warning "Sem revogação no servidor, a conta que saiu continua restaurável pelo `refresh()` do boot"
     O preset não manda refresh por conta própria depois do `logout()`, mas o cookie HttpOnly de A continua no navegador e válido no servidor quando o `logoutPath` não está configurado (o default), quando a revogação falha (rede, `4xx`, `5xx`) ou quando ela passa dos 10 segundos. Nesse caso, o próximo carregamento que chamar `auth.refresh()` no boot restaura A para quem estiver no navegador — é o mesmo cookie, e nada no cliente distingue "A recarregou a página" de "A saiu e outra pessoa abriu o app". Só o servidor fecha isso: configure o `logoutPath` com a rota que revoga o cookie e trate o `onLogoutError`. Backend com refresh token stateless (JWT), que não tem como revogar, deixa essa janela aberta até o cookie expirar.
+
+    Por isso, em build de dev, `withCredentials: true` sem `logoutPath` avisa no console uma vez por store. É aviso e não exigência: exigir o `logoutPath` quebraria o app cujo backend não tem como revogar — e não fecharia nada para ele, porque uma rota que responde `404` não revoga —, e recusar o `refresh()` do boot depois de um logout quebraria o login que grava o cookie fora do `login()`, como o callback de OAuth.
 
 !!! info "A rota no tempest-fastapi-sdk"
     O `make_auth_router` monta `POST /auth/logout` (`204`, idempotente) quando o serviço guarda refresh token no banco (`refresh_token_model`): no modo corpo ele lê `{ refresh_token }`, no modo cookie lê o cookie e apaga os dois cookies de auth. Com `AUTH_TOKEN_DELIVERY=both`, a rota de cookie fica em `/auth/cookie/logout`. Refresh token stateless (JWT) não tem como ser revogado, e a rota não existe — ali o cookie só morre quando expira.
@@ -1801,7 +1950,10 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 - **`createRefreshQueue`** — N refreshes concorrentes viram 1.
 - **`onSessionEnd`** — teardown por usuário no `logout()` **e** na expiração automática, com `session.api` ainda autenticado.
 - **`SessionSupersededError`** — refresh ou request de uma sessão que já acabou; descarte, não deslogue.
+- **Várias abas** — com `storage: "local"` a sessão é da origem: logout, troca de conta e renovação numa aba chegam nas outras, com `elsewhere: true` no hook.
 - **`logoutPath`** — revoga o refresh token (ou o cookie) no servidor no `logout()`; restaure a sessão no boot com `auth.refresh()`.
+- **`auth.sessionKey()`** — a sessão como chave: muda no `login()`, não muda na rotação; `auth.api` e `auth.getToken` a carregam para o SSE e o upload resumível.
+- **`auth.restore()`** — login fora do `login()` (callback de OAuth): o refresh credential vira sessão nova. Com JWT, o `refresh()` que resgata outra conta (outro `sub`) já troca sozinho.
 
 ### Veja também
 
@@ -4159,6 +4311,8 @@ if (boleto.kind === "banco") {
 
 `parseLinhaDigitavel` faz o caminho inverso e aceita as duas linhas (47 ou 48). Os dois parsers **conferem todos os dígitos verificadores** que o layout permite conferir: os 3 (banco) ou 4 (arrecadação) DVs de bloco, mais o DV geral. Qualquer um errado lança `BoletoError` dizendo qual.
 
+O tamanho fixa o layout, e o primeiro dígito tem de concordar com ele. Uma linha de 47 dígitos que começa com `8` lança `BoletoError` em vez de ser lida: o código de barras que ela reconstrói também começa com `8`, e no código de barras esse dígito marca arrecadação — qualquer leitor que só veja as 44 posições, `parseCodigoBarras` incluído, a leria como convênio. Antes da 0.81.0, `81600000090000000000000000000190900000000000000` passava nos três DVs de campo e voltava como arrecadação de `valor` 900000000, enquanto a leitura de cobrança dos mesmos dígitos dá banco 816 e `valor` 0 (#529).
+
 Conversão explícita, quando você só quer a outra representação:
 
 ```ts
@@ -4184,7 +4338,10 @@ formatLinhaDigitavel(input);
 
 Para ramificar a UI antes de validar (mostrar o campo certo, escolher o ícone),
 `boletoKind` diz o layout a partir do tamanho e do primeiro dígito, e devolve
-`null` para entrada que não é boleto — sem lançar:
+`null` para entrada que não é boleto — sem lançar. Quando tamanho e primeiro
+dígito discordam (47 dígitos começando com `8`, 48 começando com outro), também é
+`null`: é a mesma entrada que o parser recusa, então os dois nunca nomeiam layouts
+diferentes para a mesma string:
 
 ```ts
 import { boletoKind } from "tempest-react-sdk/br";
@@ -5760,7 +5917,7 @@ Tooling
 
 **TypeScript** — alias `@/*`; **`moduleResolution`** ∈ `bundler`/`node16`/`nodenext` (senão os _subpath exports_ como `tempest-react-sdk/br` não resolvem tipos — silencioso!); **`jsx: "react-jsx"`**; **`strict: true`**; **`skipLibCheck`** ligado; com testes + `vitest`, avisa se o `types` do tsconfig omite `vitest/globals`.
 
-**Integration** — `vite.config.*` usando `createViteConfig`; **`@vitejs/plugin-react`** instalado (JSX/Fast Refresh); import do `styles.css` no entry (e aviso se importado **mais de uma vez**).
+**Integration** — `vite.config.*` usando `createViteConfig`; num projeto com o SDK e o `vitest` instalado, a config que o Vitest carrega (`vitest.config.*`, senão `vite.config.*`) incluindo o `tempestVitest()` — sem ele, todo teste que importa o SDK cai com `Unknown file extension ".css"` ([Testes com Vitest](./vite-config.md#testes-com-vitest)); **`@vitejs/plugin-react`** instalado (JSX/Fast Refresh); import do `styles.css` no entry (e aviso se importado **mais de uma vez**).
 
 **Stylesheets** — análise de **sintaxe e semântica** de todo `.css` do projeto (CSS Modules incluídos): CSS que o browser derruba, declaração morta, nome que não existe, e bloco repetido que pede uma classe global. É a seção detalhada na próxima seção deste guia — [Análise de CSS](#analise-de-css). Aqui o `doctor` mostra no máximo **6 achados por severidade** e diz quantos ficaram de fora; a lista completa sai no `tempest fix --dry-run`.
 
@@ -6416,6 +6573,9 @@ export function Ctas() {
 
 !!! info "Link desabilitado"
     `<a>` não tem `disabled`. Com `disabled` ou `loading`, o link recebe `aria-disabled="true"`, `role="link"` e `tabIndex={-1}`, perde o `href` e tem o clique e o clique do meio cancelados — não navega e é anunciado como indisponível.
+
+!!! check "O esquema da URL é conferido"
+    O `href` passa pela mesma lista do [`safeLinkUrl`](../utilities.md#url-que-veio-de-outra-pessoa-safelinkurl-safeimageurl-safeattachmenturl): `http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa. Qualquer outro esquema — `javascript:`, `data:`, e as variações com maiúscula ou tab no meio — vira o mesmo link inerte e `aria-disabled` do caso desabilitado. O React 19 bloqueia `javascript:` sozinho, mas o React 18, dentro do peer range, escreve o `href` como veio, e um CTA montado com dado de API viraria script clicável. Link para esquema próprio (`whatsapp:`, deep link de app) vai pelo [`ButtonSlot`](#buttonslot) com o seu `<a>`.
 
 !!! note "Por que `InstallButton` não aceita `href`"
     O clique dele abre o prompt de instalação ou mostra a instrução — é ação, não navegação. Ele herda as props do modo `<button>`.
@@ -7689,6 +7849,8 @@ export function CadastroEmEtapas() {
 
 Subconjunto de Markdown: headings, parágrafos, listas (aninhadas e numeradas), citação, código cercado (via [`CodeBlock`](utility.md#codeblock)), regra, tabela GFM com alinhamento, e o inline usual (`**forte**`, `*itálico*`, `` `código` ``, `~~riscado~~`, link, imagem, autolink, quebra forçada).
 
+O inline aninha: o conteúdo da ênfase passa pelo mesmo parser inline, então `**[contato](mailto:a@b.com)**` é um link em negrito, `***texto***` é itálico em volta de negrito e `*a **b** c*` mantém o negrito dentro do itálico. Código, link, imagem e autolink são lidos inteiros, então um marcador dentro deles nunca fecha a ênfase em volta — o `_` em `_veja [doc](https://x.com/a_b)_` é da URL. Link recusado pela allowlist de esquema dentro de negrito continua mostrando as palavras, em negrito. O rótulo do link também aceita ênfase e código (`[**forte** e *itálico*](url)`), mas nunca outro link: um autolink dentro do rótulo fica como texto, porque `<a>` dentro de `<a>` é HTML inválido.
+
 ```tsx
 import { Markdown } from "tempest-react-sdk";
 
@@ -7717,6 +7879,8 @@ import { Markdown } from "tempest-react-sdk";
     O parse é **linear** no tamanho do texto: nenhuma regex do parser tem dois quantificadores disputando o mesmo trecho. Antes da 0.77.0, `"# a" + " ".repeat(4000) + "b"` — 4 KB num comentário — custava 4,7 s de main thread a cada render, e o custo crescia ao cubo. Hoje uma linha de heading com 50 KB de espaços parseia em menos de 1 ms (medido com `performance.now()` em Node 24; o teto de tempo está fixado em teste no `markdown-parse.test.ts`).
 
     Desde a 0.78.0 o mesmo vale para os itens de lista: `- ` ou `1. ` seguido de 80 KB de espaços e um separador de linha (U+2028/U+2029) fazia as regex de lista disputarem a corrida — 3,6 s por linha, duas vezes por linha. Hoje parseia no mesmo teto.
+
+    O inline também não estoura a pilha: o rótulo de um link só é parseado quando o link é aceito, e o aninhamento inline tem teto fixo pela própria gramática (um link, e no máximo um de cada tipo de ênfase de cada lado dele), qualquer que seja o texto. Na 0.85.0 em desenvolvimento, antes do lançamento, `"[".repeat(5000) + "a](https://x.dev)"` lançava `RangeError` e derrubava a árvore React; hoje 50 mil `[` antes de um `](u)` parseiam em ~10 ms.
 
     Citação e lista aninham até **32 níveis**. Dali em diante o conteúdo vira parágrafo: as palavras ficam, só o aninhamento cai. Sem o teto, `"- ".repeat(20000)` estourava a pilha (`RangeError`) e derrubava a árvore React de quem só abriu a conversa.
 
@@ -8766,6 +8930,9 @@ import { NavigationMenu } from "tempest-react-sdk";
 !!! note "Fechamento"
     Fecha no clique fora, Escape, ou ao selecionar uma entrada-folha.
 
+!!! check "Só esquema seguro vira link"
+    O `href` de cada entrada passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema a entrada vira `<button>` e continua chamando `onSelect`.
+
 ## `Menubar`
 
 <!-- gallery:overlays -->
@@ -9326,6 +9493,20 @@ export function ResetPasswordScreen() {
 O token de redefinição fica fora dos campos: ele vem da URL, e o app o junta no
 `onSubmit`, onde também decide como fica um token expirado. `hints` vira uma lista
 acima do botão — o texto é seu, porque só o backend sabe as regras dele.
+
+## Destinos dos links
+
+Os `links` dos presets (`forgotPassword`, `signUp`, `signIn`) e o `back` do `AuthPage` vão para o `Link` do react-router, que escreve a string no `href`. Os dois passam antes pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa):
+
+| O que chegou | O que aparece |
+| --- | --- |
+| `"/cadastro"`, `"https://conta.exemplo.com"` | o link, como hoje |
+| `"javascript:..."` num link do formulário | nada — como se a rota não tivesse sido passada |
+| `"javascript:..."` no `back` com `onClick` | o botão, só com o `onClick` |
+| `"javascript:..."` no `back` sem `onClick` | nada — botão de voltar que não faz nada é pior que nenhum |
+
+!!! info "Por que a lib filtra em vez de pedir cuidado"
+    Medido: no React 19 um `href` `javascript:` é trocado por um stub que lança; no React 18 — dentro do peer range — ele vai para o DOM como veio. Só é explorável se o app repassar dado não confiável (config de tenant, query string) para essas props, mas a resposta certa é sempre a mesma, então mora no componente.
 
 ## Migrando uma tela feita à mão
 
@@ -12740,6 +12921,38 @@ export function Empilhado() {
 
 `gap` numérico mapeia para escala 4px (`2 → 8px`, `4 → 16px`).
 
+!!! info "`gap={24}` não é 24px"
+    O número em `gap` conta **passos da escala de 4px**, não pixels — então `gap={24}`
+    vira um buraco de **96px**. Quem vem do CSS ou do `style={{ gap: 24 }}` do React
+    escreve pixel por reflexo. Para 24px, escreva o passo (`gap={6}`); para um valor
+    exato fora da escala, passe uma **string**, que entra crua no CSS:
+
+    ```tsx
+    import { Card, Stack } from "tempest-react-sdk";
+
+    export function Espacamentos() {
+        return (
+            <>
+                <Stack
+                    gap={6} // 24px
+                >
+                    <Card>Passo da escala</Card>
+                </Stack>
+                <Stack gap="24px">
+                    <Card>Pixel exato, como string</Card>
+                </Stack>
+            </>
+        );
+    }
+    ```
+
+    Em build de desenvolvimento, `Stack`, `Grid`, `Form`, `FormSection`, `FormRow` e
+    `FormActions` avisam no console, **uma vez por valor**, quando o número passa de
+    `12` (48px) — o topo das classes `tempest-gap-*` e o maior `gap` que o próprio SDK
+    usa. A mensagem diz o pixel que saiu e as duas saídas. Uma string nunca avisa: é
+    o jeito de dizer "96px é de propósito" (`gap="96px"` ou
+    `gap="var(--tempest-space-24)"`). Em produção, silêncio.
+
 ## `Grid`
 
 CSS Grid wrapper.
@@ -13400,6 +13613,9 @@ botão. Item `disabled` ignora o `href` e continua `<button disabled>`: âncora 
 tem estado desabilitado, e tirar o `href` pra simular um deixaria um link que se
 anuncia acionável e não é.
 
+!!! check "Só esquema seguro vira link"
+    O `href` do item passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Com outro esquema o item vira `<button>`, como um item sem `href` — um menu montado com dado de API não põe um `javascript:` clicável na barra lateral no React 18.
+
 ### Item ativo a partir da rota
 
 Quando a `key` (ou o `href`) de cada item é uma URL, quase nunca o `pathname` é
@@ -13674,6 +13890,8 @@ export function Trilha() {
 ```
 
 **A11y**: último item é marcado com `aria-current="page"`.
+
+Cada `href` passa pela lista do `safeLinkUrl` (`http:`, `https:`, `mailto:`, `tel:`, `sms:` e URL relativa). Um item com outro esquema perde o `href` e vira texto — ou continua clicável pelo `onClick`, se tiver um. Uma trilha montada com nomes de pasta vindos da API não vira link de script.
 
 ## `Pagination`
 
@@ -15734,6 +15952,9 @@ queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
 `listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
 e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.
+
+!!! warning "Paginação e ordenação ganham do filtro com o mesmo nome"
+    Os `filters` entram na query **antes** de `pagination` e `sort`. Um filtro com a chave de um desses parâmetros (`page`, `size`, `order_by`, `ascending` no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: `filters: { page: 1 }` vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem `pagination`, o filtro continua indo como veio.
 
 ### O envelope `OffsetPage<T>`
 
@@ -19869,6 +20090,7 @@ import { Form, FormSection, FormRow, FormActions, Input, Select, Button } from "
 `columns` aceita `number` (`repeat(N, minmax(0, 1fr))`) ou `string` (`"2fr 1fr"`, `"min-content auto"`).
 
 `gap` aceita `number` (escala 4px: `2` → `8px`, `4` → `16px`) ou `string` (qualquer CSS length: `"1.5rem"`, `"20px"`).
+O número é passo, não pixel: `gap={24}` dá 96px, e em desenvolvimento um número acima de `12` avisa no console uma vez — detalhes em [`gap={24}` não é 24px](components/layout.md#stack).
 
 ### Stacked
 
@@ -20055,6 +20277,9 @@ import { zodResolver } from "tempest-react-sdk";
 
 const form = useForm({ resolver: zodResolver(loginSchema) });
 ```
+
+!!! check "Campo com nome de membro de `Object.prototype`"
+    `validateForm` e `zodResolver` gravam cada erro como propriedade **própria** e conferem com `hasOwnProperty`. Antes, um campo chamado `constructor` ou `toString` parecia já ter erro (herdado do protótipo) e perdia a mensagem, e um issue que um `superRefine` registrasse em `__proto__` trocava o protótipo do mapa em vez de virar chave.
 
 ### 3. `useZodForm` — tudo-em-um
 
@@ -20389,16 +20614,17 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 56 | Geolocalização (mapas & trajetória) | `#geo` | Receitas |
 | 57 | Mapa do Brasil (UF + cidades) | `#brazil-map` | Receitas |
 | 58 | Pagamentos BR (Pix · boleto · NFe) | `#br-payments` | Receitas |
-| 59 | Auth & Access Control | `#recipe-auth` | Receitas |
-| 60 | SSE · Push · Audio | `#integrations` | Receitas |
-| 61 | NotificationCenter (inbox) | `#notification-center` | Receitas |
-| 62 | PWA: Install · Push | `#pwa` | Receitas |
-| 63 | Store (Zustand) | `#foundation` | Fundação |
-| 64 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 65 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 66 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 67 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 68 | Tema + i18n | `#theme-i18n` | Fundação |
+| 59 | Checkout (Pix e cartão · Mercado Pago) | `#payments-checkout` | Receitas |
+| 60 | Auth & Access Control | `#recipe-auth` | Receitas |
+| 61 | SSE · Push · Audio | `#integrations` | Receitas |
+| 62 | NotificationCenter (inbox) | `#notification-center` | Receitas |
+| 63 | PWA: Install · Push | `#pwa` | Receitas |
+| 64 | Store (Zustand) | `#foundation` | Fundação |
+| 65 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 66 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 67 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 68 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 69 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -20470,7 +20696,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 78 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 79 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -20539,7 +20765,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 68 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 69 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.
@@ -21803,7 +22029,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `prefix` — segmento sob o qual toda requisição fica aninhada, tipo `"/api"`. Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro.
-- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. O `createTempestAuth` já o configura.
+- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta de sucesso: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609). O `createTempestAuth` já o configura.
 - `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
@@ -22024,7 +22250,54 @@ Em build de desenvolvimento, a primeira supressão por origem escreve uma linha 
 !!! info "`baseURL` relativa não precisa de nada"
     Atrás de um proxy de dev-server, `baseURL: "/api"` resolve contra o documento — mesma origem da página. Os dois lados são resolvidos antes de comparar, então a checagem passa.
 
-Um `Authorization` que **você** escreveu à mão em `headers` nunca é tocado: o escopo governa só o header derivado de `getToken`.
+!!! info "`baseURL` relativa e `<base href>`"
+    O destino é resolvido como o `fetch`/XHR resolvem — contra o `document.baseURI` —, e a referência contra o endereço da própria página. Um `<base href>` injetado muda para onde a requisição vai, mas não muda a âncora: a requisição que ele desvia sai sem o token.
+
+Um `Authorization` que **você** escreveu à mão nos `headers` **da chamada** nunca é tocado: o escopo governa o header derivado de `getToken` e os `headers` fixos do cliente.
+
+### O que mais segue o escopo (0.82.0)
+
+Desde a **0.82.0** o escopo do token também governa:
+
+- **Os `headers` fixos do cliente.** Um `X-Api-Key` declarado em `createApiClient({ headers })` é credencial tanto quanto o bearer, então vai só para a origem da `baseURL` e para as `trustedOrigins`. Os `headers` que você passa numa chamada específica continuam indo para onde aquela chamada vai — foi você que os escreveu para aquela URL.
+- **O ciclo de `401`.** Um `401` de uma origem fora do escopo responde a uma requisição que nunca levou a credencial desta sessão, então não diz nada sobre ela: é lançado como `TempestApiError` **sem** chamar `refresh` nem `onUnauthorized`. Antes, um host qualquer devolvendo `401` gastava um refresh e encerrava a sessão do usuário.
+- **Alvo que não parseia.** `isTrustedCredentialTarget` recusa (`false`) uma URL malformada e uma origem opaca (`data:`, `file:`). Antes ela devolvia `true`, e um `fetcher` customizado que aceitasse a string recebia o token.
+
+```ts
+const api = createApiClient({
+  baseURL: "https://api.exemplo.com",
+  headers: { "X-Api-Key": chave },
+  getToken: () => useAuthStore.getState().token,
+  onUnauthorized: () => useAuthStore.getState().logout(),
+});
+
+await api.get("https://cdn.outro.com/arquivo.json");
+// → sem Authorization e sem X-Api-Key; um 401 daqui não chama logout()
+```
+
+!!! info "Redirect entre origens: o que o navegador tira e o que o SDK segura (0.82.0)"
+    O escopo olha a URL **inicial**; para onde um redirect leva é o navegador quem decide. Medido no Chrome 150 (Chromium do Playwright e Google Chrome estável), com `fetch` e com XHR, em `301`, `302`, `303`, `307` e `308` de uma origem para outra: o `Authorization` **não chega** ao destino. O caniuse e o MDN ainda listam o Chrome como não suportado — o dado deles está velho; Firefox 111+ e Safari 16.1+ constam como suportados. Num redirect de **mesma origem** o header continua indo, e é o que mantém o `307` de barra final do FastAPI funcionando.
+
+    O navegador só tira o `Authorization`. Um `X-Api-Key` nos `headers` fixos do cliente atravessava o mesmo redirect e chegava ao outro host — medido nos dois casos acima. Por isso, desde a **0.82.0**, uma requisição dentro do escopo que leva os `headers` fixos sai com `redirect: "manual"`, e um redirect como resposta vira `TempestApiError` com `code: "REDIRECT_REFUSED"` em vez de ser seguido. Seguir à mão o de mesma origem não é possível: no navegador, o redirect parado é uma resposta `opaqueredirect`, com status `0` e o `Location` ilegível (medido).
+
+    ```ts
+    const api = createApiClient({
+      baseURL: "https://api.exemplo.com",
+      headers: { "X-Api-Key": chave },
+    });
+
+    await api.post("/items", { body }); // o FastAPI responde 307 → /items/
+    // → TempestApiError { status: 0, code: "REDIRECT_REFUSED" }
+
+    await api.post("/items/", { body }); // ✅ chame a URL final
+    await api.post("/items", { body, redirect: "follow" }); // ✅ ou siga de propósito
+    ```
+
+    Um `redirect` passado na chamada sempre vence. Cliente só com `getToken`, sem `headers` fixos, segue redirects como antes.
+
+    O `X-CSRF-Token` também atravessa um redirect para outra origem, e fica de fora de propósito: ele vai em todo `POST` de uma sessão por cookie, que é justamente o caso do `307` de barra final, e sozinho não autentica nada — usá-lo exige o cookie da vítima e um header customizado que o CORS da sua API não libera para outra origem.
+
+    O XHR dos uploads (`uploadWithProgress`, `createResumableUpload`) não tem modo `redirect`: ele sempre segue. O `Authorization` que ele leva é tirado pelo navegador como no `fetch` (medido); o resto não. O `createResumableUpload` troca para `fetch` quando há `headers` fixos ([Upload resumível](./resumable-upload.md)); o `uploadWithProgress` recusa a resposta de outra origem e tem `redirect: "error"`, o padrão com `headers` fixos e sem `onProgress` desde a 0.84.0 — veja [Redirect no `uploadWithProgress`](#redirect-no-uploadwithprogress-0830).
 
 O mesmo predicado está exportado, para quando você monta a requisição por fora:
 
@@ -22184,7 +22457,25 @@ O contexto de cada linha traz `requestId`, `status` e o `ms` decorrido. É **uma
     Qualquer objeto com `debug` e `warn` serve (o tipo exportado é `ApiClientLogger`), então não precisa ser o logger do SDK.
 
 !!! warning "O que o log nunca carrega"
-    Body, header e query string ficam de fora, de propósito: o `Authorization` é bearer token, o body do login é senha, e um `access_token` em query param acabaria escrito no sink junto. O que é logado é o método, o caminho como o call site escreveu, e os números.
+    Body, header e query string ficam de fora, de propósito: o `Authorization` é bearer token, o body do login é senha, e um `access_token` em query param acabaria escrito no sink junto. O que é logado é o método, o caminho e os números.
+
+    O caminho é cortado no primeiro `?` ou `#`, e uma URL absoluta perde o `usuario:senha@`. Então a query escrita direto no path some do log do mesmo jeito que a de `params`, e uma URL pré-assinada aparece sem a assinatura:
+
+    ```ts
+    import { createApiClient, createLogger } from "tempest-react-sdk";
+
+    const api = createApiClient({
+      baseURL: "https://api.exemplo.com",
+      logger: createLogger({ level: "debug" }).child("http"),
+    });
+
+    await api.get("/files?access_token=abc");
+    // [http] GET /files → 200
+    await api.put("https://cdn.exemplo.com/b/a.png?X-Amz-Signature=xyz", { body: { a: 1 } });
+    // [http] PUT https://cdn.exemplo.com/b/a.png → 200
+    ```
+
+    A requisição em si continua indo com a URL completa — só a linha de log é aparada. Antes da 0.81.0 (#526) a query do path ia inteira para o sink.
 
     Se você precisa do payload para depurar, envolva o `fetcher` no seu app — aí a decisão de logar segredo é sua, explícita, e não vai para produção por descuido.
 
@@ -22388,8 +22679,8 @@ export function AvatarUpload() {
 
 `onProgress` recebe `{ loaded, total, fraction, lengthComputable }`. `fraction` é `null` quando o tamanho total é desconhecido. Abortar via `signal` rejeita com `DOMException("Aborted")`.
 
-!!! tip "`credentialOrigin` quando a `url` não vem do seu código"
-    Este helper não tem `baseURL` de onde deduzir um escopo — você nomeia o destino em toda chamada —, então a checagem de origem é **opcional** aqui. Ligue-a quando a `url` puder vir de um corpo de resposta em vez do seu próprio código:
+!!! tip "`credentialOrigin` quando a API está em outra origem"
+    Este helper não tem `baseURL` de onde deduzir um escopo, então desde a **0.82.0** o escopo padrão é a **origem da própria página** (`location.origin`): o `Authorization` vai para uma `url` relativa ou da mesma origem, e não vai para nenhuma outra. API em outra origem — ou um storage que precisa do token — se declara:
 
     ```ts
     await uploadWithProgress({
@@ -22401,9 +22692,62 @@ export function AvatarUpload() {
     });
     ```
 
-    Sem `credentialOrigin`, o header vai para onde a `url` apontar — o comportamento de toda versão anterior à 0.66.0.
+    Até a 0.81.0, sem `credentialOrigin` o header ia para onde a `url` apontasse — inclusive uma URL assinada que veio de um corpo de resposta. A opção `csrf` segue exatamente o mesmo escopo. Os `headers` que você passa aqui são da chamada e vão para a `url` dela.
 
-    A opção `csrf` segue o mesmo escopo, com uma diferença: **sem** `credentialOrigin` ela fica presa à origem da própria página, não aberta. O `Authorization` fica aberto só por compatibilidade; o `csrf` é novo e nasce fechado. API em outra origem declara `credentialOrigin` para receber o token.
+### Redirect no `uploadWithProgress` (0.83.0)
+
+Um `XMLHttpRequest` segue todo redirect, e não existe opção para impedir. Medido no Chrome 150 (#570) com o `uploadWithProgress` empacotado por esbuild: página e `url` em `127.0.0.1:5470`, que responde `301`/`302`/`303`/`307`/`308` para `localhost:5471`, que ecoa os headers com CORS. Nos cinco códigos o outro host recebeu o `X-Api-Key` dos `headers` e o `X-CSRF-Token` do SDK — e, no `307`/`308`, o corpo inteiro (2048 B). Só o `Authorization` o navegador tirou. E o upload **resolvia** com a resposta do outro host, como se fosse a da sua API.
+
+Remedido em 14/11/2026 nos três motores do Playwright, agora com o `dist/` da 0.83.0 (`npm run build`, `dist/http/upload-with-progress.js` importado pela página): mesma montagem, em `127.0.0.1:5540` → `localhost:5541`, com `X-Api-Key` nos `headers`, `getToken` e `csrf: true`. Chromium 153, Firefox 155 e WebKit 26.6 se comportam igual: no padrão, os cinco códigos levaram `X-Api-Key` e `X-CSRF-Token` ao outro host (e os 2048 B no `307`/`308`), nenhum levou o `Authorization`, e os cinco rejeitaram com `REDIRECT_REFUSED`; com `redirect: "error"`, **0** requisições ao outro host nos 15 casos. Não é peculiaridade do Chrome: é o XHR.
+
+O que dá para fazer depende do que você precisa:
+
+| | `redirect: "follow"` | `redirect: "error"` |
+| --- | --- | --- |
+| Transporte | XHR | `fetch` com `redirect: "manual"` |
+| Progresso | byte a byte | uma vez, quando o servidor confirma o corpo inteiro |
+| Redirect para outra origem | seguido; os `headers` chegam lá | recusado antes de sair — **0** requisições ao outro host nos 5 códigos (medido) |
+| Resposta de outra origem | rejeita com `REDIRECT_REFUSED` (desde a 0.83.0; antes resolvia com ela) | não acontece |
+| Redirect de mesma origem (`307` de barra final) | seguido | rejeita com `REDIRECT_REFUSED` |
+
+Progresso e recusa de redirect juntos não existem no navegador: um corpo de `fetch` em stream reportaria progresso, mas o Chrome recusa stream por HTTP/1.1 (`TypeError: Failed to fetch`, medido) e Firefox e Safari não suportam. Por isso quem pede progresso continua no XHR — progresso é o motivo deste helper existir — e o SDK garante o que consegue: a resposta de outro host nunca vira o resultado, então ele não entrega ao app uma URL para gravar.
+
+#### O padrão escolhe pelo `onProgress` (0.84.0)
+
+Sem `redirect` na chamada, o helper decide:
+
+| `headers` fixos | `onProgress` | Padrão |
+| --- | --- | --- |
+| algum além de `Authorization`, `X-Request-ID`, `Content-Type` e `X-CSRF-Token` | não | `"error"` |
+| algum além desses | sim | `"follow"` |
+| nenhum, ou só esses | qualquer | `"follow"` |
+
+O XHR só compra progresso, e o vazamento é o preço dele. Quem não pediu progresso pagava esse preço à toa, então os `headers` fixos dele ganham o mesmo tratamento que o `createApiClient` (#560) e o `createResumableUpload` (#568) já davam. O `X-CSRF-Token` fica de fora pelo motivo do `createApiClient`: ele vai em todo `POST` de sessão por cookie, que é justamente o caso do `307` de barra final, e sozinho não autentica nada. Medido no `dist/` deste branch, na mesma montagem acima, com `X-Api-Key` e sem `onProgress`: **0** requisições ao outro host nos 5 códigos, em Chromium 153, Firefox 155 e WebKit 26.6, todos rejeitando com `REDIRECT_REFUSED`; com `onProgress`, o comportamento de antes (header lá, resposta recusada).
+
+!!! warning "Breaking: `307` de barra final com `headers` fixos e sem `onProgress`"
+    Nessa combinação, um redirect de **mesma origem** — o `307` que o FastAPI responde para `/api/reports` → `/api/reports/` — passa a rejeitar com `REDIRECT_REFUSED`: o navegador devolve o redirect parado como resposta opaca, sem `Location` legível, e não dá para distingui-lo de um para outro host. Corrija a URL (com a barra final), ou siga de propósito com `redirect: "follow"`. Um `redirect` passado na chamada sempre vence.
+
+Quando os `headers` levam uma credencial, o servidor da `url` pode redirecionar e você **quer** progresso, troque o progresso pela garantia explicitamente:
+
+```ts
+import { uploadWithProgress } from "tempest-react-sdk";
+
+export async function sendReport(
+  file: File,
+  apiKey: string,
+  onDone: (fraction: number | null) => void,
+): Promise<unknown> {
+  return uploadWithProgress({
+    url: "/api/reports/",
+    body: file,
+    headers: { "X-Api-Key": apiKey },
+    onProgress: (event) => onDone(event.fraction),
+    redirect: "error",
+  });
+}
+```
+
+Credencial de usuário vai melhor pelo `getToken`: o navegador tira o `Authorization` num redirect entre origens, e o `"follow"` com progresso continua seguro para ele.
 
 ## Upload direto com teto — `uploadPresignedPost`
 
@@ -25175,8 +25519,24 @@ Peça por peça:
 | `size`          | `"large" \| "medium" \| "small"`             | Tamanho.                                                                  |
 | `disableOneTap` | `boolean`                                    | Desliga o auto-prompt "One Tap". Default `false` (One Tap **ligado**).     |
 | `width`         | `number`                                     | Largura em px — o botão do Google é fixo por padrão.                      |
+| `nonce`         | `string`                                     | Nonce emitido pelo seu backend; o Google o copia no claim `nonce` do ID token (0.82.0). |
 | `className`     | `string`                                     | Aplicada no wrapper.                                                      |
 | `style`         | `CSSProperties`                              | Aplicado no wrapper.                                                      |
+
+!!! tip "Prenda o ID token a um `nonce` do servidor"
+    O backend gera um `nonce` por tentativa de login, guarda, e recusa o `id_token` cujo claim `nonce` não bate — é o que impede um token capturado em outro lugar de ser reapresentado à sua API. Até a 0.81.0 o wrapper descartava a prop; desde a 0.82.0 ela chega ao `GoogleLogin`:
+
+    ```tsx
+    import { GoogleLogin } from "@react-oauth/google";
+    import { GoogleSignIn, type OAuthCredential } from "tempest-react-sdk";
+
+    declare const nonceDoServidor: string;
+    declare function entrar(credential: OAuthCredential): Promise<void>;
+
+    export function BotaoGoogle() {
+      return <GoogleSignIn component={GoogleLogin} nonce={nonceDoServidor} onSuccess={entrar} />;
+    }
+    ```
 
 !!! warning "One Tap vem ligado"
     `disableOneTap` tem default `false`, ou seja o SDK passa `useOneTap: true` pro Google. Se você não quer o prompt automático aparecendo sozinho no canto da tela (comum em telas que não são de login), passe `disableOneTap`.
@@ -25441,6 +25801,42 @@ sync.clearOutbox();
     Escopo: a cerca é por aba. Com `crossTab`, uma entrada que outra aba apagou da
     outbox compartilhada não é entregue, mas o pull em andamento noutra aba só para
     quando aquela aba também chamar `resetWatermark()`/`clearOutbox()`.
+
+!!! tip "Cada entrada tem dono: `getPrincipal`"
+    `clearOutbox()` no logout esvazia a fila. Para o app que esquece — ou a sessão que acaba sem logout (token vencido, aba fechada) —, passe `getPrincipal`: cada entrada ganha a impressão de quem estava logado ao enfileirar (`entry.owner`, nunca o id), e o flush confere de novo antes de cada `deliver`:
+
+    | Quem está logado agora | O que acontece com a entrada |
+    | --- | --- |
+    | o mesmo dono | entregue |
+    | ninguém | fica na fila (`summary.held`) e sai quando o dono voltar |
+    | outra pessoa | apagada sem envio (`summary.dropped`) |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let currentUserId: string | null = "user-a";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => currentUserId,
+    });
+
+    await sync.enqueue("update", "n1", { text: "rascunho de A" });
+    currentUserId = "user-b";
+    const summary = await sync.flush();
+    console.log(summary.dropped); // 1 — a edição de A não sai com a sessão de B
+    ```
+
+    Entrada enfileirada antes de você ligar a opção não tem carimbo e é entregue como antes: são edições do próprio usuário, e segurá-las travaria toda fila no upgrade.
 
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
@@ -26213,6 +26609,37 @@ function UserList() {
     regex JavaScript falha a **geração**, citando o schema e o caminho da
     propriedade — em vez de quebrar o app no import.
 
+    E o que viraria outra coisa no destino também é recusado antes da primeira
+    escrita:
+
+    - **Path que não começa com `/`** (`https://outro.example/x`) — o cliente
+      repassa URL absoluta como está, então o método chamaria outra origem — e
+      **path com segmento `.` ou `..`** (`/../x`, `/%2e%2e/x`, `/a\..\x`), que
+      sai do prefixo de path do `baseURL` quando a URL é normalizada. Ponto
+      dentro do segmento (`/v1.2/..cache`) e na query continua valendo.
+    - **Propriedade chamada `__proto__`**, ou chave `__proto__` dentro de um
+      `default`: no object literal gerado ela troca o protótipo em vez de
+      declarar o campo, e o Zod 4 a descarta mesmo como chave computada — não
+      existe código que a valide.
+
+    Essas verificações (e a do `pattern`) alcançam todo sub-schema, inclusive
+    o de uma propriedade cujo nome é palavra-chave do JSON Schema — `pattern`,
+    `default`, `$ref`, `items`, `enum`. Antes, uma propriedade chamada
+    `pattern` ou `default` era pulada como se fosse a palavra-chave, e o que
+    estava dentro dela gerava sem conferência.
+
+    Um `pattern` que **compila** mas tem quantificador aninhado (`^(a+)+$`,
+    `(\w+\s?)*`) gera normalmente e sai como **aviso** (`!`) no terminal: em
+    valor quase-válido ele retrocede de forma exponencial — 28 caracteres
+    levaram 873 ms no Node 24 e cada um a mais dobra — e congela a aba que
+    valida. É uma heurística para esse formato, não prova de segurança:
+    `^([a-z0-9]+-)*[a-z0-9]+$` (cada repetição termina num `-` obrigatório) não
+    é marcado, e alternância sobreposta (`(a|aa)+`) não é analisada.
+
+    O que a CLI imprime vindo do spec — nomes de tag, avisos e mensagens de erro
+    — sai sem caracteres de controle C0/C1: uma tag com `ESC ] 0 ;` não troca o
+    título do terminal nem imprime link OSC 8 escondido.
+
 ## Recap
 
 - `tempest gen api <url|file> --out src/api` gera, **por grupo de rotas**, três arquivos: `schemas.ts` (Zod), `types.ts` (`z.infer`) e `service.ts` (classe).
@@ -26458,6 +26885,291 @@ Recebe um `PasskeyAuthenticationJSON`:
 - [Auth](./auth.md) — onde guardar o token que o `finish` devolveu
 - [HTTP](./http.md) — o `api` dos exemplos
 - [Access Control (RBAC)](./access-control.md) — o que a sessão pode fazer depois
+
+---
+
+# payments.md
+
+# Pagamentos (Pix e cartão via Mercado Pago)
+
+O módulo `payments` é a metade **frontend** do checkout do `tempest-fastapi-sdk`: a tela do Pix que o pagador vê, a tokenização do cartão no browser e o texto que explica uma recusa. A outra metade — criar a cobrança, decidir que ela foi paga, capturar, estornar — é do backend, e continua lá.
+
+!!! info "Por que dividir assim?"
+    Duas coisas o backend **não pode** fazer: ver o número do cartão (isso coloca o servidor no escopo do PCI DSS) e desenhar a tela. Duas coisas o frontend **não deve** fazer: decidir que um Pix foi pago e chamar a API do Mercado Pago com o access token. O módulo existe para cada lado ficar com a sua parte — e para isso ser garantido pelo código, não por um aviso na doc.
+
+<!-- gallery:payments-checkout -->
+[![Checkout (Pix e cartão · Mercado Pago) na gallery](assets/gallery/payments-checkout.webp)](gallery.md)
+
+*Seção `payments-checkout` da [gallery](gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+## O contrato que vem do backend
+
+Os tipos deste módulo são o JSON que um serviço feito com o `tempest-fastapi-sdk` responde. Eles **não** foram escritos de memória: cada campo vem do schema Pydantic do backend (`tempest_fastapi_sdk/integrations/payment/base.py`, conferido na `origin/main` `ec51a886`):
+
+| Tipo aqui | Schema no backend | Linha |
+| --- | --- | --- |
+| `PaymentStatus` | `PaymentStatusEnum` | `base.py:31` |
+| `PixCharge` | `PixCharge` | `base.py:200` |
+| `CardChargeRequest` | `CardChargeRequest` | `base.py:514` |
+| `CardCharge` | `CardCharge` | `base.py:561` |
+| `PaymentPayer` | `PixPayer` | `base.py:138` |
+
+Os nomes ficam em `snake_case` porque é isso que trafega: o `BaseSchema` do backend não tem gerador de alias. Datas chegam como string ISO 8601, e dinheiro sempre em **centavos inteiros** (`amount_cents`), nunca em float.
+
+!!! note "O `status` decide; o resto refina"
+    `status` é o estado canônico (`pending`, `authorized`, `paid`, `expired`, `cancelled`, `refunded`, `charged_back`, `in_analysis`, `failed`, `unknown`). `provider_status` e `status_detail` são o texto cru do provedor — servem para suporte e para escolher a frase certa, nunca para decidir se foi pago.
+
+## Passo 1 — A tela do Pix
+
+Programa completo: o app cria a cobrança no backend, recebe um `PixCharge` e mostra a tela até o backend dizer que acabou.
+
+```tsx
+import { Button, PixCheckout, usePixCharge, type PixCharge } from "tempest-react-sdk";
+
+async function lerCobranca(id: string, signal: AbortSignal): Promise<PixCharge> {
+  const response = await fetch(`/api/pix/${id}`, { signal });
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return (await response.json()) as PixCharge;
+}
+
+export function TelaDoPix({ criada, onNovoPix }: { criada: PixCharge; onNovoPix: () => void }) {
+  const { charge, error } = usePixCharge(criada, {
+    refresh: (signal) => lerCobranca(criada.provider_charge_id, signal),
+    intervalMs: 5000,
+  });
+
+  return (
+    <>
+      <PixCheckout
+        charge={charge}
+        footer={
+          charge.status === "expired" ? <Button onClick={onNovoPix}>Gerar novo Pix</Button> : undefined
+        }
+      />
+      {error !== null && <p>Sem conexão com o servidor — tentando de novo.</p>}
+    </>
+  );
+}
+```
+
+Peça por peça:
+
+1. `usePixCharge(criada, { refresh })` chama o **seu** endpoint a cada `intervalMs` — que relê a order no Mercado Pago — e para sozinho quando o status vira final (`paid`, `expired`, `cancelled`, `refunded`, `charged_back`, `failed`).
+2. As leituras são **sequenciais**: a próxima só começa `intervalMs` depois da anterior terminar. Backend lento não recebe requisição sobreposta.
+3. Uma leitura que falha mantém a última cobrança na tela e aparece em `error`. O polling continua: requisição perdida não é estado de pagamento.
+4. `<PixCheckout>` só **mostra** `charge`. Ele não muda nada, e por isso não tem como decidir que algo foi pago.
+
+O que a tela mostra, por estado:
+
+| `status` | Tela |
+| --- | --- |
+| `pending` | Valor, QR, copia-e-cola com botão de copiar, contagem regressiva até `expires_at` |
+| `pending` com o prazo vencido | Esconde o QR e diz que está **confirmando** — não "expirado" |
+| `paid` | "Pagamento confirmado" |
+| `expired` / `cancelled` / `failed` | O motivo, sem QR, e o `footer` (ex.: "Gerar novo Pix") |
+| `unknown` — ou qualquer status que esta versão não conhece | "Verificando o pagamento" — nunca pago, nunca recusado |
+
+!!! tip "Por que \"confirmando\" e não \"expirado\" quando o relógio zera?"
+    Um Pix enviado no último segundo ainda pode cair. Só o backend, relendo a order, sabe. A tela para de oferecer o QR e espera o backend dizer `expired` (o Mercado Pago responde `canceled` / `expired`, que o backend traduz).
+
+### De onde vem o QR
+
+- `qr_code_base64` (Mercado Pago manda) vira `data:image/png;base64,...` — **só** se for Base64 válido. Um valor estranho não vai parar no `src` de uma imagem.
+- Sem Base64 (a OpenPix manda URL), o QR é desenhado **localmente** a partir do `br_code`, com o mesmo `<QRCode>` do SDK. Buscar a URL entregaria o payload a um host de imagem à toa.
+
+### Push em vez de polling
+
+Se o seu backend publica a cobrança por SSE ou WebSocket, passe `subscribe`. Dá para combinar com `refresh`:
+
+```tsx
+import { PixCheckout, createEventStream, usePixCharge, type PixCharge } from "tempest-react-sdk";
+
+export function TelaDoPixAoVivo({ criada }: { criada: PixCharge }) {
+  const { charge } = usePixCharge(criada, {
+    subscribe: (emit) => {
+      const stream = createEventStream<PixCharge>(`/api/pix/${criada.provider_charge_id}/events`, {
+        onMessage: (message) => emit(message.data),
+      });
+      return () => stream.close();
+    },
+  });
+  return <PixCheckout charge={charge} />;
+}
+```
+
+O hook ignora atualização de **outra** cobrança — outro `provider_charge_id` **ou** outro `provider`, porque o id só é único dentro de um provedor — e nunca volta de um estado final para um não-final. E de `paid` a cobrança só sai para `refunded` ou `charged_back`: um `expired` atrasado não substitui o pago. Quando polling e push chegam fora de ordem, quem já pagou não vê "aguardando pagamento" piscar nem é mandado "gerar um novo Pix". O caminho inverso continua aberto: `expired` ainda pode virar `paid`, porque um Pix enviado no último segundo pode cair depois do prazo.
+
+## Passo 2 — Tokenizar o cartão
+
+O backend recebe `card_token`, `payment_method_id` e `installments` (o `CardChargeRequest`). Quem produz isso é o `useMercadoPagoCard`:
+
+```tsx
+import { useState, type FormEvent } from "react";
+import { Button, Input, Select, useMercadoPagoCard, type CardChargeRequest } from "tempest-react-sdk";
+
+declare const PUBLIC_KEY: string;
+
+export function PagamentoComCartao({ amountCents, reference }: { amountCents: number; reference: string }) {
+  const card = useMercadoPagoCard({
+    publicKey: PUBLIC_KEY,
+    amountCents,
+    containers: { cardNumber: "mp-numero", expirationDate: "mp-validade", securityCode: "mp-cvv" },
+  });
+  const [titular, setTitular] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [email, setEmail] = useState("");
+  const [parcelas, setParcelas] = useState(1);
+
+  async function pagar(event: FormEvent) {
+    event.preventDefault();
+    const { token, payment_method_id, installments } = await card.tokenize({
+      cardholderName: titular,
+      installments: parcelas,
+      identificationType: "CPF",
+      identificationNumber: cpf,
+    });
+    const body: CardChargeRequest = {
+      amount_cents: amountCents,
+      reference,
+      card_token: token,
+      payment_method_id,
+      installments,
+      payer: { email },
+    };
+    await fetch("/api/card-charges", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  return (
+    <form onSubmit={pagar}>
+      <div id="mp-numero" />
+      <div id="mp-validade" />
+      <div id="mp-cvv" />
+      <Input label="Nome no cartão" value={titular} onChange={(e) => setTitular(e.target.value)} />
+      <Input label="CPF" value={cpf} onChange={(e) => setCpf(e.target.value)} />
+      <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Select
+        label="Parcelas"
+        value={parcelas}
+        onChange={(e) => setParcelas(Number(e.target.value))}
+        options={card.installmentOptions.map((option) => ({
+          value: option.installments,
+          label: option.recommendedMessage,
+        }))}
+      />
+      <Button type="submit" disabled={card.status !== "ready" || card.paymentMethodId === null}>
+        Pagar
+      </Button>
+    </form>
+  );
+}
+```
+
+Peça por peça:
+
+1. Os três `<div>` vazios recebem os **Secure Fields** do Mercado Pago: iframes servidos pelo próprio Mercado Pago. Número, validade e CVV são digitados **dentro** deles. Eles nunca existem no DOM da sua página, no estado do React, num callback ou num log.
+2. `publicKey` é a **Public Key** da aplicação, não o access token. Ela só serve para tokenizar; o token sozinho não cobra nada.
+3. Quando o pagador digita os primeiros dígitos, o Mercado Pago avisa o BIN e o hook busca as parcelas. `recommendedMessage` é o texto do próprio provedor ("2 parcelas de R$ 57,20 (R$ 114,40)") — mostre como veio: há juros a partir de 2x, e o total tem de ser o número do provedor.
+4. `tokenize` devolve exatamente `{ token, payment_method_id, installments }`. Ele recusa antes de chamar o Mercado Pago se os campos não carregaram, se a bandeira ainda não foi identificada ou se o número de parcelas não está entre as opções — cada um desses viraria um `400` opaco no backend.
+5. Depois de criado, o token é **amarrado à cotação**: o Mercado Pago devolve o `first_six_digits` do cartão tokenizado, e se ele não for o BIN para o qual a bandeira e as parcelas foram cotadas, `tokenize` rejeita. O `binChange` é atrasado dentro do iframe, então quem troca o número e envia na hora mandaria o cartão novo com a bandeira do antigo. Mostre o erro e deixe o pagador enviar de novo depois que as parcelas novas chegarem.
+6. Trocar a `publicKey` remonta os campos **vazios** e esquece o BIN, a bandeira e as parcelas do cartão anterior.
+
+!!! info "Escopo PCI: por que Secure Fields e não `<input>`"
+    Uma página que renderiza o próprio `<input>` do número e chama `createCardToken` com ele **manipulou** dado de cartão, por mais rápido que o descarte — e cai no SAQ A-EP. Com os Secure Fields o número nunca passa pelo seu JavaScript, que é a condição do SAQ A. Por isso o hook não aceita o número como parâmetro: não existe um jeito de usá-lo errado.
+
+### O script do Mercado Pago
+
+O MercadoPago.js é carregado de `https://sdk.mercadopago.com/js/v2` (`MERCADO_PAGO_SCRIPT_URL`) na primeira vez que o hook monta — uma tag só, mesmo com vários checkouts na página. Não é dependência npm: o Mercado Pago publica o script sem versão, e o PCI exige que os campos venham direto do processador.
+
+Se a sua página tem Content-Security-Policy, libere:
+
+```text
+script-src  https://sdk.mercadopago.com
+frame-src   https://secure-fields.mercadopago.com https://api-static.mercadopago.com
+connect-src https://api.mercadopago.com https://api.mercadolibre.com
+```
+
+Os hosts foram lidos do próprio script (`js_version` 2.83.6) em 14/11/2026.
+
+#### Em quem o `loadMercadoPago` confia
+
+O `loadMercadoPago` confia em duas coisas sem conferir, e nenhuma das duas é conferível de dentro da página:
+
+- **Um `window.MercadoPago` que já existe.** É usado como está. Quem consegue definir esse global já roda script na sua página — e aí já leu tudo o que a página lê.
+- **O `src` que você passar.** O default é o host do Mercado Pago. Um `src` trocado (um proxy seu) **precisa servir o MercadoPago.js idêntico**: o SAQ A depende de os campos virem do processador, e um script alterado no caminho tira a página dele.
+
+Não há checagem barata que a biblioteca possa fazer no lugar: o script não tem versão, então não existe hash de Subresource Integrity estável para fixar; fixar a origem anularia o motivo de existir o `src`; e um global já definido não tem como provar de onde veio. O controle real é a **CSP**: `script-src` restrito a `https://sdk.mercadopago.com` (ou ao seu proxy) é o que impede um script de outro lugar de entrar na página de checkout.
+
+## Passo 3 — Explicar o resultado do cartão
+
+O backend devolve um `CardCharge`. Uma recusa **não é erro**: o Mercado Pago responde HTTP `402`, e o backend lê isso como uma cobrança com `status: "failed"` e o motivo em `status_detail`. Mostre como resposta:
+
+```tsx
+import { Alert, describeCardCharge, type CardCharge } from "tempest-react-sdk";
+
+export function ResultadoDoCartao({ charge }: { charge: CardCharge }) {
+  const outcome = describeCardCharge(charge);
+  return <Alert variant={outcome.tone} title={outcome.title} description={outcome.message} />;
+}
+```
+
+| `status` / `status_detail` | Título | Texto |
+| --- | --- | --- |
+| `paid` / `accredited` | Pagamento aprovado | Recebemos o seu pagamento. |
+| `authorized` / `waiting_capture` | Pagamento autorizado | O valor foi reservado no seu cartão e só será cobrado quando o pedido for confirmado. |
+| `failed` / `rejected_by_issuer` | Pagamento recusado | O banco emissor recusou o pagamento. Use outro cartão ou fale com o banco. |
+| `failed` / `bad_filled_card_data` | Pagamento recusado | Confira os dados do cartão: número, validade e código de segurança. |
+| `failed` / motivo desconhecido | Pagamento recusado | O pagamento não foi aprovado. Tente outro cartão ou outro meio de pagamento. |
+
+`waiting_capture` é um estado **próprio**: dinheiro reservado, não cobrado. O texto nunca diz "pago".
+
+A tabela inteira está em `CARD_STATUS_DETAIL_MESSAGES` — portada da tabela "Status da transação" da documentação da API de Orders do Mercado Pago, lida em 14/11/2026, e reescrita para o pagador. `high_risk` não fala em fraude de propósito: dizer ao pagador que o antifraude o marcou ajuda justamente quem não devia. Para outro idioma, passe o segundo argumento:
+
+```tsx
+import { describeCardCharge, type CardCharge } from "tempest-react-sdk";
+
+export function outcomeEmIngles(charge: CardCharge) {
+  return describeCardCharge(charge, { rejected_by_issuer: "Your bank declined the payment." });
+}
+```
+
+Um `status_detail` que contradiz o `status` é ignorado (uma recusa só refina `failed`), então "recusado" e "reservado" nunca aparecem na mesma tela.
+
+## Sandbox
+
+Do sandbox medido no backend (09/10/2026), com a conta **vendedora de teste**:
+
+- A Public Key de teste vem da mesma aplicação da vendedora de teste.
+- Cartão que funciona: Visa `4235 6477 2802 5682`, validade `11/2030`, CVV `123`.
+- Titular `APRO` aprova; titular `OTHE` recusa com `rejected_by_issuer`.
+- O Mastercard de teste `5031 4332 1540 6351` respondeu `422` no sandbox (causa não isolada) — use o Visa.
+
+## Referência
+
+| Export | O que é |
+| --- | --- |
+| `PixCheckout` | Tela do Pix: valor, QR, copia-e-cola, contagem regressiva e estado. Controlada por `charge`. |
+| `usePixCharge` | Segue a cobrança via `refresh` (polling) e/ou `subscribe` (push) até ela ser final. |
+| `formatPixRemaining` | Formato da contagem: `mm:ss`, ou `h:mm:ss` acima de uma hora. |
+| `isFinalPaymentStatus` | `true` para `paid`, `expired`, `cancelled`, `refunded`, `charged_back`, `failed`. |
+| `useMercadoPagoCard` | Secure Fields + parcelas pelo BIN + `tokenize`. |
+| `loadMercadoPago` | Carrega o MercadoPago.js uma vez por documento; uma falha não fica em cache. |
+| `MERCADO_PAGO_SCRIPT_URL` | `https://sdk.mercadopago.com/js/v2`. |
+| `describeCardCharge` | `CardCharge` → `{ status, tone, title, message, canRetry }`. |
+| `CARD_STATUS_DETAIL_MESSAGES` | Texto PT-BR por `status_detail` da API de Orders. |
+
+Tipos: `PixCharge`, `CardCharge`, `CardChargeRequest`, `PaymentPayer`, `PaymentStatus`, `PaymentOutcome`, `CardTokenResult`, `CardInstallmentOption`, `UseMercadoPagoCardOptions`, `UsePixChargeOptions`, `PixCheckoutProps`, `PixCheckoutLabels`, `MercadoPagoLike`, `MercadoPagoCardToken`.
+
+## Recap
+
+- O backend decide que foi pago; a tela só mostra o que ele diz. 🔒
+- O cartão é digitado nos iframes do Mercado Pago; o seu código recebe só `{ token, payment_method_id, installments }`. ✅
+- Parcelas mostram o texto do provedor, com juros. 💡
+- Recusa é resposta (`status: "failed"` + `status_detail`), não erro de rede; `waiting_capture` é "reservado", não "pago". ⚠️
 
 ---
 
@@ -27377,6 +28089,27 @@ installNotificationClickHandler({
 });
 ```
 
+### Para onde o clique pode ir
+
+Duas regras valem desde a 0.82.0:
+
+- **`data` não sobrescreve o destino.** O `installPushHandler` espalha o `data` do payload **antes** de gravar `url` e `actionUrls`. Até a 0.81.0 era depois, e `{ "url": "/orders/9", "data": { "url": "https://outro.site" } }` abria `https://outro.site` — e o `data` costuma ser preenchido com o registro que disparou o push.
+- **O resolver padrão só abre página da própria origem.** URL de outra origem, ou com esquema que não seja `http:`/`https:` (`javascript:`, `data:`), vira `"/"`. Um `resolveUrl` seu é como o app escolhe outra origem — o que ele devolver pode ir para qualquer `http(s)`, e esquema diferente disso continua virando `"/"`.
+
+```ts
+/// <reference lib="webworker" />
+import { installNotificationClickHandler } from "tempest-react-sdk/sw";
+
+const PARCEIROS = new Set(["https://parceiro.exemplo.com"]);
+
+installNotificationClickHandler({
+  resolveUrl: (data) => {
+    const { url } = data as { url: string };
+    return PARCEIROS.has(new URL(url, self.location.origin).origin) ? url : "/";
+  },
+});
+```
+
 !!! note "Quantos botões aparecem"
     O navegador mostra até `Notification.maxActions` botões (2 no Chrome desktop) e
     ignora o resto. Safari e Firefox não desenham botão nenhum — o clique no corpo
@@ -27624,6 +28357,16 @@ installPrecache(); // app shell + navegação offline
 
 `installPrecache` liga a **Navigation Preload API** no `activate` por padrão (`navigationPreload: true`): o navegador começa a buscar a navegação em paralelo com o boot do worker e o handler serve `event.preloadResponse`, cortando a latência da primeira navegação depois que o worker sobe.
 
+!!! info "O worker pode ser parado a qualquer hora, e o precache continua valendo"
+    O navegador encerra o service worker ocioso em segundos ou minutos e o sobe de novo no próximo evento, **sem** repetir o `install`. Por isso o `installPrecache` não guarda nada só em memória: o `install` e o `activate` gravam, numa entrada dentro do próprio cache versionado (`/__tempest-precache-state__`), quando aquela versão foi instalada e ativada, e o worker reiniciado lê de volta da Cache Storage qual versão está ativa e quais caminhos ela tem. Navegação offline e assets pré-cacheados continuam saindo do cache depois do restart, e o `activate` só apaga as versões antigas quando sabe qual está ativando — nunca a atual.
+
+    Até a 0.82.0 o nome do cache e os caminhos viviam em variáveis do módulo preenchidas só no `install`: depois do primeiro restart, a navegação offline caía em "offline and no cached app shell" e um `activate` sem `install` na mesma execução apagava todos os precaches (#572).
+
+    Na primeira requisição depois de um restart, enquanto o worker ainda lê quais caminhos estão no precache, um `GET` da mesma origem que nenhuma rota de runtime respondeu vai para a rede por `fetch(request)` dentro do worker, em vez de passar direto — a decisão de chamar `respondWith` não pode esperar a Cache Storage. Daí em diante, o que não está no precache volta a passar direto.
+
+!!! info "`Vary` não esconde o asset pré-cacheado"
+    O `install` grava cada URL do manifest por uma requisição sem headers, mas a página pede o mesmo arquivo com os headers do elemento: `Origin` no `<script type="module" crossorigin>` que o Vite emite, `Accept: text/css,…` na folha de estilo. Servidor que responde com `Vary: Origin` ou `Vary: Accept` — `vite preview`, middleware de CORS servindo estático, CDN — gravava uma entrada que o `cache.match` nunca devolvia: até a 0.83.0 todo asset pré-cacheado ia para a rede e, offline, o app abria em branco (#582). O precache casa por URL, com `ignoreVary`: ele tem uma entrada por caminho, gravada pelo próprio worker e nunca para uma credencial, então `Vary` ali não distingue nada. O `installRuntimeCache` continua respeitando `Vary` — é ele que separa as contas no `cacheAuthenticated`.
+
 !!! note "De onde vem o manifest"
     `installPrecache` lê `precache-manifest.json`, emitido pelo plugin `tempestPwaManifest()` do subpath `tempest-react-sdk/vite`. Veja [Vite config](./vite-config.md).
 
@@ -27643,10 +28386,12 @@ installPrecache(); // app shell + navegação offline
 
 O Cache Storage guarda por **URL** e sobrevive ao logout. Sem cuidado, o `GET /api/me` da conta A fica lá e é servido para a conta B no mesmo navegador assim que a rede cai — ou demora mais que `networkTimeoutSeconds`. Medido no Chromium 153 (11/10/2026), antes da 0.77.0: B, offline, recebia o corpo de A.
 
-Por isso o `installRuntimeCache` aplica quatro regras sozinho:
+Por isso o `installRuntimeCache` aplica seis regras sozinho:
 
 - **Requisição com header de credencial passa direto para a rede** — `Authorization`, `X-Api-Key`, `X-Auth-Token` e o resto de `DEFAULT_CREDENTIAL_HEADERS` (troque por rota com `credentialHeaders`): a rota não lê nem grava o cache, como se o service worker não existisse para ela.
+- **`fetch` CORS com `credentials: "include"` também passa direto** — é o que o `ApiClient` manda com `withCredentials`, mesmo na própria origem. `<img>`, `<audio>` e `<video>` também mandam `include`, mas em modo `no-cors`, então continuam no cache (desde a 0.82.0).
 - **`Cache-Control: no-store` nunca é gravado**, e **`private`** só com opt-in.
+- **`Vary: *` nunca é gravado**: o Cache API rejeita essa resposta no `put`, e até a 0.81.0 a rejeição virava erro — o `network-first` caía no fallback offline e o `cache-first` falhava, com a resposta da rede na mão. Agora ela é servida e só não entra no cache.
 - **`maxAgeSeconds` vale também no fallback**: entrada vencida é miss, nunca "último recurso" offline. Isso vale para `network-first` e `stale-while-revalidate`.
 - **A idade conta da gravação**, não do header `Date` — que não é exposto em resposta CORS, então numa API em outra origem o `maxAgeSeconds` nunca vencia nada.
 
@@ -27672,8 +28417,8 @@ Com o opt-in, cada entrada é gravada com `Vary` em cada header de credencial qu
 
 A revalidação que continua depois da resposta — o refresh do `stale-while-revalidate` e a rede que perdeu para o `networkTimeoutSeconds` — vai para o `event.waitUntil`, então o navegador não derruba o worker no meio da gravação.
 
-!!! warning "Limite: sessão por cookie"
-    O service worker **não enxerga** o `Cookie` da requisição, então não distingue uma API com sessão por cookie de um GET público. Bloquear por `request.credentials` não resolve: desligaria o cache de toda imagem e fonte da mesma origem. Numa API com sessão por cookie, a privacidade do cache depende de duas coisas fora do SDK:
+!!! warning "Limite: sessão por cookie com `fetch` padrão"
+    O service worker **não enxerga** o `Cookie` da requisição. O que ele enxerga é o `fetch` que pede cookie explicitamente (`credentials: "include"` em modo CORS), e esse já passa direto. Um `fetch` simples na mesma origem (`credentials: "same-origin"`, o default) leva o cookie sem dizer — e bloquear por esse modo desligaria o cache de toda requisição da origem. Numa API assim, a privacidade do cache depende de duas coisas fora do SDK:
 
     - o servidor mandar `Cache-Control: private` (ou `no-store`) nas respostas pessoais — o SDK respeita;
     - o app chamar [`clearSessionData()`](#6-logout-apague-os-dados-da-sessao) no logout.
@@ -27685,7 +28430,9 @@ A revalidação que continua depois da resposta — o refresh do `stale-while-re
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 ```
 
 Para reenviar mesmo **sem uma navegação nova**, registre um *periodic sync* na main thread. O SW já escuta o evento `periodicsync`:
@@ -27723,7 +28470,7 @@ provideBackgroundSyncCredentials(
 ```
 
 !!! warning "Sem provedor, nenhuma mutação é reenviada"
-    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay). API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. App sem login nenhum usa [`ownerPolicy: "lenient"`](#ownerpolicy-app-sem-login).
+    A fila não guarda o token, então só a página pode devolvê-lo — e só a página diz quem está logado. Sem `provideBackgroundSyncCredentials`, a aba não responde, o dono da entrada fica **desconhecido** e ela fica pendente até `maxRetentionMinutes` e some, tenha ou não header de credencial. Em build de desenvolvimento o worker avisa no console (uma vez por replay), e o próprio `provideBackgroundSyncCredentials` chamado **sem** `getPrincipal` também avisa: sem ele, toda entrada fica **sem dono** e sai com a sessão de quem responder — a de B, se A saiu sem `clearSessionData()`. API com sessão por cookie e sem token instala o provedor do mesmo jeito: `provideBackgroundSyncCredentials(() => null, { getPrincipal })`. App sem login nenhum usa [`ownerPolicy: "lenient"`](#ownerpolicy-app-sem-login).
 
 #### Cada entrada tem dono
 
@@ -27741,7 +28488,7 @@ No replay o worker pergunta a **todas** as abas em paralelo, com um único prazo
 
 | Resposta escolhida | Replay |
 | -- | -- |
-| headers com todos os que foram removidos | reenvia com eles — só os **nomes** que a requisição original tinha, então devolver `Authorization` sempre não vaza o token para uma URL que não o recebia |
+| headers com todos os que foram removidos | reenvia com eles — só os **nomes** que a requisição original tinha, e só para a origem do worker ou de `trustedOrigins` ([abaixo](#credencial-so-volta-para-origem-confiavel)) |
 | headers sem algum que foi removido | fica pendente (não sai anônima para levar 401 e sumir) |
 | `null` (sem sessão) | descarta, sem enviar |
 | nenhuma resposta válida | fica pendente até `maxRetentionMinutes` |
@@ -27750,13 +28497,35 @@ Só a entrada **sem dono** e sem header de credencial é reenviada como estava, 
 
 Medido no Chromium 153 (11/10/2026), com service worker, IndexedDB e duas abas reais: A enfileira offline, B entra sem limpar nada, o sync dispara — o servidor não recebe POST; com a aba de B aberta ao lado, a mutação de A sai com o token renovado de A.
 
+#### Credencial só volta para origem confiável
+
+O nome do header não basta. Uma requisição para um terceiro (`https://pagamentos.exemplo/webhooks`) leva o `Authorization` **daquele terceiro**; o worker o remove antes de gravar, como qualquer credencial. Se o replay pedisse a credencial à página e aplicasse pelo nome, o terceiro receberia o bearer **do app** — e era o que acontecia até a 0.80.0 (#523): medido com o `match` e o provedor do template `--pwa`, o replay de um `POST https://third.party/api/hooks` com `Authorization: Bearer THIRD` saiu com `Authorization: Bearer APP`.
+
+Agora o replay usa a mesma regra do `ApiClient` (`isTrustedCredentialTarget`): credencial só vai para a **origem do próprio worker** e para as origens em `trustedOrigins`.
+
+- Entrada que levava header de credencial para outra origem é **descartada**, sem perguntar à página e antes do `beforeReplay`. Reenviá-la sem a credencial seria uma requisição que o app nunca fez; com a do app, um vazamento.
+- O `Request` que o `beforeReplay` (próprio ou padrão) devolve com header de `credentialHeaders` para outra origem também é descartado, em vez de enviado.
+- Entrada **sem** header de credencial não muda: o navegador anexa os cookies daquela origem, como na tentativa original.
+
+Em build de desenvolvimento, cada descarte avisa uma vez por origem e por replay. Se a sua API mora em outra origem, declare:
+
+```ts
+import { installBackgroundSync } from "tempest-react-sdk/sw";
+
+installBackgroundSync({
+  match: (url) => url.origin === "https://api.example.com",
+  trustedOrigins: ["https://api.example.com"],
+});
+```
+
 O replay é um só por fila: `sync`, `periodicsync` e o fallback do Safari disparando juntos compartilham a mesma passada, e a mesma mutação não sai duas vezes. E `clearBackgroundSyncQueue()` alcança o que está em voo: cada entrada é conferida no banco logo antes de sair, e uma requisição que ainda estava falhando quando a fila foi limpa não é gravada depois.
 
-Fora desse caminho, há três controles no `installBackgroundSync`:
+Fora desse caminho, há quatro controles no `installBackgroundSync`:
 
 - **`credentialHeaders`** — a lista de headers removidos. Para um header próprio: `[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]`. O provedor precisa devolver todos eles.
 - **`beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })`** — substitui o pedido às páginas: devolva o `Request` a enviar, `null` para descartar, ou lance para manter pendente. Útil quando o worker consegue a credencial sozinho; `ownerState`/`owner` permitem aplicar a mesma regra de dono.
 - **`ownerPolicy`** — `"strict"` (padrão) ou `"lenient"`; veja [`ownerPolicy`: app sem login](#ownerpolicy-app-sem-login).
+- **`trustedOrigins`** — origens além da do worker que podem receber credencial no replay; veja [acima](#credencial-so-volta-para-origem-confiavel).
 
 !!! warning "Limite: credencial na URL ou no corpo"
     Só **headers** saem da fila. Um token em query string (`?access_token=…`) ou dentro do corpo da mutação é gravado como foi enviado. Mande credencial em header.
@@ -27771,7 +28540,10 @@ O padrão é `ownerPolicy: "strict"`. App **sem login**, em que nenhuma página 
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: /\/api\//, ownerPolicy: "lenient" });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+  ownerPolicy: "lenient",
+});
 ```
 
 | Entrada | `"strict"` (padrão) | `"lenient"` |
@@ -28157,10 +28929,75 @@ As gravações são throttled (`throttleMs`, default 1s) e assinam o cache. `flu
 
 - **Chame `persistence.clear()` no seu fluxo de logout** (ou no hook de fim de sessão do seu auth). É idempotente e pode ser chamado mais de uma vez, inclusive em paralelo.
 - **`clear({ resetClient: true })` é o logout em uma chamada**: depois de parar a persistência e apagar o snapshot, ele também faz `queryClient.clear()`, então nada do usuário anterior fica nem no disco nem em memória.
-- **Sem a opção (default `false`), o `QueryClient` em memória não é tocado** — ele é do app, que pode querer manter queries públicas (um catálogo, feature flags) e tirar só as keys do usuário com `removeQueries`. Como a persistência já parou, a ordem entre `persistence.clear()` e a sua limpeza manual não importa.
+- **Sem a opção (default `false`), o `QueryClient` em memória não é tocado** — ele é do app, que pode querer manter queries públicas (um catálogo, feature flags) e tirar só as keys do usuário com `removeQueries`. Como a persistência já parou, a ordem entre `persistence.clear()` e a sua limpeza manual não importa. Com `auth`, o client que sobra ainda guarda respostas da sessão que acabou, então ele fica marcado como encerrado: nenhum handle sobre ele grava — o novo do login, nem o de outra `key` — até o client ser zerado (veja abaixo).
 - **Para persistir a próxima sessão, crie um handle novo no login**: o handle antigo não volta a gravar. Em build de dev, o primeiro `restore()`, `flush()` ou query nova num handle encerrado gera **um** `console.warn` avisando disso.
 - **Handles de sessões diferentes não se atropelam.** Enquanto um `clear()` está rodando, o `restore()` e as gravações de um handle novo com o mesmo `databaseName` + `key` esperam ele terminar — mesmo que o logout não tenha sido aguardado.
 - Se a remoção no IndexedDB falhar, `resetClient` limpa o `QueryClient` mesmo assim, e o erro chega a quem chamou.
+- **Sessão que acaba sem `clear()`** (token vencido, crash, aba fechada logada) não passa pelo logout. Para ela, passe `getPrincipal: () => userId`: cada gravação carimba o snapshot com a impressão de quem está logado, e o `restore()` só hidrata o snapshot do **mesmo** dono. O de outra pessoa é ignorado, não apagado — app com cookie que só descobre o usuário depois do `/me` não perde o próprio cache —, e a próxima gravação o substitui. Snapshot gravado antes da opção não tem carimbo e não é restaurado: custa um boot frio, uma vez.
+- **O handle fica preso ao primeiro dono logado** que ele vê — numa mudança do cache, numa gravação ou num restore. É a mudança do cache que fixa o dono do dado: a gravação tem throttle, e sem isso uma sessão que vencia (ou outra conta que entrava) dentro da primeira janela recebia as respostas de quem saiu, carimbadas como anônimas ou como suas (#580). Depois disso, uma gravação com outro dono — ninguém, porque o token venceu sem `clear()`, ou outra conta entrando na mesma aba — **apaga** o snapshot em vez de carimbar as respostas de quem saiu com o dono novo (#563); se o mesmo usuário voltar, o handle volta a gravar. Gravação antes de alguém logar continua anônima e é restaurada enquanto ninguém estiver logado, então app que persiste dado de visitante segue igual. Snapshot anônimo gravado pela 0.82.0 não é restaurado (pode conter o cache de uma sessão vencida): um boot frio, uma vez. Para a próxima sessão persistir, encerre o handle com `clear({ resetClient: true })` e crie um novo no login: o `QueryClient` em memória ainda guarda as respostas de quem saiu, e um handle novo sobre ele as carimbaria com o dono novo. Com `auth`, a biblioteca não zera o client por você, mas garante que um handle novo sobre um client que ainda guarda uma sessão encerrada **apaga** em vez de gravar até o client ser zerado (veja abaixo); só com `getPrincipal`, limpar o client é com o app.
+- **Principal ainda desconhecido: `isPrincipalKnown`.** Para o `getPrincipal`, `null` e `undefined` querem dizer **ninguém logado** — o mesmo contrato do resto do SDK, então `() => user?.id` continua valendo. "Ainda não sei" é outro estado: app com sessão por cookie só descobre o usuário depois do `/me`, e uma gravação que rodava antes disso carimbava as respostas de A como anônimas; se a aba fechasse antes da próxima gravação, o boot deslogado seguinte as hidratava (#590). Passe `isPrincipalKnown: () => false` até a resposta do `/me` chegar, seja ela qual for. Enquanto for `false`, nada é gravado (a gravação é reagendada para a próxima janela), mudança no cache não prende o dono e o `restore()` não hidrata nada — chame-o de novo quando o principal for conhecido. Um `isPrincipalKnown` que lança conta como desconhecido. Sem `getPrincipal`, a opção é ignorada.
+- **Handle que hidratou snapshot anônimo não o recarimba** quando alguém loga nele: a linha anônima pode ser de uma conta cujo principal ainda não era conhecido na gravação, e recarimbá-la entregava as respostas de A a B (#590). A gravação apaga a linha, como na troca de conta (#563), e em build de dev sai **um** `console.warn`. App de visitante que depois faz login perde a persistência daquela sessão; para continuar persistindo, chame `clear({ resetClient: true })` nele e crie um handle novo — sem zerar o client, o handle novo carimbaria a linha anônima hidratada com a conta que entrou.
+
+```ts
+import { persistQueryClientOffline } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+const queryClient = new QueryClient();
+let me: { id: string } | null = null;
+let meResolved = false;
+
+const persistence = persistQueryClientOffline({
+    queryClient,
+    getPrincipal: () => me?.id,
+    isPrincipalKnown: () => meResolved,
+});
+
+export async function boot(): Promise<void> {
+    const response = await fetch("/api/me", { credentials: "include" });
+    me = response.ok ? ((await response.json()) as { id: string }) : null;
+    meResolved = true;
+    await persistence.restore();
+}
+```
+
+### Com `createTempestAuth`: passe `auth`
+
+App com `createTempestAuth` não precisa montar `getPrincipal` nem `isPrincipalKnown` à mão: passe o próprio preset em `auth` (#596).
+
+```ts
+import { createTempestAuth, persistQueryClientOffline } from "tempest-react-sdk";
+import { QueryClient } from "@tanstack/react-query";
+
+interface User {
+    id: string;
+}
+
+const auth = createTempestAuth<User>({
+    baseURL: "https://api.example.com",
+    withCredentials: true,
+    logoutPath: "/api/auth/logout",
+    mePath: "/api/auth/me",
+});
+const queryClient = new QueryClient();
+const persistence = persistQueryClientOffline({ queryClient, auth });
+
+export async function boot(): Promise<void> {
+    await auth.refresh().catch(() => undefined);
+    await persistence.restore();
+}
+```
+
+- **O dono do cache é a sessão**: o principal é `auth.sessionKey()`, que sobrevive ao reload e à rotação do token e muda a cada login. Login novo da mesma conta começa com o cache frio — é um cache, e nenhuma conta herda o de outra.
+- **"Ainda não sei" vem do preset**: `auth.isSessionKnown()` é `false` enquanto um `login()`, um `restore()` ou uma troca de conta está em voo, e enquanto o `refresh()` do boot ainda restaura a sessão do cookie. Nesse intervalo nada é gravado, nada prende o dono e o `restore()` não hidrata nada. Uma `sessionKey()` que lança também conta como desconhecida.
+- **Toda sessão instalada enquanto o cache vive conta**, não só a que uma mudança do cache viu. O preset avisa cada instalação, e o handle anota a sessão no `QueryClient`. Quando uma segunda sessão, ou ninguém depois de uma, foi instalada — `logout()` em outra aba, `logout()` nesta sem `clear()`, outro `login()` por cima —, toda gravação apaga a linha e o `restore()` não hidrata nada, porque o cache pode ter respostas da sessão que acabou. Inclui a requisição que saiu **sem token** e que o api client repetiu com o token de um `login()` ou do `refresh()` do boot em voo: se essa sessão acabou antes da resposta chegar, ninguém estava logado nem na saída nem na chegada, e, antes desta correção, a resposta de A era carimbada `p:anonymous` para o próximo boot deslogado (auditoria run-12, C1). Ninguém seguido de uma sessão não conta como fim (o dado de visitante não é de conta nenhuma), e a rotação do token mantém a chave.
+- **A anotação é do `QueryClient`, não do handle.** Um handle novo sobre o mesmo client continua apagando até o client ser zerado, e só duas coisas zeram: `clear({ resetClient: true })` do handle anterior (a anotação sai depois do `queryClient.clear()`, quando nada da sessão encerrada fica em memória — **desde que ninguém esteja logado** nessa hora) ou um handle criado com o client vazio (`queryClient.clear()` ou `removeQueries()` de tudo antes). O `clear()` **sem** `resetClient` não zera: o client ainda guarda as respostas da sessão, então a anotação fica marcada como encerrada, e isso vale também para o handle de outra `key` sobre o mesmo client. Antes da 0.85.0, esse `clear()` apagava a anotação, e o handle novo criado no login carimbava as respostas de A com a impressão de B — e o `restore()` do próximo boot de B as hidratava (auditoria run-13, C1). Sem isso, seguir o conselho "crie um handle novo depois do login" carimbava as respostas de A, ainda em memória, como de B. O custo é deliberado: depois de uma sessão que acaba sem `clear()` — inclusive a sessão salva que venceu no boot —, a próxima não persiste naquele carregamento até o client ser zerado ou a página recarregar. Para não pagar, chame `clear({ resetClient: true })` no fim de toda sessão e crie o handle de novo.
+- **O reset vai no `onSessionEnd` ou depois do `logout()`**, não antes. Um `clear({ resetClient: true })` com a sessão de A ainda instalada não apaga a anotação: o handle encerrado já não observa a sessão, e uma query de A que caísse no intervalo (refetch, intervalo, foco, prefetch) chegava ao handle de B como dado anônimo e era gravada com a impressão de B — o próximo boot de B hidratava as respostas de A (auditoria run-14, C1, #609). Agora a anotação fica marcada como encerrada até um handle ser criado com o client vazio; se nada de A entrou no intervalo, o handle do login de B persiste normalmente.
+- **A resposta de uma sessão que acabou não chega ao cache.** O `auth.api` recusa, com `SessionSupersededError`, a resposta de uma request que saiu com o token de uma sessão encerrada antes de ela chegar — inclusive a `mutation` iniciada antes do `logout()`, cujo `onSuccess` fazia `setQueryData` com os dados de A já na sessão de B (na tela e no snapshot). Veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). O que não passa pelo `auth.api` (um `fetch` seu, uma promise do app) continua sendo responsabilidade do app.
+- **O que fica de fora**: com um objeto de sessão seu em `auth` (não o preset), não há aviso de instalação — a sessão só é lida em mudança de cache, gravação e restore, e uma sessão instalada e encerrada entre duas delas passa despercebida. O handle só anota as sessões enquanto as observa: depois de `unsubscribe()`, o `flush()` não grava nada, e um handle criado sobre um client que **já** guarda respostas não tem como saber de qual sessão elas vieram — crie o handle no boot, antes da primeira query. E um backend que autentica por cookie sem bearer (`withCredentials`) não instala sessão nenhuma no SDK: o que ele responde é gravado como anônimo, como em qualquer app sem login.
+- **Quer o id do usuário como dono?** Passe `getPrincipal` junto com `auth`. Aí o principal também precisa estar carregado: com sessão instalada e `getPrincipal` respondendo ninguém (o perfil ainda não veio), conta como desconhecido — não como anônimo.
+- Chame o `restore()` **depois** do `refresh()` do boot. Antes dele, a sessão ainda não existe, e o `restore()` só hidrata o que é de ninguém.
+
+Antes, a única proteção era a frase do item `isPrincipalKnown` acima: sem ela, a aba fechada antes do `/me` deixava as respostas de A carimbadas como anônimas, e o próximo boot deslogado as hidratava. Reproduzido em `src/query/offline-persistence.auth.test.ts` (`npx vitest run src/query/offline-persistence.auth.test.ts`); as sessões instaladas no meio da requisição e o handle novo sobre o mesmo client, em `src/query/offline-persistence.lifetime.test.ts`.
 
 !!! warning "Mudou na 0.77.0: o handle morre no `clear()`"
     Antes, o mesmo handle continuava gravando depois do `clear()`. Se o seu app guarda a `persistence` no nível do módulo e reaproveita depois do login, ele **para de persistir** a partir da 0.77.0. Crie o handle dentro da sessão:
@@ -28207,72 +29044,44 @@ Dexie é peer dependency do store offline — instale (`npm i dexie`).
 
 # Release pipeline
 
-Como o `tempest-react-sdk` é publicado no npm — workflow tag-push automático, com fallback manual.
+Como o `tempest-react-sdk` é publicado no npm e como o site de docs vai ao ar — tudo na máquina de quem mantém o pacote, sem GitHub Actions.
+
+!!! info "Por que não tem mais workflow"
+    Desde 13/11/2026 a regra do dono é: GitHub Actions só em repositório da org `7rc`. Este repositório está fora dela, então o custo no GitHub é zero — nenhum workflow, nenhum `gh run rerun`, nenhum `gh workflow run`. O `release-npm.yml` e o `docs.yml` foram **apagados**, não só desligados: workflow desligado volta com um clique, e os testes que fixavam o hardening deles continuariam atestando código que nunca roda. A última versão dos dois está no commit `2df6e4b`. O que eles faziam virou dois alvos do `Makefile`: `make release-tag` e `make docs-deploy`.
 
 ## Visão geral
 
 ```text
-Local:                                  GitHub Actions:
   make release TAG=X.Y.Z
-       │
-       ▼
-  ┌─────────────────────────┐
-  │ scripts/release.sh:     │
-  │  1. branch release/vTAG │
-  │  2. npm version TAG     │
-  │  3. fecha o CHANGELOG   │
-  │     ([Unreleased] →     │
-  │      [TAG] — data)      │
-  │  4. commit + RELEASES.md│
-  │  5. validate (lint +    │
-  │     format + typecheck  │
-  │     + test + build)     │
-  │  6. push da branch      │
-  │  7. abre PR via gh      │
-  │     (sem tag)           │
-  └─────────────────────────┘
+  ┌──────────────────────────────┐
+  │ scripts/release.sh           │
+  │  1. branch release/vTAG      │
+  │  2. npm version TAG          │
+  │  3. fecha o CHANGELOG        │
+  │  4. RELEASES.md + commit     │
+  │  5. make check               │
+  │  6. push da branch + PR      │
+  └──────────────────────────────┘
        │ revisão + merge do PR na main
        ▼
   make release-tag TAG=X.Y.Z
-  ┌─────────────────────────┐
-  │ scripts/release-tag.sh: │
-  │  1. acha o commit do    │
-  │     merge na main       │
-  │  2. tag vTAG nele       │
-  │  3. push da tag         │──────────► tag push triggers
-  └─────────────────────────┘            .github/workflows/release-npm.yml
-                                                  │
-                                                  ▼
-                                       ┌────────────────────────────┐
-                                       │ build (contents: read)     │
-                                       │ 1. Checkout @ tag          │
-                                       │ 2. tag == package.json, e  │
-                                       │    o commit está na main?  │
-                                       │ 3. npm ci + lint + format  │
-                                       │ 4. Typecheck + tests       │
-                                       │ 5. Build + npm pack        │
-                                       │ smoke (contents: read)     │
-                                       │ 6. Bundler, Node cru e     │
-                                       │    Vitest contra o tarball │
-                                       │ publish (id-token: write)  │
-                                       │ 7. npm publish <tarball>   │
-                                       │    --provenance            │
-                                       │ 8. read-back: registry     │
-                                       │    serve a versão e o      │
-                                       │    o dist-tag bate?        │
-                                       │ release (contents: write)  │
-                                       │ 9. GitHub Release da tag   │
-                                       │    (notas = CHANGELOG,     │
-                                       │     tarball anexado)       │
-                                       └────────────────────────────┘
+  ┌──────────────────────────────────────────────────────┐
+  │ scripts/release-tag.sh                               │
+  │  1. working tree limpo, npm whoami, gh auth status   │
+  │  2. acha o commit do merge na main                   │
+  │  3. RELEASES.md tem a linha? a tag já existe?        │
+  │  4. guard de ref + dist-tag (cópias de origin/main)  │
+  │  5. worktree descartável do commit:                  │
+  │     scripts/release-pack.sh (npm ci, lint, format,   │
+  │     typecheck, testes, build, npm pack, 3 smokes)    │
+  │  6. relê o latest, npm publish <tarball> --tag …     │
+  │  7. read-back: registry serve versão e dist-tag?     │
+  │  8. push da tag                                      │
+  │  9. gh release create --verify-tag (+ tarball)       │
+  └──────────────────────────────────────────────────────┘
 ```
 
-**As três superfícies andam juntas**: a git tag, a versão no npm e o GitHub
-Release. O workflow falha se a tag não descrever a versão do `package.json`, e
-falha se o registry não estiver servindo a versão sob o dist-tag dela — então "workflow
-verde" significa de fato "publicado e visível".
-
-Uma tag `vX.Y.Z` é a **única** coisa que publica — o disparo manual também roda sobre a tag, nunca sobre uma branch. O merge do PR de release não publica nada sozinho: ele leva o bump para a `main`, e **só depois** a tag nasce no commit do merge (`make release-tag`). O guard do workflow reprova tag em commit que não está na `main` (#472), então nada que não passou pela revisão do PR chega ao npm.
+**As três superfícies andam juntas**: a git tag, a versão no npm e o GitHub Release. Os passos irreversíveis — publish, push da tag, Release — vêm por último, então uma recusa nunca deixa meio release para trás. Uma run que parou no meio (o registry demorou, a rede caiu) se retoma rodando o mesmo comando de novo.
 
 ## Comandos
 
@@ -28281,12 +29090,12 @@ O release é **dois passos**, com a revisão do PR no meio:
 ```bash
 make release TAG=0.1.5       # 1. abre o PR de release (não taggeia, não publica)
 # ... revisão e merge do PR na main ...
-make release-tag TAG=0.1.5   # 2. tag no commit do merge + push → publica
+make release-tag TAG=0.1.5   # 2. build + smokes + npm publish + tag + GitHub Release
 ```
 
 ### `make release TAG=0.1.5`
 
-Abre o PR de release: branch `release/v0.1.5`, bump, `[Unreleased]` fechado em `[0.1.5]`, `RELEASES.md` regenerado, validação local, push da branch e PR via `gh`. **Não cria nem empurra tag** — nada é publicado neste passo. Requer working tree limpo + tag inexistente local/remoto.
+Abre o PR de release: branch `release/v0.1.5`, bump, `[Unreleased]` fechado em `[0.1.5]`, `RELEASES.md` regenerado, `make check`, push da branch e PR via `gh`. **Não cria nem empurra tag** e não publica nada. Requer working tree limpo + tag inexistente local/remoto.
 
 Bloqueia se `CHANGELOG.md` não mencionar `[TAG]` ou `[Unreleased]` (com prompt para forçar continuação).
 
@@ -28306,36 +29115,53 @@ make release-tag TAG=0.1.5
 
 ### `make release-tag TAG=0.1.5`
 
-Roda **depois do merge** do PR de release. Busca `origin/main`, escolhe o commit e empurra a tag `v0.1.5` nele — o push é o que dispara o `release-npm.yml`.
+Roda **depois do merge** do PR de release, de qualquer checkout limpo do repositório: o build acontece num `git worktree` descartável do commit publicado, então o seu checkout não é tocado. Precisa de `npm login` (é a **sua** credencial npm que publica) e de `gh auth login` (é o `gh` que cria o Release). Sem login no npm, o script para antes de buildar qualquer coisa.
 
-O commit escolhido é o **primeiro** da história first-parent da `main` cujo `package.json` está em `0.1.5`: o merge (ou o squash) do PR de release. Um PR mergeado depois dele, ainda na mesma versão, fica de fora — está no `[Unreleased]` e não pode ir para o npm sob uma versão que não o documenta. Antes de taggear, o script confere a versão do `package.json`, a linha `| v0.1.5 |` no `RELEASES.md` desse commit e que a tag não existe, local nem no origin.
+1. **Credenciais e árvore.** `npm whoami` e `gh auth status`; working tree limpo.
+2. **O commit.** O **primeiro** da história first-parent de `origin/main` cujo `package.json` está em `0.1.5`: o merge (ou o squash) do PR de release. Um PR mergeado depois dele, ainda na mesma versão, fica de fora — está no `[Unreleased]` e não pode ir para o npm sob uma versão que não o documenta.
+3. **Conferências.** A linha `| v0.1.5 |` no `RELEASES.md` desse commit. Tag já existente — local ou no origin — precisa apontar para esse mesmo commit: no mesmo commit é **retomada**; em outro, recusa.
+4. **Guard de ref** (`scripts/check-release-ref.sh`) e regra do dist-tag (`scripts/release-dist-tag.sh`), **copiados de `origin/main`** (veja [Quem decide quem publica](#quem-decide-quem-publica)), contra o `latest` que o registry serve agora (`npm view`, só leitura). O guard recusa versão que não bate com o `package.json` do commit, commit fora da `main` (#472) e backport de linha não aberta (#527) — antes de qualquer instalação.
+5. **Build e smokes** (`scripts/release-pack.sh` do commit, no worktree descartável): `npm ci`, lint, format, typecheck, a suíte, build, `npm pack` e os quatro smokes do tarball — bundler + Node cru com o `node-css-loader` (`scripts/smoke-bundle.sh`), Vitest de consumidor (`scripts/smoke-vitest.sh`), o bin `tempest` (`scripts/smoke-cli.sh`) e o `npm audit` de um app recém-gerado pelo `create-tempest-app` (`scripts/smoke-scaffold-audit.sh`). A suíte roda de novo porque o commit do merge é outra árvore quando a `main` andou durante a revisão.
+6. **Publish.** O `latest` é relido e o dist-tag escolhido de novo segundos antes do upload; depois `npm publish <tarball> --access public --tag <dist-tag>` publica **o arquivo** que os smokes exercitaram, não um pack novo — publish de tarball não roda script de ciclo de vida nenhum. Versão que o registry já serve não é publicada de novo (retomada) — **mas só se o `dist.integrity` dela for o sha512 do tarball testado**; outro artefato sob a mesma versão para tudo antes de qualquer tag ou Release. Com 2FA no npm, o `npm publish` pede o código.
+7. **Read-back.** O registry serve `tempest-react-sdk@0.1.5`, o dist-tag dela aponta para ela, e o `dist.integrity` servido é o sha512 do tarball que passou pelos smokes — se não for, o comando falha aqui, sem tag nem Release. A janela é de 30 minutos (`RELEASE_READBACK_ATTEMPTS=120` × `RELEASE_READBACK_SECONDS=15`): o npm processa o upload de forma assíncrona, e a v0.76.0 levou 18 minutos para aparecer. Se a janela acabar, a tag **não** é empurrada; rode o mesmo comando quando a versão aparecer.
+8. **Push da tag** `v0.1.5` no commit publicado.
+9. **GitHub Release.** Confere que a tag no GitHub resolve para o commit publicado e cria o Release com `gh release create --verify-tag` (chamada de API; GitHub Actions não entra), notas da seção do `CHANGELOG.md` e o tarball testado anexado — os passos 6 e 7 já garantiram que ele é o que o npm serve. Release existente vira `gh release edit` + `upload --clobber`, sem mexer na marca _Latest_.
 
-- `DRY_RUN=1` mostra o commit que seria taggeado e para, sem criar nada.
-- `REF=<sha>` taggeia um commit específico, para quando a `main` já andou para outra versão antes do tag. O commit precisa estar na `main` e ter a versão certa.
+Variáveis:
+
+- `DRY_RUN=1` roda os passos 1 a 5 e um `npm publish --dry-run`; não cria tag, não publica, não cria Release, e não exige login.
+- `REF=<sha>` publica um commit específico, para quando a `main` já andou para outra versão. Ele precisa estar na `main` e ter a versão certa.
+- `BASE_BRANCH=release-0.75` e `BACKPORT_LINES=release-0.75` publicam um backport (veja [Dist-tags](#dist-tags)).
+
+!!! warning "Sem provenance"
+    Provenance (o selo _Verified provenance_ do npm) exige a identidade OIDC de um runner de CI, que não existe na máquina local. As versões até a v0.82.0 saíram com provenance; as publicadas pelo `make release-tag` saem sem. A procedência agora se confere pelo GitHub Release: ele aponta para o commit da tag e anexa o tarball cujo sha512 é o `dist.integrity` do npm.
 
 ### `make release TAG=0.1.5 SKIP_VALIDATE=1`
 
-Pula o `make check` local — o único lugar onde budgets, cobertura, smokes e o e2e da gallery rodam, porque a CI não testa PR. O workflow da tag ainda roda lint, format-check, typecheck, testes, build e os smokes do tarball antes de publicar, mas não o `size-limit` nem o e2e. Use apenas em emergências.
+Pula o `make check` local — o único lugar onde budgets, cobertura e o e2e da gallery rodam. O `make release-tag` ainda roda lint, format, typecheck, testes, build e os smokes antes de publicar, mas não o `size-limit` nem o e2e. Use apenas em emergências.
 
 ### `make validate`
 
-Roda toda a validação local sem fazer release. Equivalente ao bloco de validação do CI.
+Subconjunto rápido do `make check`, sem release.
 
 ### `make publish`
 
-Fallback manual. Requer `NPM_TOKEN` no `~/.npmrc` (token com bypass 2FA) ou `npm login` interativo. **Não dispara workflow** — publish direto.
+**Recusa e sai com código 1** (#532). Um `npm publish` solto pula o guard de ref, a conferência com a `main`, os smokes do tarball, o read-back e o GitHub Release. Publicar é só pelo `make release-tag`. `make publish-dry` continua: roda `npm publish --dry-run` e não publica nada.
 
-```bash
-npm config set //registry.npmjs.org/:_authToken=npm_xxx... --location=user
-npm run build
-make publish
-```
+### `make docs-deploy`
 
-Sem token com bypass 2FA, npm exige OTP:
+Publica o site MkDocs no GitHub Pages, da máquina local (`scripts/docs-deploy.sh`):
 
-```bash
-npm publish --access public --otp=123456
-```
+1. busca `origin/main` e abre um worktree descartável dela — o site é sempre o da `main`, nunca o do seu checkout;
+2. cria um venv descartável com `uv` e instala `docs/requirements.txt` com `--require-hashes` (#532): versão e hash de toda dependência fixados;
+3. `node scripts/gen-llms.mjs` e `mkdocs build --strict`;
+4. confere que as duas línguas saíram (`index.html` e `en/index.html`);
+5. empurra **esse** diretório para a branch `gh-pages` com o `ghp-import` do mesmo venv. Não é `mkdocs gh-deploy`, que buildaria uma segunda vez;
+6. lê a configuração do Pages (`gh api`, só leitura) e avisa se ela ainda não serve a `gh-pages`.
+
+`DRY_RUN=1 make docs-deploy` para depois do passo 4. Medido em 13/11/2026: o build com dry-run leva ~13 s com o cache do `uv` quente e gera as páginas das duas línguas (`time DRY_RUN=1 make docs-deploy`).
+
+Mudança docs-only continua sendo commit `docs:` direto na `main`; o site muda quando alguém roda `make docs-deploy`, não no push.
 
 ### `make releases`
 
@@ -28366,111 +29192,58 @@ make releases-sync-dry   # lista o que faria, sem criar nada
 make releases-sync       # cria de verdade
 ```
 
-Necessário porque o publish no npm e a criação do Release passaram a andar juntos só a partir da v0.24.0: as tags anteriores existiam no git e no npm, mas sem Release no GitHub.
-
 !!! info "Notas de um backfill nunca herdam `[Unreleased]`"
-    O `scripts/changelog.mjs notes <versão>` só cai no bloco `[Unreleased]` quando recebe `--allow-unreleased` (o que o workflow faz, para o caso de um release cortado antes de datar a seção). No backfill a flag **não** é passada — assim uma tag antiga nunca recebe as notas do ciclo seguinte; sem seção, o Release sai com um ponteiro para o `CHANGELOG.md`.
+    O `scripts/changelog.mjs notes <versão>` só cai no bloco `[Unreleased]` quando recebe `--allow-unreleased` (o que o `make release-tag` faz, para o caso de um release cortado antes de datar a seção). No backfill a flag **não** é passada — assim uma tag antiga nunca recebe as notas do ciclo seguinte.
 
-## CI workflow (`.github/workflows/release-npm.yml`)
+## Dist-tags
 
-Disparado por:
+O `latest` é **monotônico**: só anda para a frente. A regra mora num script só, `scripts/release-dist-tag.sh`, chamado pelo guard, logo antes do `npm publish` e na hora de marcar o GitHub Release.
 
-- **`push: tags: [v*.*.*]`** — fluxo principal. `make release-tag TAG=X`, depois do merge do PR de release, empurra a tag e o workflow dispara automaticamente.
-- **`workflow_dispatch`** — manual, **sempre sobre a tag**: `gh workflow run release-npm.yml --ref vX.Y.Z`. Útil quando o publish de uma tag falhou e você quer re-rodar sem incrementar versão. Disparado de uma branch (`--ref main`), o guard do passo 3 reprova a run antes de instalar qualquer coisa — até a 0.76.0 ele derivava a tag do `package.json` da branch e publicava aquela árvore.
-
-O workflow parte de `permissions: {}`, roda um release por vez, de qualquer tag (`concurrency` com grupo único `release-npm`, sem cancelar o que está em andamento — o publish dele pode já ter acontecido) e se divide em quatro jobs, cada um com só a permissão de que precisa. A divisão é o ponto: o único job que **pode** publicar não roda nada resolvido do registry na hora do release.
-
-| Job       | Permissão         | O que roda                                                                 |
-| --------- | ----------------- | -------------------------------------------------------------------------- |
-| `build`   | `contents: read`  | guard de versão, `npm ci`, lint, format, typecheck, testes, build, `npm pack` |
-| `smoke`   | `contents: read`  | os três smokes do tarball, com as instalações flutuantes do consumidor     |
-| `publish` | `id-token: write` (environment `npm-release`) | npm CLI fixado + `npm publish` do tarball já testado + read-back           |
-| `release` | `contents: write` | o GitHub Release, sem instalar nada                                        |
-
-Passos, na ordem:
-
-1. **Checkout** (`actions/checkout`, fixado por SHA como toda action do workflow) com `fetch-depth: 0` e `persist-credentials: false` — o `GITHUB_TOKEN` não fica gravado no `.git/config` para os passos seguintes.
-2. **Node 22** + cache npm.
-3. **Guard de ref** (`scripts/check-release-ref.sh`) — **aborta**, antes de qualquer instalação, se o ref da run não é uma tag `vX.Y.Z` (ou `vX.Y.Z-pre`), se a tag não descreve o `version` do `package.json`, se ela não aponta para o commit em checkout (`GITHUB_SHA`), ou se esse commit **não está na `main`** (não é ancestral de `origin/main`, #472) — o checkout com `fetch-depth: 0` é o que traz `origin/main`, e sem ela o guard falha fechado. Vale para tag push e para `workflow_dispatch`. Também deriva `prerelease` (versão com `-`) para marcar o Release corretamente, e escolhe o dist-tag comparando a versão com o `latest` atual do registry, que o passo anterior lê com `scripts/release-dist-tag.sh current-latest` (veja [Dist-tags](#dist-tags)).
-4. **`npm ci`**, **lint**, **format check**, **typecheck**, **testes** e **build**.
-5. **`npm pack`** — o tarball sobe como artifact `npm-tarball-<tentativa>` (um nome por `run_attempt`, para um re-run completo não colidir com o artifact da primeira tentativa) e o SHA-256 dele vira output do job. Output de job não pode ser reescrito por job posterior, então todo job que baixa o artifact confere o digest antes de usá-lo (`sha256sum --check`). O artifact leva **só o tarball**: o workspace do `build` já rodou `npm ci`, testes e build, e um arquivo dali pode ter sido reescrito por código de dependência — um digest tirado depois disso só atestaria a troca. Os jobs `publish` e `release` rodam `scripts/` de um checkout próprio do `GITHUB_SHA` (`persist-credentials: false`; no `publish`, checkout esparso só de `scripts/release-dist-tag.sh`, sem instalação nenhuma depois) e baixam o artifact em `$RUNNER_TEMP/npm-tarball`, fora do checkout, para ele não sobrescrever nada.
-6. **Smoke** (job `smoke`) — instala o tarball em `/tmp/sdk-smoke` com `react@^19 react-dom@^19 react-router@^8` e empacota com esbuild, roda as mesmas asserções em Node cru com o `node-css-loader` publicado, e roda uma suíte Vitest de consumidor (`scripts/smoke-vitest.sh`). Essas instalações resolvem versões flutuantes do registry — por isso moram num job sem permissão de escrita nenhuma.
-7. **`npm publish "./<tarball>" --provenance --access public`** (job `publish`) via **Trusted Publishing (OIDC)** — sem `NPM_TOKEN`. Publica **o arquivo** que o `build` empacotou e o `smoke` testou: publish de diretório re-rodaria o `prepublishOnly` (typecheck + lint + a suíte inteira + build) dentro do job com `id-token`, e mandaria um pack novo em vez do testado; publish de tarball não roda script de ciclo de vida nenhum. O `--tag` é escolhido de novo **imediatamente antes** do upload, relendo o `latest` do registry com o mesmo script do guard — o `build` leu minutos antes, e outro release pode tê-lo movido (veja [Dist-tags](#dist-tags)). O npm CLI é instalado em versão exata (`npm install -g npm@12.2.0`), não `@latest`.
-8. **Read-back do registry** — confirma que o npm serve `tempest-react-sdk@<versão>` (até 30 minutos, porque o registry processa o upload de forma assíncrona) **e** que o dist-tag dela (`latest`, `next` ou `release-<major>.<minor>`) aponta para ela — com a mesma janela de 30 minutos, porque o dist-tag atrasa tanto quanto a versão. Falha o job caso contrário: publish que aterrissou em outra tag deixaria de parecer verde. A espera do dist-tag só roda quando esta run fez o upload: num re-run o publish é pulado, não aplica tag nenhuma, e a run que publicou já esperou pela dela.
-9. **GitHub Release** (job `release`) — `gh release create <tag>` com o tarball do artifact anexado e as notas extraídas da seção do `CHANGELOG.md` (`scripts/changelog.mjs notes <versão> --allow-unreleased`), acrescidas do link para a versão no npm. Antes, confere que a tag ainda resolve para o `GITHUB_SHA` publicado e que o sha512 do tarball é o `dist.integrity` que o npm serve (lido com a mesma janela de 30 minutos); o `gh release create` leva `--verify-tag`, então nunca cria uma tag faltante na HEAD da branch padrão. Se o Release já existe, faz `gh release edit` + `upload --clobber` em vez de falhar — e o `--clobber` só re-sobe os mesmos bytes que o npm serve. Para recuperar uma run que publicou e falhou depois, use **Re-run failed jobs**: os jobs re-rodados herdam os outputs do `build` e baixam o artifact da tentativa que publicou. Um **Re-run all jobs** também roda (o artifact tem nome próprio), mas reempacota — e se o pack novo não for byte a byte o publicado, o job `release` não anexa nada e falha apontando para `make releases-sync` (cria o Release sem asset) ou para anexar à mão o tarball do próprio registry (`npm pack tempest-react-sdk@<versão>`).
-
-!!! note "Por que o npm é fixado em 12.2.0"
-    Trusted Publishing exige npm >= 11.5.1, e o Node 22 traz 10.x. Até a 0.76.0 o passo instalava `npm@latest`, e o `latest` mudou de major duas vezes debaixo do job sem ninguém escolher: os logs das runs da v0.74.0 à v0.76.0 mostram o npm 12 (`npm notice run …`, `allowScripts`). A 12.2.0 é a versão que publicou essas três releases. Subir o npm é uma mudança deliberada nessa linha, revisada como qualquer outra.
-
-### Dist-tags
-
-O `latest` é **monotônico**: só anda para a frente. A regra mora num script só, `scripts/release-dist-tag.sh`, chamado em três lugares: pelo guard no job `build`, pelo job `publish` imediatamente antes do `npm publish`, e pelo job `release` para marcar o GitHub Release.
-
-| Versão da tag                                     | Dist-tag                   | Exemplo, com `latest` em `0.77.0` |
+| Versão                                            | Dist-tag                   | Exemplo, com `latest` em `0.77.0` |
 | ------------------------------------------------- | -------------------------- | --------------------------------- |
 | prerelease (`X.Y.Z-algo`)                         | `next`                     | `v0.78.0-rc.1` → `next`           |
 | estável, maior que o `latest` (ou sem `latest`)   | `latest`                   | `v0.78.0` → `latest`              |
-| estável, igual ao `latest` (re-run da publicada)  | `latest`                   | `v0.77.0` → `latest`              |
+| estável, igual ao `latest` (retomada)             | `latest`                   | `v0.77.0` → `latest`              |
 | estável, menor que o `latest`                     | `release-<major>.<minor>`  | `v0.75.1` → `release-0.75`        |
 
-Até a 0.77.0 toda versão estável ia para `latest`, então um backport `v0.75.1` cortado depois da 0.77.0 viraria o default de todo `npm install`. Quem quer a linha antiga instala pelo dist-tag dela: `npm install tempest-react-sdk@release-0.75`. "Igual" só acontece no re-run de uma versão já publicada (o npm não aceita publicar a mesma versão duas vezes), e por isso fica em `latest`.
+Quem quer a linha antiga instala pelo dist-tag dela: `npm install tempest-react-sdk@release-0.75`.
 
 Como o `latest` é lido:
 
 - **Por `npm view <pacote> dist-tags --json`**, com a chave extraída em Node. Nunca `npm view <pacote> dist-tags.<nome>`: o npm trata o ponto como caminho, e `dist-tags.release-0.75` volta sempre vazio.
-- **Só `E404` explícito é pacote novo** (sem `latest`). Resposta vazia com código 0, ou pacote que existe sem `latest`, **reprova a run** — tratar isso como pacote novo mandaria um backport para `latest`. Outras falhas do `npm view` são retentadas 10 vezes, com 15 s entre elas, e depois reprovam.
-
-Duas runs nunca disputam o `latest`: o workflow tem um grupo de `concurrency` único, então releases de tags diferentes entram em fila. E o job `publish` relê o `latest` segundos antes do upload; se ele mudou desde o `build`, o publish usa o dist-tag novo e deixa um `::notice::`.
-
-!!! warning "Fila do GitHub: só um pendente por grupo"
-    O GitHub mantém **uma** run pendente por grupo de `concurrency`. Com um release rodando e duas tags enfileiradas, a terceira cancela a segunda enquanto ela ainda espera. A cancelada não publicou nada; dispare de novo com `gh workflow run release-npm.yml --ref vX.Y.Z`.
-
-!!! warning "Backport precisa desta versão do workflow"
-    Num tag push, o GitHub roda o `release-npm.yml` **do commit da tag**. Uma tag `v0.75.1` cortada de uma branch que parte da 0.75.0 roda o workflow antigo, que manda tudo para `latest`. A branch de backport precisa ter o `release-npm.yml`, o `scripts/check-release-ref.sh` e o `scripts/release-dist-tag.sh` desta versão em diante (cherry-pick do fix da #472).
-
-!!! note "De onde um backport pode sair"
-    Um commit fora da `main` só publica se for ancestral de `origin/release-<major>.<minor>` — a branch de manutenção da linha da própria versão, com o mesmo nome do dist-tag — **e** se o dist-tag escolhido for esse `release-<major>.<minor>`. O `v0.75.1` sai de `release-0.75`, mergeado por PR, com a tag no commit do merge (`make release-tag TAG=0.75.1 BASE_BRANCH=release-0.75`). Uma branch de manutenção nunca publica em `latest` nem em `next`: esses saem só da `main`. Proteja `release-*` como a `main` (PR obrigatório); sem isso, quem empurra na branch publica na linha antiga.
-
-O **GitHub Release** segue o registry: o `gh release create` leva `--latest` quando o `latest` do npm **é** esta versão, e `--latest=false` caso contrário (backport, ou prerelease, que continua com `--prerelease`). O flag vem do registry, não do dist-tag escolhido, então um re-run que cria o Release de uma versão já publicada como `latest` ainda a marca. Release que já existe não tem o flag alterado: o re-run cai no `gh release edit` + `upload --clobber`, sem `--latest`.
+- **Só `E404` explícito é pacote novo** (sem `latest`). Resposta vazia com código 0, ou pacote que existe sem `latest`, **reprova** — tratar isso como pacote novo mandaria um backport para `latest`. Outras falhas do `npm view` são retentadas 10 vezes, com 15 s entre elas.
 
 !!! info "Por que `release-0.75` e não `v0.75`"
-    O npm recusa dist-tag que seja range semver válido, e `v0.75` é um (`>=0.75.0 <0.76.0-0`): `npm publish --tag v0.75` sai com `Tag name must not be a valid SemVer range: v0.75` (medido no npm 12.2.0, o que o job `publish` instala).
+    O npm recusa dist-tag que seja range semver válido, e `v0.75` é um (`>=0.75.0 <0.76.0-0`): `npm publish --tag v0.75` sai com `Tag name must not be a valid SemVer range: v0.75` (medido no npm 12.2.0).
 
-O script roda offline: o guard recebe `CURRENT_LATEST` por variável de ambiente (ausente, ele falha em vez de assumir pacote novo), e `test/release-workflow.test.ts` exercita cada linha da tabela num repositório git de fixture e cada resposta do registry com um `npm` falso no `PATH`.
+!!! note "De onde um backport pode sair"
+    Um commit fora da `main` só publica se for ancestral de `origin/release-<major>.<minor>` — a branch de manutenção da linha da própria versão —, se o dist-tag escolhido for esse `release-<major>.<minor>` **e** se a linha estiver aberta **nesta run** (#527): `make release-tag TAG=0.75.1 BASE_BRANCH=release-0.75 BACKPORT_LINES=release-0.75`. Criar a branch não abre a linha. Uma branch de manutenção nunca publica em `latest` nem em `next`: esses saem só da `main`.
 
-### Environment `npm-release`
+O **GitHub Release** segue o registry: `--latest` quando o `latest` do npm **é** esta versão, `--latest=false` caso contrário (backport, ou prerelease, que leva `--prerelease`).
 
-O job `publish` roda no environment `npm-release`. Sem configuração, o GitHub o cria vazio e ele não barra nada — o workflow funciona igual. Ele é o gancho para dois controles que moram fora do repositório, e que continuam necessários:
+`test/release-workflow.test.ts` exercita tudo isto numa fixture: um `origin` bare local, um `npm` e um `gh` falsos no `PATH` e um `release-pack.sh` de mentira no commit — sem rede e sem registry.
 
-- **Em Settings → Environments → `npm-release`**: _Required reviewers_ (o publish espera aprovação humana, mesmo depois de todos os gates verdes) e _Deployment branches and tags_ restrito a tags `v*`.
-- **No Trusted Publisher do npmjs.com**: o campo _Environment_ preenchido com `npm-release`. Daí em diante o npm só aceita a troca OIDC de um job nesse environment — outro workflow ou outro job do mesmo arquivo não publica.
+## Quem decide quem publica
 
-!!! tip "Ligue os dois juntos"
-    O revisor obrigatório sem o vínculo no npm deixa um job fora do environment publicar; o vínculo sem o revisor deixa qualquer run do environment publicar sem ninguém olhar.
+Até a v0.82.0, empurrar uma tag `v*` disparava o publish, e a pergunta das issues #472 e #527 era "quem pode empurrar tag publica?" — a resposta dependia de environment, Trusted Publisher e rulesets do GitHub. **Desde que o publish saiu do GitHub Actions, uma tag não publica nada.** Publicar exige a credencial npm de um mantenedor do pacote, na máquina de quem roda o `make release-tag`.
 
-!!! warning "O guard confere a `main`; quem protege a `main` é o repositório"
-    Desde a #472 o `check-release-ref.sh` só aceita tag em commit que já está na `main` (ou, no backport, na `release-<major>.<minor>` da linha). Até a 0.78.0 o `scripts/release.sh` empurrava a tag da branch de release antes do merge, e o guard aceitava: numa fixture, uma `v0.79.0` em commit fora da `main` saía com código 0 e `dist_tag=latest`. O guard vale tanto quanto a proteção da `main`: ele garante "está na `main`", e é a branch protection (PR obrigatório com revisão) que transforma isso em "foi revisado". Ainda ficam com o dono do repositório o revisor obrigatório no environment `npm-release`, uma regra de tag `v*` (_Settings → Rules → Rulesets_) restringindo quem cria a tag, e o campo Environment do Trusted Publisher — configuração do GitHub e do npm.
+O guard de ref continua barrando **engano**: commit fora da `main`, versão que não bate, backport de linha não aberta. Ele roda da cópia que está em `origin/main`, não da do commit publicado (#527): numa fixture, um commit que reescrevia o próprio `check-release-ref.sh` para aprovar tudo é recusado. Mas ele não é fronteira de autorização — quem tem a credencial npm pode rodar `npm publish` à mão. A fronteira é a conta npm.
 
-## Segredos necessários no GitHub
+### Checklist do dono do repositório
 
-**Nenhum.** O publish usa **Trusted Publishing** do npm: o `npm publish` troca a identidade OIDC do GitHub Actions por um token de vida curta, então não existe `NPM_TOKEN` no repositório. O que precisa estar configurado é um **Trusted Publisher** em npmjs.com apontando para este repositório + o arquivo `release-npm.yml`.
+Estado lido em 13/11/2026, só leitura (`gh api repos/mauriciobenjamin700/tempest-react-sdk/pages`, `…/environments`, `…/actions/secrets`, `…/actions/permissions`). Nada disto se configura pelo repositório:
 
-O `GITHUB_TOKEN` (usado para criar o Release) é fornecido automaticamente pelo Actions runtime — só o `permissions: contents: write` do job precisa estar declarado, e está.
+| # | Onde | O que fazer | Estado em 13/11/2026 |
+| - | ---- | ----------- | -------------------- |
+| 1 | _Settings → Pages → Source_ | **Deploy from a branch → `gh-pages` / (root)**, depois do primeiro `make docs-deploy` (a branch precisa existir antes). Ou: `gh api -X PUT repos/mauriciobenjamin700/tempest-react-sdk/pages -f build_type=legacy -f 'source[branch]=gh-pages' -f 'source[path]=/'` | `build_type: workflow` — o site publicado está parado na última run do `docs.yml` |
+| 2 | npmjs.com → conta | 2FA no modo _Authorization and writes_: o `npm publish` pede o código, e um token de sessão vazado sozinho não publica | não observável daqui |
+| 3 | npmjs.com → `tempest-react-sdk` → _Settings → Trusted Publisher_ | **remover** a entrada que aponta para `release-npm.yml`: nenhum workflow publica mais, e ela só serve para reabrir um caminho de publish via Actions | configurada desde a 0.7.0 |
+| 4 | _Settings → Secrets and variables → Actions_ e _Environments_ | apagar o secret `NPM_TOKEN`, os environments `NPM_TOKEN`, `npm-release` e `github-pages`, a variável `RELEASE_BACKPORT_LINES` se existir, e revogar o token no npmjs.com | **existem** o secret `NPM_TOKEN` e os três environments |
+| 5 | _Settings → Actions → General_ | **Disable actions**: a regra passa a valer no GitHub, não só por convenção | `enabled: true`, `allowed_actions: all` |
+| 6 | _Settings → Rules → Rulesets_, alvo `main` e `release-*` | PR obrigatório, bloquear _force push_ e _deletion_ — é o que faz "está na `main`" significar "foi revisado" | `main` sem proteção |
 
-!!! warning "O `NPM_TOKEN` continua sendo assunto do fallback local"
-    `make publish` publica da sua máquina e aí sim precisa de token no `~/.npmrc` (Classic Automation, ou Granular com "Allow bypass 2FA" marcado). Esse caminho **não** gera provenance e **não** cria o GitHub Release — se você usar o fallback, rode `make releases-sync` depois para o Release não ficar faltando.
-
-## Provenance signing
-
-O publish inclui `--provenance` quando rodado no CI. Isso requer:
-
-- `permissions: id-token: write` no workflow (já configurado).
-- npm >= 11.5.1 no runner (o job `publish` instala a 12.2.0, fixada).
-- Um Trusted Publisher configurado no npmjs.com para este repositório.
-
-O resultado: cada versão publicada carrega um attestation assinado pelo sigstore, ligando o tarball ao commit + workflow run que o produziram. Visível no [registry](https://www.npmjs.com/package/tempest-react-sdk) como badge "Verified provenance".
-
-Publish manual local **não** consegue provenance — não há OIDC provider fora do CI. `make publish` sempre roda sem `--provenance`.
+!!! warning "A máquina do mantenedor agora é o perímetro"
+    Sem runner, não há separação entre o código que instala dependências e a credencial que publica: o `npm ci` do `make check` e do `make release-tag` roda na mesma máquina onde o `npm login` guardou o token. Prefira o login de sessão (`npm login`) a um token de automação de vida longa no `~/.npmrc`, e deixe o 2FA pedir o código no publish (item 2).
 
 ## Histórico
 
@@ -28478,10 +29251,10 @@ Veja [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/bl
 
 ## Veja também
 
-- [`CHANGELOG.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/CHANGELOG.md) — registro de mudanças por versão
-- [`RELEASES.md`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/RELEASES.md) — tabela de tags com data e commit
 - [`Makefile`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/Makefile) — definição dos alvos
-- [`scripts/release.sh`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/scripts/release.sh) — script bash do pipeline
+- [`scripts/release.sh`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/scripts/release.sh) — abre o PR de release
+- [`scripts/release-tag.sh`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/scripts/release-tag.sh) — publica
+- [`scripts/docs-deploy.sh`](https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/scripts/docs-deploy.sh) — site na `gh-pages`
 
 ---
 
@@ -28562,7 +29335,7 @@ O que acontece: um `POST` cria o upload, uma sequência de `PATCH` empurra 5 MiB
 
 ## Retomar depois de um reload
 
-É o motivo de existir. O cliente guarda `{ url, offset, size, idempotencyKey }` (e o `owner`, com `getPrincipal`) sob uma **chave de retomada** e, no próximo `start()`, reencontra o upload:
+É o motivo de existir. O cliente guarda `{ url, offset, size, idempotencyKey }` (e o `owner`, com `getPrincipal` ou `getToken`) sob uma **chave de retomada** e, no próximo `start()`, reencontra o upload:
 
 ```ts
 const upload = createResumableUpload({ endpoint: "/api/uploads", file });
@@ -28667,8 +29440,50 @@ export async function send(): Promise<string | null> {
 
 O `clear()` só apaga valor com formato de registro de upload: um prefixo sem delimitador (`"app"`) não leva junto as chaves do próprio app (`"appSettings"`).
 
-!!! warning "Sem `getPrincipal`, o comportamento é o de antes"
-    Quem não passa `getPrincipal` continua retomando qualquer registro com a mesma chave, de qualquer usuário, e um run em andamento não percebe a troca de conta. Serve para app de uma conta por navegador; com mais de uma, passe o getter e limpe no fim de sessão — e, sem o getter, chame `abort()` nos uploads em andamento dentro do `onSessionEnd`.
+#### Sem `getPrincipal`: o registro é do token (0.82.0)
+
+Até a 0.81.0, quem não passava `getPrincipal` retomava qualquer registro com a mesma chave, de qualquer usuário (#528). Desde a **0.82.0**, com `getToken` e sem `getPrincipal`, o registro é carimbado com uma impressão digital de mão única do **token** (`owner: "t:…"`, nunca o token em claro), e um registro carimbado por outro token — ou sem carimbo — é apagado em vez de retomado. B nunca mais manda `HEAD` para a URL de A nem reaproveita a `Idempotency-Key` de A.
+
+O preço é que token **gira**. O carimbo é refeito a cada gravação do registro, e o próprio handle continua o seu upload depois de um refresh (`pause()` → `resume()`). Mas um reload depois de um refresh em que nenhum chunk foi gravado encontra o carimbo do token velho e **recomeça do zero**. O `getPrincipal` não tem esse custo — o usuário não gira —, então continua sendo o recomendado:
+
+| Configuração | Registro de outro usuário | Retoma depois de refresh + reload | Troca de conta com o upload rodando |
+| --- | --- | --- | --- |
+| `getPrincipal` | apagado | sim | para com `ResumableUploadSupersededError` |
+| `getToken: auth.getToken` do `createTempestAuth` (0.82.0) | apagado | sim | para com `ResumableUploadSupersededError` |
+| só `getToken`, qualquer outro getter (padrão 0.82.0) | apagado | só se um chunk foi gravado depois do refresh | **continua**, com o token novo na URL do upload anterior |
+| nenhum dos dois (anônimo, sessão por cookie) | **retomado** | sim | **continua** |
+
+Com um getter qualquer, o handle não distingue um refresh de um login de outra conta — os dois são só um token novo. Por isso o `abort()` encerra também a exceção do registro próprio: um `start()`/`resume()` depois dele se comporta como um handle novo, que só retoma o registro se o dono atual o carimbou e, senão, cria outro upload com `Idempotency-Key` nova. Até a 0.82.0, o `resume()` depois do `abort()` que esta página manda chamar no `onSessionEnd` continuava "o próprio upload" com o token de quem estivesse logado — o de B, na URL de A, com a `Idempotency-Key` de A (#561). Sem `abort()`, a linha acima continua valendo: troque o getter por `auth.getToken` ou passe `getPrincipal`.
+
+#### `getToken: auth.getToken` — o registro é da sessão
+
+Quando o `getToken` é o **próprio** getter que o `createTempestAuth` devolveu, o upload lê dele a sessão do preset ([`auth.sessionKey()`](./auth.md#a-sessao-como-chave-authsessionkey)) e a usa como `getPrincipal`. A sessão não gira no refresh, então o reload depois de uma rotação retoma; e ela muda no `login()` de outra conta, então o run para antes de o token novo chegar à URL do upload anterior:
+
+```ts
+import { createResumableUpload, createTempestAuth } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export function enviarGravacao(gravacao: File) {
+  return createResumableUpload({
+    endpoint: "/api/uploads",
+    file: gravacao,
+    getToken: auth.getToken,
+  }).start();
+}
+```
+
+Vale também para sessão **restaurada** por `auth.refresh()` — o restore do boot por cookie, o callback de OAuth: desde a 0.83.0 ela ganha sessão própria, e a conta seguinte restaurada do mesmo jeito não retoma o upload da anterior (até a 0.82.0 as duas respondiam a mesma chave, ver [`auth.sessionKey()`](./auth.md#a-sessao-como-chave-authsessionkey)).
+
+Medido em `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/resumable-upload.session.test.ts`): na `main` antes desta mudança, um `login()` de B entre o primeiro e o segundo `PATCH` fazia o upload **terminar**, com os `PATCH` seguintes levando `Bearer B-tok-1` para a URL do upload de A; e o reload depois de um refresh recomeçava com um `POST` novo. Agora o run rejeita com `ResumableUploadSupersededError` e o reload retoma com `HEAD`.
+
+!!! note "O getter, não um wrapper"
+    `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário.
+
+!!! warning "Sessão por cookie: `clear()` no fim de sessão, ou `getPrincipal`"
+    Sem `getToken` — sessão só por cookie, fora do `createTempestAuth`, que sempre tem token — o SDK não enxerga quem está logado: o cookie é HttpOnly, e nada no navegador avisa a troca de conta. O registro fica sem dono e é retomado por quem vier depois. O teardown que alcança esse caso é o `createLocalUploadStorage().clear()` no fim de sessão, e ele basta: apaga os registros, para o run em andamento (`reason: "cleared"`) e, desde a **0.84.0**, faz o handle **pausado** antes dele recomeçar com `Idempotency-Key` nova em vez de levar a da sessão anterior para a criação do upload da conta seguinte (#528 — até a 0.83.0 o `resume()` de B reaproveitava a chave de A). O `abort()` deixa de ser necessário aqui. Para retomar entre reloads sem depender do teardown, passe `getPrincipal`.
+
+    Se cruzar contas ainda depende do servidor tus. O tempest-fastapi-sdk não tem servidor tus (na 0.345.0 nenhum handler responde `Upload-Offset`), então quem autoriza `HEAD`/`PATCH` numa URL de upload é o servidor que você implantou — muitos tratam a URL como a própria credencial. O `IdempotencyMiddleware` dele, por outro lado, escopa a chave pelo digest de `Authorization`, `Cookie`, `X-Token` e `X-API-Key`: a chave de A repetida por B não devolve o upload de A.
 
 ## A falha que realmente acontece
 
@@ -28691,6 +29506,7 @@ Duas coisas impedem:
     | --- | --- | --- |
     | falha de rede, `408`, `425`, `429`, `5xx` | **sim** | política padrão: pode mudar sozinho |
     | `409`, `412` | **sim** | é o sinal de offset divergente — o replay *é* a correção, e o `HEAD` de resync a executa |
+    | `200`/`204` com `Upload-Offset` que não passou do enviado | **sim**, dentro do `retries` | o tus manda o offset novo ser o anterior mais os bytes recebidos; confirmar sem avançar é erro de protocolo (`code: "UPLOAD_OFFSET_STALLED"`, 0.83.0). O `HEAD` de resync confere se o servidor gravou mesmo assim |
     | `404`, `410` | **não** | o upload sumiu do servidor. Recriar só acontece no attach, nunca dentro do loop |
     | `400`, `403`, `413`, `415`, `422` | **não** | recusa deliberada; a 5ª tentativa recebe a mesma resposta |
 
@@ -28713,15 +29529,16 @@ Toda request leva `Tus-Resumable: 1.0.0`.
 | --- | --- | --- |
 | Criar | `POST {endpoint}` + `Upload-Length`, `Upload-Metadata`, `Idempotency-Key` | `201` + `Location` (URL do upload, absoluta ou relativa) |
 | Sondar | `HEAD {uploadUrl}` | `200`/`204` + `Upload-Offset` |
-| Escrever | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, corpo = chunk | `204` + o novo `Upload-Offset`; `409` quando o offset não bate |
+| Escrever | `PATCH {uploadUrl}` + `Upload-Offset`, `Content-Type: application/offset+octet-stream`, corpo = chunk | `204` + o novo `Upload-Offset`, maior que o enviado; `409` quando o offset não bate |
 | Descartar | `DELETE {uploadUrl}` | `204` |
 
 Detalhes que costumam morder:
 
-- **`Location` pode ser relativo.** O cliente resolve contra a página, então `/api/uploads/abc` serve.
+- **`Location` pode ser relativo.** O cliente resolve contra o `endpoint` para onde o `POST` foi (RFC 9110), então `/files/abc` vindo de `https://tus.exemplo.com/files/` vira `https://tus.exemplo.com/files/abc`. Até a 0.81.0 resolvia contra a página e mandava os chunks para a origem do app.
 - **`Upload-Metadata`** é `chave base64(valor)` separado por vírgula, com o valor em **UTF-8 antes** do base64 — é assim que `nota-ação.webm` sobrevive a um header HTTP.
 - **`HEAD` respondendo `404`/`410`** é lido como "o servidor esqueceu esse upload": o cliente recria do zero em vez de travar.
 - **`Upload-Offset` ausente num `PATCH` bem-sucedido** é tolerado — o cliente assume o fim do chunk —, mas mandar é melhor.
+- **`Upload-Offset` que não avança num `PATCH` bem-sucedido** — o mesmo offset enviado, ou menor — vira `TempestApiError` com `code: "UPLOAD_OFFSET_STALLED"` e o status da resposta, contado como falha do chunk: a próxima tentativa relê o offset com `HEAD`, e o upload rejeita quando o `retries` acaba (`retries: 0` manda **um** `PATCH`; o padrão, cinco). Até a 0.82.0 o loop aceitava a resposta como sucesso e reenviava o mesmo chunk para sempre — medido no #569, mais de 1500 requisições em 4 s mesmo com `retries: 0`; o caso real foi um redirect `303` que virou `GET` respondido `200` com o mesmo offset. Recusar sem retentativa foi descartado: o servidor pode ter gravado e só respondido mal, e o `HEAD` resolve isso de graça. É a mesma regra do cliente de referência (`tus-js-client`), em que só um offset que andou recarrega o contador de retentativas.
 - Reflita o `Idempotency-Key` numa tabela de chaves se quiser evitar órfãos.
 
 !!! info "Servidor pronto"
@@ -28766,17 +29583,27 @@ const upload = createResumableUpload({
 
     Vale também para o registro persistido: uma `url` guardada no `localStorage` apontando para fora não recupera o token na retomada.
 
+    Desde a **0.82.0** os `headers` fixos seguem o mesmo escopo: um `X-Api-Key` vai no `POST` de criação e não vai para um `Location` em outra origem, que recebe só os headers do tus.
+
     A opção `csrf` segue a mesma regra: o token CSRF vai no `POST` de criação, em cada `PATCH` e no `DELETE` do descarte — nunca no `HEAD` de offset — e só para a origem do `endpoint` e as `trustedOrigins`. Ver [CSRF](./http.md#csrf-o-cookie-de-sessao-precisa-de-um-par).
 
-!!! warning "`XMLHttpRequest`, não `fetch`"
+!!! warning "`XMLHttpRequest`, não `fetch` — menos quando há `headers` fixos"
     Como em `uploadWithProgress`: `fetch` ainda não reporta progresso de **upload** em navegador nenhum. Aqui há um segundo motivo — o tus devolve o novo offset num **header de resposta**, e `uploadWithProgress` só entrega corpo parseado, então não dava pra reaproveitar.
+
+    A exceção é a requisição que leva os `headers` fixos (desde a **0.83.0**, #564). O `XMLHttpRequest` segue todo redirect e não tem modo de recusar. Medido no Chrome 150 com o `createResumableUpload` empacotado (tarball do `npm pack` empacotado com esbuild), servidor em `127.0.0.1:5340` respondendo `301`/`302`/`303`/`307`/`308` para `localhost:5341`, que ecoa os headers com CORS: o `X-Api-Key` chegou à outra origem nos 5 códigos, no `POST` de criação e no `PATCH` do chunk, junto com os bytes; o `X-CSRF-Token` também; só o `Authorization` o navegador tirou. O `responseURL` do XHR mostra onde a requisição terminou (`http://localhost:5341/files/1`, medido), mas quando dá para lê-lo o header já foi.
+
+    Então essa requisição sai por `fetch` com `redirect: "manual"`, e um redirect como resposta vira `TempestApiError` com `code: "REDIRECT_REFUSED"`, sem retentativa — a mesma regra do `createApiClient` ([HTTP](./http.md)). Remedido depois da mudança: **nenhuma** requisição chegou à outra origem nos 10 casos (5 códigos × redirect no `PATCH` e na criação), e um `endpoint` em outra origem sem redirect continua funcionando.
+
+    O preço é o progresso **dentro** do chunk: com `headers` fixos, o `onProgress` avança uma vez por chunk confirmado. Para uma barra mais fina, baixe o `chunkSize`; ou mande a credencial pelo `getToken`, que mantém o `XMLHttpRequest` — o `Authorization` o navegador tira sozinho num redirect para outra origem. O `X-CSRF-Token` sozinho não troca o transporte, pelo motivo que o [HTTP](./http.md) documenta para o `createApiClient`.
+
+    **Migração:** um servidor que responde a criação ou o chunk com redirect — inclusive de mesma origem, como o `307` de barra final do FastAPI — passa a falhar com `REDIRECT_REFUSED` quando há `headers` fixos. Aponte o `endpoint` para a URL final (`/api/uploads/`).
 
 ## Resumo
 
 - **`createResumableUpload({ endpoint, file })`** — chunks de 5 MiB, retomada por rede e por reload, protocolo tus 1.0.0.
 - **`start()` / `pause()` / `resume()` / `abort({ discard })`**; `start()` resolve `null` quando você parou de propósito.
 - O ponto de retomada mora em `localStorage` por padrão; troque por `storage`, desligue com `null`.
-- **`getPrincipal`** prende o registro ao usuário; **`createLocalUploadStorage().clear()`** no `onSessionEnd` apaga os que sobraram.
+- **`getPrincipal`** prende o registro ao usuário; sem ele, desde a 0.82.0, o registro é do token de `getToken` — ou da sessão, quando o getter é o `auth.getToken` do `createTempestAuth`. **`createLocalUploadStorage().clear()`** no `onSessionEnd` apaga os que sobraram.
 - Resposta perdida é resolvida por **offset endereçado + `HEAD` antes de cada retentativa**, e a criação por **`Idempotency-Key`**.
 - Backoff é o `retry` do SDK — não existe um segundo.
 
@@ -29274,7 +30101,7 @@ Abra **<http://127.0.0.1:5173>** — o app já está no ar com providers, rotas 
     Não existe pacote `create-tempest-app` publicado no npm — a CLI é o `bin` do `tempest-react-sdk`, então `npm create tempest-app` falha com 404. Use `npx -p tempest-react-sdk create-tempest-app .`; dentro de um projeto que já tem o SDK instalado, o `-p` é dispensável.
 
 !!! warning "No modo com nome, a pasta precisa estar vazia"
-    Em `create-tempest-app my-app`, o diretório alvo **não pode existir** ou precisa estar **vazio** — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção).
+    Em `create-tempest-app my-app`, o diretório alvo **não pode existir** ou precisa estar **vazio** — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar `.` para **mesclar** no diretório atual em vez de abortar (veja a próxima seção). Um `my-app` que é **link simbólico** também é recusado, mesmo apontando para pasta vazia: o projeto seria criado onde o link aponta, não onde você o nomeou.
 
 ### Os dois modos, lado a lado
 
@@ -29299,7 +30126,7 @@ Nesse modo "diretório atual":
 
 - **Arquivos existentes são preservados** — a CLI pula cada um que já existe e **reporta** o que foi pulado, sem sobrescrever nada seu.
 - **Symlink no destino nunca é atravessado** — um `src -> ../outro-lugar` (comum em monorepo ou repositório clonado) é pulado e reportado inteiro, assim como um `package.json` que seja link: a CLI não escreve fora da pasta do projeto.
-- Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold.
+- Um `package.json` existente tem os scripts e deps da Tempest **mesclados**: seu `name`/`version` e os scripts/deps que já estavam lá são mantidos, e o `tempest-react-sdk` é fixado na **própria versão do SDK** que está rodando o scaffold. Os `overrides` do template entram junto (um override que você já declara para o mesmo pacote vence): são eles que mantêm o `npm audit` limpo enquanto uma dependência de ferramenta ainda não publicou a correção.
 
 !!! info "O `.env`"
     O `.env.example` declara `VITE_API_URL`, a base usada pelo cliente HTTP em `src/lib/api.ts`. Copie pra `.env` e ajuste pra apontar pro seu backend.
@@ -29562,7 +30389,9 @@ Cobertura total do caso comum. Pra extremos muito específicos (range requests p
 ```ts
 import { installBackgroundSync } from "tempest-react-sdk/sw";
 
-installBackgroundSync({ match: (url) => url.pathname.startsWith("/api/") });
+installBackgroundSync({
+  match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+});
 ```
 
 O fetch original ainda **rejeita** no momento (seu app mostra estado offline), mas a requisição é replayada depois. `maxRetentionMinutes` descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).
@@ -29918,6 +30747,7 @@ export function NotificationListener({ user }: { user: { id: string } | null }) 
 ```
 
 - `enabled: false` desconecta o stream (use enquanto espera o `user` carregar).
+- `sessionKey` (o id do usuário) amarra o stream à sessão: trocar de conta fecha o stream e zera `lastMessage` — ver [troca de conta](#troca-de-conta-na-mesma-aba-sessionkey). Com `client: auth.api` do `createTempestAuth`, isso é automático no `useTicketEventStream`.
 - Mudar a URL re-abre a conexão; mudar o `onMessage` **não** (callback via ref interna — sem reconexões à toa).
 - `lastMessage` guarda a última mensagem recebida (heartbeats não contam).
 - Cleanup automático no unmount.
@@ -30064,6 +30894,124 @@ onUrlError(erro)  →  erro.status === 403, erro.code === "ACCOUNT_INACTIVE"
     `ticketParam: "ticket"`. Se o router foi montado em outro lugar, passe os dois.
     Fora de React, `createTicketEventStream({ client: api, ... })` faz o mesmo e
     devolve o controller com `close`/`reconnect`/`status`.
+
+### Troca de conta na mesma aba — `sessionKey`
+
+O ticket abre o canal **do usuário que o pediu**, e o backend confere o ticket
+só na abertura: nem o logout nem a revogação do refresh token derrubam um stream
+já aberto — ele vive até o cliente sair (conferido no `make_sse_router` e no
+`UserAuthService.sse_router` do `tempest-fastapi-sdk`). Se a aba troca do usuário
+A para o B **sem** `enabled` passar por `false`, o stream de A continua entregando
+os eventos de A sob o B.
+
+#### Com o `api` do `createTempestAuth`: automático
+
+Desde a 0.82.0, quando o `client` é o `api` que o `createTempestAuth` montou, o
+stream se amarra sozinho à sessão daquele preset — você não passa `sessionKey`
+nem `enabled`:
+
+```tsx
+import { createTempestAuth, useTicketEventStream } from "tempest-react-sdk";
+
+interface Usuario {
+    id: string;
+}
+
+const auth = createTempestAuth<Usuario>({ baseURL: "https://api.exemplo.com" });
+
+export function Avisos() {
+    const { status, lastMessage } = useTicketEventStream<{ texto: string }>({
+        client: auth.api,
+        onMessage: ({ data }) => console.log("aviso", data.texto),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {lastMessage && <p>{lastMessage.data.texto}</p>}
+        </div>
+    );
+}
+```
+
+A chave é `auth.sessionKey()`: a **linhagem** que o `login()` cria, mantida em
+toda rotação de token e limpa no fim da sessão. O que cada evento faz com o
+stream:
+
+| Evento | Stream |
+| --- | --- |
+| `login()` de outra conta (ou da mesma) na aba | fecha o de antes, zera `lastMessage`, pede ticket da sessão nova |
+| login ou logout em **outra aba** | o mesmo, assim que a aba segue o storage |
+| rotação do token (`refresh()`, 401 → refresh) | **nada** — mesmo stream, mesma conexão |
+| `logout()` ou sessão expirada | fecha e fica `idle`, sem pedir ticket |
+| ninguém logado ao montar | fica `idle` até o próximo `login()` |
+
+Medido com o `EventSource` e o backend mockados em
+`src/sse/session-auth.test.tsx` (`npx vitest run src/sse/session-auth.test.tsx`):
+na `main` antes desta mudança, depois de `login(B)` o stream de A continuava
+sendo o único `EventSource`, aberto.
+
+!!! note "Quem continua como antes"
+    Um cliente que o `createTempestAuth` não montou — `createApiClient` próprio,
+    um wrapper, uma cópia com spread — não carrega sessão, e o stream segue só
+    `url`, `enabled` e o `sessionKey` que você passar. Um `sessionKey` explícito
+    sempre ganha do que vem do cliente.
+
+#### Com outro cliente: `sessionKey`
+
+Passe a identidade da sessão em `sessionKey` e o hook cuida disso:
+
+```tsx
+import { createApiClient, useTicketEventStream } from "tempest-react-sdk";
+
+const api = createApiClient({
+    baseURL: "https://api.exemplo.com",
+    prefix: "/api",
+    getToken: () => localStorage.getItem("token"),
+});
+
+export function Avisos({ usuario }: { usuario: { id: string } | null }) {
+    const { status, lastMessage } = useTicketEventStream<{ texto: string }>({
+        client: api,
+        enabled: usuario !== null,
+        sessionKey: usuario?.id ?? null,
+        onMessage: ({ data }) => console.log("aviso", data.texto),
+    });
+
+    return (
+        <div>
+            <span>Stream: {status}</span>
+            {lastMessage && <p>{lastMessage.data.texto}</p>}
+        </div>
+    );
+}
+```
+
+Quando `usuario.id` muda de `"a"` para `"b"`:
+
+```text
+EventSource …/sse/stream?ticket=<de a>   fechado
+lastMessage                              null
+POST …/sse/ticket                        200  {"ticket":"<de b>","expires_in":60}
+GET  …/sse/stream?ticket=<de b>          200  text/event-stream
+```
+
+- A troca de chave fecha o stream, zera `lastMessage` e pede ticket novo.
+- Um frame de A que chegue entre o render e o efeito que fecha o stream é
+  **descartado**, não entregue.
+- A chave é um primitivo (`string | number | boolean | null | undefined`): um
+  objeto montado inline reabriria o stream a cada render.
+- Sem `sessionKey`, e com um cliente que não veio do `createTempestAuth`, nada
+  muda: o stream segue só `url` e `enabled`.
+
+Fora de React, `createEventStream` e `createTicketEventStream` aceitam
+`sessionKey` como **função** (`() => store.getState().user?.id ?? null`). A
+chave é lida a cada conexão e antes de cada frame: frame que chega com a chave
+trocada é descartado e o stream reconecta para a sessão atual. Como a conferência
+acontece na chegada de um frame, um stream silencioso só fecha no próximo frame
+ou no `close()`. Com `client: auth.api` e sem `sessionKey`, o
+`createTicketEventStream` segue a sessão do preset **na hora** da troca, como o
+hook — e para de seguir no `close()` (o `reconnect()` volta a seguir).
 
 ### URL resolvida por conexão
 
@@ -30256,6 +31204,7 @@ O que a opção garante:
 - `createEventStream(url, options)` abre um SSE com reconnect exponencial; o controller expõe `close`, `reconnect` e `status`.
 - `url` pode ser uma função chamada a cada conexão; `useTicketEventStream({ client })` usa isso para pedir um ticket novo em toda reconexão, sem token na URL.
 - `useEventStream(url, options)` é o wrapper React: amarra o ciclo de vida ao componente, expõe `status`/`lastMessage`/`reconnect` e respeita `enabled`.
+- `sessionKey` amarra o stream à sessão: o servidor não derruba stream aberto no logout, então a troca de conta fecha o stream do usuário anterior no cliente. Com `client: auth.api`, o stream por ticket lê a sessão do próprio cliente — sem `sessionKey`, e sem reabrir na rotação de token.
 - Heartbeats (default `["ping"]`) mantêm o socket vivo sem disparar `onMessage`.
 - `schema` valida cada frame antes de entregar: o que não casa não chega em `onMessage`, e `onValidationError` diz por quê.
 - Status `"error"` = esgotou tentativas; ofereça `reconnect()` ao usuário.
@@ -30914,7 +31863,7 @@ Aliases:
     build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
     depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
     duas execuções. É um ratchet, não uma allowlist: a gallery
-    renderiza 68 seções de demo e carrega dívida real de acessibilidade, e
+    renderiza 69 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.
 
@@ -32397,6 +33346,9 @@ console.log(pkg.explain(probabilities[0]!));
     arquivo o produziu — o suficiente para rastrear um modelo rodando numa
     aba de volta até a esteira, seis meses depois.
 
+!!! check "O modelo é conferido contra o `sha256` do manifesto"
+    O cache é por URL e cache-first, então um modelo republicado no mesmo nome de arquivo continuava respondendo com os bytes antigos ao lado do manifesto novo — ordem de colunas nova, pesos velhos, nenhum erro. O `loadEdgePackage` agora calcula o SHA-256 dos bytes antes de entregá-los ao runtime; se não bate, busca de novo na rede uma vez (o que também troca a entrada do cache), e se ainda não bate lança `ModelFetchError`. Dois casos não são conferidos: `cache: false`, em que o runtime busca a URL sozinho e os bytes não passam por aqui, e contexto não seguro, que não tem `crypto.subtle` (nem Cache Storage).
+
 ### Checar versão sem baixar o modelo
 
 ```tsx
@@ -32530,6 +33482,9 @@ configureOrtAssets("/ort/");
     `FeatureShapeError` nomeando a expectativa (`o modelo espera 4 features
     por linha, recebeu 2`), em vez de um erro opaco vindo do WebAssembly.
     Lote irregular também: o erro diz **qual linha**.
+
+!!! check "Árvore malformada falha no carregamento"
+    O percurso de cada árvore segue `node_left`/`node_right` até uma folha, sem limite de passos — limite ali seria pago em todo nó de toda linha. O `CompactPredictor.create` prova uma vez, ao carregar, que todo filho fica depois do pai e dentro da própria árvore (o scikit-learn numera o nó antes dos filhos; medido em todas as árvores dos fixtures, 0 violações em 1 761 nós). Arquivo adulterado que faria a aba girar para sempre ou responder `NaN` lança `CompactFormatError` no `create`.
 
 ## Erros
 
@@ -33267,6 +34222,9 @@ export function Head() {
 
 !!! warning "O script precisa ser síncrono e vir cedo"
     Não use `defer`, `async` nem mova o script para o fim do `<body>` — ele tem que rodar antes da primeira pintura, senão o flash volta. `getInitialTheme()` expõe a mesma lógica de resolução para quando você quiser o tema calculado em JS sem injetar o script.
+
+!!! check "Seguro para inline com qualquer opção"
+    `storageKey` e `defaultTheme` entram no script escapados: `<`, `>`, `&`, U+2028 e U+2029 viram `\uXXXX`. Com `JSON.stringify` puro, uma `storageKey` contendo `</script>` fechava o elemento no parser de HTML e o resto virava outro script — o teste prova isso parseando o HTML resultante.
 
 ## Customizando tokens
 
@@ -35409,6 +36367,9 @@ isEmpty(""); // true
 
 ---
 
+!!! check "`deepMerge` ignora `__proto__`, `constructor` e `prototype`"
+    Atribuir `result["__proto__"]` não cria chave: **troca o protótipo** do resultado. Um JSON de configuração com `{"__proto__": {"isAdmin": true}}` produzia um objeto cujo `isAdmin` lia `true` por herança enquanto `Object.keys` não mostrava nada. Nenhum protótipo global era tocado; as três chaves agora são puladas, em qualquer nível.
+
 ## Type guards
 
 Narrowing seguro de tipos. Combinam bem com `Array.prototype.filter` e `switch` exaustivos.
@@ -35892,6 +36853,9 @@ const save = compressedStorage.get("save", null);
     Se o codec **lançar**, o valor é gravado como JSON puro em vez de descartado:
     registro maior ainda carrega, registro ausente não. Só um valor que nem JSON
     representa (referência circular) perde a escrita.
+
+!!! check "Leitura limitada a 64 MiB descomprimidos"
+    O deflate chega a ~1000:1 em dado repetitivo (medido com fflate: 20 MB de `"A"` viram 19 551 bytes), então os ~5 MB de `localStorage` de uma origem poderiam pedir gigabytes na leitura. O `decompressFromString` lê o tamanho declarado no trailer do gzip e recusa acima de 64 MiB **antes** de alocar — o fflate nunca passa do tamanho declarado, então o limite vale mesmo quando o trailer mente. Valor corrompido falha rápido em vez de travar a aba; o `compressedStorage` devolve o fallback, como em qualquer leitura que falha.
 
 ### O formato é autodescritivo
 
@@ -37308,6 +38272,88 @@ Medido com `tempest-react-sdk@0.70.0` e um teste de uma linha que importa `Butto
     tudo), o plugin não mexe — juntar os dois quebraria o Vitest 4 com
     `ex.test is not a function`.
 
+Na 0.81.0, com o Vitest 4.1.12, o quadro é o mesmo para **todo** arranjo sem o
+plugin: `vitest.config.ts` próprio, `vite.config.ts` simples e projeto sem config
+nenhuma caem no `.css`. Duas coisas garantem que você descubra antes do teste
+vermelho:
+
+- **`npx tempest doctor`** lê a config que o Vitest vai carregar (`vitest.config.*`,
+  senão `vite.config.*`) e avisa na seção _Integration_ quando ela não tem
+  `tempestVitest()`, `createViteConfig`, `inline: true` nem `"tempest-react-sdk"`
+  na lista de `inline` — ou quando não há config nenhuma. Um `vitest.config.ts`
+  que faz `mergeConfig` sobre um `vite.config.ts` com `createViteConfig` passa.
+- **O smoke do tarball** (`scripts/smoke-vitest.sh`, no `make check`) roda a
+  suíte de consumidor **sem** o plugin e exige o erro. Se um dia o SDK importar no
+  Vitest sem ajuda, o smoke reprova e esta seção é revista.
+
+## PWA: o service worker no build de produção
+
+Um app PWA usa dois plugins do mesmo subpath: o `tempestPwaManifest()` emite o
+`precache-manifest.json` que o `installPrecache` lê, e o `tempestPwaDevSw()`
+compila o seu `src/sw.ts`. Com os dois, o `vite build` entrega o worker junto:
+
+```ts
+// vite.config.ts
+import { createViteConfig, tempestPwaDevSw, tempestPwaManifest } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+    plugins: [
+        tempestPwaManifest({ additionalUrls: ["/icon.svg"] }),
+        tempestPwaDevSw({ swSrc: "src/sw.ts", swUrl: "/sw.js" }),
+    ],
+});
+```
+
+O que sai em `dist/`:
+
+| Arquivo                  | Quem emite             | O que é                                                        |
+| ------------------------ | ---------------------- | -------------------------------------------------------------- |
+| `precache-manifest.json` | `tempestPwaManifest()` | Lista dos assets do build + `version` (hash da lista)          |
+| `sw.js`                  | `tempestPwaDevSw()`    | `src/sw.ts` empacotado como worker clássico (IIFE), minificado |
+
+- **Em dev**, o `tempestPwaDevSw()` serve `/sw.js` compilado na hora e um manifesto
+  vazio. **No build**, empacota o mesmo `swSrc` com o `build()` do próprio Vite —
+  não precisa de `esbuild` instalado nem de um `vite.sw.config.ts` separado.
+- O `import.meta.env` do worker enxerga os mesmos `VITE_*` da página (mesmo `mode`,
+  `envDir` e `envPrefix` do app).
+- A primeira linha do `sw.js` é `/* tempest-precache-version: <version> */`. O
+  navegador só reinstala um service worker quando os bytes do `sw.js` mudam; sem
+  isso, um deploy que mexe no app mas não no `sw.ts` deixaria o precache antigo
+  servindo a versão anterior offline.
+
+### O build falha em vez de entregar um PWA quebrado
+
+Até a 0.82.0 o `tempestPwaDevSw()` só rodava em dev, e um app com os dois plugins
+terminava o `vite build` com código 0 **sem** `dist/sw.js` (#573): em produção o
+registro dava 404, `navigator.serviceWorker.ready` nunca resolvia e push, update e
+offline travavam sem mensagem. Agora três erros derrubam o build, com a correção
+na mensagem:
+
+| Situação                                                                             | Mensagem começa com                                    |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| `precache-manifest.json` emitido e nenhum arquivo em `/sw.js` (ou no `swUrl`)         | `[tempest-pwa-manifest] the build emitted …`           |
+| `swSrc` não existe ou não compila                                                    | `[tempest-pwa-dev-sw] could not bundle …`              |
+| Item de `additionalUrls` que não está em `public/` nem no bundle                     | `[tempest-pwa-manifest] additionalUrls lists …`        |
+
+O terceiro pega a armadilha vizinha: um `manifest.webmanifest` linkado do
+`index.html` mas guardado fora de `public/` sai com hash em
+`assets/manifest-*.webmanifest` (e já entra no precache sozinho). Listar
+`/manifest.webmanifest` em `additionalUrls` fazia o precache guardar o `index.html`
+do fallback da SPA no lugar dele. URLs absolutas `http(s):` não são conferidas.
+
+!!! note "Worker empacotado por outro passo"
+    Se um segundo `vite build --config vite.sw.config.ts` (ou o `vite-plugin-pwa`)
+    gera o `sw.js` **depois** deste build, diga isso explicitamente: use
+    `tempestPwaDevSw({ build: false })` (continua servindo em dev) ou, sem o plugin
+    de dev, `tempestPwaManifest({ serviceWorker: false })`. Com o `tempestPwaDevSw()`
+    no build padrão, o `build:sw` separado fica redundante e pode sair do
+    `package.json`.
+
+| Opção                                  | Default                                      | O que faz                                                         |
+| -------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| `tempestPwaDevSw({ build })`           | `true`                                       | Empacota `swSrc` no build de produção em `swUrl`                  |
+| `tempestPwaManifest({ serviceWorker })` | `swUrl` do `tempestPwaDevSw`, senão `/sw.js` | URL do worker exigido no build; `false` desliga a conferência     |
+
 ## Referência das opções
 
 Todas as opções são opcionais.
@@ -37342,6 +38388,8 @@ Todas as opções são opcionais.
   `Unknown file extension ".css"`; com `vitest.config.ts` próprio, adicione-o.
 - `overrides` é o escape hatch: deep-merge por último, mesclando `plugins`/`resolve`/`server`
   em vez de substituí-los.
+- PWA: `tempestPwaManifest()` + `tempestPwaDevSw()` entregam `dist/sw.js` no `vite build`, e o
+  build falha quando o manifesto sai sem worker ou `additionalUrls` aponta para o nada.
 
 ---
 
@@ -37707,6 +38755,25 @@ mesh.stop(); // desligou
 
 As tracks em si **não** são paradas: são suas, e podem estar num preview ou ser reaproveitadas na próxima chamada. Para entrar de novo, crie outra mesh.
 
+### Quem pode receber o seu microfone: `acceptPeer`
+
+O lado que responde normalmente conhece o par pela oferta, então a mesh responde qualquer oferta que chega no `accept` — abre a conexão e publica as faixas locais. Isso faz o microfone e a câmera dependerem só do servidor de sinalização entregar oferta para as pessoas certas. Com `acceptPeer`, a decisão passa a ser do app também:
+
+```ts
+import { createPeerMesh } from "tempest-react-sdk";
+
+const sala = new Set(["ana", "bruno"]);
+
+export const mesh = createPeerMesh({
+  slots: [{ name: "mic", kind: "audio" }],
+  send: (message) => console.log(message),
+  acceptPeer: (peerId) => sala.has(peerId),
+  onNotice: (reason) => console.warn(reason),
+});
+```
+
+Oferta recusada não abre conexão, não responde nada e chega como `onNotice("offer_refused")`. Par adicionado com `addPeer` não é consultado — adicionar já foi a decisão. Sem `acceptPeer`, o comportamento é o de antes.
+
 ### Medindo a sala: `stats`
 
 A mesh sabe quantos links existem e quando um vai embora, então ela é o lugar certo para amostrar. `stats` liga um único timer que ela mesma gerencia:
@@ -37992,6 +39059,8 @@ try {
     Se você chamar `send()` antes do status virar `"open"` (ou após um `close`), nada é enviado e o retorno é `false`. Sempre confira `status === "open"` (ou o boolean de retorno) antes de assumir que a mensagem saiu.
 
     Ligue `queueWhileClosed: true` quando a ação **não pode** sumir: aí o `send()` bufferiza durante o backoff e devolve `true`, e a fila é despejada no `open` seguinte. A fila morre no `close()` — nada sobrevive a um fechamento explícito.
+
+    Socket autenticado por cookie reabre o handshake como quem estiver logado na hora da reconexão. Se o app não fechar o socket no logout, passe `getPrincipal: () => userId`: cada payload guardado leva a impressão de quem o enviou, e no `open` seguinte só sai o que for do **mesmo** dono — o resto é descartado.
 
 !!! danger "Contra o servidor Tempest, não ligue `pingInterval`"
     O `tempest-fastapi-sdk` **manda** o ping e quer o `pong` de volta. Um `{"type":"ping"}` vindo do cliente é frame desconhecido pra ele — um handler estrito recusa. Deixe `pingInterval: 0` (default) e o `respondToPing` cuida do heartbeat.

@@ -43,6 +43,81 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Teto do barrel ESM no `size-limit` sobe de 157,9 kB para 158,3 kB.** O helper e o JSDoc das
   três entradas somam ~150 B ao barrel inteiro (158,05 kB medido com `npx size-limit` nesta
   branch); as fatias importadas continuam dentro dos budgets.
+- **`useDraftFilters` e `useDeepMemo`: `Set`, `Map`, `Date` e afins deixam de comparar iguais
+  (#614).** A comparação estrutural compartilhada olhava só `Object.keys`, e
+  `Object.keys(new Set(["ovino"]))` é `[]`: `new Set(["ovino"])` e `new Set(["caprino"])` eram
+  iguais, então um filtro de seleção múltipla em `Set` nunca ficava `isDirty` e o `apply()` não
+  publicava. Medido na 0.86.0 com os testes novos de `src/hooks/use-deep-memo.test.tsx` e
+  `src/hooks/use-draft-filters.test.tsx` (`npx vitest run src/hooks/use-deep-memo.test.tsx
+src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores de protótipo
+  diferente nunca são iguais (`new Set()` não é `{}`, `Uint8Array` não é `Int8Array`); `Set`
+  compara membros por SameValueZero (como `Set.has`), `Map` compara chaves por SameValueZero e
+  valores estruturalmente, `Date` pelo instante, `RegExp` por `source` + `flags`, `ArrayBuffer`,
+  `DataView` e arrays tipados byte a byte; instância sem chave própria enumerável (`URL`, `Blob`,
+  `File`, `Error`) só é igual a si mesma. Objeto literal, array e instância de classe com campos
+  continuam comparados como antes.
+
+### Adicionado
+
+- **`useDraftFilters().discard()`** (#614): devolve o rascunho ao valor aplicado sem publicar e
+  sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
+  abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
+  `docs/hooks.md`; não há `clearDraft()` separado.
+
+### Budgets
+
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
+- **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
+  (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
+  `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da
+  árvore): ESM 157 796 → 158 113 B (+317 B; havia 104 B de folga); CJS 187 741 → 187 711 B
+  (reminificação; budget 187,8 kB mantido). Nenhuma fatia importada mudou (`admin plumbing`
+  2 218 B nos dois).
+- **Soma de #612 + #614 remedida sobre a `main` em `578c071`** (`npm run build && npx size-limit
+--json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
+  187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
+
+### Segurança
+
+- **`persistQueryClientOffline` com `auth`: reset antes do logout não grava mais dados de A sob B**
+  (auditoria run-14, C1, #609). O `clear({ resetClient: true })` apagava a linhagem de sessões do
+  `QueryClient` mesmo com A ainda logado, e o handle encerrado já não observava a sessão: uma query
+  de A que caísse entre o reset e o `logout()` (refetch, intervalo, foco, prefetch) chegava ao
+  handle criado no login de B como dado anônimo e era gravada com a impressão de B, para o próximo
+  boot de B hidratar. Agora o reset só apaga a linhagem quando ninguém está logado; com sessão
+  instalada ela fica marcada como encerrada até um handle ser criado com o client vazio. Reset no
+  `onSessionEnd` ou depois do `logout()` (o caminho documentado) segue igual.
+- **`createApiClient` com `getSessionEpoch` (o `auth.api` do `createTempestAuth`): resposta de
+  sessão encerrada rejeita com `SessionSupersededError`** (auditoria run-14, U7, #609). Uma request
+  que saiu com o token de uma sessão que acabou antes de a resposta chegar resolvia normalmente: uma
+  `mutation` de A iniciada antes do `logout()` rodava o `onSuccess` já na sessão de B, e o
+  `setQueryData` punha os dados de A na tela de B e no snapshot offline com a impressão de B. A
+  checagem fica no cliente HTTP, não na persistência, porque só ele sabe a época em que a request
+  **saiu**; vale para qualquer continuação, não só para o cache. Request que saiu sem token segue
+  resolvendo. O que não passa pelo `auth.api` (um `fetch` próprio) continua com o app. Quatro
+  testes do `offline-persistence.lifetime.test.ts` (run-12/run-13) tinham como pré-condição a
+  resposta de A resolvendo depois do fim da sessão: a asserção foi invertida para
+  `SessionSupersededError`, e o "nada fica para o boot deslogado" continua valendo. Reproduzido em
+  `src/query/offline-persistence.session-end.test.ts` e `src/http/api-client.session-epoch.test.ts`
+  (`npx vitest run src/query/offline-persistence.session-end.test.ts src/http/api-client.session-epoch.test.ts`).
+  A checagem custa bytes no cliente HTTP (`npx size-limit`): a fatia "typical app" foi a 12,64 kB
+  (teto 12,6 → 12,7 kB) e o barrel CJS a 187,82 kB (teto 187,8 → 187,9 kB).
+- **Push com o destino só em `data.url` não abre mais `/` em silêncio (#613).** Desde a 0.82.0 o
+  `installPushHandler` grava o `url` de topo por cima de `payload.data` (#534), então quem mandava o
+  destino só em `data.url` — o formato que a 0.81.0 respeitava — passou a abrir `"/"` sem erro nem
+  aviso. A regra de segurança fica: `data.url` continua **não** sendo lido como destino. O que muda é
+  que o primeiro payload nesse formato (`data.url` string e nenhum `url` de topo, avaliado depois do
+  `transform`) loga **um** `console.warn` por worker, sem repetir a URL. O aviso não passa pelo
+  `isDevBuild()`: o push real costuma chegar primeiro num build de produção, e num worker que nenhum
+  bundler compilou o `isDevBuild()` responde `false` — os dois lugares onde a quebra aparece.
+  Reproduzido com `npx vitest run src/sw/create-push-handler.data-url.test.ts` sobre a `main`: o
+  clique com `{ data: { url: "/broadcasts/42" } }` abre `"/"` e 4 dos 11 casos novos falhavam (nenhum
+  `console.warn`). **Migração** (do servidor, também na receita de push):
+  `{ "title": "Novo aviso", "data": { "url": "/avisos/42" } }` passa a ser
+  `{ "title": "Novo aviso", "url": "/avisos/42", "data": {} }`. Budget (`npx size-limit`, `main`
+  → branch): teto do barrel ESM 157,8 → 158,1 kB, sobe 157,9 → 158,2 kB; barrel CJS 187,74 → 187,72
+  kB, sem mudança. O `scripts/check-dist-guards.mjs` ganha `sw/create-push-handler` na lista de
+  módulos que falam fora do `isDevBuild()`, com o motivo acima.
 
 ## [0.86.0] — 2026-11-15
 

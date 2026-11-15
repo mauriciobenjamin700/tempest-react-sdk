@@ -100,7 +100,9 @@ export interface PushPayload {
      * Its `url` and `actionUrls` keys are overwritten by the top-level `url` and
      * the actions' `url`s: those two keys decide where a click goes, and a
      * free-form bag — often filled from the record that triggered the push — must
-     * not be able to redirect it.
+     * not be able to redirect it. A payload carrying its destination only in
+     * `data.url` (the shape 0.81.0 and earlier honoured) opens `"/"`, and
+     * {@link installPushHandler} logs one `console.warn` saying so.
      */
     data?: Record<string, unknown>;
 }
@@ -179,6 +181,26 @@ function buildNotificationOptions(
     return options as ExtendedNotificationOptions;
 }
 
+/**
+ * The warning logged when a payload puts its destination only in `data.url`.
+ *
+ * It names the keys and never the value: the URL came from the server and may
+ * carry an id or a token, and the worker console is no place to echo it.
+ */
+const LEGACY_DATA_URL_WARNING =
+    "[tempest-react-sdk/sw] installPushHandler: push has data.url but no top-level url, " +
+    'so a click opens "/" (data.url is not read since 0.82.0). Send the top-level url.';
+
+/**
+ * Whether a payload carries its destination only where 0.81.0 and earlier read it.
+ *
+ * @param payload - The payload after `transform`, as it will be shown.
+ * @returns `true` when `data.url` is a string and the top-level `url` is absent.
+ */
+function hasLegacyDataUrl(payload: PushPayload): boolean {
+    return payload.url === undefined && typeof payload.data?.url === "string";
+}
+
 export interface InstallPushHandlerOptions {
     /** Title used when the payload omits one. */
     defaultTitle?: string;
@@ -203,10 +225,23 @@ export interface InstallPushHandlerOptions {
  * `tag`. `data` receives the payload's own `data`, then the top-level `url`
  * (default `"/"`) and `actionUrls` mapping each action id to its `url` — in that
  * order, so `payload.data` cannot override where a click goes.
+ *
+ * A payload whose destination sits only in `data.url` — the shape 0.81.0 and
+ * earlier honoured — still opens `"/"`, and the first one this handler sees logs
+ * a `console.warn` naming the fix. The check runs on the payload after
+ * `transform`, so a transform that sets `url` silences it.
+ *
+ * The warning is not behind `isDevBuild()`, unlike the SDK's dev-only
+ * diagnostics. It reports a contract between the server and the worker, which
+ * real pushes usually exercise for the first time on a production build —
+ * exactly where a dev-gated warning is silent, as it is in a worker no bundler
+ * compiled. It prints once per handler (so once per worker start), only for the
+ * broken shape, without the URL itself, in a console only DevTools shows.
  */
 export function installPushHandler(options: InstallPushHandlerOptions = {}): void {
     const sw = getSwScope();
     const { defaultTitle = "Notificação", defaultIcon, defaultBadge, transform } = options;
+    let warnedLegacyDataUrl = false;
 
     sw.addEventListener("push", (event) => {
         if (!event.data) return;
@@ -220,6 +255,10 @@ export function installPushHandler(options: InstallPushHandlerOptions = {}): voi
 
         const payload = transform ? transform(raw) : raw;
         if (!payload) return;
+        if (!warnedLegacyDataUrl && hasLegacyDataUrl(payload)) {
+            warnedLegacyDataUrl = true;
+            console.warn(LEGACY_DATA_URL_WARNING);
+        }
 
         const title = payload.title ?? defaultTitle;
         const notification = buildNotificationOptions(payload, defaultIcon, defaultBadge);

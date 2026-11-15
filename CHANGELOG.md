@@ -56,6 +56,32 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 --json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
   187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
 
+### Segurança
+
+- **`persistQueryClientOffline` com `auth`: reset antes do logout não grava mais dados de A sob B**
+  (auditoria run-14, C1, #609). O `clear({ resetClient: true })` apagava a linhagem de sessões do
+  `QueryClient` mesmo com A ainda logado, e o handle encerrado já não observava a sessão: uma query
+  de A que caísse entre o reset e o `logout()` (refetch, intervalo, foco, prefetch) chegava ao
+  handle criado no login de B como dado anônimo e era gravada com a impressão de B, para o próximo
+  boot de B hidratar. Agora o reset só apaga a linhagem quando ninguém está logado; com sessão
+  instalada ela fica marcada como encerrada até um handle ser criado com o client vazio. Reset no
+  `onSessionEnd` ou depois do `logout()` (o caminho documentado) segue igual.
+- **`createApiClient` com `getSessionEpoch` (o `auth.api` do `createTempestAuth`): resposta de
+  sessão encerrada rejeita com `SessionSupersededError`** (auditoria run-14, U7, #609). Uma request
+  que saiu com o token de uma sessão que acabou antes de a resposta chegar resolvia normalmente: uma
+  `mutation` de A iniciada antes do `logout()` rodava o `onSuccess` já na sessão de B, e o
+  `setQueryData` punha os dados de A na tela de B e no snapshot offline com a impressão de B. A
+  checagem fica no cliente HTTP, não na persistência, porque só ele sabe a época em que a request
+  **saiu**; vale para qualquer continuação, não só para o cache. Request que saiu sem token segue
+  resolvendo. O que não passa pelo `auth.api` (um `fetch` próprio) continua com o app. Quatro
+  testes do `offline-persistence.lifetime.test.ts` (run-12/run-13) tinham como pré-condição a
+  resposta de A resolvendo depois do fim da sessão: a asserção foi invertida para
+  `SessionSupersededError`, e o "nada fica para o boot deslogado" continua valendo. Reproduzido em
+  `src/query/offline-persistence.session-end.test.ts` e `src/http/api-client.session-epoch.test.ts`
+  (`npx vitest run src/query/offline-persistence.session-end.test.ts src/http/api-client.session-epoch.test.ts`).
+  A checagem custa bytes no cliente HTTP (`npx size-limit`): a fatia "typical app" foi a 12,64 kB
+  (teto 12,6 → 12,7 kB) e o barrel CJS a 187,82 kB (teto 187,8 → 187,9 kB).
+
 ## [0.86.0] — 2026-11-15
 
 ### Segurança

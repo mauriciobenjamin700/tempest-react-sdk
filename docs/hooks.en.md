@@ -664,6 +664,7 @@ export function HerdFilterSheet() {
 - `discard()` returns the draft to the **applied** value, without publishing and without calling `onApply`. Called on open, it makes the sheet show what is in effect, even if someone closed it mid-edit.
 - **Clearing without applying is `set(() => EMPTY)`.** The updater replaces the whole draft — `set(EMPTY)` would merge and leave behind an optional key the empty value does not have. There is no `clearDraft()` because the updater already says exactly that; `clear()` is still the "clear and apply" of a filter bar.
 - `Set`, `Map` and `Date` in the filter work: `isDirty` and the stability of `applied` compare by content (`Set` members, `Map` keys and values, the `Date` instant). Up to 0.86.0 two different `Set`s compared equal and `apply()` did not publish.
+- Objects compare by key **set**, not key count: swapping `{ from: undefined }` for `{ until: undefined }` makes the draft dirty. Up to 0.87.0 the two compared equal, since a missing key reads as `undefined` too.
 
 ### List as state — `useListState`
 

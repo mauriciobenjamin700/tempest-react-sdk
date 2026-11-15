@@ -15,6 +15,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   reconhecia `_self` exato; a palavra-chave é case-insensitive no HTML, então `_SELF` ou `_Self`
   deixaria o browser recarregar o documento inteiro. Inalcançável hoje (nenhum componente do SDK
   renderiza `target` no link), corrigido antes que um passe a renderizar.
+- **`useDraftFilters` e `useDeepMemo` comparam objeto pelo conjunto de chaves** (#645). A igualdade
+  estrutural conferia só a contagem de chaves, então `{ a: undefined }` era igual a
+  `{ b: undefined }` — trocar um filtro opcional por outro deixava `isDirty` em `false` e o
+  `useDeepMemo` devolvia a referência antiga. Agora cada chave de um precisa existir no outro
+  (`Object.hasOwn`).
 
 ### Budgets
 

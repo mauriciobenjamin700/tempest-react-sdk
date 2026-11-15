@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
 - **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
@@ -86,6 +87,23 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   Fatia nova no `size-limit`: `{ createDeviceFacts }` = 1,16 kB br; os tetos do barrel inteiro sobem
   158,3 → 159,2 kB (ESM) e 188,1 → 189,2 kB (CJS), medidos 159,13 / 189,16 kB com `npx size-limit` sobre a `main` em `5f7e537`
   — os ~0,8–1,1 kB são a função nova, que só pesa para quem a importa.
+- **`createZip`: `.zip` com progresso, sem travar a tela — o par do `writeXlsx`** (#622).
+  `createZip(entries, { onProgress, level, signal })` → `Promise<Blob>` (`application/zip`); cada
+  entrada é `{ path, data: Blob | Uint8Array | string, level? }`. Usa o `Zip` em streaming do
+  `fflate`, alimentado em blocos de 64 KB, em fatias de ~8 ms que cedem a vez por `MessageChannel`;
+  o progresso é em bytes de entrada, com o `total` conhecido antes do primeiro byte. Formatos já
+  comprimidos (JPEG, PNG, WebP, MP4, ZIP, XLSX, …) são **guardados** (nível 0) pela extensão;
+  `level` na entrada vence. Caminho vazio ou repetido lança `TypeError`; `signal` cancela no meio.
+  A issue pedia o `zip()` assíncrono do `fflate` (com worker); a medição o descartou — sobre 8,4 MB
+  (4 MB de CSV + 20 × 200 KB aleatórios, nível 6, Node 24, cinco rodadas de
+  `node scripts/bench-zip.mjs 5`, script novo): `zipSync` 131–232 ms travando tudo; `zip()` com
+  worker 576–962 ms, travada de 32–145 ms e sem progresso até um arquivo inteiro acabar;
+  `createZip` 178–275 ms com travada de 12–30 ms, e 48–70 ms (travada 11–14 ms) guardando as
+  "fotos". A issue pedia também subpath próprio; não precisa — o `preserveModules` já separa
+  (`{ cn }` continua 203 B). Fatias novas no `size-limit` **com o `fflate` contado**:
+  `{ createZip }` 5,46 kB br, `{ createZip, writeXlsx }` 6,55 kB. Os tetos do barrel inteiro sobem
+  158,3 → 158,9 kB (ESM) e 188,1 → 188,7 kB (CJS), medidos 158,84 / 188,63 kB com `npx size-limit`
+  — os ~0,5 kB são a função nova, que só pesa para quem a importa.
 
 ### Budgets
 

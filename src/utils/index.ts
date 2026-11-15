@@ -36,6 +36,8 @@ export { debounce, throttle, once, memoizeOne } from "./functions";
 export { sleep, withTimeout } from "./promises";
 export { randomId } from "./ids";
 export { writeXlsx } from "./xlsx";
+export { createZip } from "./zip";
+export type { CreateZipOptions, ZipEntry, ZipLevel, ZipProgress } from "./zip";
 export { downloadCsv, toCsv } from "./csv";
 export { safeAttachmentUrl, safeImageUrl, safeLinkUrl } from "./safe-url";
 export type { CsvColumn, CsvOptions } from "./csv";

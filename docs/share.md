@@ -153,6 +153,7 @@ A ordem é **arquivo + texto → só texto → download**:
 
 !!! tip "Combina com `writeXlsx` / geração de ZIP"
     Gere a planilha com [`writeXlsx`](./utilities.md#planilhas-xlsx-writexlsx), embrulhe num `Blob` e passe pro `shareOrDownloadBlob` — exportação de dados completa, do byte à sheet nativa, sem dependência extra.
+    Com fotos junto, [`createZip`](./utilities.md#arquivos-zip-createzip) já devolve o `Blob` do `.zip`, com progresso.
 
 ## Recap
 

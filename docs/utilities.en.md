@@ -478,6 +478,62 @@ The XML is deliberately lean: inline strings (no shared-string table), no styles
 
 ---
 
+## `.zip` archives — `createZip`
+
+Exporting "the spreadsheet **and** the photos" is the common case, and a several-MB `.zip` built in one go freezes the screen. `createZip(entries, options)` builds the archive in ~8 ms slices, handing control back to the browser between them — the progress bar moves and scrolling stays smooth. It is the pair of `writeXlsx`, on the same `fflate`.
+
+```ts
+import { createZip, shareOrDownloadBlob, writeXlsx } from "tempest-react-sdk";
+
+export async function exportHistory(
+  photos: File[],
+  onPercent: (percent: number) => void,
+): Promise<void> {
+  const sheet = writeXlsx(["Animal", "FAMACHA score"], [["Sheep 12", 3]]);
+
+  const zip = await createZip(
+    [
+      { path: "history.xlsx", data: sheet },
+      { path: "readme.txt", data: "Exported by the app — photos under /photos" },
+      ...photos.map((photo) => ({ path: `photos/${photo.name}`, data: photo })),
+    ],
+    { onProgress: ({ loaded, total }) => onPercent(Math.round((loaded / total) * 100)) },
+  );
+
+  await shareOrDownloadBlob(zip, "history.zip");
+}
+```
+
+Piece by piece:
+
+- **`entries`** — `{ path, data, level? }` in archive order. `data` takes a `Blob` (a `File` from an `<input>`), a `Uint8Array` or a `string` (written as UTF-8). `path` uses `/` and must be unique: an empty or repeated path throws `TypeError` before any byte is read.
+- **`onProgress({ loaded, total })`** — in **input** bytes. `total` is known before the start (the `Blob` size, the string's UTF-8 bytes), so the percentage is real from the first call; the last one always has `loaded === total`.
+- **`level`** — deflate from `0` (store only) to `9`. Defaults to `6`.
+- **`signal`** — an `AbortSignal` cancels mid-way; the promise rejects with the signal's `reason`.
+- Returns an `application/zip` `Blob`, ready for `shareOrDownloadBlob`.
+
+!!! tip "Photos don't compress twice"
+    JPEG, PNG, WebP, MP4, ZIP, XLSX and friends are already compressed. `createZip` **stores** them (level `0`) by extension: deflating them burns CPU and saves nothing. Measured on a 4 MB CSV + 20 × 200 KB of random bytes: 178–275 ms deflating everything, 48–70 ms storing the "photos", with the same archive size (4.11 MB against 4.12 MB). A per-entry `level` beats this rule.
+
+??? info "Technical details: why slices and not a Web Worker"
+    `fflate`'s async `zip()` spins up **one worker per file** and copies each file into it. Measured on Node 24 with `fflate` 0.8.3, over the same 8.4 MB, five runs:
+
+    | variant | total | longest stall |
+    | --- | --- | --- |
+    | `zipSync` | 131–232 ms | 131–232 ms |
+    | `zip()` (worker per file) | 576–962 ms | 32–145 ms |
+    | `createZip`, all deflated | 178–275 ms | 12–30 ms |
+    | `createZip`, photos stored | 48–70 ms | 11–14 ms |
+
+    The worker is about three times slower, stalls longer and only reports progress when a whole file is done. `createZip` uses `fflate`'s streaming `Zip`, fed in 64 KB chunks, and yields through a `MessageChannel` (no 4 ms floor of nested `setTimeout`). `Blob`s are read one at a time, when their turn comes.
+
+    Reproduce with `npm run build && node scripts/bench-zip.mjs 5` (shared machine, load average 13–19 while measuring — hence the wide ranges).
+
+!!! note "Bundle cost"
+    `createZip` lives in the root next to `writeXlsx` — no subpath, because `preserveModules` already splits it: `{ cn }` alone stays at 203 B. Importing `{ createZip }` costs 5.46 kB br **with** `fflate` counted; `{ createZip, writeXlsx }` together, 6.55 kB (`npx size-limit`).
+
+---
+
 ## CSV — `toCsv` and `downloadCsv`
 
 `.xlsx` is the right format for someone who will **open** the spreadsheet. CSV is the right format for someone who will **import** the file into another system — and it is what nearly every admin panel ends up writing by hand, getting the same two things wrong every time: a name with a comma splits the row, and a name with a quote breaks the very quoting that was supposed to protect it.
@@ -694,6 +750,7 @@ Same best-effort policy as the JSON pair: SSR-safe, never throws, swallows quota
 
 - Import any helper straight from `tempest-react-sdk` — they are all named, pure, tree-shakable exports.
 - **Spreadsheets**: `writeXlsx(headers, rows)` builds a single-sheet UTF-8 `.xlsx` as a `Uint8Array` (no CSV BOM drama).
+- **ZIP**: `createZip(entries, { onProgress })` packs spreadsheet + photos in ~8 ms slices without freezing the screen, and stores already-compressed files instead of recompressing them.
 - **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM, and neutralizes formulas by default; `downloadCsv(...)` hands it straight to the user.
 - **User URLs**: `safeLinkUrl`, `safeImageUrl` and `safeAttachmentUrl` return the URL or `null` — a scheme allowlist before any `href`/`src`.
 - **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero; `formatPercent(v, { mode: "truncate" })` cuts without floating-point error; `relativeDayLabel` gives "Hoje"/"Ontem"/the date by local calendar day.

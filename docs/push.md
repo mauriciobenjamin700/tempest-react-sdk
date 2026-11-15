@@ -753,6 +753,28 @@ Duas regras valem desde a 0.82.0:
 - **`data` não sobrescreve o destino.** O `installPushHandler` espalha o `data` do payload **antes** de gravar `url` e `actionUrls`. Até a 0.81.0 era depois, e `{ "url": "/orders/9", "data": { "url": "https://outro.site" } }` abria `https://outro.site` — e o `data` costuma ser preenchido com o registro que disparou o push.
 - **O resolver padrão só abre página da própria origem.** URL de outra origem, ou com esquema que não seja `http:`/`https:` (`javascript:`, `data:`), vira `"/"`. Um `resolveUrl` seu é como o app escolhe outra origem — o que ele devolver pode ir para qualquer `http(s)`, e esquema diferente disso continua virando `"/"`.
 
+!!! warning "Migrando da 0.81 ou anterior: o destino sai de `data.url`"
+    Quem mandava o destino **só** em `data.url` passou a abrir `"/"` na 0.82.0 —
+    sem erro: a notificação aparece igual, só o clique perde o deep link. O SDK
+    **não** volta a ler `data.url` (é a regra acima), então a correção é no
+    servidor, movendo o destino para o `url` de topo:
+
+    ```json
+    { "title": "Novo aviso", "data": { "url": "/avisos/42", "avisoId": 42 } }
+    ```
+
+    vira
+
+    ```json
+    { "title": "Novo aviso", "url": "/avisos/42", "data": { "avisoId": 42 } }
+    ```
+
+    Desde a 0.87.0 o `installPushHandler` loga **um** `console.warn` por worker
+    quando chega um payload no formato antigo (`data.url` string e nenhum `url` de
+    topo). O aviso não depende de build de desenvolvimento — o push real costuma
+    chegar primeiro em produção — e não repete a URL. Para vê-lo: DevTools →
+    Application → Service workers → o link do worker abre o console dele.
+
 ```ts
 /// <reference lib="webworker" />
 import { installNotificationClickHandler } from "tempest-react-sdk/sw";
@@ -939,6 +961,7 @@ import { Icon } from "tempest-react-sdk/icons";
 | Notificação duplicada | dois handlers de `push` no SW, ou `POST` não é upsert por endpoint | o seu `sw.ts`; a tabela de inscrições |
 | Usuário recebe notificação de outra conta | não desinscreveu no logout | [logout e troca de usuário](#logout-e-troca-de-usuario) |
 | `ReferenceError: window is not defined` no SW | SDK anterior a 0.28.1 usando `urlBase64ToUint8Array` no worker | atualize o SDK |
+| Clique abre `/` em vez do deep link | o servidor manda o destino só em `data.url`, que o SDK não lê desde a 0.82.0 | o console do worker (aviso do `installPushHandler`); [migração](#para-onde-o-clique-pode-ir) |
 
 ## Resumo
 

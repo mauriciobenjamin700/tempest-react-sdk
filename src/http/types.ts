@@ -167,6 +167,17 @@ export interface ApiClientConfig {
      * continuation — a mutation's `onSuccess` writing it into the next
      * account's cache (security audit run-14, #609), or an `onError` showing
      * the ended account's error envelope to the next one (run-15).
+     *
+     * And read before every replay of {@link ApiClientConfig.retry}: a replay
+     * that would leave under another session than the request's first attempt —
+     * the first carried a token and its epoch ended, or the replay would pick up
+     * a token the first never had — is not sent, and the request rejects with
+     * `SessionSupersededError` (#643).
+     *
+     * The protection follows the bearer token. A client that authenticates by
+     * cookie alone (`withCredentials`, no `getToken`) sends no token, so none of
+     * these checks apply to it: the browser attaches whichever cookie is current
+     * and the client cannot tell a signed-out request from a signed-in one.
      */
     getSessionEpoch?: () => number;
     /**

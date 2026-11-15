@@ -21,10 +21,14 @@ const SMUGGLING_CHARACTERS = /[\u0000-\u001F\u007F\\]/;
  * backslash, and resolves to the same origin it was resolved against — so
  * `https://evil.example`, `//evil.example`, `/\\evil.example` and
  * `javascript:alert(1)` are all refused. This is the check that makes a "go back
- * to where you were" destination safe to hand to `navigate()` or
- * `location.assign()`: the value travels through `history.state`, which any
- * same-origin code can write, and a destination that leaves the app is an open
- * redirect.
+ * to where you were" destination safe to hand to `navigate()`: the value travels
+ * through `history.state`, which any same-origin code can write, and a
+ * destination that leaves the app is an open redirect.
+ *
+ * Use the result with the router's `navigate()` only. The path is relative to
+ * the router's `basename`, as `useLocation()` reports it; `navigate()` puts the
+ * `basename` back, while `location.assign()` would resolve it against the
+ * origin root and miss the app in any deployment with a `basename`.
  *
  * @internal
  * @param value - Whatever was found under `location.state.from`.

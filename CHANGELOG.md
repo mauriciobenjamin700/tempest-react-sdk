@@ -237,6 +237,13 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Budgets
 
+- **Época de sessão nas respostas de erro (run-15): `slice: http client` 5,5 → 5,6 kB,
+  `slice: typical app` 12,7 → 12,8 kB, barrel CJS 191,2 → 191,4 kB.** Medido com
+  `npm run build && npx size-limit --json` sobre a `main` em `b0c482d` e sobre este branch:
+  `http client` 5 476 → 5 519 B (+43), `typical app` 12 683 → 12 777 B (+94), CJS 191 097 →
+  191 299 B (+202); ESM 161 109 → 161 069 B (reminificação). É o `failure()` e a leitura da
+  época na chegada da resposta, no caminho que toda request percorre.
+
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #639** (`npm run build && npx size-limit --json`): ESM 161 109 B (teto 160.7 kB → 161.2 kB); CJS 191 097 B (teto 190.9 kB → 191.2 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #635** (`npm run build && npx size-limit --json`): ESM 160 629 B (teto 160.5 kB → 160.7 kB); CJS 190 792 B (teto 190.4 kB → 190.9 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.

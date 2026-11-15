@@ -127,7 +127,7 @@ real decoder.
 | `repeatDelayMs` | `number` | `2500` | Window in which the same value does not fire again. |
 | `torch` | `boolean` | `true` | Offers the torch when the camera has one. |
 | `aspectRatio` | `number` | `4 / 3` | Viewport ratio. |
-| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Labels **and** the camera error message. |
 | `footer` · `unsupported` | `ReactNode` | — | Instruction and fallback. |
 | `onError` | `(error: unknown) => void` | — | A frame the engine refused (routine). |
 
@@ -201,6 +201,10 @@ export function OwnScanner() {
   );
 }
 ```
+
+`scanner.error.message` is English by default; `cameraMessages` (the same `messages` as
+`useCameraStream`, forwarded) replaces the text per `kind` — `<BarcodeScanner>` already
+does that from its `locale`.
 
 The loop re-arms itself **after** each `detect()` settles rather than on a `setInterval`:
 decoding sometimes takes longer than the interval, and an interval would queue calls faster

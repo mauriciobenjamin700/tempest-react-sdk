@@ -129,7 +129,15 @@ describe("BarcodeScanner", () => {
         expect(screen.queryByRole("button", { name: "Ligar lanterna" })).not.toBeInTheDocument();
     });
 
-    it("shows the camera error with a way out", async () => {
+    /**
+     * Rewritten in #617. Until 0.86.0 this asserted `/Camera permission denied/` — the
+     * English sentence from `useCameraStream` — next to the pt-BR "Tentar de novo", in
+     * a component whose default locale is pt-BR. That was the defect, not the
+     * contract: the camera error now follows `locale` like every other string here.
+     * Retry stays, because the user may have just changed the permission in site
+     * settings.
+     */
+    it("shows the camera error in the scanner's locale, with a way out", async () => {
         const devices = installMediaDevices({
             getUserMedia: () => Promise.reject(new DOMException("no", "NotAllowedError")),
         });
@@ -138,11 +146,27 @@ describe("BarcodeScanner", () => {
         render(<BarcodeScanner onScan={vi.fn()} detector={heldInFrame("1")} />);
 
         await waitFor(() =>
-            expect(screen.getByText(/Camera permission denied/)).toBeInTheDocument(),
+            expect(screen.getByRole("alert")).toHaveTextContent(
+                "Acesso à câmera negado. Libere a permissão nas configurações do navegador.",
+            ),
         );
+        expect(screen.queryByText(/Camera permission denied/)).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
-        // The user may have just changed the permission in site settings.
         await waitFor(() => expect(devices.getUserMedia).toHaveBeenCalledTimes(2));
+    });
+
+    it("keeps the English camera error under the en locale", async () => {
+        const devices = installMediaDevices({
+            getUserMedia: () => Promise.reject(new DOMException("no", "NotAllowedError")),
+        });
+        restores.push(devices.restore);
+
+        render(<BarcodeScanner onScan={vi.fn()} detector={heldInFrame("1")} locale="en" />);
+
+        await waitFor(() =>
+            expect(screen.getByRole("alert")).toHaveTextContent(/Camera permission denied/),
+        );
+        expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
     });
 
     it("renders a footer and forwards the aspect ratio", async () => {

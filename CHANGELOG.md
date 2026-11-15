@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
@@ -33,6 +34,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
+  `"pt-BR"`, mas o overlay mostrava o `error.message` do `useCameraStream` cru — "Camera
+  permission denied. Enable access in your browser settings." ao lado do botão "Tentar de novo".
+  O próprio teste do componente fixava a frase em inglês; ele foi reescrito (com o porquê no
+  corpo) para afirmar a mensagem em pt-BR, e um teste novo fixa o inglês sob `locale="en"`. Doc em
+  `docs/vision.md`, `docs/device-capture.md` e `.en.md` — o aviso "traduza na sua camada de i18n"
+  saiu, porque virou superfície.
 - **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
   O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
   vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
@@ -77,6 +85,13 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   redireciona de fato. Optou-se por `preserveFrom` em vez de `state?: unknown` livre: cobre o
   caso com uma prop booleana e fixa a forma `{ from }` que o `useReturnTo` lê. Doc em
   `docs/routing.md` e `.en.md`.
+- **`useCameraStream`: `messages` — o texto do erro por `kind`, na língua do app (#617).**
+  `messages?: Partial<Record<CameraStreamErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. A troca é aplicada na leitura
+  do erro, não na captura: mudar de língua com o erro na tela re-rotula na hora, sem reabrir a
+  câmera. Segue a convenção dos componentes (`labels?: Partial<…>` por instância), não o
+  `I18nProvider` — nenhum componente ou hook do SDK lê o contexto de i18n. O `useBarcodeScanner`
+  repassa o mesmo mapa como `cameraMessages`.
 - **`useDraftFilters().discard()`** (#614): devolve o rascunho ao valor aplicado sem publicar e
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
@@ -124,6 +139,11 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   (`npm run build && npx size-limit --json`, `main` em `300d0a0` contra este branch): ESM
   158 263 → 158 374 B (+111 B), CJS 187 970 → 188 255 B (+285 B). `slice: typical app` 12 637 →
   12 698 B (+61 B, o `AppRouter` arrasta o `RouteGuard`), dentro do teto de 12,7 kB já na `main`.
+- **Mensagens por `kind` na câmera (#617): barrel ESM 158,3 → 158,6 kB, CJS 188,1 → 188,4 kB**
+  (`npm run build && npx size-limit --json`, `main` em `300d0a0` contra este branch): ESM
+  158 263 → 158 533 B (+270 B), CJS 187 970 → 188 256 B (+286 B). O grosso são as seis frases
+  pt-BR do `BarcodeScanner`: a fatia `device capture` vai de 5 465 para 5 708 B (+243 B, dentro do
+  budget); `vision entry` 16 508 → 16 526 B (+18 B, o `useMemo` do `messages`).
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da

@@ -4,12 +4,13 @@
  * event (the user can stop sharing from the browser's bar) and the stop path in one
  * place — all three end the same session.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
     classifyMediaError,
     missingCaptureApiError,
     type MediaAccessError,
+    type MediaAccessErrorKind,
 } from "@/audio/media-access";
 import { useStableCallback } from "@/hooks/use-stable-callback";
 
@@ -80,6 +81,30 @@ export interface UseScreenCaptureOptions {
      * simply return the UI to its previous state.
      */
     onCancelled?: (reason: unknown) => void;
+    /**
+     * The text of `error.message` for each error kind, replacing the built-in English
+     * sentence — the hook's i18n. Kinds left out keep the English default.
+     *
+     * Applied when the error is read, not when it is caught, so switching locale while
+     * the error is on screen re-labels it without opening the picker again; the `kind`
+     * is untouched, so a UI that branches on it keeps working. Overriding `"unknown"`
+     * replaces the browser's own error text, which is the only place that carries the
+     * raw cause.
+     *
+     * It never reaches a rejection that ends up in `onCancelled`: a `NotAllowedError` —
+     * a dismissed picker, and per the note above also the macOS screen-recording block —
+     * leaves `error` at `null`, so there is no message to replace. `"permission-denied"`
+     * here comes only from a `SecurityError`.
+     *
+     * @example
+     * useScreenCapture({
+     *     messages: {
+     *         "not-found": "Nenhuma tela disponível para compartilhar.",
+     *         "in-use": "Não foi possível capturar a tela agora. Tente de novo.",
+     *     },
+     * });
+     */
+    messages?: Partial<Record<MediaAccessErrorKind, string>>;
 }
 
 /** Value returned by {@link useScreenCapture}. */
@@ -87,7 +112,10 @@ export interface UseScreenCaptureResult {
     status: ScreenCaptureStatus;
     /** The live stream, or `null`. Feed it to {@link useVideoRecorder} or a `<video>`. */
     stream: MediaStream | null;
-    /** Classified error, or `null`. A cancelled picker leaves this `null`. */
+    /**
+     * Classified error, or `null`. A cancelled picker leaves this `null`. Its `message`
+     * is English unless {@link UseScreenCaptureOptions.messages} covers its `kind`.
+     */
     error: MediaAccessError | null;
     /** What the user actually picked, when the browser reports it. */
     surface: string | null;
@@ -145,6 +173,8 @@ function isCancellation(err: unknown): boolean {
  * built on it (`useVideoRecorder`) deliberately does not, so stopping a recording
  * leaves the share running for the next take.
  *
+ * Pass `options.messages` to show the errors in the app's language.
+ *
  * @param options - See {@link UseScreenCaptureOptions}.
  * @returns The stream, its status, a classified error and `start`/`stop`.
  *
@@ -164,11 +194,18 @@ export function useScreenCapture(options: UseScreenCaptureOptions = {}): UseScre
         options: raw,
         onEnded,
         onCancelled,
+        messages,
     } = options;
 
     const [status, setStatus] = useState<ScreenCaptureStatus>("idle");
     const [stream, setStream] = useState<MediaStream | null>(null);
-    const [error, setError] = useState<MediaAccessError | null>(null);
+    const [caught, setCaught] = useState<MediaAccessError | null>(null);
+    const override = caught ? messages?.[caught.kind] : undefined;
+    const error = useMemo<MediaAccessError | null>(
+        () =>
+            caught && override !== undefined ? { kind: caught.kind, message: override } : caught,
+        [caught, override],
+    );
     const [surface, setSurface] = useState<string | null>(null);
     const [hasAudio, setHasAudio] = useState(false);
     const [supported] = useState(isScreenCaptureSupported);
@@ -198,17 +235,17 @@ export function useScreenCapture(options: UseScreenCaptureOptions = {}): UseScre
         release();
         reset();
         setStatus("idle");
-        setError(null);
+        setCaught(null);
     }, [release, reset]);
 
     const start = useCallback((): void => {
         if (streamRef.current) return;
         const run = (generation.current += 1);
         setStatus("requesting");
-        setError(null);
+        setCaught(null);
 
         if (!isScreenCaptureSupported()) {
-            setError(missingCaptureApiError("screen"));
+            setCaught(missingCaptureApiError("screen"));
             setStatus("error");
             return;
         }
@@ -254,7 +291,7 @@ export function useScreenCapture(options: UseScreenCaptureOptions = {}): UseScre
                     emitCancelled(err);
                     return;
                 }
-                setError(classifyMediaError(err, "screen"));
+                setCaught(classifyMediaError(err, "screen"));
                 setStatus("error");
             });
     }, [

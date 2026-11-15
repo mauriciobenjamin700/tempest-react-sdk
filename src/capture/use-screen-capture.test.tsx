@@ -314,3 +314,111 @@ describe("useScreenCapture", () => {
         expect(made.video.stopped).toBe(true);
     });
 });
+
+describe("useScreenCapture — messages", () => {
+    const restores: Array<() => void> = [];
+
+    beforeEach(() => {
+        restores.push(setSecureContext(true));
+    });
+
+    afterEach(() => {
+        while (restores.length) restores.pop()?.();
+    });
+
+    const PT: UseScreenCaptureOptions["messages"] = {
+        "permission-denied": "Captura de tela bloqueada.",
+    };
+
+    function rejectWith(name: string): ReturnType<typeof installMediaDevices> {
+        const devices = installMediaDevices({
+            getDisplayMedia: () => Promise.reject(new DOMException("raw cause", name)),
+        });
+        restores.push(devices.restore);
+        return devices;
+    }
+
+    it.each([
+        ["SecurityError", "permission-denied"],
+        ["NotFoundError", "not-found"],
+        ["NotReadableError", "in-use"],
+        ["InvalidStateError", "unknown"],
+    ] as const)(
+        "replaces the message of %s (kind %s) with the one given for its kind",
+        async (name, kind) => {
+            rejectWith(name);
+            render(<Probe messages={{ [kind]: `texto de ${kind}` }} />);
+            click("start");
+
+            await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent(kind));
+            expect(screen.getByTestId("message")).toHaveTextContent(`texto de ${kind}`);
+        },
+    );
+
+    it("replaces the missing-API kinds too, not only a rejected getDisplayMedia", async () => {
+        const devices = installMediaDevices({ withoutDisplayMedia: true });
+        restores.push(devices.restore);
+
+        render(<Probe messages={{ unsupported: "Este navegador não compartilha a tela." }} />);
+        click("start");
+
+        await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("unsupported"));
+        expect(screen.getByTestId("message")).toHaveTextContent(
+            "Este navegador não compartilha a tela.",
+        );
+    });
+
+    it("replaces the insecure kind on a plain-HTTP page", async () => {
+        restores.push(setSecureContext(false));
+        const devices = installMediaDevices({ withoutDisplayMedia: true });
+        restores.push(devices.restore);
+
+        render(<Probe messages={{ insecure: "Só funciona em HTTPS." }} />);
+        click("start");
+
+        await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("insecure"));
+        expect(screen.getByTestId("message")).toHaveTextContent("Só funciona em HTTPS.");
+    });
+
+    it("keeps the English default for a kind a partial map leaves out", async () => {
+        rejectWith("NotFoundError");
+        render(<Probe messages={PT} />);
+        click("start");
+
+        await waitFor(() => expect(screen.getByTestId("error")).toHaveTextContent("not-found"));
+        expect(screen.getByTestId("message")).toHaveTextContent(
+            "No screen available on this device.",
+        );
+    });
+
+    /**
+     * The macOS screen-recording block arrives as a `NotAllowedError`, the same name as a
+     * dismissed picker, so it is a cancellation: `messages` has nothing to replace. A
+     * kind of its own needs a measured way to tell the two apart, which #641 left
+     * pending (no macOS browser was available to measure name and message).
+     */
+    it("never turns a NotAllowedError into an error, even with a permission-denied message", async () => {
+        rejectWith("NotAllowedError");
+        const onCancelled = vi.fn();
+        render(<Probe messages={PT} onCancelled={onCancelled} />);
+        click("start");
+
+        await waitFor(() => expect(onCancelled).toHaveBeenCalledTimes(1));
+        expect(screen.getByTestId("error")).toHaveTextContent("");
+        expect(screen.getByTestId("message")).toHaveTextContent("");
+        expect(screen.getByTestId("status")).toHaveTextContent("idle");
+    });
+
+    it("re-labels an error already on screen when the messages change, without opening the picker again", async () => {
+        const devices = rejectWith("SecurityError");
+        const { rerender } = render(<Probe messages={{}} />);
+        click("start");
+        await waitFor(() =>
+            expect(screen.getByTestId("message")).toHaveTextContent(/Screen permission denied/),
+        );
+
+        rerender(<Probe messages={PT} />);
+        expect(screen.getByTestId("message")).toHaveTextContent("Captura de tela bloqueada.");
+        expect(devices.getDisplayMedia).toHaveBeenCalledTimes(1);
+    });
+});

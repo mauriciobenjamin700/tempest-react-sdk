@@ -46,6 +46,7 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
 - **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
   (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
   `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da
@@ -81,6 +82,22 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   (`npx vitest run src/query/offline-persistence.session-end.test.ts src/http/api-client.session-epoch.test.ts`).
   A checagem custa bytes no cliente HTTP (`npx size-limit`): a fatia "typical app" foi a 12,64 kB
   (teto 12,6 → 12,7 kB) e o barrel CJS a 187,82 kB (teto 187,8 → 187,9 kB).
+- **Push com o destino só em `data.url` não abre mais `/` em silêncio (#613).** Desde a 0.82.0 o
+  `installPushHandler` grava o `url` de topo por cima de `payload.data` (#534), então quem mandava o
+  destino só em `data.url` — o formato que a 0.81.0 respeitava — passou a abrir `"/"` sem erro nem
+  aviso. A regra de segurança fica: `data.url` continua **não** sendo lido como destino. O que muda é
+  que o primeiro payload nesse formato (`data.url` string e nenhum `url` de topo, avaliado depois do
+  `transform`) loga **um** `console.warn` por worker, sem repetir a URL. O aviso não passa pelo
+  `isDevBuild()`: o push real costuma chegar primeiro num build de produção, e num worker que nenhum
+  bundler compilou o `isDevBuild()` responde `false` — os dois lugares onde a quebra aparece.
+  Reproduzido com `npx vitest run src/sw/create-push-handler.data-url.test.ts` sobre a `main`: o
+  clique com `{ data: { url: "/broadcasts/42" } }` abre `"/"` e 4 dos 11 casos novos falhavam (nenhum
+  `console.warn`). **Migração** (do servidor, também na receita de push):
+  `{ "title": "Novo aviso", "data": { "url": "/avisos/42" } }` passa a ser
+  `{ "title": "Novo aviso", "url": "/avisos/42", "data": {} }`. Budget (`npx size-limit`, `main`
+  → branch): teto do barrel ESM 157,8 → 158,1 kB, sobe 157,9 → 158,2 kB; barrel CJS 187,74 → 187,72
+  kB, sem mudança. O `scripts/check-dist-guards.mjs` ganha `sw/create-push-handler` na lista de
+  módulos que falam fora do `isDevBuild()`, com o motivo acima.
 
 ## [0.86.0] — 2026-11-15
 

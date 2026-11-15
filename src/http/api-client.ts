@@ -420,6 +420,34 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     /**
+     * The error to reject a failed attempt with.
+     *
+     * An error response answers the attempt it belongs to just as a success
+     * does: its envelope (`detail`, `code`, field errors) is the ended
+     * account's data, and the caller's `onError` runs under whoever is signed
+     * in now. So an attempt sent with a bearer token under an epoch that has
+     * ended by the time the body is decoded rejects with
+     * {@link SessionSupersededError}, like a success would. Up to 0.86.0 only
+     * a 2xx was checked, and a `404`/`409`/`500` to account A's request that
+     * landed after `logout()` + `login(B)` reached B's `onError` carrying A's
+     * body (security audit run-15).
+     *
+     * @param response - The failed response.
+     * @param requestId - The correlation id of the attempt.
+     * @param context - The credential and epoch the answered attempt left with.
+     * @returns The `TempestApiError` to throw, or `SessionSupersededError`
+     * when the attempt's session has ended.
+     */
+    async function failure(
+        response: Response,
+        requestId: string,
+        context: RequestAuthContext,
+    ): Promise<Error> {
+        const error = await parseError(response, requestId);
+        return sessionEndedSince(context) ? new SessionSupersededError() : error;
+    }
+
+    /**
      * One request, with the `401` refresh-and-replay around it.
      *
      * The refresh path runs only for a target inside the credential scope. A
@@ -436,8 +464,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * `setState` — would hand it to the account signed in now: up to 0.86.0 a
      * mutation sent by account A before `logout()` resolved under account B,
      * and its `setQueryData` reached B's screens and B's offline snapshot
-     * (security audit run-14, U7, #609). An attempt that carried no token says
-     * nothing about any account, so it resolves as before.
+     * (security audit run-14, U7, #609). An error response gets the same check
+     * (see `failure`). An attempt that carried no token says nothing about any
+     * account, so it resolves — or rejects with the API error — as before.
      *
      * @param path - The path as the call site wrote it.
      * @param options - Request options, policy fields included.
@@ -469,7 +498,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                 } catch (error) {
                     if (error instanceof SessionSupersededError) throw error;
                     await notifyUnauthorized(response, requestId, sent);
-                    throw await parseError(response, requestId);
+                    throw await failure(response, requestId, sent);
                 }
                 if (response.status === 401) {
                     await notifyUnauthorized(response, requestId, replayed);
@@ -480,7 +509,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         }
 
         if (!response.ok) {
-            throw await parseError(response, requestId);
+            throw await failure(response, requestId, answered);
         }
 
         const value = await decode(response);

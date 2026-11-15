@@ -4,6 +4,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createZip` recusa nome de entrada que escapa da pasta de extração** (#645). Segmento `..` (no início ou no meio), caminho absoluto (`/x`), letra de drive (`C:\x`, `C:/x`, `C:x`), barra invertida e NUL eram gravados como vieram, e um extrator ingênuo sofria _zip-slip_. Agora lançam `TypeError` antes de ler qualquer byte, como já acontecia com caminho vazio ou repetido; o nome não é normalizado em silêncio. Subpastas com `/` continuam.
+
+### Budgets
+
+- **`slice: createZip`** 5,6 → 5,65 kB e **`slice: createZip + writeXlsx`** 6,7 → 6,75 kB: a
+  validação de nomes do `createZip` (#645) custa +159 B / +160 B br. Medido com
+  `npm run build && npx size-limit --json`: 5457 → 5616 B e 6550 → 6710 B contra a `origin/main`.
+
 ## [0.87.0] — 2026-11-15
 
 ### Segurança

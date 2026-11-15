@@ -120,6 +120,47 @@ describe("createZip", () => {
         ).rejects.toThrow(/duplicate path "a.txt"/);
     });
 
+    it.each([
+        ["a parent segment at the start", "../evil.sh"],
+        ["a parent segment in the middle", "fotos/../../evil.sh"],
+        ["a lone parent segment", ".."],
+        ["a trailing parent segment", "fotos/.."],
+        ["an absolute POSIX path", "/etc/passwd"],
+        ["a Windows drive path with a backslash", "C:\\Windows\\evil.exe"],
+        ["a Windows drive path with a slash", "C:/Windows/evil.exe"],
+        ["a drive-relative Windows path", "c:evil.exe"],
+        ["a backslash separator", "fotos\\a.jpg"],
+        ["a leading backslash", "\\evil.sh"],
+        ["a NUL byte", "a.txt\u0000.jpg"],
+    ])("refuses %s, which a naive extractor turns into zip-slip", async (_label, path) => {
+        await expect(createZip([{ path, data: "x" }])).rejects.toThrow(TypeError);
+    });
+
+    it("refuses an unsafe path before reading any entry", async () => {
+        const blob = new Blob(["x"]);
+        const read = vi.spyOn(blob, "arrayBuffer");
+        await expect(
+            createZip([
+                { path: "ok.txt", data: blob },
+                { path: "../evil.sh", data: "x" },
+            ]),
+        ).rejects.toThrow(/unsafe path "\.\.\/evil\.sh"/);
+        expect(read).not.toHaveBeenCalled();
+    });
+
+    it("keeps legitimate names, subfolders and dots inside a segment", async () => {
+        const paths = [
+            "fotos/a.jpg",
+            "fotos/2026/11/b.png",
+            "..config",
+            "fotos/a..b.txt",
+            "./leia-me.txt",
+            "relatório final.txt",
+        ];
+        const files = await unzipBlob(await createZip(paths.map((path) => ({ path, data: path }))));
+        expect(Object.keys(files).sort()).toEqual([...paths].sort());
+    });
+
     it("yields to the event loop while it works, so the page keeps moving", async () => {
         const ticks = vi.fn();
         const timer = setInterval(ticks, 0);

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createTempestAuth } from "../auth";
 import type { TempestAuth } from "../auth";
+import { SessionSupersededError } from "../http";
 import { createOfflineStore } from "../offline/create-offline-store";
 import { persistQueryClientOffline } from "./offline-persistence";
 
@@ -200,6 +201,12 @@ function fetchOrders(client: QueryClient, auth: Auth): Promise<unknown> {
  * `null` as nothing recorded. The throttle outlasts the race, as the default
  * `1000` does in the app, so no write runs while A is signed in. The four
  * variants fail on `3202295`.
+ *
+ * Since #609 the api client refuses a response whose bearer belongs to a
+ * session epoch that ended before it landed, so A's replayed response now
+ * rejects with `SessionSupersededError` and never reaches the cache. The
+ * precondition that it resolved was inverted on purpose, and the assertions
+ * that nothing is left for the signed-out boot keep pinning the outcome.
  */
 describe("persistQueryClientOffline — every session installed while the cache lives counts (run-12 C1)", () => {
     beforeEach(() => {
@@ -229,7 +236,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         await login;
         await wait(10);
         otherTabLogout();
-        expect(await orders).toEqual(["A-private-order"]);
+        expect(await orders).toBeInstanceOf(SessionSupersededError);
         expect(backend.seen).toEqual(["none", "Bearer tok-1"]);
         await persistence.flush();
         persistence.unsubscribe();
@@ -257,7 +264,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         await auth.login({ email: "a@example.test", password: "x" });
         await wait(10);
         otherTabLogout();
-        expect(await orders).toEqual(["A-private-order"]);
+        expect(await orders).toBeInstanceOf(SessionSupersededError);
         expect(backend.seen).toEqual(["none", "Bearer tok-1"]);
         await persistence.flush();
         persistence.unsubscribe();
@@ -286,7 +293,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         await wait(10);
         expect(auth.sessionKey()).not.toBeNull();
         otherTabLogout();
-        expect(await orders).toEqual(["A-private-order"]);
+        expect(await orders).toBeInstanceOf(SessionSupersededError);
         expect(backend.seen).toEqual(["none", "Bearer tok-1"]);
         await persistence.flush();
         persistence.unsubscribe();
@@ -314,7 +321,7 @@ describe("persistQueryClientOffline — every session installed while the cache 
         await wait(10);
         expect(auth.sessionKey()).not.toBeNull();
         otherTabLogout();
-        expect(await orders).toEqual(["A-private-order"]);
+        expect(await orders).toBeInstanceOf(SessionSupersededError);
         expect(backend.seen).toEqual(["none", "Bearer tok-1"]);
         await persistence.flush();
         persistence.unsubscribe();
@@ -516,6 +523,10 @@ describe("persistQueryClientOffline — a new handle on a client holding an ende
  * ended; only `resetClient: true` (or a handle created on an empty client)
  * starts a new one. The three shapes and the detached `flush()` fail on
  * `7e71acd`.
+ *
+ * In the two-key shape, A's replayed response rejects with
+ * `SessionSupersededError` since #609 (its session ended before it landed);
+ * the precondition was inverted on purpose, and the row still must not exist.
  */
 describe("persistQueryClientOffline — clear() without resetClient keeps the client's lineage (run-13 C1)", () => {
     beforeEach(() => {
@@ -619,7 +630,7 @@ describe("persistQueryClientOffline — clear() without resetClient keeps the cl
         await login;
         await wait(10);
         otherTabLogout();
-        expect(await orders).toEqual(["A-private-order"]);
+        expect(await orders).toBeInstanceOf(SessionSupersededError);
         await one.clear();
         await two.flush();
         two.unsubscribe();

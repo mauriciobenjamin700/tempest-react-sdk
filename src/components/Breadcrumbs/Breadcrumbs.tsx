@@ -1,12 +1,21 @@
 import { Fragment } from "react";
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
+import { routeLinkClick } from "@/utils/link-click";
 import { vettedHref } from "@/utils/safe-url";
 import styles from "./Breadcrumbs.module.css";
 
 export interface BreadcrumbItem {
     label: ReactNode;
     href?: string;
+    /**
+     * Invoked when the crumb is clicked.
+     *
+     * With `href`, a plain primary click is handed to `onClick` and the anchor's
+     * default is prevented, so the app's router navigates without a full reload.
+     * A ctrl/meta/shift/alt or non-primary click stays with the browser — "open
+     * in new tab" works — and does not call `onClick` (#612).
+     */
     onClick?: () => void;
 }
 
@@ -40,12 +49,7 @@ export function Breadcrumbs({ items, separator = "/", className }: BreadcrumbsPr
                             {interactive ? (
                                 <a
                                     href={href}
-                                    onClick={(event) => {
-                                        if (item.onClick) {
-                                            event.preventDefault();
-                                            item.onClick();
-                                        }
-                                    }}
+                                    onClick={(event) => routeLinkClick(event, item.onClick)}
                                     className={styles.link}
                                 >
                                     {item.label}

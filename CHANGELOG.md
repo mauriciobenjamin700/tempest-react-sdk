@@ -23,6 +23,38 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **Teto do barrel ESM no `size-limit` sobe de 157,9 kB para 158,3 kB.** O helper e o JSDoc das
   três entradas somam ~150 B ao barrel inteiro (158,05 kB medido com `npx size-limit` nesta
   branch); as fatias importadas continuam dentro dos budgets.
+- **`useDraftFilters` e `useDeepMemo`: `Set`, `Map`, `Date` e afins deixam de comparar iguais
+  (#614).** A comparação estrutural compartilhada olhava só `Object.keys`, e
+  `Object.keys(new Set(["ovino"]))` é `[]`: `new Set(["ovino"])` e `new Set(["caprino"])` eram
+  iguais, então um filtro de seleção múltipla em `Set` nunca ficava `isDirty` e o `apply()` não
+  publicava. Medido na 0.86.0 com os testes novos de `src/hooks/use-deep-memo.test.tsx` e
+  `src/hooks/use-draft-filters.test.tsx` (`npx vitest run src/hooks/use-deep-memo.test.tsx
+src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores de protótipo
+  diferente nunca são iguais (`new Set()` não é `{}`, `Uint8Array` não é `Int8Array`); `Set`
+  compara membros por SameValueZero (como `Set.has`), `Map` compara chaves por SameValueZero e
+  valores estruturalmente, `Date` pelo instante, `RegExp` por `source` + `flags`, `ArrayBuffer`,
+  `DataView` e arrays tipados byte a byte; instância sem chave própria enumerável (`URL`, `Blob`,
+  `File`, `Error`) só é igual a si mesma. Objeto literal, array e instância de classe com campos
+  continuam comparados como antes.
+
+### Adicionado
+
+- **`useDraftFilters().discard()`** (#614): devolve o rascunho ao valor aplicado sem publicar e
+  sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
+  abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
+  `docs/hooks.md`; não há `clearDraft()` separado.
+
+### Budgets
+
+- **`deepEqual` com `Set`/`Map`/`Date` e `discard()` (#614): barrel ESM 157,9 → 158,2 kB**
+  (`npm run build && npx size-limit --json`, `src/hooks/use-deep-memo.ts` e
+  `src/hooks/use-draft-filters.ts` da `main` em `9d5c28a` contra os deste branch, mesmo resto da
+  árvore): ESM 157 796 → 158 113 B (+317 B; havia 104 B de folga); CJS 187 741 → 187 711 B
+  (reminificação; budget 187,8 kB mantido). Nenhuma fatia importada mudou (`admin plumbing`
+  2 218 B nos dois).
+- **Soma de #612 + #614 remedida sobre a `main` em `578c071`** (`npm run build && npx size-limit
+--json`): barrel ESM 158 075 B, dentro do teto de 158,3 kB do #612; barrel CJS 188 084 B estoura
+  187,8 kB e sobe para 188,1 kB. Nenhuma fatia importada mudou.
 
 ## [0.86.0] — 2026-11-15
 

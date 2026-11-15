@@ -4,6 +4,71 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`persistQueryClientOffline` com `auth`: reset antes do logout não grava mais dados de A sob B**
+  (auditoria run-14, C1, #609). O `clear({ resetClient: true })` apagava a linhagem de sessões do
+  `QueryClient` mesmo com A ainda logado, e o handle encerrado já não observava a sessão: uma query
+  de A que caísse entre o reset e o `logout()` (refetch, intervalo, foco, prefetch) chegava ao
+  handle criado no login de B como dado anônimo e era gravada com a impressão de B, para o próximo
+  boot de B hidratar. Agora o reset só apaga a linhagem quando ninguém está logado; com sessão
+  instalada ela fica marcada como encerrada até um handle ser criado com o client vazio. Reset no
+  `onSessionEnd` ou depois do `logout()` (o caminho documentado) segue igual.
+- **`createApiClient` com `getSessionEpoch` (o `auth.api` do `createTempestAuth`): resposta de
+  sessão encerrada rejeita com `SessionSupersededError`** (auditoria run-14, U7, #609). Uma request
+  que saiu com o token de uma sessão que acabou antes de a resposta chegar resolvia normalmente: uma
+  `mutation` de A iniciada antes do `logout()` rodava o `onSuccess` já na sessão de B, e o
+  `setQueryData` punha os dados de A na tela de B e no snapshot offline com a impressão de B. A
+  checagem fica no cliente HTTP, não na persistência, porque só ele sabe a época em que a request
+  **saiu**; vale para qualquer continuação, não só para o cache. Request que saiu sem token segue
+  resolvendo. O que não passa pelo `auth.api` (um `fetch` próprio) continua com o app. Quatro
+  testes do `offline-persistence.lifetime.test.ts` (run-12/run-13) tinham como pré-condição a
+  resposta de A resolvendo depois do fim da sessão: a asserção foi invertida para
+  `SessionSupersededError`, e o "nada fica para o boot deslogado" continua valendo. Reproduzido em
+  `src/query/offline-persistence.session-end.test.ts` e `src/http/api-client.session-epoch.test.ts`
+  (`npx vitest run src/query/offline-persistence.session-end.test.ts src/http/api-client.session-epoch.test.ts`).
+  A checagem custa bytes no cliente HTTP (`npx size-limit`): a fatia "typical app" foi a 12,64 kB
+  (teto 12,6 → 12,7 kB) e o barrel CJS a 187,82 kB (teto 187,8 → 187,9 kB).
+- **Push com o destino só em `data.url` não abre mais `/` em silêncio (#613).** Desde a 0.82.0 o
+  `installPushHandler` grava o `url` de topo por cima de `payload.data` (#534), então quem mandava o
+  destino só em `data.url` — o formato que a 0.81.0 respeitava — passou a abrir `"/"` sem erro nem
+  aviso. A regra de segurança fica: `data.url` continua **não** sendo lido como destino. O que muda é
+  que o primeiro payload nesse formato (`data.url` string e nenhum `url` de topo, avaliado depois do
+  `transform`) loga **um** `console.warn` por worker, sem repetir a URL. O aviso não passa pelo
+  `isDevBuild()`: o push real costuma chegar primeiro num build de produção, e num worker que nenhum
+  bundler compilou o `isDevBuild()` responde `false` — os dois lugares onde a quebra aparece.
+  Reproduzido com `npx vitest run src/sw/create-push-handler.data-url.test.ts` sobre a `main`: o
+  clique com `{ data: { url: "/broadcasts/42" } }` abre `"/"` e 4 dos 11 casos novos falhavam (nenhum
+  `console.warn`). **Migração** (do servidor, também na receita de push):
+  `{ "title": "Novo aviso", "data": { "url": "/avisos/42" } }` passa a ser
+  `{ "title": "Novo aviso", "url": "/avisos/42", "data": {} }`. Budget (`npx size-limit`, `main`
+  → branch): teto do barrel ESM 157,8 → 158,1 kB, sobe 157,9 → 158,2 kB; barrel CJS 187,74 → 187,72
+  kB, sem mudança. O `scripts/check-dist-guards.mjs` ganha `sw/create-push-handler` na lista de
+  módulos que falam fora do `isDevBuild()`, com o motivo acima.
+- **`AppShell`: a `AppBar` sticky renderizada pela página não rola mais junto com o conteúdo
+  (#611).** O `<main>` do shell tinha `overflow-x: auto`, que força o `overflow-y` computado a
+  `auto` e o transforma no scroll container de todo sticky dentro dele — só que quem rola é a
+  janela. Medido no Chromium, a 390×844 e a 1280×800: a barra ficava em `top: -600px` depois de
+  `scrollTo(0, 600)`; agora fica em `top: 0`. O `.main` passa a usar `overflow-x: clip`, que corta
+  o excesso horizontal sem criar scroll container. A issue propunha também tirar o overflow
+  (`visible`): resolve o sticky, mas um bloco de 1500px sem região própria passou a arrastar a
+  página inteira (`scrollWidth` 1500 a 390px, 1700 a 1280px) — o que empurra o app para
+  `body { overflow-x: hidden }`, que mata o sticky de novo. Com `clip` a página fica na largura da
+  viewport. **Mudança de comportamento**: um filho mais largo que o `<main>` sem região de scroll
+  própria passa a ser cortado na borda em vez de rolar dentro do `<main>`; `Table`/`DataTable`
+  não mudam (rolam na própria região: 1186px de uma tabela de 12 colunas nos três valores). Envolva
+  conteúdo largo seu num `overflow-x: auto` ou em `.tempest-scroll-x`. Guard:
+  `e2e/app-shell-sticky.spec.ts`.
+
+- **`createApiClient`: resposta de erro de uma sessão encerrada também rejeita com
+  `SessionSupersededError`.** Achado da auditoria `security-audit` quick **run-15** (low), checagem
+  antes da tag da 0.87.0: a checagem de época do #609 só rodava em resposta 2xx. Um `404`/`409`/
+  `422`/`500` a uma request da conta A que chegava depois de `logout()` + `login(B)` virava
+  `TempestApiError` com o envelope de A (`detail`, `code`, erros de campo) e chegava ao `onError`
+  de B. Agora os dois caminhos de erro do `attempt()` (a resposta não-ok e o `401` de um `refresh`
+  que falhou) passam pela mesma checagem, com a época lida **na chegada** da resposta: um `401` cujo próprio tratamento encerra a sessão (`refresh()` que falha e desloga, `onUnauthorized` que chama `logout()`) continua rejeitando com o `401`, como antes. Request sem token continua
+  rejeitando com o erro da API. Testes em `src/http/api-client.session-epoch.test.ts` — **5 dos 9 novos falham sobre a `main` em `b0c482d`** (`npx vitest run src/http/api-client.session-epoch.test.ts`).
+
 ### Adicionado
 
 - **`formatPercent` ganha `mode: "truncate"`** (#623). Arredondado, 0,99996 com duas casas vira
@@ -17,85 +82,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `agora - 24h`, que erra em dia de horário de verão), lê `yyyy-MM-dd` puro como data local, e
   aceita `locale` (`"pt-BR"`/`"en"`), `now`, `labels` e `fallback`, como os irmãos `relativeTime` e
   `formatDate`. Tipos `RelativeDayLabelOptions` e `RelativeDayLabels`.
-
-### Budgets
-
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #639** (`npm run build && npx size-limit --json`): ESM 161 109 B (teto 160.7 kB → 161.2 kB); CJS 191 097 B (teto 190.9 kB → 191.2 kB). Nenhuma fatia importada mudou de teto.
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #635** (`npm run build && npx size-limit --json`): ESM 160 629 B (teto 160.5 kB → 160.7 kB); CJS 190 792 B (teto 190.4 kB → 190.9 kB). Nenhuma fatia importada mudou de teto.
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
-- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
-- **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
-  `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
-  branch, mesmo resto da árvore): CJS 187 674 → 188 049 B (+375 B; a `main` tinha 126 B de folga) —
-  os bytes são o `relativeDayLabel` com os rótulos pt-BR/en e o corte decimal do `mode: "truncate"`,
-  que o barrel CJS carrega sem tree-shaking. ESM 158 046 → 158 019 B (reminificação; budget 158,3 kB
-  mantido). Nenhuma fatia importada passou de ±35 B.
-
-### Corrigido
-
-- **`InstallBanner`: `visible`, `position` e `guide` (#619).** `visible={false}` esconde sem
-  desmontar — com `{mostrar && <InstallBanner />}` a dispensa sem `storageKey`, que vive no estado
-  do componente, era esquecida e o banner voltava na rota seguinte; o SDK não lê a rota sozinho,
-  então não exige contexto de router. `position="bottom"` prende o banner ao rodapé (fixo,
-  centralizado, até `32rem`) acima da safe area e de `--tempest-bottom-nav-height`; o default
-  `"inline"` mantém o comportamento anterior. `guide` é um nó renderizado depois da instrução
-  `"ios"`/`"manual"` — nó e não `href`, para o app passar o `Link` do router. Tipo novo
-  `InstallBannerPosition`. O `role="region"` pedido na issue já estava no componente.
-- **`AppShell` publica `--tempest-bottom-nav-height` no `<html>`** enquanto a `bottomNav` está na
-  tela (altura medida por `ResizeObserver`, safe area incluída) e remove a variável quando a barra
-  sai. É o que deixa o `InstallBanner position="bottom"` acima da barra do SDK sem configuração.
-  Medido em Chromium headless na gallery (seção `pwa`, "Abrir app de exemplo"): a 390×844 a
-  variável vale `57px` e o banner termina 12 px acima do topo da barra, claro e escuro; a 1280×800
-  a barra sai, a variável some e o banner fica a 12 px do rodapé.
-- **Tetos do `size-limit` (#619): barrel CJS 188,4 → 188,6 kB e `styles.css` 31,5 → 31,6 kB.**
-  `npm run build && npx size-limit --json` na `main` em `5ddf9a2` contra este branch com ela
-  mergeada: CJS 188 311 → 188 468 B (+157 B), `styles.css` 31 451 → 31 531 B (+80 B:
-  `position="bottom"` e o `guide`), ESM 158 496 → 158 573 B (+77 B, dentro do teto). Os bytes são
-  a flag de instalação no hook, o `ResizeObserver` do `AppShell` e as três props do banner; as
-  fatias importadas continuam dentro dos budgets.
-
-- **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
-  `"pt-BR"`, mas o overlay mostrava o `error.message` do `useCameraStream` cru — "Camera
-  permission denied. Enable access in your browser settings." ao lado do botão "Tentar de novo".
-  O próprio teste do componente fixava a frase em inglês; ele foi reescrito (com o porquê no
-  corpo) para afirmar a mensagem em pt-BR, e um teste novo fixa o inglês sob `locale="en"`. Doc em
-  `docs/vision.md`, `docs/device-capture.md` e `.en.md` — o aviso "traduza na sua camada de i18n"
-  saiu, porque virou superfície.
-- **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
-  O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
-  vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
-  documento e derrubando todo estado em memória (no FAMACHApp, o access token — cada clique levava
-  para `/login`). Agora o clique primário sem modificador num `<a>` com `onChange` chama
-  `preventDefault()` e dispara `onChange`; ctrl/meta/shift/alt-click, botão diferente do primário e
-  `target` que não seja `_self` ficam com o navegador (nova aba, nova janela, download) e **não**
-  disparam `onChange`, para a aba atual não mudar junto. Sem `onChange`, o `href` é seguido como em
-  qualquer link. O JSDoc do `href`, que prometia o contrário, foi corrigido.
-- **`NavigationMenu` (`href` + `onSelect`) tinha o mesmo defeito** e segue a mesma regra; o painel
-  fecha nos dois casos. **`Breadcrumbs` (`href` + `onClick`)** já chamava `preventDefault`, mas em
-  todo clique — ctrl-click não abria nova aba; agora o clique com modificador fica com o navegador e
-  não chama `onClick`. As três usam o mesmo helper interno (`src/utils/link-click.ts`).
-  `NavigationRail` e `BottomNavigation` não renderizam `href` e não mudam.
-- **Teto do barrel ESM no `size-limit` sobe de 157,9 kB para 158,3 kB.** O helper e o JSDoc das
-  três entradas somam ~150 B ao barrel inteiro (158,05 kB medido com `npx size-limit` nesta
-  branch); as fatias importadas continuam dentro dos budgets.
-- **`useDraftFilters` e `useDeepMemo`: `Set`, `Map`, `Date` e afins deixam de comparar iguais
-  (#614).** A comparação estrutural compartilhada olhava só `Object.keys`, e
-  `Object.keys(new Set(["ovino"]))` é `[]`: `new Set(["ovino"])` e `new Set(["caprino"])` eram
-  iguais, então um filtro de seleção múltipla em `Set` nunca ficava `isDirty` e o `apply()` não
-  publicava. Medido na 0.86.0 com os testes novos de `src/hooks/use-deep-memo.test.tsx` e
-  `src/hooks/use-draft-filters.test.tsx` (`npx vitest run src/hooks/use-deep-memo.test.tsx
-src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores de protótipo
-  diferente nunca são iguais (`new Set()` não é `{}`, `Uint8Array` não é `Int8Array`); `Set`
-  compara membros por SameValueZero (como `Set.has`), `Map` compara chaves por SameValueZero e
-  valores estruturalmente, `Date` pelo instante, `RegExp` por `source` + `flags`, `ArrayBuffer`,
-  `DataView` e arrays tipados byte a byte; instância sem chave própria enumerável (`URL`, `Blob`,
-  `File`, `Error`) só é igual a si mesma. Objeto literal, array e instância de classe com campos
-  continuam comparados como antes.
-
-### Adicionado
 
 - **`RouteGuard`/rota guardada: `preserveFrom` e `useReturnTo` — voltar para onde estava depois
   do login (#616).** `preserveFrom` (no `<RouteGuard>` e no `TempestRouteObject`, padrão `false`)
@@ -164,7 +150,113 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   158,3 → 158,9 kB (ESM) e 188,1 → 188,7 kB (CJS), medidos 158,84 / 188,63 kB com `npx size-limit`
   — os ~0,5 kB são a função nova, que só pesa para quem a importa.
 
+- **`ConfirmDialog`: `confirmIcon`** (#615) — ícone à esquerda do rótulo do botão de confirmar,
+  repassado como `leftIcon` do `Button` (a mesma prop que o `Button` já aceita). Decorativo: o nome
+  acessível continua sendo o `confirmLabel`. Era o que mantinha um `ExitModal` próprio no FAMACHApp
+  só para pôr o `LogOut` no "Sair".
+
+- **`shareOrDownloadBlob` aceita `text` e `textOnlyFallback`** (#618). `text` vai na mesma sheet
+  do arquivo. Num browser que tem Web Share mas recusa o arquivo (`canShare({ files })` falso), a
+  função abre uma sheet só com o texto e **depois baixa o arquivo** — ordem arquivo + texto → só
+  texto → download. O download não é trocado pelo texto: nesse browser o arquivo sempre foi
+  baixado, e trocá-lo faria o usuário que escolhe "Mail" receber a legenda sem a foto. Por isso o
+  padrão `textOnlyFallback: true` (quando há `text`) não tira nada de ninguém; `false` volta ao
+  download direto. Cancelar a sheet do arquivo continua não baixando; erro real no
+  compartilhamento do arquivo pula a sheet de texto (o gesto já foi consumido). O retorno continua
+  `Promise<void>`.
+
+### Corrigido
+
+- **`InstallBanner`: `visible`, `position` e `guide` (#619).** `visible={false}` esconde sem
+  desmontar — com `{mostrar && <InstallBanner />}` a dispensa sem `storageKey`, que vive no estado
+  do componente, era esquecida e o banner voltava na rota seguinte; o SDK não lê a rota sozinho,
+  então não exige contexto de router. `position="bottom"` prende o banner ao rodapé (fixo,
+  centralizado, até `32rem`) acima da safe area e de `--tempest-bottom-nav-height`; o default
+  `"inline"` mantém o comportamento anterior. `guide` é um nó renderizado depois da instrução
+  `"ios"`/`"manual"` — nó e não `href`, para o app passar o `Link` do router. Tipo novo
+  `InstallBannerPosition`. O `role="region"` pedido na issue já estava no componente.
+- **`AppShell` publica `--tempest-bottom-nav-height` no `<html>`** enquanto a `bottomNav` está na
+  tela (altura medida por `ResizeObserver`, safe area incluída) e remove a variável quando a barra
+  sai. É o que deixa o `InstallBanner position="bottom"` acima da barra do SDK sem configuração.
+  Medido em Chromium headless na gallery (seção `pwa`, "Abrir app de exemplo"): a 390×844 a
+  variável vale `57px` e o banner termina 12 px acima do topo da barra, claro e escuro; a 1280×800
+  a barra sai, a variável some e o banner fica a 12 px do rodapé.
+- **Tetos do `size-limit` (#619): barrel CJS 188,4 → 188,6 kB e `styles.css` 31,5 → 31,6 kB.**
+  `npm run build && npx size-limit --json` na `main` em `5ddf9a2` contra este branch com ela
+  mergeada: CJS 188 311 → 188 468 B (+157 B), `styles.css` 31 451 → 31 531 B (+80 B:
+  `position="bottom"` e o `guide`), ESM 158 496 → 158 573 B (+77 B, dentro do teto). Os bytes são
+  a flag de instalação no hook, o `ResizeObserver` do `AppShell` e as três props do banner; as
+  fatias importadas continuam dentro dos budgets.
+
+- **`BarcodeScanner`: o erro da câmera saía em inglês num leitor em pt-BR.** O `locale` padrão é
+  `"pt-BR"`, mas o overlay mostrava o `error.message` do `useCameraStream` cru — "Camera
+  permission denied. Enable access in your browser settings." ao lado do botão "Tentar de novo".
+  O próprio teste do componente fixava a frase em inglês; ele foi reescrito (com o porquê no
+  corpo) para afirmar a mensagem em pt-BR, e um teste novo fixa o inglês sob `locale="en"`. Doc em
+  `docs/vision.md`, `docs/device-capture.md` e `.en.md` — o aviso "traduza na sua camada de i18n"
+  saiu, porque virou superfície.
+- **`Sidebar`: item com `href` não recarrega mais a página inteira quando há `onChange` (#612).**
+  O `<a href>` chamava `onChange` sem `preventDefault`, então o clique esquerdo navegava duas
+  vezes: o router do app trocava a rota e o navegador seguia o `href` em seguida, recarregando o
+  documento e derrubando todo estado em memória (no FAMACHApp, o access token — cada clique levava
+  para `/login`). Agora o clique primário sem modificador num `<a>` com `onChange` chama
+  `preventDefault()` e dispara `onChange`; ctrl/meta/shift/alt-click, botão diferente do primário e
+  `target` que não seja `_self` ficam com o navegador (nova aba, nova janela, download) e **não**
+  disparam `onChange`, para a aba atual não mudar junto. Sem `onChange`, o `href` é seguido como em
+  qualquer link. O JSDoc do `href`, que prometia o contrário, foi corrigido.
+- **`NavigationMenu` (`href` + `onSelect`) tinha o mesmo defeito** e segue a mesma regra; o painel
+  fecha nos dois casos. **`Breadcrumbs` (`href` + `onClick`)** já chamava `preventDefault`, mas em
+  todo clique — ctrl-click não abria nova aba; agora o clique com modificador fica com o navegador e
+  não chama `onClick`. As três usam o mesmo helper interno (`src/utils/link-click.ts`).
+  `NavigationRail` e `BottomNavigation` não renderizam `href` e não mudam.
+- **Teto do barrel ESM no `size-limit` sobe de 157,9 kB para 158,3 kB.** O helper e o JSDoc das
+  três entradas somam ~150 B ao barrel inteiro (158,05 kB medido com `npx size-limit` nesta
+  branch); as fatias importadas continuam dentro dos budgets.
+- **`useDraftFilters` e `useDeepMemo`: `Set`, `Map`, `Date` e afins deixam de comparar iguais
+  (#614).** A comparação estrutural compartilhada olhava só `Object.keys`, e
+  `Object.keys(new Set(["ovino"]))` é `[]`: `new Set(["ovino"])` e `new Set(["caprino"])` eram
+  iguais, então um filtro de seleção múltipla em `Set` nunca ficava `isDirty` e o `apply()` não
+  publicava. Medido na 0.86.0 com os testes novos de `src/hooks/use-deep-memo.test.tsx` e
+  `src/hooks/use-draft-filters.test.tsx` (`npx vitest run src/hooks/use-deep-memo.test.tsx
+src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores de protótipo
+  diferente nunca são iguais (`new Set()` não é `{}`, `Uint8Array` não é `Int8Array`); `Set`
+  compara membros por SameValueZero (como `Set.has`), `Map` compara chaves por SameValueZero e
+  valores estruturalmente, `Date` pelo instante, `RegExp` por `source` + `flags`, `ArrayBuffer`,
+  `DataView` e arrays tipados byte a byte; instância sem chave própria enumerável (`URL`, `Blob`,
+  `File`, `Error`) só é igual a si mesma. Objeto literal, array e instância de classe com campos
+  continuam comparados como antes.
+
+- **`ConfirmDialog`: com `loading`, o diálogo não fecha mais** (#615). O Cancelar já ficava
+  desabilitado, mas o `Modal` por baixo continuava com `onClose={onCancel}`: `Esc`, clique no backdrop
+  e o × chamavam `onCancel` com a confirmação em voo — num logout que revoga a sessão no servidor, a
+  tela dizia "cancelado" e o usuário saía mesmo assim. Durante `loading` o `Modal` recebe
+  `closeOnEsc={false}`, `closeOnBackdrop={false}` e `hideCloseButton`; com o `Esc` desligado o diálogo
+  ainda engole a tecla, então ela também não cai no modal de baixo. A trava deriva de `loading`, sem
+  prop nova. O `useModals().confirm()` herda a correção: até aqui, `Esc` durante um `onConfirm`
+  assíncrono chamava `onCancel` **e** fechava o diálogo antes de a promise resolver.
+
 ### Budgets
+
+- **Época de sessão nas respostas de erro (run-15): `slice: http client` 5,5 → 5,6 kB,
+  `slice: typical app` 12,7 → 12,8 kB, barrel CJS 191,2 → 191,4 kB.** Medido com
+  `npm run build && npx size-limit --json` sobre a `main` em `b0c482d` e sobre este branch:
+  `http client` 5 476 → 5 519 B (+43), `typical app` 12 683 → 12 777 B (+94), CJS 191 097 →
+  191 299 B (+202); ESM 161 109 → 161 069 B (reminificação). É o `failure()` e a leitura da
+  época na chegada da resposta, no caminho que toda request percorre.
+
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #639** (`npm run build && npx size-limit --json`): ESM 161 109 B (teto 160.7 kB → 161.2 kB); CJS 191 097 B (teto 190.9 kB → 191.2 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #635** (`npm run build && npx size-limit --json`): ESM 160 629 B (teto 160.5 kB → 160.7 kB); CJS 190 792 B (teto 190.4 kB → 190.9 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
+- **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
+  `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
+  branch, mesmo resto da árvore): CJS 187 674 → 188 049 B (+375 B; a `main` tinha 126 B de folga) —
+  os bytes são o `relativeDayLabel` com os rótulos pt-BR/en e o corte decimal do `mode: "truncate"`,
+  que o barrel CJS carrega sem tree-shaking. ESM 158 046 → 158 019 B (reminificação; budget 158,3 kB
+  mantido). Nenhuma fatia importada passou de ±35 B.
 
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #629** (`npm run build && npx size-limit --json`): ESM 158 496 B (teto 158.3 KB → 158.6 kB); CJS 188 311 B (teto 188.1 KB → 188.4 kB). Nenhuma fatia importada mudou de teto.
 - **`preserveFrom` + `useReturnTo` (#616): barrel ESM 158,3 → 158,5 kB, CJS 188,1 → 188,3 kB**
@@ -190,92 +282,6 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   mergeada: ESM 158 496 → 158 659 B (+163 B), CJS 188 311 → 188 750 B (+439 B; o CJS reminifica e
   oscila — sobre `5f7e537` o mesmo componente media +215 B), `styles.css` 31 451 → 31 472 B
   (dentro do teto). É o componente novo exportado da raiz; nenhuma fatia importada mudou.
-
-### Segurança
-
-- **`persistQueryClientOffline` com `auth`: reset antes do logout não grava mais dados de A sob B**
-  (auditoria run-14, C1, #609). O `clear({ resetClient: true })` apagava a linhagem de sessões do
-  `QueryClient` mesmo com A ainda logado, e o handle encerrado já não observava a sessão: uma query
-  de A que caísse entre o reset e o `logout()` (refetch, intervalo, foco, prefetch) chegava ao
-  handle criado no login de B como dado anônimo e era gravada com a impressão de B, para o próximo
-  boot de B hidratar. Agora o reset só apaga a linhagem quando ninguém está logado; com sessão
-  instalada ela fica marcada como encerrada até um handle ser criado com o client vazio. Reset no
-  `onSessionEnd` ou depois do `logout()` (o caminho documentado) segue igual.
-- **`createApiClient` com `getSessionEpoch` (o `auth.api` do `createTempestAuth`): resposta de
-  sessão encerrada rejeita com `SessionSupersededError`** (auditoria run-14, U7, #609). Uma request
-  que saiu com o token de uma sessão que acabou antes de a resposta chegar resolvia normalmente: uma
-  `mutation` de A iniciada antes do `logout()` rodava o `onSuccess` já na sessão de B, e o
-  `setQueryData` punha os dados de A na tela de B e no snapshot offline com a impressão de B. A
-  checagem fica no cliente HTTP, não na persistência, porque só ele sabe a época em que a request
-  **saiu**; vale para qualquer continuação, não só para o cache. Request que saiu sem token segue
-  resolvendo. O que não passa pelo `auth.api` (um `fetch` próprio) continua com o app. Quatro
-  testes do `offline-persistence.lifetime.test.ts` (run-12/run-13) tinham como pré-condição a
-  resposta de A resolvendo depois do fim da sessão: a asserção foi invertida para
-  `SessionSupersededError`, e o "nada fica para o boot deslogado" continua valendo. Reproduzido em
-  `src/query/offline-persistence.session-end.test.ts` e `src/http/api-client.session-epoch.test.ts`
-  (`npx vitest run src/query/offline-persistence.session-end.test.ts src/http/api-client.session-epoch.test.ts`).
-  A checagem custa bytes no cliente HTTP (`npx size-limit`): a fatia "typical app" foi a 12,64 kB
-  (teto 12,6 → 12,7 kB) e o barrel CJS a 187,82 kB (teto 187,8 → 187,9 kB).
-- **Push com o destino só em `data.url` não abre mais `/` em silêncio (#613).** Desde a 0.82.0 o
-  `installPushHandler` grava o `url` de topo por cima de `payload.data` (#534), então quem mandava o
-  destino só em `data.url` — o formato que a 0.81.0 respeitava — passou a abrir `"/"` sem erro nem
-  aviso. A regra de segurança fica: `data.url` continua **não** sendo lido como destino. O que muda é
-  que o primeiro payload nesse formato (`data.url` string e nenhum `url` de topo, avaliado depois do
-  `transform`) loga **um** `console.warn` por worker, sem repetir a URL. O aviso não passa pelo
-  `isDevBuild()`: o push real costuma chegar primeiro num build de produção, e num worker que nenhum
-  bundler compilou o `isDevBuild()` responde `false` — os dois lugares onde a quebra aparece.
-  Reproduzido com `npx vitest run src/sw/create-push-handler.data-url.test.ts` sobre a `main`: o
-  clique com `{ data: { url: "/broadcasts/42" } }` abre `"/"` e 4 dos 11 casos novos falhavam (nenhum
-  `console.warn`). **Migração** (do servidor, também na receita de push):
-  `{ "title": "Novo aviso", "data": { "url": "/avisos/42" } }` passa a ser
-  `{ "title": "Novo aviso", "url": "/avisos/42", "data": {} }`. Budget (`npx size-limit`, `main`
-  → branch): teto do barrel ESM 157,8 → 158,1 kB, sobe 157,9 → 158,2 kB; barrel CJS 187,74 → 187,72
-  kB, sem mudança. O `scripts/check-dist-guards.mjs` ganha `sw/create-push-handler` na lista de
-  módulos que falam fora do `isDevBuild()`, com o motivo acima.
-- **`AppShell`: a `AppBar` sticky renderizada pela página não rola mais junto com o conteúdo
-  (#611).** O `<main>` do shell tinha `overflow-x: auto`, que força o `overflow-y` computado a
-  `auto` e o transforma no scroll container de todo sticky dentro dele — só que quem rola é a
-  janela. Medido no Chromium, a 390×844 e a 1280×800: a barra ficava em `top: -600px` depois de
-  `scrollTo(0, 600)`; agora fica em `top: 0`. O `.main` passa a usar `overflow-x: clip`, que corta
-  o excesso horizontal sem criar scroll container. A issue propunha também tirar o overflow
-  (`visible`): resolve o sticky, mas um bloco de 1500px sem região própria passou a arrastar a
-  página inteira (`scrollWidth` 1500 a 390px, 1700 a 1280px) — o que empurra o app para
-  `body { overflow-x: hidden }`, que mata o sticky de novo. Com `clip` a página fica na largura da
-  viewport. **Mudança de comportamento**: um filho mais largo que o `<main>` sem região de scroll
-  própria passa a ser cortado na borda em vez de rolar dentro do `<main>`; `Table`/`DataTable`
-  não mudam (rolam na própria região: 1186px de uma tabela de 12 colunas nos três valores). Envolva
-  conteúdo largo seu num `overflow-x: auto` ou em `.tempest-scroll-x`. Guard:
-  `e2e/app-shell-sticky.spec.ts`.
-
-### Adicionado
-
-- **`ConfirmDialog`: `confirmIcon`** (#615) — ícone à esquerda do rótulo do botão de confirmar,
-  repassado como `leftIcon` do `Button` (a mesma prop que o `Button` já aceita). Decorativo: o nome
-  acessível continua sendo o `confirmLabel`. Era o que mantinha um `ExitModal` próprio no FAMACHApp
-  só para pôr o `LogOut` no "Sair".
-
-### Corrigido
-
-- **`ConfirmDialog`: com `loading`, o diálogo não fecha mais** (#615). O Cancelar já ficava
-  desabilitado, mas o `Modal` por baixo continuava com `onClose={onCancel}`: `Esc`, clique no backdrop
-  e o × chamavam `onCancel` com a confirmação em voo — num logout que revoga a sessão no servidor, a
-  tela dizia "cancelado" e o usuário saía mesmo assim. Durante `loading` o `Modal` recebe
-  `closeOnEsc={false}`, `closeOnBackdrop={false}` e `hideCloseButton`; com o `Esc` desligado o diálogo
-  ainda engole a tecla, então ela também não cai no modal de baixo. A trava deriva de `loading`, sem
-  prop nova. O `useModals().confirm()` herda a correção: até aqui, `Esc` durante um `onConfirm`
-  assíncrono chamava `onCancel` **e** fechava o diálogo antes de a promise resolver.
-
-### Adicionado
-
-- **`shareOrDownloadBlob` aceita `text` e `textOnlyFallback`** (#618). `text` vai na mesma sheet
-  do arquivo. Num browser que tem Web Share mas recusa o arquivo (`canShare({ files })` falso), a
-  função abre uma sheet só com o texto e **depois baixa o arquivo** — ordem arquivo + texto → só
-  texto → download. O download não é trocado pelo texto: nesse browser o arquivo sempre foi
-  baixado, e trocá-lo faria o usuário que escolhe "Mail" receber a legenda sem a foto. Por isso o
-  padrão `textOnlyFallback: true` (quando há `text`) não tira nada de ninguém; `false` volta ao
-  download direto. Cancelar a sheet do arquivo continua não baixando; erro real no
-  compartilhamento do arquivo pula a sheet de texto (o gesto já foi consumido). O retorno continua
-  `Promise<void>`.
 
 ## [0.86.0] — 2026-11-15
 

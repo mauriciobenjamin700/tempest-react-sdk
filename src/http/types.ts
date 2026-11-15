@@ -160,11 +160,13 @@ export interface ApiClientConfig {
      * it). The token alone cannot: a request sent with no token, or with a token
      * rehydrated from storage, says nothing about which session sent it.
      *
-     * Also read when a successful response lands: an attempt that left with a
-     * token under an epoch that has changed since rejects with
-     * `SessionSupersededError` instead of resolving, so the ended session's
-     * data never reaches the caller's continuation — a mutation's `onSuccess`
-     * writing it into the next account's cache (security audit run-14, #609).
+     * Also read when a response lands, success or error: an attempt that left
+     * with a token under an epoch that has changed since rejects with
+     * `SessionSupersededError` instead of resolving or rejecting with the API
+     * error, so the ended session's data never reaches the caller's
+     * continuation — a mutation's `onSuccess` writing it into the next
+     * account's cache (security audit run-14, #609), or an `onError` showing
+     * the ended account's error envelope to the next one (run-15).
      */
     getSessionEpoch?: () => number;
     /**

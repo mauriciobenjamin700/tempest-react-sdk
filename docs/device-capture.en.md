@@ -396,6 +396,56 @@ Three states decide whether this feels right, and two of them are easy to miss:
     that punishes them for using the picker. The raw rejection goes to `onCancelled` if you
     need to tell a system-level block apart (macOS screen-recording permission).
 
+### Messages in the app's language: `messages`
+
+`error.message` is **English** by default. To show the error in another language without
+wrapping the hook, pass `messages` — one text per `kind`, the same contract as
+`useMicrophone` and `useCameraStream`:
+
+```tsx
+import { useScreenCapture } from "tempest-react-sdk";
+
+const SCREEN_MESSAGES = {
+  unsupported: "Este navegador não compartilha a tela.",
+  insecure: "Compartilhar a tela só funciona em conexão segura (HTTPS).",
+  "permission-denied": "O compartilhamento de tela está bloqueado nesta página.",
+  "not-found": "Nenhuma tela disponível para compartilhar.",
+  "in-use": "Não foi possível capturar a tela agora. Feche outros compartilhamentos e tente de novo.",
+} as const;
+
+export function PortugueseScreenShare() {
+  const screen = useScreenCapture({ messages: SCREEN_MESSAGES });
+
+  return (
+    <>
+      <button onClick={screen.start}>Share screen</button>
+      {screen.error && <p role="alert">{screen.error.message}</p>}
+    </>
+  );
+}
+```
+
+The `kind` does not change, and a `kind` you leave out keeps the English sentence. The
+message is applied when the error is read: switching language with the error on screen
+re-labels it without opening the picker again.
+
+| `kind` | Where it comes from in screen capture |
+| --- | --- |
+| `insecure` | page on plain HTTP |
+| `unsupported` | browser without `getDisplayMedia` (every browser on iOS) |
+| `permission-denied` | `SecurityError` only — **not** `NotAllowedError` |
+| `not-found` | `NotFoundError` / `OverconstrainedError` |
+| `in-use` | `NotReadableError` |
+| `unknown` | everything else; the default `message` is the browser's own text |
+
+!!! note "The macOS screen-recording block does not go through `messages`"
+    It arrives as a `NotAllowedError`, the same name as a dismissed picker, so it becomes
+    a **cancellation**: `error` stays `null` and there is no message to replace. To explain
+    "allow screen recording in System Settings", do it in `onCancelled`. A `kind` of its
+    own depends on measuring what Chrome, Safari and Firefox on macOS return (the error's
+    name and `message`) — a measurement still **pending**, without which the two cases
+    cannot be told apart without guessing.
+
 ### Picker hints
 
 | Option | Effect |
@@ -546,7 +596,7 @@ export function ChatWithDictation({ messages, onSend }: ChatProps) {
 - `useVideoRecorder` — the same engine as audio: a clock that subtracts paused time, a
   `stop()` with every chunk, a negotiated container. Use `timesliceMs` for a long capture.
 - `useScreenCapture` — a dismissed picker is a cancellation (not an error); `ended` is the
-  **only** signal that the user stopped; `surface`/`hasAudio` say what actually happened.
+  **only** signal that the user stopped; `surface`/`hasAudio` say what actually happened; `messages` puts the error in the app's language.
 - `useSpeechRecognition` — interim vs final, classified errors, no auto-restart. **The
   audio leaves the device in Chromium.**
 - `AIChat` + `composerRef` — dictation without the component knowing the speech API.

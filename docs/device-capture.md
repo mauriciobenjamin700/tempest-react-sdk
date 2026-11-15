@@ -394,6 +394,56 @@ Três estados decidem se isso parece certo, e dois deles são fáceis de perder:
     `onCancelled`, se você precisar distinguir um bloqueio de sistema (permissão de
     gravação de tela do macOS).
 
+### Mensagens na língua do app: `messages`
+
+O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra língua sem
+embrulhar o hook, passe `messages` — um texto por `kind`, o mesmo contrato do
+`useMicrophone` e do `useCameraStream`:
+
+```tsx
+import { useScreenCapture } from "tempest-react-sdk";
+
+const MENSAGENS_DA_TELA = {
+  unsupported: "Este navegador não compartilha a tela.",
+  insecure: "Compartilhar a tela só funciona em conexão segura (HTTPS).",
+  "permission-denied": "O compartilhamento de tela está bloqueado nesta página.",
+  "not-found": "Nenhuma tela disponível para compartilhar.",
+  "in-use": "Não foi possível capturar a tela agora. Feche outros compartilhamentos e tente de novo.",
+} as const;
+
+export function CompartilharEmPortugues() {
+  const screen = useScreenCapture({ messages: MENSAGENS_DA_TELA });
+
+  return (
+    <>
+      <button onClick={screen.start}>Compartilhar tela</button>
+      {screen.error && <p role="alert">{screen.error.message}</p>}
+    </>
+  );
+}
+```
+
+O `kind` não muda e o `kind` que você não listar mantém a frase em inglês. A mensagem é
+aplicada na leitura do erro: trocar de língua com o erro na tela re-rotula sem abrir o
+seletor de novo.
+
+| `kind` | De onde vem na captura de tela |
+| --- | --- |
+| `insecure` | página em HTTP puro |
+| `unsupported` | navegador sem `getDisplayMedia` (todo navegador no iOS) |
+| `permission-denied` | só `SecurityError` — **não** o `NotAllowedError` |
+| `not-found` | `NotFoundError` / `OverconstrainedError` |
+| `in-use` | `NotReadableError` |
+| `unknown` | o resto; o `message` padrão é o texto do próprio navegador |
+
+!!! note "O bloqueio de gravação de tela do macOS não passa por `messages`"
+    Ele chega como `NotAllowedError`, o mesmo nome do seletor fechado, e por isso vira
+    **cancelamento**: `error` fica `null` e não há mensagem para trocar. Quem quer explicar
+    "libere a gravação de tela nas Preferências do Sistema" faz isso no `onCancelled`.
+    Um `kind` próprio para esse caso depende de medir o que Chrome, Safari e Firefox no
+    macOS devolvem (nome e `message` do erro) — medição ainda **pendente**, sem a qual não
+    há como separar os dois casos sem chutar.
+
 ### Dicas para o seletor
 
 | Opção | Efeito |
@@ -543,7 +593,7 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
 - `useVideoRecorder` — mesmo motor do áudio: relógio que desconta pausa, `stop()` com todos
   os chunks, container negociado. Use `timesliceMs` para captura longa.
 - `useScreenCapture` — seletor fechado é cancelamento (não erro); `ended` é o **único**
-  sinal de que o usuário parou; `surface`/`hasAudio` dizem o que aconteceu de fato.
+  sinal de que o usuário parou; `surface`/`hasAudio` dizem o que aconteceu de fato; `messages` põe o erro na língua do app.
 - `useSpeechRecognition` — interim vs final, erros classificados, sem auto-restart. **O
   áudio sai do dispositivo no Chromium.**
 - `AIChat` + `composerRef` — ditado sem o componente conhecer a API de fala.

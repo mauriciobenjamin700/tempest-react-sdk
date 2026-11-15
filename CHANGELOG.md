@@ -121,6 +121,21 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
   mantém o inglês. O teste que fixava `/in use by another app/` sob pt-BR foi reescrito (com o
   porquê no corpo) para afirmar a frase em português.
 
+### Adicionado
+
+- **`useScreenCapture`: `messages` — o texto do erro por `kind`, na língua do app (#641).**
+  `messages?: Partial<Record<MediaAccessErrorKind, string>>`, mesmo contrato do `useCameraStream`
+  (#617): troca o `error.message` dos `kind` listados, os outros mantêm a frase em inglês, o `kind`
+  não muda e a troca é aplicada na leitura do erro (mudar de língua re-rotula sem reabrir o
+  seletor). A issue partia de que o bloqueio de gravação de tela do macOS vira `permission-denied`
+  com texto de "browser settings"; o código diz outra coisa: `NotAllowedError` em `getDisplayMedia`
+  é tratado como **cancelamento** (`error` fica `null`, chama `onCancelled`), e `permission-denied`
+  só vem de `SecurityError`. Por isso `messages` não alcança o caso do macOS, e um teste fixa isso.
+  Nenhum `kind` novo: separar o bloqueio do sistema do seletor fechado depende de medir nome e
+  `message` do erro no Chrome, Safari e Firefox no macOS, e essa medição fica **pendente** (sem
+  browser macOS disponível). Nenhum componente do SDK mostra o erro do `useScreenCapture` ou do
+  `useVideoRecorder` — nada a localizar além do hook. Doc em `docs/device-capture.md` e `.en.md`.
+
 ## [0.87.0] — 2026-11-15
 
 ### Segurança

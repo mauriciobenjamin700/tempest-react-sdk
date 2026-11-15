@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #638** (`npm run build && npx size-limit --json`): ESM 160 406 B (teto 160.2 kB → 160.5 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #634** (`npm run build && npx size-limit --json`): ESM 160 112 B (teto 160.1 kB → 160.2 kB); CJS 190 266 B (teto 190.2 kB → 190.4 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #637** (`npm run build && npx size-limit --json`): ESM 159 954 B (teto 159.5 kB → 160.1 kB); CJS 190 119 B (teto 189.7 kB → 190.2 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.

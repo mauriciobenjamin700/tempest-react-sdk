@@ -4,6 +4,123 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createDeviceFacts`: `device_model` só aceita texto com formato de modelo** (auditoria run-15,
+  §6, #644). O `parseAndroid` pegava o trecho inteiro do user agent depois de `Android[ ver];`, e
+  um WebView ou UA customizado punha texto livre no relato — `user=alice@example.com
+token=abc123` chegava em `device_model`; o `model` das Client Hints passava igual. Agora as duas
+  fontes passam por uma allowlist (letras, dígitos, espaço e `._()+-`, começando por letra ou
+  dígito, até 40 caracteres), fixada com modelos reais; fora dela o modelo é omitido. De quebra, o
+  modelo da Motorola (`moto g(60)`) deixou de ser cortado em `moto g(60` pelo `)` interno.
+- **`createAppErrorReporter` com `getToken`: `device_id` não vai mais em relato anônimo** (auditoria
+  run-15, §6, #644). O id do aparelho sobrevive ao logout e ia também nos envios sem Bearer (antes
+  do login, depois do logout, relato de outra sessão), deixando o backend ligar o relato anônimo
+  aos atribuídos do mesmo aparelho. Agora todo envio sem Bearer sai sem `device_id`, sem passo do
+  app no logout. Sem `getToken` nada é atribuído e o id continua indo sempre.
+
+### Budgets
+
+- **Budgets remedidos sobre a soma com a `main` ao mergear #650** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 782 B (teto 161.7 kB → 161.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #654** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 616 B (teto 161.4 kB → 161.7 kB); `ceiling: full barrel CJS` 191 794 B (teto 191.7 kB → 191.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #655** (`npm run build && npx size-limit --json`): `slice: http client` 5 703 B (teto 5.7 kB → 5.8 kB); `ceiling: full barrel CJS` 191 620 B (teto 191.5 kB → 191.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Allowlist do modelo e `device_id` só com Bearer (#644): barrel ESM 161,2 → 161,4 kB.**
+  Medido com `npm run build && npx size-limit --json` sobre a `main` em `b3b9337` e sobre este
+  branch: ESM 161 069 → 161 341 B (+272), acima do teto em 141 B. As fatias tocadas seguem dentro
+  do limite: `device facts` 1 159 → 1 240 B (+81), `app error reporter` 2 316 → 2 349 B (+33); CJS
+  191 299 → 191 324 B (+25).
+- **`uploadWithProgress` e `createResumableUpload`: resposta de sessão encerrada não chega mais à
+  continuação da conta seguinte** (auditoria run-15 §7, #642). Os dois uploads não tinham o vínculo
+  de época que o `createApiClient` ganhou no #609: a resposta de um upload de A que chegava depois
+  de `logout()` + `login(B)` resolvia (ou rejeitava com o envelope de erro de A) no `onSuccess`/
+  `onError` de B. Agora o `uploadWithProgress` que saiu com token de `getToken` rejeita com
+  `SessionSupersededError` quando a sessão mudou antes de a resposta chegar, sucesso ou erro, nos
+  dois transportes (XHR e `redirect: "error"`). A sessão vem sozinha do `getToken: auth.getToken`
+  do `createTempestAuth`; opção nova `sessionKey` para um wrapper (`sessionKey: auth.sessionKey`) ou
+  qualquer outra identidade. Upload sem token e refresh do token durante o upload seguem
+  resolvendo. No `createResumableUpload` a checagem de dono, antes só feita antes de cada request,
+  roda também quando cada resposta chega: chunk ou criação recusados depois da troca rejeitam com
+  `ResumableUploadSupersededError` em vez do `TempestApiError` de A, e um `HEAD` respondido depois
+  da troca não cai mais na criação com o bearer de B e a `Idempotency-Key` de A. Na parada por
+  `reason: "principal"` o registro que o run gravou para A é **apagado** (guarda a URL do upload
+  de A, que muitos servidores tus tratam como credencial, no storage de B, e ninguém mais pode
+  usá-lo); um registro que B gravou na mesma chave fica. O teste de 0.78.0 que fixava o registro de
+  A intacto (`resumable-upload.test.ts`) foi invertido. Reproduzido em
+  `src/http/upload-with-progress.session.test.ts` e `src/http/resumable-upload.session.test.ts`
+  (`npx vitest run src/http/upload-with-progress.session.test.ts src/http/resumable-upload.session.test.ts`):
+  22 testes novos, 14 falham na `main` b3b9337 (10 de 16 no `uploadWithProgress`, 4 de 6 no
+  resumível); os outros 8 são controles (sem token, rotação, erro da sessão vigente, registro de B).
+
+### Budgets
+
+- A checagem de sessão custa bytes (`npm run build && npx size-limit --json`, medido contra a
+  `main` b3b9337): "http client" 5519 → 5644 B (teto 5,6 → 5,65 kB), "resumable upload" 5051 →
+  5116 B (teto 5,1 → 5,15 KB) e o barrel CJS 191299 → 191439 B (teto 191,4 → 191,5 kB).
+- **`createApiClient` com `retry` e `getSessionEpoch`: a repetição não sai mais com o bearer da
+  próxima conta** (auditoria run-15 §6, #643). O `retry` chamava a tentativa de novo a cada
+  repetição, e a tentativa lê o token na saída: com `logout()` + `login(B)` durante o backoff, a
+  repetição de uma request de A saía com o bearer de B e resolvia na continuação que A começou; com
+  um `shouldRetry` que repete escrita, o `POST` de A rodava na conta de B. A checagem de época do
+  #609 não pegava, porque cada tentativa compara com a época do **próprio** envio. Agora a sessão
+  da primeira tentativa é a da request: se ela acabou, ou se a repetição pegaria um token que a
+  primeira não tinha (login no meio de uma request deslogada), a repetição não é enviada e a request
+  rejeita com `SessionSupersededError`. Request com `skipAuth`, ou deslogada nas duas pontas, segue
+  repetindo. Um `SessionSupersededError` nunca é repetido, mesmo sob `shouldRetry: () => true` — na
+  `main` ele era, e a repetição de A resolvia como B. Um `401` cujo `onUnauthorized` encerra a sessão
+  continua rejeitando com o `401` (regra do #646), sem repetição. Cliente só com cookie
+  (`withCredentials`, sem `getToken`) segue sem essa proteção, agora documentado: sem token, o cliente
+  não distingue request deslogada de logada, e estender a checagem para todo `withCredentials`
+  rejeitaria toda request anônima em voo num login do `createTempestAuth` com cookie. Reproduzido
+  com `npx vitest run src/http/api-client.retry-session.test.ts`: 10 testes, 6 falham na `main`
+  (`b3b9337`) — medido lá, os headers enviados foram `["Bearer A-token", "Bearer B-token"]` no
+  `GET` e no `POST`.
+
+### Budgets
+
+- A checagem custa bytes no cliente HTTP (`npm run build && npx size-limit --json`, medido contra a
+  `main` em `b3b9337`): a fatia "typical app" foi de 12,78 kB a 12,88 kB (teto 12,8 → 12,9 kB) e a
+  fatia "http client" de 5,52 kB a 5,61 kB (teto 5,6 → 5,7 kB).
+- **`createZip` recusa nome de entrada que escapa da pasta de extração** (#645). Segmento `..` (no início ou no meio), caminho absoluto (`/x`), letra de drive (`C:\x`, `C:/x`, `C:x`), barra invertida e NUL eram gravados como vieram, e um extrator ingênuo sofria _zip-slip_. Agora lançam `TypeError` antes de ler qualquer byte, como já acontecia com caminho vazio ou repetido; o nome não é normalizado em silêncio. Subpastas com `/` continuam.
+
+### Corrigido
+
+- **Regra interna de clique em link aceita `target` em qualquer caixa** (#645). O helper interno
+  que decide se o clique de um `Sidebar`/`NavigationMenu`/`Breadcrumbs` vai para o router só
+  reconhecia `_self` exato; a palavra-chave é case-insensitive no HTML, então `_SELF` ou `_Self`
+  deixaria o browser recarregar o documento inteiro. Inalcançável hoje (nenhum componente do SDK
+  renderiza `target` no link), corrigido antes que um passe a renderizar.
+- **`useDraftFilters` e `useDeepMemo` comparam objeto pelo conjunto de chaves** (#645). A igualdade
+  estrutural conferia só a contagem de chaves, então `{ a: undefined }` era igual a
+  `{ b: undefined }` — trocar um filtro opcional por outro deixava `isDirty` em `false` e o
+  `useDeepMemo` devolvia a referência antiga. Agora cada chave de um precisa existir no outro
+  (`Object.hasOwn`).
+
+### Budgets
+
+- **`slice: createZip`** 5,6 → 5,65 kB e **`slice: createZip + writeXlsx`** 6,7 → 6,75 kB: a
+  validação de nomes do `createZip` (#645) custa +159 B / +160 B br. Medido com
+  `npm run build && npx size-limit --json`: 5457 → 5616 B e 6550 → 6710 B contra a `origin/main`.
+
+### Adicionado
+
+- **`useMicrophone`: `messages` — o texto do erro por `kind`, na língua do app (#640).**
+  `messages?: Partial<Record<MediaAccessErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. Mesmo contrato do `messages`
+  do `useCameraStream` (#617): a troca é aplicada na leitura do erro, então mudar de língua com o
+  erro na tela re-rotula na hora, sem pedir o microfone de novo. `useAudioRecorder` e
+  `createAudioRecorder` recebem só o stream e nunca mostram o erro do microfone — nada a repassar.
+  Doc em `docs/audio.md` e `.en.md`.
+
+### Corrigido
+
+- **`AudioRecorder`: o erro do microfone saía em inglês num gravador em pt-BR (#640).** O `locale`
+  padrão é `"pt-BR"`, mas a linha de status mostrava o `error.message` do `useMicrophone` cru —
+  "Microphone permission denied. Enable access in your browser settings." quando o usuário negava
+  no prompt (reproduzido na `main` com `NotAllowedError` no `getUserMedia`). Agora o componente
+  traz as seis frases por `kind` nas strings do `locale` e as repassa como `messages`; `locale="en"`
+  mantém o inglês. O teste que fixava `/in use by another app/` sob pt-BR foi reescrito (com o
+  porquê no corpo) para afirmar a frase em português.
+
 ### Adicionado
 
 - **`useScreenCapture`: `messages` — o texto do erro por `kind`, na língua do app (#641).**

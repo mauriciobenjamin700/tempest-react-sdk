@@ -505,7 +505,7 @@ export async function exportarHistorico(
 
 Pedaço por pedaço:
 
-- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte.
+- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte. O mesmo vale para o nome que deixaria um extrator ingênuo escrever fora da pasta de destino (*zip-slip*): segmento `..`, caminho absoluto (`/x`), letra de drive (`C:/x`, `C:x`), barra invertida ou NUL. O `createZip` recusa em vez de reescrever o nome — só você sabe qual era o caminho pretendido. Subpasta com `/` (`fotos/a.jpg`) segue valendo.
 - **`onProgress({ loaded, total })`** — em bytes de **entrada**. O `total` é conhecido antes de começar (tamanho do `Blob`, bytes UTF-8 da string), então a porcentagem é real desde a primeira chamada; a última sempre traz `loaded === total`.
 - **`level`** — deflate de `0` (só guarda) a `9`. Padrão `6`.
 - **`signal`** — um `AbortSignal` cancela no meio; a promise rejeita com o `reason` do sinal.
@@ -529,7 +529,7 @@ Pedaço por pedaço:
     Reproduza com `npm run build && node scripts/bench-zip.mjs 5` (máquina compartilhada, *load average* 13–19 durante a medição — os intervalos são largos por isso).
 
 !!! note "Custo de bundle"
-    `createZip` mora na raiz junto do `writeXlsx` — sem subpath, porque o `preserveModules` já separa: o `{ cn }` sozinho continua em 203 B. Quem importa `{ createZip }` paga 5,46 kB br **com** o `fflate` contado; `{ createZip, writeXlsx }` juntos, 6,55 kB (`npx size-limit`).
+    `createZip` mora na raiz junto do `writeXlsx` — sem subpath, porque o `preserveModules` já separa: o `{ cn }` sozinho continua em 203 B. Quem importa `{ createZip }` paga 5,62 kB br **com** o `fflate` contado; `{ createZip, writeXlsx }` juntos, 6,71 kB (`npx size-limit`, medido depois da validação de nomes do #645).
 
 ---
 

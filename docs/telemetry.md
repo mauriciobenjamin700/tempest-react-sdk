@@ -262,14 +262,33 @@ O que ele lê, e o que ele **não** manda:
 | --- | --- |
 | `platform` | `"web"` (navegador e PWA); um shell nativo passa `platform: "android"` / `"ios"` |
 | `os_version` | família do SO e versão — `"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`, `"Windows"`, `"macOS"` |
-| `device_model` | o modelo Android quando o user agent ainda traz; `"iPhone"`/`"iPad"` na Apple |
-| `device_id` | UUID v4 **aleatório** (`crypto.randomUUID`, ou `getRandomValues` fora de contexto seguro), guardado em `localStorage` |
+| `device_model` | o modelo Android quando o user agent (ou as Client Hints) ainda traz, **só se tiver formato de modelo**; `"iPhone"`/`"iPad"` na Apple |
+| `device_id` | UUID v4 **aleatório** (`crypto.randomUUID`, ou `getRandomValues` fora de contexto seguro), guardado em `localStorage`; com `getToken`, só sai junto com o Bearer |
 
 !!! check "O user agent cru nunca sobe"
     O user agent inteiro é impressão digital do aparelho — dado pessoal pela LGPD.
     `createDeviceFacts` reduz a família, a versão e o modelo e descarta o resto.
     O `device_id` agrupa relatos sem dizer de quem são, e um valor guardado sob a
     chave que não seja UUID v4 é **substituído**, nunca enviado.
+
+!!! check "O modelo só sobe se parecer modelo"
+    O trecho do modelo é o único texto livre que sai do user agent: um WebView ou navegador
+    customizado escreve ali o que quiser — a auditoria viu `user=alice@example.com token=abc123`
+    chegar em `device_model`. Por isso o modelo, do user agent **e** das Client Hints, passa por uma
+    allowlist: letras, dígitos, espaço e `._()+-`, começando por letra ou dígito, até 40
+    caracteres. Cobre os modelos reais (`SM-S918B`, `Pixel 8 Pro`, `moto g(60)`, `M2101K6G`,
+    `CPH2449`, `2201117TG`, `ONEPLUS A6013`, `Redmi Note 9 Pro`, `ASUS_X00TD`); `=`, `@`, `:`, `/`
+    e caractere de controle ficam de fora. O que não passa é **omitido**, nunca truncado.
+
+!!! check "`device_id` não denuncia relato anônimo"
+    O id do aparelho sobrevive ao logout. Se fosse junto num relato anônimo — antes do login, depois
+    do logout, ou de outra sessão — o backend ligaria esse relato aos relatos atribuídos do mesmo
+    aparelho, desfazendo o anonimato. Por isso o `createAppErrorReporter` com `getToken` **tira o
+    `device_id` de todo envio sem Bearer**, sozinho: não há passo para o app lembrar no logout. Sem
+    `getToken` nada é atribuído, não há o que ligar, e o id sai sempre.
+
+    O que continua visível, por escolha: duas contas que usam o **mesmo aparelho** mandam o mesmo
+    `device_id` nos relatos atribuídos — o id existe para agrupar por aparelho.
 
 !!! note "`Android 10; K` não é Android 10"
     O Chrome reduziu o user agent: **todo** Android manda `Linux; Android 10; K`, com a versão
@@ -352,7 +371,7 @@ export function onLogout(): void {
 - **O Bearer depende só do token.** Mesmo token no erro e no envio → Bearer; qualquer outro → anônimo. Um refresh entre o erro e o envio também faz o relato sair anônimo: a atribuição se perde, **nunca** vai para a pessoa errada.
 - **`getPrincipal`** — opcional. Um id **estável e não secreto** de quem está logado (o id do usuário, não o e-mail), guardado só como impressão digital (`entry.owner`). Ele **não** libera o Bearer — principal e token vêm de fontes diferentes, e um store de usuário atrasado em relação ao login mandaria o relato da Ana com o token do Bruno. Ele serve para o `"drop"` saber de quem é cada relato. Só string ou número contam como id; um getter `async` ou que lança vale "ninguém".
 - **`foreignReports`** — o que fazer com relato que não pode sair com o Bearer atual:
-    - `"anonymous"` (padrão) envia sem `Authorization`. A rota é pública e o erro continua útil.
+    - `"anonymous"` (padrão) envia sem `Authorization` e sem `device_id`. A rota é pública e o erro continua útil, só não é ligado a ninguém.
     - `"drop"` descarta todo relato que **não se prova** do principal atual: de outra pessoa, de ninguém (levantado sem sessão) ou de dono desconhecido (fila antiga, ou ninguém logado agora). Para app em que o texto do erro do usuário anterior não pode sair do aparelho. **Exige `getPrincipal`**: sem ele, a única identidade é o token, que muda no refresh — então divergência não prova dono alheio, e o reporter envia anônimo em vez de apagar os relatos do próprio usuário (em dev, um `console.warn` único avisa).
 - **`reporter.clear()` no logout** esvazia a fila, interrompe um `flush` em andamento antes do próximo envio e descarta relatos que ainda esperavam um `getToken` assíncrono.
 - **`getToken` assíncrono tem prazo**: depois de 5 s sem resposta, o relato entra na fila sem sessão e o `flush` segue sem token — nada trava esperando.

@@ -53,7 +53,11 @@ export interface AudioRecorderProps extends Omit<
     audioBitsPerSecond?: number;
     /** Offer playback of the recording before handing it over. Default `true`. */
     review?: boolean;
-    /** Locale for the labels. Default `"pt-BR"`. */
+    /**
+     * Locale for the labels and for the microphone's error message. Default `"pt-BR"`.
+     *
+     * `"en"` keeps the English sentences `useMicrophone` already produces.
+     */
     locale?: "pt-BR" | "en";
     /** Rendered under the controls — a hint, a character count, a legal notice. */
     footer?: ReactNode;
@@ -77,6 +81,15 @@ const STRINGS = {
         recording: "Gravando",
         paused: "Pausado",
         converting: "Convertendo…",
+        microphone: {
+            unsupported: "Este navegador não dá acesso ao microfone.",
+            insecure: "O microfone só funciona em conexão segura (HTTPS).",
+            "permission-denied":
+                "Acesso ao microfone negado. Libere a permissão nas configurações do navegador.",
+            "not-found": "Nenhum microfone disponível neste aparelho.",
+            "in-use": "O microfone está em uso por outro app. Feche-o e tente de novo.",
+            unknown: "Não foi possível abrir o microfone.",
+        },
     },
     en: {
         record: "Record",
@@ -92,6 +105,7 @@ const STRINGS = {
         recording: "Recording",
         paused: "Paused",
         converting: "Converting…",
+        microphone: undefined,
     },
 } as const;
 
@@ -135,7 +149,7 @@ export function AudioRecorder({
 }: AudioRecorderProps) {
     const strings = STRINGS[locale];
     const permission = useMediaPermission("microphone");
-    const mic = useMicrophone({ deviceId });
+    const mic = useMicrophone({ deviceId, messages: strings.microphone });
     const [converting, setConverting] = useState(false);
     const [result, setResult] = useState<AudioRecording | null>(null);
     const [supported, setSupported] = useState(true);

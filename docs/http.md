@@ -47,7 +47,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `prefix` — segmento sob o qual toda requisição fica aninhada, tipo `"/api"`. Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro.
-- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura.
+- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura. Com `retry` ligado, também impede que uma repetição saia em outra sessão — veja [Retentativa embutida](#retentativa-embutida). A proteção segue o bearer: um cliente só com cookie (`withCredentials`, sem `getToken`) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.
 - `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
@@ -541,6 +541,7 @@ Repetir um `400` ou um `403` não conserta payload errado nem permissão que o u
 Detalhes que valem saber:
 
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
+- **A repetição não troca de conta.** Com `getSessionEpoch` (o `auth.api` do `createTempestAuth` já tem), a sessão da primeira tentativa é a sessão da request. Se, durante o backoff, essa sessão acabou (`logout()`, com ou sem o `login()` seguinte) ou a repetição sairia com um token que a primeira tentativa não tinha (um `login()` no meio de uma request que saiu deslogada), a repetição **não é enviada** e a request rejeita com `SessionSupersededError`. Antes da correção (#643), a repetição de A saía com o bearer de B e resolvia na continuação que A começou — e, com um `shouldRetry` que repete escrita, o `POST` de A rodava na conta de B. Request com `skipAuth`, ou deslogada nas duas pontas, não carrega conta e segue repetindo. Um `SessionSupersededError` nunca é repetido, diga o `shouldRetry` o que disser.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
 - `retry: true` faz **3 tentativas no total** (a primeira + 2 repetições). `retry: { retries: N }` faz `N` no total, e `retries: 0` faz uma só — veja [o que `retries` conta](#o-que-retries-conta).
@@ -711,6 +712,36 @@ export function AvatarUpload() {
     ```
 
     Até a 0.81.0, sem `credentialOrigin` o header ia para onde a `url` apontasse — inclusive uma URL assinada que veio de um corpo de resposta. A opção `csrf` segue exatamente o mesmo escopo. Os `headers` que você passa aqui são da chamada e vão para a `url` dela.
+
+### A resposta é da sessão que enviou (0.88.0)
+
+Um upload demora — e a sessão pode trocar enquanto ele sobe. A resposta que chega depois de `logout()` + `login(B)` é de **A**: a URL do arquivo de A, ou o envelope de erro de A. Até a 0.87.0 ela resolvia (ou rejeitava com o `TempestApiError` de A) já na continuação de B: o `onSuccess` gravava a URL de A no cache de B (#642). Desde a **0.88.0**, um upload que saiu com token de `getToken` e cuja sessão mudou antes de a resposta chegar rejeita com `SessionSupersededError`, sucesso ou erro — o mesmo contrato do [`createApiClient`](#createapiclient) com `getSessionEpoch` (#609).
+
+Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto. Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
+
+```ts
+import { SessionSupersededError, createTempestAuth, uploadWithProgress } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export async function enviarAvatar(arquivo: File): Promise<string | null> {
+  try {
+    const { url } = await uploadWithProgress<{ url: string }>({
+      url: "/api/avatar",
+      body: arquivo,
+      getToken: auth.getToken,
+    });
+    return url;
+  } catch (error) {
+    if (error instanceof SessionSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+Trate o `SessionSupersededError` como um abort: descarte o resultado e não mostre nada. Upload que saiu **sem** token não diz nada sobre conta nenhuma e continua resolvendo; um refresh do token durante o upload não muda a sessão e também resolve.
+
+Medido em `src/http/upload-with-progress.session.test.ts` (`npx vitest run src/http/upload-with-progress.session.test.ts`): na `main` b3b9337, 10 dos 16 casos falhavam — nos dois transportes (XHR e `redirect: "error"`), a resposta de A depois da troca resolvia com `{ url: "/files/of-A" }` ou rejeitava com o envelope de A.
 
 ### Redirect no `uploadWithProgress` (0.83.0)
 

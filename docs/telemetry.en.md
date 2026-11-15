@@ -262,14 +262,34 @@ What it reads, and what it does **not** send:
 | --- | --- |
 | `platform` | `"web"` (browser and PWA); a native shell passes `platform: "android"` / `"ios"` |
 | `os_version` | OS family and version — `"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`, `"Windows"`, `"macOS"` |
-| `device_model` | the Android model when the user agent still carries it; `"iPhone"`/`"iPad"` on Apple |
-| `device_id` | a **random** v4 UUID (`crypto.randomUUID`, or `getRandomValues` outside a secure context), kept in `localStorage` |
+| `device_model` | the Android model when the user agent (or Client Hints) still carries it, **only when it has the shape of a model**; `"iPhone"`/`"iPad"` on Apple |
+| `device_id` | a **random** v4 UUID (`crypto.randomUUID`, or `getRandomValues` outside a secure context), kept in `localStorage`; with `getToken`, sent only alongside the bearer |
 
 !!! check "The raw user agent never leaves"
     The full user agent fingerprints the device — personal data under LGPD/GDPR.
     `createDeviceFacts` keeps the family, version and model and drops the rest.
     The `device_id` groups reports without saying whose they are, and a stored value
     under the key that is not a v4 UUID is **replaced**, never sent.
+
+!!! check "The model goes up only if it looks like one"
+    The model segment is the only free text read off the user agent: a WebView or a custom browser
+    can write anything there — the audit saw `user=alice@example.com token=abc123` reach
+    `device_model`. So the model, from the user agent **and** from Client Hints, goes through an
+    allowlist: letters, digits, space and `._()+-`, starting with a letter or a digit, up to 40
+    characters. It covers real models (`SM-S918B`, `Pixel 8 Pro`, `moto g(60)`, `M2101K6G`,
+    `CPH2449`, `2201117TG`, `ONEPLUS A6013`, `Redmi Note 9 Pro`, `ASUS_X00TD`); `=`, `@`, `:`, `/`
+    and control characters are out. What does not pass is **omitted**, never truncated.
+
+!!! check "`device_id` does not give away an anonymous report"
+    The device id survives sign-out. Sent with an anonymous report — before login, after logout, or
+    from another session — it would let the backend join that report to the same device's attributed
+    ones, undoing the anonymity. So `createAppErrorReporter` with `getToken` **strips `device_id`
+    from every send without a bearer**, on its own: there is no step for the app to remember at
+    logout. Without `getToken` nothing is attributed, there is nothing to join to, and the id always
+    goes out.
+
+    What stays visible, by choice: two accounts on the **same device** send the same `device_id` on
+    their attributed reports — grouping by device is what the id is for.
 
 !!! note "`Android 10; K` is not Android 10"
     Chrome reduced its user agent: **every** Android sends `Linux; Android 10; K`, with the version
@@ -352,7 +372,7 @@ export function onLogout(): void {
 - **The bearer depends on the token alone.** Same token at error and at send → bearer; any other → anonymous. A refresh between the error and the send also makes the report go out anonymously: attribution is lost, **never** misplaced.
 - **`getPrincipal`** — optional. A **stable, non-secret** id of who is signed in (the user id, not the email), stored only as a fingerprint (`entry.owner`). It does **not** grant the bearer — the principal and the token come from different sources, and a user store lagging behind a login would send Ana's report with Bruno's token. It lets `"drop"` tell whose report is whose. Only a string or a number counts as an id; an `async` or throwing getter reads as nobody.
 - **`foreignReports`** — what to do with a report that cannot go out with the current bearer:
-    - `"anonymous"` (default) sends it without `Authorization`. The route is public and the error is still useful.
+    - `"anonymous"` (default) sends it without `Authorization` and without `device_id`. The route is public and the error is still useful, just tied to nobody.
     - `"drop"` discards every report **not proven** to be the current principal's: someone else's, nobody's (raised with no session) or of unknown owner (old queue, or nobody signed in now). For apps where the previous user's error text must not leave the device. **Needs `getPrincipal`**: without it the only identity is the token, which changes on refresh — so a mismatch proves nothing, and the reporter sends anonymously instead of deleting the user's own reports (in dev, a one-time `console.warn` says so).
 - **`reporter.clear()` on logout** empties the queue, stops a `flush` in flight before its next send, and discards reports still waiting for an async `getToken`.
 - **An async `getToken` has a deadline**: after 5 s with no answer, the report is queued with no session and the `flush` goes on without a token — nothing hangs waiting.

@@ -37,9 +37,10 @@ export interface CreateAppErrorReporterOptions {
      * bearer — raised under another token, or queued before 0.77.0. Default
      * `"anonymous"`.
      *
-     * - `"anonymous"` — send it without `Authorization`. The route is public,
-     *   so the error still reaches the backend; it is only not attributed to
-     *   anybody. This includes the user's own reports raised before a token
+     * - `"anonymous"` — send it without `Authorization` and without
+     *   `device_id`. The route is public, so the error still reaches the
+     *   backend; it is only not attributed to anybody, and no device id ties it
+     *   back to the reports that were. This includes the user's own reports raised before a token
      *   refresh: attribution is lost, never misplaced.
      * - `"drop"` — discard every report not proven to be the current
      *   principal's: another principal, nobody, or unknown (no principal at
@@ -58,6 +59,12 @@ export interface CreateAppErrorReporterOptions {
     /**
      * Device facts, read **when the error is reported**, not when it is sent —
      * a report queued offline on `1.4.0` must not go out labelled `1.5.0`.
+     *
+     * With a `getToken`, `device_id` goes out only alongside a bearer: a report
+     * sent anonymously — before login, after logout, under a token that is no
+     * longer current — leaves without it, so the backend cannot join it to the
+     * device's attributed reports. Without a `getToken` nothing is ever
+     * attributed and the id is always sent.
      */
     device?: () => AppErrorDeviceSchema;
     /** Where the queue persists. Defaults to `localStorage`; `null` keeps it in memory. */
@@ -174,6 +181,27 @@ function readDevice(device: CreateAppErrorReporterOptions["device"]): AppErrorDe
 }
 
 /**
+ * Strip `device_id` from an entry about to leave without a bearer.
+ *
+ * The device id is stable across sessions and survives sign-out, so a report
+ * that carries it anonymously — raised before login, after logout, or under a
+ * token that is no longer current — can be joined by the backend to the
+ * attributed reports of the same device, undoing the anonymity. The reporter
+ * only does this when it has a `getToken`: without one no report is ever
+ * attributed, there is nothing to join to, and the id is all that groups a
+ * device's errors.
+ *
+ * @param entry - The queued entry.
+ * @returns The entry, or a copy whose report has no `device_id`.
+ */
+function withoutDeviceId(entry: AppErrorQueueEntry): AppErrorQueueEntry {
+    if (entry.report.device_id === undefined) return entry;
+    const report = { ...entry.report };
+    delete report.device_id;
+    return { ...entry, report };
+}
+
+/**
  * Fingerprint whoever `getPrincipal` says is signed in.
  *
  * @param getPrincipal - The app's principal getter.
@@ -275,7 +303,8 @@ export function createAppErrorReporter(options: CreateAppErrorReporterOptions): 
                 continue;
             }
             const bearer = entry.session != null && entry.session === session ? token : null;
-            const outcome = await sendOne(send, endpoint, bearer, entry);
+            const outgoing = bearer === null && getToken ? withoutDeviceId(entry) : entry;
+            const outcome = await sendOne(send, endpoint, bearer, outgoing);
             if (generation !== started) break;
             if (outcome.kind === "stop") break;
             if (outcome.kind === "wait") {

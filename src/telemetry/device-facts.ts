@@ -26,6 +26,43 @@ const ANDROID_NON_MODELS = new Set(["K", "Mobile", "Tablet", "wv"]);
 /** A locale token (`en-us`, `pt-BR`), which old Android user agents put before the model. */
 const LOCALE = /^[a-z]{2}(?:[-_][a-z]{2})?$/i;
 
+/**
+ * Longest device model accepted, in characters.
+ *
+ * Real models stay well under it — `SM-S918B` is 8, `Redmi Note 12 Pro+ 5G` is
+ * 21 — so the cap only bounds how much free text a custom user agent could
+ * smuggle through a value that passes the charset.
+ */
+const MAX_DEVICE_MODEL_LENGTH = 40;
+
+/**
+ * Shape of a device model: letters, digits, space and `._()+-`, starting with a
+ * letter or a digit.
+ *
+ * Built from models phones actually report — `SM-S918B`, `Pixel 8 Pro`,
+ * `moto g(60)`, `M2101K6G`, `CPH2449`, `2201117TG`, `ONEPLUS A6013`,
+ * `Redmi Note 9 Pro`, `ASUS_X00TD`, `Nokia 7.2`, `Redmi Note 12 Pro+ 5G`. It is
+ * an allowlist because the model is the one free-form value read off the user
+ * agent: a WebView or a custom browser can write anything in that segment
+ * (`user=alice@example.com token=abc123` was observed in an audit), and what
+ * does not look like a model is dropped rather than uploaded. `=`, `@`, `:`,
+ * `/`, `;` and every control character are outside the set, which is what keeps
+ * key-value pairs, e-mails and URLs out.
+ */
+const DEVICE_MODEL = /^[A-Za-z0-9][A-Za-z0-9 ._()+-]*$/;
+
+/**
+ * Accept a device model only when it has the shape of one.
+ *
+ * @param model - The candidate, already trimmed.
+ * @returns The model, or `undefined` when it is empty, longer than
+ *   {@link MAX_DEVICE_MODEL_LENGTH} or outside the model charset.
+ */
+function deviceModel(model: string): string | undefined {
+    if (model.length > MAX_DEVICE_MODEL_LENGTH || !DEVICE_MODEL.test(model)) return undefined;
+    return model;
+}
+
 /** The OS facts read from a user agent: the coarse version and, on Android, the model. */
 export interface UserAgentFacts {
     /** Coarse operating system, e.g. `"Android 14"`, `"iOS 17.2"`, `"macOS"`. */
@@ -43,7 +80,10 @@ export interface DeviceHints {
     platform?: string;
     /** High-entropy OS version, e.g. `"14.0.0"`; on Windows `"15.0.0"` means 11. */
     platformVersion?: string;
-    /** High-entropy device model, e.g. `"SM-A105M"`; empty on desktop. */
+    /**
+     * High-entropy device model, e.g. `"SM-A105M"`; empty on desktop. Kept only
+     * when it has the shape of a model, like the one read off the user agent.
+     */
     model?: string;
 }
 
@@ -100,18 +140,25 @@ function trimZeros(version: string): string {
  * `"Android 10"` would be a confident lie, so the reduced form yields bare
  * `"Android"` and no model — Client Hints fill them in where available.
  *
+ * The model segment runs to the next `;` or to the `)` that closes the
+ * platform group, keeping a balanced pair inside it: Motorola reports
+ * `moto g(60)`, which a plain `[^;)]*` would cut to `moto g(60`. What is left
+ * after the `Build/` suffix must then pass the model allowlist, or no model is
+ * reported.
+ *
  * @param ua - The user agent.
  * @returns The facts, or `null` when this is not an Android user agent.
  */
 function parseAndroid(ua: string): UserAgentFacts | null {
-    const match = /Android(?:\s+([\d.]+))?;\s*([^;)]*)/.exec(ua);
+    const match = /Android(?:\s+([\d.]+))?;\s*((?:[^;()]|\([^;()]*\))*)/.exec(ua);
     if (!match) return null;
     const version = match[1];
     const model = (match[2] ?? "").replace(/\s+Build\/.*$/, "").trim();
     if (model === "K") return { os_version: "Android" };
     const facts: UserAgentFacts = { os_version: version ? `Android ${version}` : "Android" };
-    if (model !== "" && !ANDROID_NON_MODELS.has(model) && !LOCALE.test(model)) {
-        facts.device_model = model;
+    if (!ANDROID_NON_MODELS.has(model) && !LOCALE.test(model)) {
+        const checked = deviceModel(model);
+        if (checked) facts.device_model = checked;
     }
     return facts;
 }
@@ -162,7 +209,8 @@ export function parseUserAgent(ua: string, maxTouchPoints: number = 0): UserAgen
  *
  * Only the families whose user agent is frozen gain from it: Android (version
  * and model behind the reduced `K`), Windows (`platformVersion` 13+ is
- * Windows 11) and macOS.
+ * Windows 11) and macOS. The hinted model passes the same allowlist as the
+ * user agent's; one that does not keeps the user agent's model, if any.
  *
  * @param facts - What the user agent said.
  * @param hints - What `getHighEntropyValues` returned.
@@ -170,11 +218,11 @@ export function parseUserAgent(ua: string, maxTouchPoints: number = 0): UserAgen
  */
 export function applyDeviceHints(facts: UserAgentFacts, hints: DeviceHints): UserAgentFacts {
     const version = hints.platformVersion ? trimZeros(hints.platformVersion) : "";
-    const model = hints.model?.trim() ?? "";
+    const model = deviceModel(hints.model?.trim() ?? "");
     if (hints.platform === "Android" && facts.os_version?.startsWith("Android")) {
         return {
             os_version: version ? `Android ${version}` : facts.os_version,
-            device_model: model || facts.device_model,
+            device_model: model ?? facts.device_model,
         };
     }
     if (hints.platform === "Windows" && facts.os_version === "Windows" && version) {
@@ -261,12 +309,16 @@ async function requestHints(data: UserAgentDataLike | undefined): Promise<Device
  * Privacy is the contract, not a setting (LGPD):
  *
  * - **The raw user agent never leaves.** It is a fingerprint; only the OS family,
- *   its version and the Android model are kept.
+ *   its version and the Android model are kept — and the model only when it has
+ *   the shape of one (letters, digits, space and `._()+-`, at most 40
+ *   characters), from the user agent and from Client Hints alike.
  * - **`device_id` is random**, minted from Web Crypto on first use and stored in
  *   `localStorage`. It groups reports from one device without saying whose it is,
  *   and a stored value that is not a v4 UUID is replaced, never uploaded.
  *   Storage that throws (Safari private mode, quota, blocked frame) degrades to
- *   an in-memory id for the session.
+ *   an in-memory id for the session. {@link createAppErrorReporter} with a
+ *   `getToken` sends it only alongside a bearer, so an anonymous report cannot
+ *   be tied to the signed-in reports of the same device.
  *
  * Chrome's reduced user agent freezes Android at `Android 10; K` on every phone,
  * so the user agent alone cannot give the version or the model there. Creating

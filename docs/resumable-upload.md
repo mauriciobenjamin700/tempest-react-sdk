@@ -155,6 +155,8 @@ export function onSessionEnd(): void {
 
 E se a troca de conta acontece **com o upload rodando**? O `getPrincipal` é relido antes de cada chunk e de cada gravação do registro: quando ele passa a apontar outra pessoa, o run para com `ResumableUploadSupersededError` (`reason: "principal"`), antes de o token da conta nova ir para a URL de upload da anterior. Um `clear()` no meio do run faz o mesmo (`reason: "cleared"`) em vez de o registro ser regravado. Não é pausa — o run não pode continuar como a conta nova: o estado vai para `"error"`.
 
+Desde a **0.88.0** a checagem também roda quando cada **resposta chega** (#642). Uma resposta que a request de A recebeu depois da troca — chunk confirmado, criação recusada com o envelope de erro de A, o `HEAD` de offset — rejeita com `ResumableUploadSupersededError` em vez de cair no `catch` de B com os dados de A; e um `HEAD` respondido depois da troca não cai mais na criação com o bearer de B e a `Idempotency-Key` de A. Com `reason: "principal"`, o registro que o run gravou para A também é **apagado**: ele guarda a URL do upload de A — que muitos servidores tus tratam como a credencial — e a chave de A, agora no storage de B, e ninguém pode usá-lo (o carimbo impede B de adotá-lo, e a sessão do `auth.getToken` não volta com a mesma chave). Um registro que B gravou na mesma chave enquanto isso fica. Até a 0.87.0 o registro de A ficava como estava.
+
 ```ts
 import { ResumableUploadSupersededError, createResumableUpload } from "tempest-react-sdk";
 

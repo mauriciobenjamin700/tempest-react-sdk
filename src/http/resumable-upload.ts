@@ -38,7 +38,11 @@ export const DEFAULT_CHUNK_SIZE = 5 * 1024 * 1024;
  *   the clear.
  *
  * Not a pause: the run cannot be resumed as the new account. The state moves
- * to `"error"`, and the previous owner's record is left as it was.
+ * to `"error"`. Since 0.88.0 the check also runs when each answer arrives, so
+ * an answer the previous account's request got back — a success, a refusal
+ * with its error envelope — rejects with this error instead of reaching the
+ * new account's continuation, and on `"principal"` the previous owner's record
+ * is deleted (#642).
  */
 export class ResumableUploadSupersededError extends Error {
     /** Why the run stopped. */
@@ -920,6 +924,53 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
     }
 
     /**
+     * Send one tus request of the run and check, once its answer arrived, that
+     * the run still belongs to the account that sent it.
+     *
+     * The answer is that account's: a confirmed offset, a `Location`, or an
+     * error envelope. Checked only before each request, as up to 0.87.0, an
+     * answer that landed after the session moved still went on — a refused
+     * chunk or creation rejected with the previous account's envelope into the
+     * next account's `catch`, and a probe answered after the switch fell
+     * through to a creation sent with the next account's bearer and the
+     * previous account's `Idempotency-Key` (#642). The same contract
+     * `createApiClient` applies with `getSessionEpoch`.
+     *
+     * @param init - The request.
+     * @returns The answer, when the run is still the current account's.
+     * @throws {ResumableUploadSupersededError} When the principal changed or
+     *   the storage was cleared while the request was on the wire.
+     */
+    async function exchange(init: TusRequest): Promise<RawResponse> {
+        const response = await sendRequest(init);
+        assertCurrentOwner();
+        return response;
+    }
+
+    /**
+     * Delete the record this run wrote for the account it can no longer act
+     * for, after a principal change stopped it.
+     *
+     * The record names that account's upload URL — which many tus servers
+     * treat as the credential to the upload — and its `Idempotency-Key`, and
+     * it now sits in the next account's storage. Nobody can use it: the owner
+     * stamp keeps it from being adopted (#479), and a session bound through
+     * `createTempestAuth` never comes back under the same key. Keeping it only
+     * served the previous account switching back in the same tab, at the price
+     * of leaving its capability where the next one can read it. A record the
+     * new account wrote under the same key in the meantime is not this run's,
+     * and stays. A storage that fails here does not replace the supersession
+     * the caller is about to receive.
+     */
+    async function forgetSupersededRecord(): Promise<void> {
+        if (!storage || !idempotencyKey) return;
+        const stored = await storage.get(key);
+        if (stored?.idempotencyKey === idempotencyKey && stored.owner === owner) {
+            await storage.delete(key);
+        }
+    }
+
+    /**
      * Whether a request to `target` carries the static `headers` — inside the
      * credential scope, with at least one — and must therefore refuse a
      * redirect, see {@link sendRequest}. Only those: the bearer token is
@@ -962,7 +1013,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * Ask the server how much it holds. The only source of truth after any failure.
      */
     async function probe(target: string): Promise<number> {
-        const response = await sendRequest({
+        const response = await exchange({
             method: "HEAD",
             url: target,
             headers: baseHeaders(target, "HEAD"),
@@ -1047,7 +1098,8 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                     offset = await probe(stored.url);
                     url = stored.url;
                     return stored.url;
-                } catch {
+                } catch (error) {
+                    if (error instanceof ResumableUploadSupersededError) throw error;
                     offset = 0;
                 }
             }
@@ -1076,7 +1128,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         const encoded = encodeMetadata(metadata);
         if (encoded) creationHeaders["Upload-Metadata"] = encoded;
 
-        const response = await sendRequest({
+        const response = await exchange({
             method: "POST",
             url: endpoint,
             headers: creationHeaders,
@@ -1106,7 +1158,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
 
         const end = Math.min(offset + chunkSize, file.size);
         const from = offset;
-        const response = await sendRequest({
+        const response = await exchange({
             method: "PATCH",
             url: target,
             headers: {
@@ -1211,6 +1263,10 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             ) {
                 setState(stopping === "abort" ? "aborted" : "paused");
                 return null;
+            }
+            if (error instanceof ResumableUploadSupersededError && error.reason === "principal") {
+                abandoned = true;
+                await forgetSupersededRecord().catch(() => undefined);
             }
             setState("error");
             throw error;

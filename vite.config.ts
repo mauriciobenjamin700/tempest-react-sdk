@@ -9,48 +9,68 @@ import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 
 const LIB_ENTRIES: Record<string, string> = {
-    "tempest-react-sdk": resolve(__dirname, "src/index.ts"),
-    testing: resolve(__dirname, "src/testing/index.ts"),
-    vite: resolve(__dirname, "src/vite/index.ts"),
+    "tempest-react-sdk": resolve(import.meta.dirname, "src/index.ts"),
+    testing: resolve(import.meta.dirname, "src/testing/index.ts"),
+    vite: resolve(import.meta.dirname, "src/vite/index.ts"),
     // Service-worker-context helpers only (push/notification/skip-waiting).
     // Pure, React-free — safe to bundle into a consuming app's `sw.ts`.
-    sw: resolve(__dirname, "src/sw/index.ts"),
+    sw: resolve(import.meta.dirname, "src/sw/index.ts"),
     // Recharts wrappers — `recharts` is an optional peer, externalized.
-    charts: resolve(__dirname, "src/charts/index.ts"),
+    charts: resolve(import.meta.dirname, "src/charts/index.ts"),
     // Rich text editor — tiptap is an optional peer, externalized.
-    editor: resolve(__dirname, "src/editor/index.ts"),
+    editor: resolve(import.meta.dirname, "src/editor/index.ts"),
     // Browser image processing for PWAs — canvas only, no deps.
     // Kept off the root entry so an app that never touches photos
     // does not pay for it.
-    imaging: resolve(__dirname, "src/imaging/index.ts"),
+    imaging: resolve(import.meta.dirname, "src/imaging/index.ts"),
     // Tabular inference — scikit-learn models exported to ONNX and
     // run in the browser. Shares the optional `onnxruntime-web`
     // peer with `vision`, externalized the same way.
-    tabular: resolve(__dirname, "src/tabular/index.ts"),
+    tabular: resolve(import.meta.dirname, "src/tabular/index.ts"),
     // Neural audio — RNNoise speech/enhancement suppression run in an
     // AudioWorklet. `@sapphi-red/web-noise-suppressor` is an optional peer;
     // the caller serves the worklet and wasm assets and hands over their URLs.
-    neural: resolve(__dirname, "src/neural/index.ts"),
+    neural: resolve(import.meta.dirname, "src/neural/index.ts"),
     // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
     // is an optional peer, externalized. Entry is `public.ts`, which
     // re-exports the vendored `index.ts` plus the SDK camera/luminance
     // hooks, so re-vendoring never clobbers the hook exports.
-    vision: resolve(__dirname, "src/vision/public.ts"),
+    vision: resolve(import.meta.dirname, "src/vision/public.ts"),
     // Brazilian locations + clickable UF map. Bundles the names
     // dataset + a simplified UF GeoJSON — kept off the root entry so
     // apps that don't need it pay nothing.
-    br: resolve(__dirname, "src/br/index.ts"),
+    br: resolve(import.meta.dirname, "src/br/index.ts"),
     // Icon-by-slug. The 25 generated shards are reachable only through
     // the dynamic imports in `generated/loaders.ts`, so they stay async
     // chunks in the consuming app instead of dragging ~2000 named
     // lucide imports into whatever imports `Icon`.
-    icons: resolve(__dirname, "src/icons/index.ts"),
+    icons: resolve(import.meta.dirname, "src/icons/index.ts"),
     // The static-registry module. Ships as a real, empty module so
     // `tempest-react-sdk/icons/virtual` resolves in every runner;
     // the `tempestIcons()` plugin overrides it with the generated
     // table when it is installed.
-    "icons-virtual": resolve(__dirname, "src/icons/virtual.ts"),
+    "icons-virtual": resolve(import.meta.dirname, "src/icons/virtual.ts"),
 };
+
+/**
+ * Names every emitted asset the same way in the ESM and CJS outputs.
+ *
+ * All CSS collapses into `styles.css` (`cssCodeSplit` is off); any other
+ * asset keeps its own name. Declared once and shared by both outputs because
+ * Vite 8 compares `assetFileNames` across `build.rolldownOptions.output` by
+ * identity: a closure created per output inside the `.map()` printed
+ * "assetFileNames isn't equal for every build.rolldownOptions.output" on every
+ * build, although both closures did the same thing.
+ *
+ * @param assetInfo - The asset Rolldown is about to emit.
+ * @returns The file name to emit it under.
+ */
+function assetFileName(assetInfo: { name?: string }): string {
+    if (assetInfo.name === "style.css" || assetInfo.name?.endsWith(".css")) {
+        return "styles.css";
+    }
+    return assetInfo.name ?? "[name][extname]";
+}
 
 let sharedCompilerState: CompilerState | undefined;
 
@@ -140,14 +160,17 @@ export default defineConfig({
             tsconfigPath: "./tsconfig.json",
             insertTypesEntry: true,
             bundleTypes: {
-                invokeOptions: sharedCompilerStateOptions(__dirname, resolve(__dirname, "dist")),
+                invokeOptions: sharedCompilerStateOptions(
+                    import.meta.dirname,
+                    resolve(import.meta.dirname, "dist"),
+                ),
             },
             include: ["src"],
         }),
     ],
     resolve: {
         alias: {
-            "@": resolve(__dirname, "src"),
+            "@": resolve(import.meta.dirname, "src"),
         },
     },
     css: {
@@ -164,7 +187,6 @@ export default defineConfig({
         lib: {
             entry: LIB_ENTRIES,
             name: "TempestReactSdk",
-            formats: ["es", "cjs"],
             fileName: (format, entryName) => {
                 const ext = format === "es" ? "js" : "cjs";
                 return `${entryName}.${ext}`;
@@ -229,12 +251,7 @@ export default defineConfig({
                     "@tanstack/react-query": "ReactQuery",
                     "lucide-react": "LucideReact",
                 },
-                assetFileNames: (assetInfo: { name?: string }) => {
-                    if (assetInfo.name === "style.css" || assetInfo.name?.endsWith(".css")) {
-                        return "styles.css";
-                    }
-                    return assetInfo.name ?? "[name][extname]";
-                },
+                assetFileNames: assetFileName,
             })),
         },
     },

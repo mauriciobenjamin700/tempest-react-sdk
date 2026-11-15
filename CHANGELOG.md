@@ -20,6 +20,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #633** (`npm run build && npx size-limit --json`): ESM 159 379 B (teto 159.2 KB → 159.5 kB); CJS 189 644 B (teto 189.2 KB → 189.7 kB). Nenhuma fatia importada mudou de teto.
 - **Tetos do barrel remedidos sobre a soma com a `main` ao mergear #636** (`npm run build && npx size-limit --json`): ESM 158 691 B (teto 158.6 kB → 158.8 kB); CJS 188 665 B (teto 188.4 kB → 188.8 kB). Nenhuma fatia importada mudou de teto.
 - **#623: barrel CJS 187,8 → 188,1 kB** (`npm run build && npx size-limit --json`,
   `src/utils/format.ts`, `relative-time.ts` e `index.ts` da `main` em `9d5c28a` contra os deste
@@ -67,6 +68,24 @@ src/hooks/use-draft-filters.test.tsx`): 13 falhas antes, 0 depois. Agora valores
   sem chamar `onApply` — o "Cancelar"/tocar fora de um bottom sheet de filtros, e o que chamar ao
   abri-lo. "Limpar sem aplicar" é `set(() => inicial)`, documentado no padrão bottom sheet em
   `docs/hooks.md`; não há `clearDraft()` separado.
+
+- **`createDeviceFacts`: o `device` do `createAppErrorReporter` pronto, sem o user agent cru**
+  (#621). Devolve o getter que a opção `device` espera, com `platform` (`"web"` por padrão; shell
+  nativo passa o seu), `os_version` grosso (`"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`,
+  `"Windows"`, `"macOS"`), `device_model` (modelo Android quando o UA ainda traz;
+  `"iPhone"`/`"iPad"`), `app_version` e um `device_id` UUID v4 **aleatório** (`crypto.randomUUID`,
+  ou `getRandomValues` fora de contexto seguro; sem Web Crypto, nenhum id — nunca `Math.random`).
+  O id fica em `localStorage`; storage que lança vira id em memória na sessão, e valor guardado que
+  não é UUID v4 é substituído, nunca enviado. A issue pedia "modelo Android descartando o `K`"; a
+  medição mostra que o defeito é maior: o UA reduzido do Chrome manda `Linux; Android 10; K` em
+  **todo** Android, então a versão também é mentira — a forma reduzida vira só `"Android"`, e o
+  getter pergunta uma vez às User-Agent Client Hints (`getHighEntropyValues(["platformVersion",
+"model"])`) para recuperar `"Android 14"` + modelo (e `"Windows 10"`/`"Windows 11"`). iPad em
+  modo desktop (UA de Mac) é reconhecido por `maxTouchPoints > 1`. A doc da telemetria trocava
+  `os_version: navigator.userAgent` — o UA cru, contra a própria regra — por `createDeviceFacts`.
+  Fatia nova no `size-limit`: `{ createDeviceFacts }` = 1,16 kB br; os tetos do barrel inteiro sobem
+  158,3 → 159,2 kB (ESM) e 188,1 → 189,2 kB (CJS), medidos 159,13 / 189,16 kB com `npx size-limit` sobre a `main` em `5f7e537`
+  — os ~0,8–1,1 kB são a função nova, que só pesa para quem a importa.
 
 ### Budgets
 

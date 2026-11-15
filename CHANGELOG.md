@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.86.0] — 2026-11-15
+
 ### Segurança
 
 - **`create-tempest-app`: o app gerado nasce com `npm audit` limpo.** Até a 0.85.0 o primeiro

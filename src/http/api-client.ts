@@ -481,6 +481,15 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * (see `failure`). An attempt that carried no token says nothing about any
      * account, so it resolves — or rejects with the API error — as before.
      *
+     * A `refresh()` that resolves after the rejected attempt's session ended
+     * stops the request before the replay: the replay would leave with the
+     * credential of whoever is signed in now and hand that account's answer to
+     * the continuation the ended one started. `createTempestAuth` already
+     * refuses inside its own refresh; a `refresh` hook of a standalone client
+     * that ignores its context did not, and up to 0.87.0 `logout()` +
+     * `login(B)` during it resent account A's `POST` with B's bearer (security
+     * audit run-16).
+     *
      * @param path - The path as the call site wrote it.
      * @param options - Request options, policy fields included.
      * @param decode - How to turn the response into a value.
@@ -508,6 +517,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                 let replayed: RequestAuthContext;
                 try {
                     await config.refresh(sent);
+                    if (sessionEndedSince(sent)) throw new SessionSupersededError();
                     replayed = authContext(skipAuth);
                     answered = replayed;
                     response = await send(path, url, inScope, init, requestId, method, skipAuth);

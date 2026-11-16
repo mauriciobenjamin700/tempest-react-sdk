@@ -237,3 +237,88 @@ describe("createApiClient — error responses of an ended session (run-15)", () 
         await expect(api.get("/me")).rejects.toMatchObject({ status: 401 });
     });
 });
+
+/**
+ * Security audit run-16 (low): the replay after a successful `refresh()`
+ * never checked the session of the rejected attempt. With a standalone
+ * `createApiClient`, a `refresh` hook that ignores its context (a documented
+ * use), and `logout()` + `login(B)` during the refresh, A's POST was resent
+ * with B's bearer and B's answer resolved into A's continuation.
+ * `createTempestAuth` guards its own refresh and was never affected.
+ */
+describe("createApiClient — replay after a refresh that outlived the session (run-16)", () => {
+    function switchingClient(next: string | null, retry?: boolean) {
+        let token: string | null = "A-token";
+        let epoch = 0;
+        const sent: (string | null)[] = [];
+        const fetcher = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+            const bearer = new Headers(init?.headers).get("Authorization");
+            sent.push(bearer);
+            if (bearer === "Bearer A-token") {
+                return new Response(JSON.stringify({ detail: "expired" }), {
+                    status: 401,
+                    headers: { "content-type": "application/json" },
+                });
+            }
+            return new Response(JSON.stringify({ owner: bearer }), {
+                status: 200,
+                headers: { "content-type": "application/json" },
+            });
+        }) as typeof fetch;
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => token,
+            getSessionEpoch: () => epoch,
+            refresh: async () => {
+                epoch += 1;
+                token = next;
+            },
+            ...(retry ? { retry: { retries: 2, initialDelay: 1, shouldRetry: () => true } } : {}),
+        });
+        return { api, sent };
+    }
+
+    it.each([
+        ["an account switch", "B-token"],
+        ["a sign-out", null],
+    ])("rejects instead of replaying A's request after %s during the refresh", async (_, next) => {
+        const { api, sent } = switchingClient(next);
+
+        await expect(
+            api.post("/orders", { body: JSON.stringify({ item: 1 }) }),
+        ).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(sent).toEqual(["Bearer A-token"]);
+    });
+
+    it("does not replay as B through the retry loop either", async () => {
+        const { api, sent } = switchingClient("B-token", true);
+
+        await expect(
+            api.post("/orders", { body: JSON.stringify({ item: 1 }) }),
+        ).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(sent).toEqual(["Bearer A-token"]);
+    });
+
+    it("still replays after a refresh that keeps the session (token rotation)", async () => {
+        let token = "A-token";
+        const fetcher = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+            const bearer = new Headers(init?.headers).get("Authorization");
+            return new Response(JSON.stringify({ owner: bearer }), {
+                status: bearer === "Bearer A-token" ? 401 : 200,
+                headers: { "content-type": "application/json" },
+            });
+        }) as typeof fetch;
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => token,
+            getSessionEpoch: () => 0,
+            refresh: async () => {
+                token = "A-token-2";
+            },
+        });
+
+        await expect(api.get("/me")).resolves.toEqual({ owner: "Bearer A-token-2" });
+    });
+});

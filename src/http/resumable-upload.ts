@@ -852,6 +852,32 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             throw new ResumableUploadSupersededError("cleared");
         }
     }
+    /**
+     * Whether the account that attached this run is gone — the principal
+     * changed or the local storage was cleared — checked only once the run has
+     * attached, since an owner exists only from then on.
+     *
+     * Read by `abort({ discard: true })`. A handle kept from before an account
+     * switch used to send the tus `DELETE` with the bearer of whoever is signed
+     * in now and to delete the record under the file fingerprint without
+     * checking whose it was; the default key is the same for the same file, so
+     * it could be the next account's own resume record (security audit run-16).
+     * When the owner moved, the discard only forgets this run's own record, as
+     * a supersession does, and nothing goes to the server.
+     *
+     * @returns `true` when {@link assertCurrentOwner} would throw.
+     */
+    function ownerMoved(): boolean {
+        if (owner === undefined) return false;
+        try {
+            assertCurrentOwner();
+            return false;
+        } catch (error) {
+            if (error instanceof ResumableUploadSupersededError) return true;
+            throw error;
+        }
+    }
+
     let stopping: "pause" | "abort" | null = null;
     let inFlight: InFlightRequest | null = null;
     let resumedFrom = 0;
@@ -1290,6 +1316,10 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             abandoned = true;
             setState("aborted");
             if (!discard) return;
+            if (ownerMoved()) {
+                await forgetSupersededRecord();
+                return;
+            }
             if (url) {
                 await sendRequest({
                     method: "DELETE",

@@ -6,6 +6,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **`createApiClient`: um `refresh()` que resolve depois de a sessão acabar não repete mais a
+  request com a credencial da conta nova.** Achado da auditoria `security-audit` quick **run-16**
+  (low), pré-tag da 0.88.0. Num `createApiClient` sem o `createTempestAuth`, com `getSessionEpoch`
+  e um hook `refresh` que ignora o `context` (uso documentado), um `logout()` + `login(B)` durante o
+  refresh reenviava o `POST` da conta A com o bearer de B, e a resposta de B resolvia na
+  continuação de A. Agora, se a sessão da tentativa rejeitada acabou quando o `refresh` resolve, a
+  request rejeita com `SessionSupersededError` sem repetir. O `createTempestAuth` já se protegia
+  dentro do próprio refresh. Testes em `src/http/api-client.session-epoch.test.ts` — **3 dos 4
+  novos falham sobre a `main` em `e1713b5`**.
+- **`createResumableUpload`: `abort({ discard: true })` num handle de antes da troca de conta não
+  manda mais o `DELETE` com o bearer da conta nova nem apaga o registro dela.** Unidade adiada da
+  run-16, validada aqui: o descarte enviava o `DELETE` com a credencial de quem estava logado e
+  apagava o registro sob o fingerprint do arquivo sem conferir de quem era — a chave padrão é a
+  mesma para o mesmo arquivo, então podia ser o registro de retomada de B. Com o dono mudado
+  (`getPrincipal`/sessão ou storage limpo), o descarte só esquece o registro deste upload, como
+  uma supersessão, e nada vai ao servidor. Testes em `src/http/resumable-upload.session.test.ts` —
+  **2 dos 3 novos falham sobre `e1713b5`**.
+
 - **`createDeviceFacts`: `device_model` só aceita texto com formato de modelo** (auditoria run-15,
   §6, #644). O `parseAndroid` pegava o trecho inteiro do user agent depois de `Android[ ver];`, e
   um WebView ou UA customizado punha texto livre no relato — `user=alice@example.com
@@ -18,6 +36,50 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
   do login, depois do logout, relato de outra sessão), deixando o backend ligar o relato anônimo
   aos atribuídos do mesmo aparelho. Agora todo envio sem Bearer sai sem `device_id`, sem passo do
   app no logout. Sem `getToken` nada é atribuído e o id continua indo sempre.
+
+### Adicionado
+
+- **`useMicrophone`: `messages` — o texto do erro por `kind`, na língua do app (#640).**
+  `messages?: Partial<Record<MediaAccessErrorKind, string>>` troca o `error.message` dos `kind`
+  listados; os outros mantêm a frase em inglês e o `kind` não muda. Mesmo contrato do `messages`
+  do `useCameraStream` (#617): a troca é aplicada na leitura do erro, então mudar de língua com o
+  erro na tela re-rotula na hora, sem pedir o microfone de novo. `useAudioRecorder` e
+  `createAudioRecorder` recebem só o stream e nunca mostram o erro do microfone — nada a repassar.
+  Doc em `docs/audio.md` e `.en.md`.
+
+- **`useScreenCapture`: `messages` — o texto do erro por `kind`, na língua do app (#641).**
+  `messages?: Partial<Record<MediaAccessErrorKind, string>>`, mesmo contrato do `useCameraStream`
+  (#617): troca o `error.message` dos `kind` listados, os outros mantêm a frase em inglês, o `kind`
+  não muda e a troca é aplicada na leitura do erro (mudar de língua re-rotula sem reabrir o
+  seletor). A issue partia de que o bloqueio de gravação de tela do macOS vira `permission-denied`
+  com texto de "browser settings"; o código diz outra coisa: `NotAllowedError` em `getDisplayMedia`
+  é tratado como **cancelamento** (`error` fica `null`, chama `onCancelled`), e `permission-denied`
+  só vem de `SecurityError`. Por isso `messages` não alcança o caso do macOS, e um teste fixa isso.
+  Nenhum `kind` novo: separar o bloqueio do sistema do seletor fechado depende de medir nome e
+  `message` do erro no Chrome, Safari e Firefox no macOS, e essa medição fica **pendente** (sem
+  browser macOS disponível). Nenhum componente do SDK mostra o erro do `useScreenCapture` ou do
+  `useVideoRecorder` — nada a localizar além do hook. Doc em `docs/device-capture.md` e `.en.md`.
+
+### Corrigido
+
+- **Regra interna de clique em link aceita `target` em qualquer caixa** (#645). O helper interno
+  que decide se o clique de um `Sidebar`/`NavigationMenu`/`Breadcrumbs` vai para o router só
+  reconhecia `_self` exato; a palavra-chave é case-insensitive no HTML, então `_SELF` ou `_Self`
+  deixaria o browser recarregar o documento inteiro. Inalcançável hoje (nenhum componente do SDK
+  renderiza `target` no link), corrigido antes que um passe a renderizar.
+- **`useDraftFilters` e `useDeepMemo` comparam objeto pelo conjunto de chaves** (#645). A igualdade
+  estrutural conferia só a contagem de chaves, então `{ a: undefined }` era igual a
+  `{ b: undefined }` — trocar um filtro opcional por outro deixava `isDirty` em `false` e o
+  `useDeepMemo` devolvia a referência antiga. Agora cada chave de um precisa existir no outro
+  (`Object.hasOwn`).
+
+- **`AudioRecorder`: o erro do microfone saía em inglês num gravador em pt-BR (#640).** O `locale`
+  padrão é `"pt-BR"`, mas a linha de status mostrava o `error.message` do `useMicrophone` cru —
+  "Microphone permission denied. Enable access in your browser settings." quando o usuário negava
+  no prompt (reproduzido na `main` com `NotAllowedError` no `getUserMedia`). Agora o componente
+  traz as seis frases por `kind` nas strings do `locale` e as repassa como `messages`; `locale="en"`
+  mantém o inglês. O teste que fixava `/in use by another app/` sob pt-BR foi reescrito (com o
+  porquê no corpo) para afirmar a frase em português.
 
 ### Budgets
 
@@ -51,8 +113,6 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
   22 testes novos, 14 falham na `main` b3b9337 (10 de 16 no `uploadWithProgress`, 4 de 6 no
   resumível); os outros 8 são controles (sem token, rotação, erro da sessão vigente, registro de B).
 
-### Budgets
-
 - A checagem de sessão custa bytes (`npm run build && npx size-limit --json`, medido contra a
   `main` b3b9337): "http client" 5519 → 5644 B (teto 5,6 → 5,65 kB), "resumable upload" 5051 →
   5116 B (teto 5,1 → 5,15 KB) e o barrel CJS 191299 → 191439 B (teto 191,4 → 191,5 kB).
@@ -75,66 +135,14 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
   (`b3b9337`) — medido lá, os headers enviados foram `["Bearer A-token", "Bearer B-token"]` no
   `GET` e no `POST`.
 
-### Budgets
-
 - A checagem custa bytes no cliente HTTP (`npm run build && npx size-limit --json`, medido contra a
   `main` em `b3b9337`): a fatia "typical app" foi de 12,78 kB a 12,88 kB (teto 12,8 → 12,9 kB) e a
   fatia "http client" de 5,52 kB a 5,61 kB (teto 5,6 → 5,7 kB).
 - **`createZip` recusa nome de entrada que escapa da pasta de extração** (#645). Segmento `..` (no início ou no meio), caminho absoluto (`/x`), letra de drive (`C:\x`, `C:/x`, `C:x`), barra invertida e NUL eram gravados como vieram, e um extrator ingênuo sofria _zip-slip_. Agora lançam `TypeError` antes de ler qualquer byte, como já acontecia com caminho vazio ou repetido; o nome não é normalizado em silêncio. Subpastas com `/` continuam.
 
-### Corrigido
-
-- **Regra interna de clique em link aceita `target` em qualquer caixa** (#645). O helper interno
-  que decide se o clique de um `Sidebar`/`NavigationMenu`/`Breadcrumbs` vai para o router só
-  reconhecia `_self` exato; a palavra-chave é case-insensitive no HTML, então `_SELF` ou `_Self`
-  deixaria o browser recarregar o documento inteiro. Inalcançável hoje (nenhum componente do SDK
-  renderiza `target` no link), corrigido antes que um passe a renderizar.
-- **`useDraftFilters` e `useDeepMemo` comparam objeto pelo conjunto de chaves** (#645). A igualdade
-  estrutural conferia só a contagem de chaves, então `{ a: undefined }` era igual a
-  `{ b: undefined }` — trocar um filtro opcional por outro deixava `isDirty` em `false` e o
-  `useDeepMemo` devolvia a referência antiga. Agora cada chave de um precisa existir no outro
-  (`Object.hasOwn`).
-
-### Budgets
-
 - **`slice: createZip`** 5,6 → 5,65 kB e **`slice: createZip + writeXlsx`** 6,7 → 6,75 kB: a
   validação de nomes do `createZip` (#645) custa +159 B / +160 B br. Medido com
   `npm run build && npx size-limit --json`: 5457 → 5616 B e 6550 → 6710 B contra a `origin/main`.
-
-### Adicionado
-
-- **`useMicrophone`: `messages` — o texto do erro por `kind`, na língua do app (#640).**
-  `messages?: Partial<Record<MediaAccessErrorKind, string>>` troca o `error.message` dos `kind`
-  listados; os outros mantêm a frase em inglês e o `kind` não muda. Mesmo contrato do `messages`
-  do `useCameraStream` (#617): a troca é aplicada na leitura do erro, então mudar de língua com o
-  erro na tela re-rotula na hora, sem pedir o microfone de novo. `useAudioRecorder` e
-  `createAudioRecorder` recebem só o stream e nunca mostram o erro do microfone — nada a repassar.
-  Doc em `docs/audio.md` e `.en.md`.
-
-### Corrigido
-
-- **`AudioRecorder`: o erro do microfone saía em inglês num gravador em pt-BR (#640).** O `locale`
-  padrão é `"pt-BR"`, mas a linha de status mostrava o `error.message` do `useMicrophone` cru —
-  "Microphone permission denied. Enable access in your browser settings." quando o usuário negava
-  no prompt (reproduzido na `main` com `NotAllowedError` no `getUserMedia`). Agora o componente
-  traz as seis frases por `kind` nas strings do `locale` e as repassa como `messages`; `locale="en"`
-  mantém o inglês. O teste que fixava `/in use by another app/` sob pt-BR foi reescrito (com o
-  porquê no corpo) para afirmar a frase em português.
-
-### Adicionado
-
-- **`useScreenCapture`: `messages` — o texto do erro por `kind`, na língua do app (#641).**
-  `messages?: Partial<Record<MediaAccessErrorKind, string>>`, mesmo contrato do `useCameraStream`
-  (#617): troca o `error.message` dos `kind` listados, os outros mantêm a frase em inglês, o `kind`
-  não muda e a troca é aplicada na leitura do erro (mudar de língua re-rotula sem reabrir o
-  seletor). A issue partia de que o bloqueio de gravação de tela do macOS vira `permission-denied`
-  com texto de "browser settings"; o código diz outra coisa: `NotAllowedError` em `getDisplayMedia`
-  é tratado como **cancelamento** (`error` fica `null`, chama `onCancelled`), e `permission-denied`
-  só vem de `SecurityError`. Por isso `messages` não alcança o caso do macOS, e um teste fixa isso.
-  Nenhum `kind` novo: separar o bloqueio do sistema do seletor fechado depende de medir nome e
-  `message` do erro no Chrome, Safari e Firefox no macOS, e essa medição fica **pendente** (sem
-  browser macOS disponível). Nenhum componente do SDK mostra o erro do `useScreenCapture` ou do
-  `useVideoRecorder` — nada a localizar além do hook. Doc em `docs/device-capture.md` e `.en.md`.
 
 ## [0.87.0] — 2026-11-15
 

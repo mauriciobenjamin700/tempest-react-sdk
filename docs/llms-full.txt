@@ -893,7 +893,7 @@ O que você ganha sem escrever nada:
 | `wavOptions` | `WavOptions` | — | `{ mono: true, sampleRate: 16000 }` serve pra fala. |
 | `audioBitsPerSecond` | `number` | — | 32000–64000 basta pra voz em Opus. |
 | `review` | `boolean` | `true` | Player de revisão antes de entregar. |
-| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos. |
+| `locale` | `"pt-BR" \| "en"` | `"pt-BR"` | Rótulos **e** a mensagem de erro do microfone. |
 | `footer` | `ReactNode` | — | Dica, contagem, aviso legal. |
 | `onError` | `(error: unknown) => void` | — | Falha do gravador, ou conversão WAV que não deu. |
 
@@ -1176,6 +1176,48 @@ export function GravadorProprio() {
 
 A ordem importa: um `mediaDevices` ausente é quase nunca "este navegador não faz áudio" — é uma página em HTTP, onde a API inteira simplesmente não existe. Reportar `unsupported` ali manda o dev procurar polyfill pra um problema que um `https://` resolve.
 
+#### Mensagens na língua do app: `messages`
+
+O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra língua sem
+embrulhar o hook, passe `messages` — um texto por `kind`:
+
+```tsx
+import { useMicrophone } from "tempest-react-sdk";
+
+const MENSAGENS_DO_MICROFONE = {
+  unsupported: "Este navegador não dá acesso ao microfone.",
+  insecure: "O microfone só funciona em conexão segura (HTTPS).",
+  "permission-denied": "Acesso ao microfone negado. Libere a permissão nas configurações do navegador.",
+  "not-found": "Nenhum microfone disponível neste aparelho.",
+  "in-use": "O microfone está em uso por outro app. Feche-o e tente de novo.",
+} as const;
+
+export function MicrofoneEmPortugues() {
+  const mic = useMicrophone({ messages: MENSAGENS_DO_MICROFONE });
+
+  return (
+    <>
+      <button onClick={mic.start}>Liberar microfone</button>
+      {mic.error && <p role="alert">{mic.error.message}</p>}
+    </>
+  );
+}
+```
+
+O `kind` não muda, então a UI que decide por tipo continua funcionando; só o `message`
+é trocado. O `kind` que você não listar mantém a frase em inglês. O `AudioRecorder` já faz
+isso a partir do `locale`: em `"pt-BR"` (o padrão) o erro do microfone sai em português, em
+`"en"` fica a frase do hook.
+
+!!! tip "Trocar de língua não pede o microfone de novo"
+    A mensagem é aplicada na leitura do erro, não na captura. Se o usuário trocar de
+    língua com o erro na tela, o texto muda na hora, sem novo `getUserMedia`.
+
+!!! note "Sobrescrever `unknown` esconde a causa original"
+    Em `unknown` o `message` padrão é o texto do próprio erro do navegador — a única
+    pista da causa. Traduzir esse `kind` troca a pista por uma frase genérica; registre
+    o erro no seu logger antes, se ele importa.
+
 ## Nível de gravação
 
 `useAudioRecorder` já publica `level` (0–1) a 10 Hz. Pra uma barra por frame, use o `createLevelMeter` direto e escreva no DOM:
@@ -1272,7 +1314,7 @@ Sem `timesliceMs` a gravação inteira fica em memória até o `stop()` — ok p
 - `AudioPlayer` — transporte pra um clipe; aceita `Blob` e **precisa** de `durationMs` pra gravação nova.
 - `useMediaPermission` — estado da permissão **sem** disparar o prompt; separa "nunca pedi" de "negado" (que é sticky).
 - `useMediaDevices` — mics e saídas, reage a `devicechange`; `labelsAvailable` diz quando o seletor vale a pena.
-- `useMicrophone` — stream + erro classificado; `stop()` **precisa** ser chamado ou o indicador de gravação não apaga.
+- `useMicrophone` — stream + erro classificado; `stop()` **precisa** ser chamado ou o indicador de gravação não apaga. `messages` põe o erro na língua do app.
 - `useAudioRecorder` — status, relógio que desconta pausa, nível, `maxDurationMs`, chunks.
 - `blobToWav` — WAV sem dependência, ~10× os bytes; MP3 fica no servidor.
 - `setAudioOutput` / `isAudioOutputSelectionSupported` — roteamento de saída, só Chromium.
@@ -19309,6 +19351,56 @@ Três estados decidem se isso parece certo, e dois deles são fáceis de perder:
     `onCancelled`, se você precisar distinguir um bloqueio de sistema (permissão de
     gravação de tela do macOS).
 
+### Mensagens na língua do app: `messages`
+
+O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra língua sem
+embrulhar o hook, passe `messages` — um texto por `kind`, o mesmo contrato do
+`useMicrophone` e do `useCameraStream`:
+
+```tsx
+import { useScreenCapture } from "tempest-react-sdk";
+
+const MENSAGENS_DA_TELA = {
+  unsupported: "Este navegador não compartilha a tela.",
+  insecure: "Compartilhar a tela só funciona em conexão segura (HTTPS).",
+  "permission-denied": "O compartilhamento de tela está bloqueado nesta página.",
+  "not-found": "Nenhuma tela disponível para compartilhar.",
+  "in-use": "Não foi possível capturar a tela agora. Feche outros compartilhamentos e tente de novo.",
+} as const;
+
+export function CompartilharEmPortugues() {
+  const screen = useScreenCapture({ messages: MENSAGENS_DA_TELA });
+
+  return (
+    <>
+      <button onClick={screen.start}>Compartilhar tela</button>
+      {screen.error && <p role="alert">{screen.error.message}</p>}
+    </>
+  );
+}
+```
+
+O `kind` não muda e o `kind` que você não listar mantém a frase em inglês. A mensagem é
+aplicada na leitura do erro: trocar de língua com o erro na tela re-rotula sem abrir o
+seletor de novo.
+
+| `kind` | De onde vem na captura de tela |
+| --- | --- |
+| `insecure` | página em HTTP puro |
+| `unsupported` | navegador sem `getDisplayMedia` (todo navegador no iOS) |
+| `permission-denied` | só `SecurityError` — **não** o `NotAllowedError` |
+| `not-found` | `NotFoundError` / `OverconstrainedError` |
+| `in-use` | `NotReadableError` |
+| `unknown` | o resto; o `message` padrão é o texto do próprio navegador |
+
+!!! note "O bloqueio de gravação de tela do macOS não passa por `messages`"
+    Ele chega como `NotAllowedError`, o mesmo nome do seletor fechado, e por isso vira
+    **cancelamento**: `error` fica `null` e não há mensagem para trocar. Quem quer explicar
+    "libere a gravação de tela nas Preferências do Sistema" faz isso no `onCancelled`.
+    Um `kind` próprio para esse caso depende de medir o que Chrome, Safari e Firefox no
+    macOS devolvem (nome e `message` do erro) — medição ainda **pendente**, sem a qual não
+    há como separar os dois casos sem chutar.
+
 ### Dicas para o seletor
 
 | Opção | Efeito |
@@ -19458,7 +19550,7 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
 - `useVideoRecorder` — mesmo motor do áudio: relógio que desconta pausa, `stop()` com todos
   os chunks, container negociado. Use `timesliceMs` para captura longa.
 - `useScreenCapture` — seletor fechado é cancelamento (não erro); `ended` é o **único**
-  sinal de que o usuário parou; `surface`/`hasAudio` dizem o que aconteceu de fato.
+  sinal de que o usuário parou; `surface`/`hasAudio` dizem o que aconteceu de fato; `messages` põe o erro na língua do app.
 - `useSpeechRecognition` — interim vs final, erros classificados, sem auto-restart. **O
   áudio sai do dispositivo no Chromium.**
 - `AIChat` + `composerRef` — ditado sem o componente conhecer a API de fala.
@@ -21857,6 +21949,7 @@ export function FiltroDoRebanho() {
 - `discard()` devolve o rascunho ao valor **aplicado**, sem publicar e sem chamar `onApply`. Chamado ao abrir, garante que a folha mostra o que está valendo, mesmo que alguém tenha fechado no meio de uma edição.
 - **Limpar sem aplicar é `set(() => VAZIO)`.** O updater troca o rascunho inteiro — `set(VAZIO)` faria merge e deixaria para trás uma chave opcional que o vazio não tem. Não existe um `clearDraft()` porque o updater já diz exatamente isso; `clear()` continua sendo o "limpar e aplicar" da barra de filtros.
 - `Set`, `Map` e `Date` no filtro funcionam: `isDirty` e a estabilidade do `applied` comparam pelo conteúdo (membros do `Set`, chaves e valores do `Map`, instante do `Date`). Até a 0.86.0 dois `Set`s diferentes comparavam iguais e o `apply()` não publicava.
+- Objeto compara pelo **conjunto** de chaves, não pela contagem: trocar `{ de: undefined }` por `{ ate: undefined }` deixa o rascunho sujo. Até a 0.87.0 os dois comparavam iguais, porque chave ausente também lê `undefined`.
 
 ### Lista como estado — `useListState`
 
@@ -22265,8 +22358,8 @@ Opções (todas exceto `baseURL` são opcionais):
 - `prefix` — segmento sob o qual toda requisição fica aninhada, tipo `"/api"`. Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro.
-- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura.
-- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror).
+- `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura. Com `retry` ligado, também impede que uma repetição saia em outra sessão — veja [Retentativa embutida](#retentativa-embutida). A proteção segue o bearer: um cliente só com cookie (`withCredentials`, sem `getToken`) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.
+- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`.
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
@@ -22759,6 +22852,7 @@ Repetir um `400` ou um `403` não conserta payload errado nem permissão que o u
 Detalhes que valem saber:
 
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
+- **A repetição não troca de conta.** Com `getSessionEpoch` (o `auth.api` do `createTempestAuth` já tem), a sessão da primeira tentativa é a sessão da request. Se, durante o backoff, essa sessão acabou (`logout()`, com ou sem o `login()` seguinte) ou a repetição sairia com um token que a primeira tentativa não tinha (um `login()` no meio de uma request que saiu deslogada), a repetição **não é enviada** e a request rejeita com `SessionSupersededError`. Antes da correção (#643), a repetição de A saía com o bearer de B e resolvia na continuação que A começou — e, com um `shouldRetry` que repete escrita, o `POST` de A rodava na conta de B. Request com `skipAuth`, ou deslogada nas duas pontas, não carrega conta e segue repetindo. Um `SessionSupersededError` nunca é repetido, diga o `shouldRetry` o que disser.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
 - `retry: true` faz **3 tentativas no total** (a primeira + 2 repetições). `retry: { retries: N }` faz `N` no total, e `retries: 0` faz uma só — veja [o que `retries` conta](#o-que-retries-conta).
@@ -22929,6 +23023,36 @@ export function AvatarUpload() {
     ```
 
     Até a 0.81.0, sem `credentialOrigin` o header ia para onde a `url` apontasse — inclusive uma URL assinada que veio de um corpo de resposta. A opção `csrf` segue exatamente o mesmo escopo. Os `headers` que você passa aqui são da chamada e vão para a `url` dela.
+
+### A resposta é da sessão que enviou (0.88.0)
+
+Um upload demora — e a sessão pode trocar enquanto ele sobe. A resposta que chega depois de `logout()` + `login(B)` é de **A**: a URL do arquivo de A, ou o envelope de erro de A. Até a 0.87.0 ela resolvia (ou rejeitava com o `TempestApiError` de A) já na continuação de B: o `onSuccess` gravava a URL de A no cache de B (#642). Desde a **0.88.0**, um upload que saiu com token de `getToken` e cuja sessão mudou antes de a resposta chegar rejeita com `SessionSupersededError`, sucesso ou erro — o mesmo contrato do [`createApiClient`](#createapiclient) com `getSessionEpoch` (#609).
+
+Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto. Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
+
+```ts
+import { SessionSupersededError, createTempestAuth, uploadWithProgress } from "tempest-react-sdk";
+
+export const auth = createTempestAuth({ baseURL: "https://api.exemplo.com" });
+
+export async function enviarAvatar(arquivo: File): Promise<string | null> {
+  try {
+    const { url } = await uploadWithProgress<{ url: string }>({
+      url: "/api/avatar",
+      body: arquivo,
+      getToken: auth.getToken,
+    });
+    return url;
+  } catch (error) {
+    if (error instanceof SessionSupersededError) return null;
+    throw error;
+  }
+}
+```
+
+Trate o `SessionSupersededError` como um abort: descarte o resultado e não mostre nada. Upload que saiu **sem** token não diz nada sobre conta nenhuma e continua resolvendo; um refresh do token durante o upload não muda a sessão e também resolve.
+
+Medido em `src/http/upload-with-progress.session.test.ts` (`npx vitest run src/http/upload-with-progress.session.test.ts`): na `main` b3b9337, 10 dos 16 casos falhavam — nos dois transportes (XHR e `redirect: "error"`), a resposta de A depois da troca resolvia com `{ url: "/files/of-A" }` ou rejeitava com o envelope de A.
 
 ### Redirect no `uploadWithProgress` (0.83.0)
 
@@ -29683,6 +29807,8 @@ export function onSessionEnd(): void {
 
 E se a troca de conta acontece **com o upload rodando**? O `getPrincipal` é relido antes de cada chunk e de cada gravação do registro: quando ele passa a apontar outra pessoa, o run para com `ResumableUploadSupersededError` (`reason: "principal"`), antes de o token da conta nova ir para a URL de upload da anterior. Um `clear()` no meio do run faz o mesmo (`reason: "cleared"`) em vez de o registro ser regravado. Não é pausa — o run não pode continuar como a conta nova: o estado vai para `"error"`.
 
+Desde a **0.88.0** a checagem também roda quando cada **resposta chega** (#642). Uma resposta que a request de A recebeu depois da troca — chunk confirmado, criação recusada com o envelope de erro de A, o `HEAD` de offset — rejeita com `ResumableUploadSupersededError` em vez de cair no `catch` de B com os dados de A; e um `HEAD` respondido depois da troca não cai mais na criação com o bearer de B e a `Idempotency-Key` de A. Com `reason: "principal"`, o registro que o run gravou para A também é **apagado**: ele guarda a URL do upload de A — que muitos servidores tus tratam como a credencial — e a chave de A, agora no storage de B, e ninguém pode usá-lo (o carimbo impede B de adotá-lo, e a sessão do `auth.getToken` não volta com a mesma chave). Um registro que B gravou na mesma chave enquanto isso fica. Até a 0.87.0 o registro de A ficava como estava.
+
 ```ts
 import { ResumableUploadSupersededError, createResumableUpload } from "tempest-react-sdk";
 
@@ -29829,7 +29955,7 @@ const upload = createResumableUpload({
 
 - `onProgress` recebe **bytes do arquivo inteiro**, não do chunk. `resumedFrom` diz quantos já estavam no servidor quando esta execução começou — útil pra não anunciar "0%" num upload que retomou em 80%.
 - `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
-- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica.
+- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica.
 
 !!! warning "O token não segue o `Location` para fora da sua origem"
     O tus responde a criação com um `Location` que **o servidor escolhe**, e o spec permite que seja uma URL absoluta em outro host — entregar o upload a um storage é operação normal, não ataque. Até a 0.65.0 o bearer token seguia aquele header para onde ele apontasse, junto com os bytes do arquivo.
@@ -34152,14 +34278,33 @@ O que ele lê, e o que ele **não** manda:
 | --- | --- |
 | `platform` | `"web"` (navegador e PWA); um shell nativo passa `platform: "android"` / `"ios"` |
 | `os_version` | família do SO e versão — `"Android 11"`, `"iOS 17.2.1"`, `"iPadOS 16.6"`, `"Windows"`, `"macOS"` |
-| `device_model` | o modelo Android quando o user agent ainda traz; `"iPhone"`/`"iPad"` na Apple |
-| `device_id` | UUID v4 **aleatório** (`crypto.randomUUID`, ou `getRandomValues` fora de contexto seguro), guardado em `localStorage` |
+| `device_model` | o modelo Android quando o user agent (ou as Client Hints) ainda traz, **só se tiver formato de modelo**; `"iPhone"`/`"iPad"` na Apple |
+| `device_id` | UUID v4 **aleatório** (`crypto.randomUUID`, ou `getRandomValues` fora de contexto seguro), guardado em `localStorage`; com `getToken`, só sai junto com o Bearer |
 
 !!! check "O user agent cru nunca sobe"
     O user agent inteiro é impressão digital do aparelho — dado pessoal pela LGPD.
     `createDeviceFacts` reduz a família, a versão e o modelo e descarta o resto.
     O `device_id` agrupa relatos sem dizer de quem são, e um valor guardado sob a
     chave que não seja UUID v4 é **substituído**, nunca enviado.
+
+!!! check "O modelo só sobe se parecer modelo"
+    O trecho do modelo é o único texto livre que sai do user agent: um WebView ou navegador
+    customizado escreve ali o que quiser — a auditoria viu `user=alice@example.com token=abc123`
+    chegar em `device_model`. Por isso o modelo, do user agent **e** das Client Hints, passa por uma
+    allowlist: letras, dígitos, espaço e `._()+-`, começando por letra ou dígito, até 40
+    caracteres. Cobre os modelos reais (`SM-S918B`, `Pixel 8 Pro`, `moto g(60)`, `M2101K6G`,
+    `CPH2449`, `2201117TG`, `ONEPLUS A6013`, `Redmi Note 9 Pro`, `ASUS_X00TD`); `=`, `@`, `:`, `/`
+    e caractere de controle ficam de fora. O que não passa é **omitido**, nunca truncado.
+
+!!! check "`device_id` não denuncia relato anônimo"
+    O id do aparelho sobrevive ao logout. Se fosse junto num relato anônimo — antes do login, depois
+    do logout, ou de outra sessão — o backend ligaria esse relato aos relatos atribuídos do mesmo
+    aparelho, desfazendo o anonimato. Por isso o `createAppErrorReporter` com `getToken` **tira o
+    `device_id` de todo envio sem Bearer**, sozinho: não há passo para o app lembrar no logout. Sem
+    `getToken` nada é atribuído, não há o que ligar, e o id sai sempre.
+
+    O que continua visível, por escolha: duas contas que usam o **mesmo aparelho** mandam o mesmo
+    `device_id` nos relatos atribuídos — o id existe para agrupar por aparelho.
 
 !!! note "`Android 10; K` não é Android 10"
     O Chrome reduziu o user agent: **todo** Android manda `Linux; Android 10; K`, com a versão
@@ -34242,7 +34387,7 @@ export function onLogout(): void {
 - **O Bearer depende só do token.** Mesmo token no erro e no envio → Bearer; qualquer outro → anônimo. Um refresh entre o erro e o envio também faz o relato sair anônimo: a atribuição se perde, **nunca** vai para a pessoa errada.
 - **`getPrincipal`** — opcional. Um id **estável e não secreto** de quem está logado (o id do usuário, não o e-mail), guardado só como impressão digital (`entry.owner`). Ele **não** libera o Bearer — principal e token vêm de fontes diferentes, e um store de usuário atrasado em relação ao login mandaria o relato da Ana com o token do Bruno. Ele serve para o `"drop"` saber de quem é cada relato. Só string ou número contam como id; um getter `async` ou que lança vale "ninguém".
 - **`foreignReports`** — o que fazer com relato que não pode sair com o Bearer atual:
-    - `"anonymous"` (padrão) envia sem `Authorization`. A rota é pública e o erro continua útil.
+    - `"anonymous"` (padrão) envia sem `Authorization` e sem `device_id`. A rota é pública e o erro continua útil, só não é ligado a ninguém.
     - `"drop"` descarta todo relato que **não se prova** do principal atual: de outra pessoa, de ninguém (levantado sem sessão) ou de dono desconhecido (fila antiga, ou ninguém logado agora). Para app em que o texto do erro do usuário anterior não pode sair do aparelho. **Exige `getPrincipal`**: sem ele, a única identidade é o token, que muda no refresh — então divergência não prova dono alheio, e o reporter envia anônimo em vez de apagar os relatos do próprio usuário (em dev, um `console.warn` único avisa).
 - **`reporter.clear()` no logout** esvazia a fila, interrompe um `flush` em andamento antes do próximo envio e descarta relatos que ainda esperavam um `getToken` assíncrono.
 - **`getToken` assíncrono tem prazo**: depois de 5 s sem resposta, o relato entra na fila sem sessão e o `flush` segue sem token — nada trava esperando.
@@ -37184,7 +37329,7 @@ export async function exportarHistorico(
 
 Pedaço por pedaço:
 
-- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte.
+- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte. O mesmo vale para o nome que deixaria um extrator ingênuo escrever fora da pasta de destino (*zip-slip*): segmento `..`, caminho absoluto (`/x`), letra de drive (`C:/x`, `C:x`), barra invertida ou NUL. O `createZip` recusa em vez de reescrever o nome — só você sabe qual era o caminho pretendido. Subpasta com `/` (`fotos/a.jpg`) segue valendo.
 - **`onProgress({ loaded, total })`** — em bytes de **entrada**. O `total` é conhecido antes de começar (tamanho do `Blob`, bytes UTF-8 da string), então a porcentagem é real desde a primeira chamada; a última sempre traz `loaded === total`.
 - **`level`** — deflate de `0` (só guarda) a `9`. Padrão `6`.
 - **`signal`** — um `AbortSignal` cancela no meio; a promise rejeita com o `reason` do sinal.
@@ -37208,7 +37353,7 @@ Pedaço por pedaço:
     Reproduza com `npm run build && node scripts/bench-zip.mjs 5` (máquina compartilhada, *load average* 13–19 durante a medição — os intervalos são largos por isso).
 
 !!! note "Custo de bundle"
-    `createZip` mora na raiz junto do `writeXlsx` — sem subpath, porque o `preserveModules` já separa: o `{ cn }` sozinho continua em 203 B. Quem importa `{ createZip }` paga 5,46 kB br **com** o `fflate` contado; `{ createZip, writeXlsx }` juntos, 6,55 kB (`npx size-limit`).
+    `createZip` mora na raiz junto do `writeXlsx` — sem subpath, porque o `preserveModules` já separa: o `{ cn }` sozinho continua em 203 B. Quem importa `{ createZip }` paga 5,62 kB br **com** o `fflate` contado; `{ createZip, writeXlsx }` juntos, 6,71 kB (`npx size-limit`, medido depois da validação de nomes do #645).
 
 ---
 

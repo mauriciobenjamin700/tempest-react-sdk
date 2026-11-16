@@ -508,6 +508,60 @@ describe("createResumableUpload — an answer of the session before the switch (
         expect((await createLocalUploadStorage().get(recordKey))?.idempotencyKey).toBe("key-of-B");
     });
 
+    /**
+     * Security audit run-16 (deferred unit): `abort({ discard: true })` on a
+     * handle kept from before the switch sent the tus `DELETE` with the bearer
+     * of whoever is signed in now and deleted the record under the file
+     * fingerprint without checking whose it was — the default key is the same
+     * for the same file, so it could be B's own resume record.
+     */
+    async function abandonedHandleOfA() {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+        tus.failPatchAt = null;
+        tus.seen = [];
+        return handle;
+    }
+
+    it("does not send the discarding DELETE with B's bearer from A's handle after the switch", async () => {
+        const handle = await abandonedHandleOfA();
+        await auth.login({ email: "b@x.test", password: "x" });
+
+        await handle.abort({ discard: true });
+
+        expect(tus.seen.filter((request) => request.method === "DELETE")).toEqual([]);
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+    });
+
+    it("keeps B's record under the same key when A's handle discards after the switch", async () => {
+        const handle = await abandonedHandleOfA();
+        await auth.login({ email: "b@x.test", password: "x" });
+        await createLocalUploadStorage().set(recordKey, {
+            url: "http://localhost:3000/api/uploads/of-B",
+            offset: 0,
+            size: file.size,
+            idempotencyKey: "key-of-B",
+            updatedAt: 1,
+        });
+
+        await handle.abort({ discard: true });
+
+        expect((await createLocalUploadStorage().get(recordKey))?.idempotencyKey).toBe("key-of-B");
+        expect(tus.seen.filter((request) => request.method === "DELETE")).toEqual([]);
+    });
+
+    it("still discards on the server and locally while the same session is signed in", async () => {
+        const handle = await abandonedHandleOfA();
+
+        await handle.abort({ discard: true });
+
+        expect(tus.seen.filter((request) => request.method === "DELETE")).toEqual([
+            expect.objectContaining({ authorization: "Bearer A-tok-1" }),
+        ]);
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+    });
+
     it("still finishes an anonymous upload", async () => {
         await auth.logout();
 

@@ -303,7 +303,7 @@ const upload = createResumableUpload({
 
 - `onProgress` recebe **bytes do arquivo inteiro**, não do chunk. `resumedFrom` diz quantos já estavam no servidor quando esta execução começou — útil pra não anunciar "0%" num upload que retomou em 80%.
 - `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
-- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica.
+- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica.
 
 !!! warning "O token não segue o `Location` para fora da sua origem"
     O tus responde a criação com um `Location` que **o servidor escolhe**, e o spec permite que seja uma URL absoluta em outro host — entregar o upload a um storage é operação normal, não ataque. Até a 0.65.0 o bearer token seguia aquele header para onde ele apontasse, junto com os bytes do arquivo.

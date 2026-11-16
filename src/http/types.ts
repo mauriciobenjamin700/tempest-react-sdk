@@ -247,6 +247,11 @@ export interface ApiClientConfig {
      * can tell a stale `401` — the token already rotated since the request left —
      * from a fresh one, and skip a second refresh.
      *
+     * When the refresh resolves after the rejected request's session ended —
+     * `getSessionEpoch` moved and the request had left with a token — the
+     * request rejects with {@link SessionSupersededError} instead of replaying:
+     * the replay would carry the credential of whoever is signed in now.
+     *
      * Throwing {@link SessionSupersededError} rejects the request with that
      * error **without** calling `onUnauthorized`: the session the refresh
      * belonged to is gone, and the one in its place must not be ended for it.

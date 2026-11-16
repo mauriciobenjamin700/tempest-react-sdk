@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.88.0] — 2026-11-16
+
 ### Segurança
 
 - **`createApiClient`: um `refresh()` que resolve depois de a sessão acabar não repete mais a

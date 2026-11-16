@@ -83,6 +83,11 @@ token=abc123` chegava em `device_model`; o `model` das Client Hints passava igua
 
 ### Budgets
 
+- **Guard do `abort({ discard: true })` (run-16): `slice: resumable upload` 5,15 → 5,2 kB.**
+  Medido com `npm run build && npx size-limit --json` sobre a `main` em `e1713b5` e sobre o
+  branch: 5 116 → 5 158 B (+42). `http client` 5 703 → 5 709 B e `typical app` 12 882 → 12 871 B
+  seguem nos tetos.
+
 - **Budgets remedidos sobre a soma com a `main` ao mergear #650** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 782 B (teto 161.7 kB → 161.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #654** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 161 616 B (teto 161.4 kB → 161.7 kB); `ceiling: full barrel CJS` 191 794 B (teto 191.7 kB → 191.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #655** (`npm run build && npx size-limit --json`): `slice: http client` 5 703 B (teto 5.7 kB → 5.8 kB); `ceiling: full barrel CJS` 191 620 B (teto 191.5 kB → 191.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.

@@ -4,6 +4,36 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`TrackPoint.speed` e `TrackPoint.heading`** (#662): o `createPositionTracker` /
+  `usePositionTracker` copia `coords.speed` (m/s, a unidade do navegador) e `coords.heading`
+  (graus) para cada ponto, com `null` quando o aparelho não informa ou manda valor não finito — o
+  `heading` `NaN` de aparelho parado vira `null`. Opcionais no tipo, então trajetória montada à mão
+  ou guardada antes continua válida.
+- **`lastError` no `createPositionTracker` e no `usePositionTracker`** (#662): o erro por trás do
+  `status` `"error"`, para a tela separar recusa (`code === 1`) de sinal perdido (`2`/`3`). Volta a
+  `null` na recuperação, no `start()`, no `stop()` e no `clear()`.
+
+### Corrigido
+
+- **`createPositionTracker`: o `status` não fica mais preso em `"error"` depois de um erro
+  passageiro do GPS** (#662). Um `POSITION_UNAVAILABLE` ou `TIMEOUT` punha o status em `"error"` e
+  as leituras seguintes do `watchPosition`, ainda ativo, não o devolviam a `"tracking"`. Agora
+  qualquer leitura recupera — inclusive uma que o filtro `minDistanceKm` descarta, porque ela já
+  prova que o sinal voltou. `TIMEOUT` repetido mantém `"error"` e chama `onError` a cada vez.
+  `PERMISSION_DENIED` continua terminal e agora também libera o watch morto, então `start()` volta
+  a funcionar depois de o usuário liberar a permissão (antes era no-op até um `stop()`). Leitura ou
+  erro que chega depois do `stop()` é ignorado. Testes em `src/geo/create-position-tracker.test.ts`
+  e `src/geo/use-position-tracker.test.tsx` — **os 15 novos falham sobre a `main` em
+  `0053a1f`**.
+
+### Budgets
+
+- **Recuperação do `createPositionTracker`, `lastError` e `speed`/`heading` (#662): barrel CJS
+  191,9 → 192,0 kB.** Medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `0053a1f` e sobre este branch: 191 795 → 191 932 B (+137). As demais fatias seguem nos tetos.
+
 ## [0.88.0] — 2026-11-16
 
 ### Segurança

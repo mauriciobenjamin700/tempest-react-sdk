@@ -30,6 +30,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #665** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 166 146 B (teto 165 kB → 166.2 kB); `ceiling: full barrel CJS` 196 698 B (teto 195.7 kB → 196.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #664** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 162 755 B (teto 162.6 kB → 162.9 kB); `ceiling: full barrel CJS` 193 003 B (teto 193 kB → 193.1 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Recuperação do `createPositionTracker`, `lastError` e `speed`/`heading` (#662): barrel CJS
   191,9 → 192,0 kB.** Medido com `npm run build && npx size-limit --json` sobre a `main` em

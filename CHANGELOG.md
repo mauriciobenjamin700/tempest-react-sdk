@@ -4,6 +4,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createApiClient`: `refresh()` que lança depois de uma troca de conta não entrega mais o 401 da
+  conta anterior** (#657, auditoria run-16 §6). Com um `refresh` próprio, `logout()` + `login(B)`
+  durante o hook e o hook rejeitando em seguida, a request rejeitava com o `TempestApiError` de A
+  (envelope `detail`/`code` no `onError` de B) e chamava o `onUnauthorized` sob B — um
+  `onUnauthorized` que chama `logout()` derrubava a sessão de B. Agora rejeita com
+  `SessionSupersededError`, sem chamar `onUnauthorized`. O sinal é a credencial que ficou: época
+  mudou **e** o token atual não é o da request nem vazio. Refresh que falha e desloga (sem token) e
+  `onUnauthorized` que chama `logout()` continuam rejeitando com o 401 (regra do #646). O mesmo vale
+  quando a troca acontece enquanto o `onUnauthorized` aguarda.
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

@@ -379,12 +379,146 @@ Piece by piece:
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Spoken name of each kind. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | A marker panel opened (`id`) or closed (`null`). |
 
+## Snapping to the road (map-matching) — `createRoadGraph`, `matchToRoads`, `createRoadMatcher`
+
+City GPS is off by 3 to 30 m, sometimes much more. Snapping each position to the **nearest** road looks like the fix, but it is wrong on 1 position in 7: the parallel street 15 m away, the other side of the intersection, the opposite carriageway. `matchToRoads` looks at the **sequence**: a road the vehicle could not have reached in one second loses to the road it is driving on.
+
+It is the hidden Markov model of Newson & Krumm (2009), decoded with Viterbi:
+
+- **Candidates**: the roads within `radiusM` of the position, at most `maxCandidates`.
+- **Emission**: a Gaussian on the distance from the position to the road (`sigmaM`) — a near road is more likely.
+- **Transition**: an exponential on `|straight line − network distance|` (`betaM`) — between two consecutive positions, the path along the network should be as long as the move. The network distance comes from a bounded Dijkstra (`maxDetourM`).
+
+### Where the graph comes from
+
+The API is **source-agnostic**: `nodes` are coordinates and `edges` are pairs of node **indices** (`from` → `to`), each carrying whatever your app wants (`id`, name, speed limit). The recommended path is **OpenStreetMap served by your backend**, per tile or region:
+
+- every `way` with `highway=*` becomes one edge per pair of consecutive nodes;
+- `oneway=yes` becomes `twoWay: false`; no `oneway`, `twoWay: true`; `oneway=-1`, swap `from`/`to`;
+- the backend cuts the region (bounding box or tile) and sends the JSON below, which the app caches.
+
+```json
+{
+  "nodes": [{ "latitude": -5.0892, "longitude": -42.8016 }, { "latitude": -5.0901, "longitude": -42.8003 }],
+  "edges": [{ "from": 0, "to": 1, "twoWay": true, "id": "way/24680", "name": "Av. Frei Serafim" }]
+}
+```
+
+Build the graph **once** per region and reuse it for every trace: building is the expensive part (the spatial index and the adjacency); querying is cheap.
+
+### Matching a recorded trace
+
+```ts
+import {
+  createRoadGraph,
+  matchToRoads,
+  type Coordinate,
+  type RoadEdge,
+  type RoadGraph,
+} from "tempest-react-sdk";
+
+interface Street extends RoadEdge {
+  id: string;
+  name: string;
+}
+
+interface RoadTile {
+  nodes: Coordinate[];
+  edges: Street[];
+}
+
+export async function loadRoads(bbox: string): Promise<RoadGraph<Street>> {
+  const response = await fetch(`/api/roads?bbox=${bbox}`);
+  if (!response.ok) throw new Error(`roads: HTTP ${response.status}`);
+  const tile = (await response.json()) as RoadTile;
+  return createRoadGraph(tile);
+}
+
+export async function streetsDriven(trace: Coordinate[]): Promise<string[]> {
+  const graph = await loadRoads("-42.83,-5.11,-42.78,-5.06");
+  const result = matchToRoads(trace, graph);
+
+  for (const [i, match] of result.matches.entries()) {
+    if (match === null) console.warn(`position ${i}: no road within 200 m`);
+  }
+  console.log(`${result.breaks} breaks, ${result.dropped} stopped positions`);
+
+  return result.routes.flatMap((route) => route.edges.map((step) => step.edge.name));
+}
+```
+
+Piece by piece:
+
+- **`matches`** has one entry per position, in order: the edge (`edge`, **your** object), the point projected on the road (`point`), the distance (`distanceM`), the position along the edge (`offsetM`), and `reversed` when a two-way road is driven from `to` to `from`. `null` when no road is within `radiusM`.
+- **`routes`** is the inferred route: the edges driven, in order, **including the ones between two positions**, recovered by the shortest path on the network.
+- **Break (`breaks`)**: when no transition is possible (a signal gap, a road missing from the graph), the chain restarts at that position instead of failing. Each unbroken run becomes one entry in `routes`.
+- **Stopped position (`dropped`)**: a position closer than `minSpacingM` (default `2 × sigmaM`) to the previous one skips the model — the vehicle moved less than the GPS noise. It is projected onto the previous position's edge and comes back with `inferred: true`, never `null`.
+
+`TrackPoint` is a `Coordinate`, so the `points` of `usePositionTracker` go straight in.
+
+### On the live map — `createRoadMatcher`
+
+`matchToRoads` needs the whole trace. To draw the vehicle **now**, `createRoadMatcher` runs the same model one position at a time, with fixed-lag Viterbi:
+
+```ts
+import { createRoadMatcher, type Coordinate, type RoadGraph } from "tempest-react-sdk";
+
+export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
+  const matcher = createRoadMatcher(graph, { lag: 5 });
+  return (fix) => {
+    const { current, committed } = matcher.push(fix);
+    for (const final of committed) {
+      console.log(`position ${final.index} confirmed on`, final.match?.edge);
+    }
+    return current?.point ?? fix;
+  };
+}
+```
+
+- **`current`** is the best guess for the position that just arrived: draw the vehicle with it. It can still change.
+- **`committed`** holds the positions that became **final**: each waits for `lag` newer positions before it is decided. A confirmed position never changes.
+- Memory is bounded by `lag`; `flush()` confirms what is left (end of the trip). The route between positions is not rebuilt here: run `matchToRoads` on the finished trace for it.
+
+### What was measured
+
+`npm run build && node --expose-gc scripts/bench-map-matching.mjs`, on the Kubicka et al. dataset (Zenodo 57731, CC BY-SA 4.0): 100 real drives worldwide, 247 251 positions at ~1 Hz, each with its ground-truth route and OpenStreetMap excerpt. "Right road" is the same metric as the naive snap: the matched edge belongs to the true route (direction ignored); `null` counts as wrong.
+
+| Measure (defaults) | Result |
+| --- | --- |
+| Right road, snap to the nearest road | 85.7% |
+| Right road, `matchToRoads`, all 100 drives | **92.33%** |
+| Right road, without the 3 drives tagged `hives` (97 drives) | **98.53%** |
+| Right road, median per drive | 99.9% (88 of 100 drives ≥ 97%) |
+| Length of the true route recovered | 99.27% (0.78% extra length) |
+| Breaks | 48 over 100 drives |
+| `createRoadMatcher`, `lag` 0 / 1 / 5 / 20 | 89.04% / 91.10% / 92.23% / 92.32% |
+| Time (Node 24, i9-13900F) | 8.1 µs per position; 1 h at 1 Hz (3600 positions) in 11 ms |
+
+!!! warning "The measured limit"
+    Two drives (5 844 and 19 313 positions, 10% of the dataset) wander through yards and areas with no road in the OSM excerpt — the dataset itself tags them `hives` — and score 18% and 43%. No parameter saves them: there is no right road to snap to. It is the same "road the base does not have" signal the backend inference will handle. Without them, matching is above 97%.
+
+!!! note "Performance on the device"
+    Measured on a desktop, not on a phone. A 16-thousand-edge graph (a mid-sized city) builds in 8 ms and takes ~1 MB; the dataset's largest, 307 thousand edges, builds in 68 ms and takes 47 MB — cut the region into tiles. Matching 1 h at 1 Hz allocates ~30 MB of short-lived memory and retains almost nothing; the live mode costs ~3 µs per position. Even on a phone 10× slower, that is under 1 ms per position.
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `sigmaM` | `7` | GPS noise, in metres (Gaussian emission). |
+| `betaM` | `3` | Transition scale, in metres. Smaller punishes detours harder. |
+| `radiusM` | `200` | Roads farther than this are not candidates. |
+| `maxCandidates` | `16` | At most this many roads per position (a two-way road counts once). |
+| `minSpacingM` | `2 × sigmaM` | Positions closer than this to the previous one skip the model. |
+| `maxDetourM` | `100` | Maximum network detour over the straight line. Beyond it the transition is impossible. |
+| `lag` (`createRoadMatcher` only) | `5` | Newer positions before one is confirmed. |
+
+The defaults live in `ROAD_MATCH_DEFAULTS` and `ROAD_MATCHER_DEFAULT_LAG`. The full sweep table (radius × k, σ × β, detour, pre-filter) comes out of the same command.
+
 ## Recap
 
 - **Capture**: `usePositionTracker` / `createPositionTracker` record a trajectory via `navigator.geolocation`, filtering jitter — all in the browser.
 - **Math**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, mirroring `tempest-fastapi-sdk`.
 - **Map**: `TrajectoryMap` plots tile-free SVG by default; `tileUrl` enables Leaflet only with a server **you host**.
 - **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position.
+- **Road snapping**: `createRoadGraph` + `matchToRoads` (whole trace) and `createRoadMatcher` (live) put each position on the right road — 98.5% measured outside the road-less areas.
 - **Real routing**: `createOSRMBackend` is opt-in and points at **your** OSRM — the only piece that touches the network.
 
 ## See also

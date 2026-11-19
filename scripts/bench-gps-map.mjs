@@ -23,75 +23,16 @@
  *
  * `cache-dir` defaults to the OS temp dir.
  */
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { strFromU8, unzipSync } from "fflate";
+import { unzipSync } from "fflate";
+import { loadZip, records, table } from "./kubicka-dataset.mjs";
 
-const ZIP_URL = "https://zenodo.org/api/records/57731/files/map-matching-dataset.zip/content";
-const ZIP_MD5 = "38a224b5607ae3c1fca8534496a9680a";
 const EARTH_RADIUS_M = 6_371_008.8;
 const CELL_M = 25;
 const GAP_RESET_S = 30;
 const MEASUREMENT_SIGMAS_M = [5, 10, 20];
 const ACCEL_SIGMAS = [0.5, 1, 2, 4];
 const BRAZIL_BOX = { minLon: -74, maxLon: -34.8, minLat: -33.8, maxLat: 5.3 };
-
-/**
- * Load the dataset zip, from the cache or the network, and check its MD5.
- *
- * @param {string} cacheDir - Where the zip is cached between runs.
- * @returns {Promise<Uint8Array>} The verified archive bytes.
- * @throws {Error} When the download fails or the MD5 does not match.
- */
-async function loadZip(cacheDir) {
-    const path = join(cacheDir, `kubicka-map-matching-${ZIP_MD5}.zip`);
-    let bytes;
-    if (existsSync(path)) {
-        bytes = new Uint8Array(readFileSync(path));
-    } else {
-        const response = await fetch(ZIP_URL);
-        if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
-        bytes = new Uint8Array(await response.arrayBuffer());
-    }
-    const md5 = createHash("md5").update(bytes).digest("hex");
-    if (md5 !== ZIP_MD5) throw new Error(`MD5 mismatch: ${md5}`);
-    if (!existsSync(path)) writeFileSync(path, bytes);
-    return bytes;
-}
-
-/**
- * Parse a whitespace-separated numeric table.
- *
- * @param {string} text - File contents.
- * @returns {number[][]} One array of numbers per non-empty line.
- */
-function table(text) {
-    return text
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((line) => line.split(/\s+/).map(Number));
-}
-
-/**
- * Group the archive entries into records by their numeric folder.
- *
- * @param {Record<string, Uint8Array>} files - The unzipped archive.
- * @returns {Map<string, Record<string, string>>} Record id to extension to text.
- */
-function records(files) {
-    const byId = new Map();
-    for (const [name, data] of Object.entries(files)) {
-        const match = /(\d{8})\/\d{8}\.(track|nodes|arcs|route)$/.exec(name);
-        if (!match) continue;
-        const entry = byId.get(match[1]) ?? {};
-        entry[match[2]] = strFromU8(data);
-        byId.set(match[1], entry);
-    }
-    return byId;
-}
 
 /**
  * Build the local plane projection around an origin.

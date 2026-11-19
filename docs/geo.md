@@ -374,12 +374,146 @@ Pedaço por pedaço:
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Nome falado de cada tipo. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
 
+## Encaixe na rua (map-matching) — `createRoadGraph`, `matchToRoads`, `createRoadMatcher`
+
+O GPS erra de 3 a 30 m na cidade, e às vezes muito mais. Encaixar cada posição na rua **mais próxima** parece resolver, mas erra em 1 de cada 7 posições: a rua paralela a 15 m, o outro lado do cruzamento, a pista do sentido contrário. O `matchToRoads` olha a **sequência**: uma rua que o veículo não teria como alcançar em um segundo perde para a rua em que ele está andando.
+
+É o modelo oculto de Markov de Newson & Krumm (2009), com Viterbi:
+
+- **Candidatas**: as ruas a até `radiusM` do ponto, no máximo `maxCandidates`.
+- **Emissão**: uma gaussiana na distância do ponto até a rua (`sigmaM`) — rua perto é mais provável.
+- **Transição**: uma exponencial em `|linha reta − distância pela rede|` (`betaM`) — entre dois pontos seguidos, o caminho pela rede deve ter o tamanho do deslocamento. A distância pela rede vem de um Dijkstra limitado (`maxDetourM`).
+
+### De onde vem o grafo
+
+A API é **agnóstica de fonte**: `nodes` são coordenadas e `edges` são pares de **índices** de nó (`from` → `to`), cada um com o que o seu app quiser junto (`id`, nome, velocidade máxima). O caminho recomendado é o **OpenStreetMap servido pelo seu backend**, por tile ou por região:
+
+- cada `way` com `highway=*` vira uma aresta por par de nós consecutivos;
+- `oneway=yes` vira `twoWay: false`; sem `oneway`, `twoWay: true`; `oneway=-1`, inverta `from`/`to`;
+- o backend corta a região (bounding box ou tile) e manda o JSON abaixo, que o app guarda em cache.
+
+```json
+{
+  "nodes": [{ "latitude": -5.0892, "longitude": -42.8016 }, { "latitude": -5.0901, "longitude": -42.8003 }],
+  "edges": [{ "from": 0, "to": 1, "twoWay": true, "id": "way/24680", "name": "Av. Frei Serafim" }]
+}
+```
+
+Monte o grafo **uma vez** por região e reutilize para todo trajeto: montar é a parte cara (o índice espacial e a adjacência); consultar é barato.
+
+### Encaixar um trajeto gravado
+
+```ts
+import {
+  createRoadGraph,
+  matchToRoads,
+  type Coordinate,
+  type RoadEdge,
+  type RoadGraph,
+} from "tempest-react-sdk";
+
+interface Street extends RoadEdge {
+  id: string;
+  name: string;
+}
+
+interface RoadTile {
+  nodes: Coordinate[];
+  edges: Street[];
+}
+
+export async function loadRoads(bbox: string): Promise<RoadGraph<Street>> {
+  const response = await fetch(`/api/roads?bbox=${bbox}`);
+  if (!response.ok) throw new Error(`roads: HTTP ${response.status}`);
+  const tile = (await response.json()) as RoadTile;
+  return createRoadGraph(tile);
+}
+
+export async function streetsDriven(trace: Coordinate[]): Promise<string[]> {
+  const graph = await loadRoads("-42.83,-5.11,-42.78,-5.06");
+  const result = matchToRoads(trace, graph);
+
+  for (const [i, match] of result.matches.entries()) {
+    if (match === null) console.warn(`posição ${i}: nenhuma rua a até 200 m`);
+  }
+  console.log(`${result.breaks} quebras, ${result.dropped} posições paradas`);
+
+  return result.routes.flatMap((route) => route.edges.map((step) => step.edge.name));
+}
+```
+
+Pedaço por pedaço:
+
+- **`matches`** tem uma entrada por posição, na mesma ordem: a aresta (`edge`, o **seu** objeto), o ponto projetado na rua (`point`), a distância (`distanceM`), a posição ao longo da aresta (`offsetM`) e `reversed` quando uma rua de mão dupla é percorrida de `to` para `from`. `null` quando não há rua a até `radiusM`.
+- **`routes`** é a rota inferida: as arestas percorridas em ordem, **incluindo as que ficaram entre duas posições**, recuperadas pelo caminho mínimo na rede.
+- **Quebra (`breaks`)**: quando nenhuma transição é possível (um buraco no sinal, uma rua que não está no grafo), a cadeia recomeça naquela posição em vez de falhar. Cada trecho sem quebra vira uma entrada em `routes`.
+- **Posição parada (`dropped`)**: uma posição a menos de `minSpacingM` (padrão `2 × sigmaM`) da anterior não entra no modelo — o veículo andou menos que o ruído do GPS. Ela é projetada na aresta da posição anterior e volta com `inferred: true`, nunca `null`.
+
+`TrackPoint` é um `Coordinate`, então os `points` do `usePositionTracker` entram direto.
+
+### No mapa ao vivo — `createRoadMatcher`
+
+O `matchToRoads` precisa do trajeto inteiro. Para desenhar o veículo **agora**, o `createRoadMatcher` roda o mesmo modelo posição a posição, com Viterbi de atraso fixo:
+
+```ts
+import { createRoadMatcher, type Coordinate, type RoadGraph } from "tempest-react-sdk";
+
+export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
+  const matcher = createRoadMatcher(graph, { lag: 5 });
+  return (fix) => {
+    const { current, committed } = matcher.push(fix);
+    for (const final of committed) {
+      console.log(`posição ${final.index} confirmada em`, final.match?.edge);
+    }
+    return current?.point ?? fix;
+  };
+}
+```
+
+- **`current`** é o melhor palpite para a posição que acabou de chegar: use para desenhar o veículo. Ele ainda pode mudar.
+- **`committed`** traz as posições que ficaram **definitivas**: cada uma espera `lag` posições novas antes de ser decidida. Uma posição confirmada não muda mais.
+- A memória é limitada pelo `lag`; `flush()` confirma o que falta (fim da viagem). A rota entre posições não é reconstruída aqui: rode `matchToRoads` no trajeto terminado para ela.
+
+### O que foi medido
+
+`npm run build && node --expose-gc scripts/bench-map-matching.mjs`, sobre o dataset de Kubicka et al. (Zenodo 57731, CC BY-SA 4.0): 100 trajetos reais pelo mundo, 247 251 posições a ~1 Hz, com a rota verdadeira e o trecho do OpenStreetMap de cada um. "Rua certa" é a mesma métrica do encaixe ingênuo: a aresta encaixada pertence à rota verdadeira (sem considerar o sentido); `null` conta como erro.
+
+| Medida (padrões) | Resultado |
+| --- | --- |
+| Rua certa, encaixe na rua mais próxima | 85,7% |
+| Rua certa, `matchToRoads`, os 100 trajetos | **92,33%** |
+| Rua certa, sem os 3 trajetos marcados `hives` (97 trajetos) | **98,53%** |
+| Rua certa, mediana por trajeto | 99,9% (88 de 100 trajetos ≥ 97%) |
+| Comprimento da rota verdadeira recuperado | 99,27% (0,78% de comprimento a mais) |
+| Quebras | 48 em 100 trajetos |
+| `createRoadMatcher`, `lag` 0 / 1 / 5 / 20 | 89,04% / 91,10% / 92,23% / 92,32% |
+| Tempo (Node 24, i9-13900F) | 8,1 µs por posição; 1 h a 1 Hz (3600 posições) em 11 ms |
+
+!!! warning "O limite medido"
+    Dois trajetos (5 844 e 19 313 posições, 10% do dataset) andam por pátios e áreas sem rua no recorte do OSM — o próprio dataset os marca como `hives` — e acertam 18% e 43%. Nenhum ajuste de parâmetro os salva: não há rua certa para encaixar. É o mesmo sinal de "rua que a base não tem" que a inferência no backend vai tratar. Fora deles, o encaixe passa de 97%.
+
+!!! note "Desempenho no aparelho"
+    Medido em desktop, não em celular. Um grafo de 16 mil arestas (uma cidade média) monta em 8 ms e ocupa ~1 MB; o maior do dataset, 307 mil arestas, monta em 68 ms e ocupa 47 MB — corte a região em tiles. Encaixar 1 h a 1 Hz aloca ~30 MB transitórios e não retém quase nada; o modo ao vivo custa ~3 µs por posição. Mesmo com um celular 10× mais lento, é menos de 1 ms por posição.
+
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `sigmaM` | `7` | Ruído do GPS, em metros (emissão gaussiana). |
+| `betaM` | `3` | Escala da transição, em metros. Menor pune mais o desvio. |
+| `radiusM` | `200` | Ruas além disso não são candidatas. |
+| `maxCandidates` | `16` | No máximo esse número de ruas por posição (uma rua de mão dupla conta uma vez). |
+| `minSpacingM` | `2 × sigmaM` | Posições mais perto que isso da anterior não entram no modelo. |
+| `maxDetourM` | `100` | Desvio máximo da rede sobre a linha reta. Acima disso a transição é impossível. |
+| `lag` (só `createRoadMatcher`) | `5` | Posições novas antes de confirmar uma. |
+
+Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabela completa da varredura (raio × k, σ × β, desvio, pré-filtro) sai do mesmo comando.
+
 ## Recap
 
 - **Coleta**: `usePositionTracker` / `createPositionTracker` gravam trajetória via `navigator.geolocation`, filtrando jitter — tudo no navegador.
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
 - **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
 - **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição.
+- **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.
 
 ## Veja também

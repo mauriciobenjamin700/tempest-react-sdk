@@ -65,3 +65,24 @@ export type {
     LiveRouteMarkerKind,
     LiveVehicle,
 } from "./LiveRouteMap";
+
+// Road network + HMM map-matching (pure, data-source agnostic)
+export { createRoadGraph } from "./road-graph";
+export type { CreateRoadGraphInput, RoadEdge, RoadGraph } from "./road-graph";
+export {
+    matchToRoads,
+    createRoadMatcher,
+    ROAD_MATCH_DEFAULTS,
+    ROAD_MATCHER_DEFAULT_LAG,
+} from "./map-matching";
+export type {
+    MatchToRoadsOptions,
+    CreateRoadMatcherOptions,
+    MatchedFix,
+    MatchedRoute,
+    RoadTraversal,
+    RoadMatchResult,
+    RoadMatcher,
+    RoadMatcherUpdate,
+    CommittedMatch,
+} from "./map-matching";

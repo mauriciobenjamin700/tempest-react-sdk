@@ -122,6 +122,10 @@ check: ## Todo gate antes de merge/release: validate + ícones + cobertura + siz
 # A CI rodava a suíte em node 22 e 24. A máquina local roda o node que tiver
 # (24 no `make check`); este alvo repete a suíte no 22, baixado sob demanda pelo
 # npx, sem trocar o node do sistema.
+merge-queue: ## Mergeia PRs paralelos um por vez (merge da main + conflitos + budgets + make check): make merge-queue PRS="651:../wt-651:fix/x"
+	@test -n "$(PRS)" || { echo 'uso: make merge-queue PRS="<pr>:<worktree>:<branch> ..."'; exit 2; }
+	./scripts/merge-queue.sh $(PRS)
+
 test-matrix: ## Suíte no node 22 (o check roda no node local)
 	npx -y -p node@22 node node_modules/vitest/vitest.mjs run
 

@@ -58,6 +58,23 @@ Screenshots, Outras mudanças, Notas sobre deploy + as três listas finais).
 - **`[Unreleased]` conflita N-1 vezes** quando N PRs o tocam. É concatenação, não
   escolha de lado: o que já está na `main` primeiro, a entrada do branch depois.
   Merjar primeiro o PR com o maior diff de dado evita rebasear megabytes.
+- **Vários PRs prontos ao mesmo tempo: `make merge-queue`.** Mergeia um por vez,
+  como o CLAUDE.md manda: no worktree de cada PR faz `git merge origin/main`,
+  resolve o conflito de `CHANGELOG.md` (concatenação, `main` primeiro) e de
+  `.size-limit.checks.json` (teto maior), remede os tetos do barrel e os budgets
+  que os dois lados mexeram (anotando em `### Budgets` com o comando), roda o
+  `make check` inteiro, empurra e mergeia. Para no primeiro problema e diz qual:
+  conflito em outro arquivo (doc, gallery — resolva por união à mão), check
+  vermelho, ou a `main` andou durante o check. Budget de fatia que só um PR
+  cresceu **não** é remedido: o estouro reprova o check, de propósito. Lógica em
+  `scripts/merge-queue.mjs`, guardada por `test/merge-queue.test.ts`; nasceu no
+  scratchpad de uma sessão (30+ PRs entre 15 e 19/11/2026) e foi apagada duas
+  vezes antes de virar script do repo.
+
+    ```bash
+    make merge-queue PRS="651:../wt-651:fix/device-facts 652:../wt-652:fix/uploads"
+    ```
+
 - Em repo com Projects (classic), `gh pr edit` aborta com erro de GraphQL. Use
   `gh api -X PATCH /repos/<owner>/<repo>/pulls/<n> -F body=@arquivo.md`.
 

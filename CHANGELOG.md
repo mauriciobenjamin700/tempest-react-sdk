@@ -4,6 +4,35 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Encaixe na rua por HMM: `createRoadGraph`, `matchToRoads` e `createRoadMatcher`** (fase 2 do
+  #667). Funções puras em `src/geo/`, agnósticas de fonte: o grafo é `nodes` (coordenadas) +
+  `edges` (pares de índices, dirigidos, com `twoWay` opcional e os metadados do app, devolvidos
+  intactos em cada encaixe). `matchToRoads` é o modelo de Newson & Krumm (2009) com Viterbi —
+  emissão gaussiana na distância, transição exponencial em `|linha reta − distância pela rede|`,
+  Dijkstra limitado, quebra da cadeia em vez de falha, descarte de posições a menos de `2σ` da
+  anterior (devolvidas projetadas na aresta da anterior, com `inferred: true`) — e devolve a aresta
+  de cada posição e a rota inferida, com as arestas entre posições. `createRoadMatcher` é o mesmo
+  modelo posição a posição, com Viterbi de atraso fixo (`lag`), para o mapa ao vivo. Padrões
+  (`ROAD_MATCH_DEFAULTS`, `ROAD_MATCHER_DEFAULT_LAG`) escolhidos por varredura com
+  `npm run build && node --expose-gc scripts/bench-map-matching.mjs` sobre os 100 trajetos do
+  dataset de Kubicka et al.: **rua certa em 92,33% das 247 251 posições, 98,53% fora dos 3 trajetos
+  marcados `hives`** (pátios sem rua no recorte do OSM), contra 85,7% do encaixe na rua mais próxima;
+  99,27% do comprimento da rota recuperado; 8,1 µs por posição. Doc em `docs/geo.md`.
+- **`scripts/bench-map-matching.mjs`** e **`scripts/kubicka-dataset.mjs`**: o bench da fase 2 e o
+  carregador do dataset, agora compartilhado com o `scripts/bench-gps-map.mjs` da fase 0.
+
+### Budgets
+
+- **Fatia nova `slice: road map-matching`** (`{ createRoadGraph, matchToRoads, createRoadMatcher }`):
+  3 495 B, teto 3,6 kB. A fatia `geo` não carrega o matcher (3 795 → 3 800 B).
+- **Tetos do barrel sobem pelo matcher** (`npm run build && npx size-limit --json` sobre a `main` em
+  `56e3f4a` e sobre este branch): `ceiling: full barrel ESM` 166 146 → 168 996 B (teto 166,2 →
+  169,1 kB); `ceiling: full barrel CJS` 196 698 → 200 182 B (teto 196,8 → 200,2 kB). Os bytes são o
+  modelo inteiro (índice espacial, Dijkstra, Viterbi em lote e incremental), que só quem importa
+  paga.
+
 ## [0.89.0] — 2026-11-19
 
 ### Adicionado

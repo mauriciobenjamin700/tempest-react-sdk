@@ -118,6 +118,30 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
 - **Validar no Brasil antes da fase de backend:** só 1 dos 100 trajetos tem
   centroide no Brasil. Reabre a decisão do Kalman se rastros brasileiros (cânion
   urbano, aparelho de entrada) mostrarem outro perfil de erro.
+- **Fase 2 entregue: HMM no SDK, padrões por medição** (19/11/2026,
+  `npm run build && node --expose-gc scripts/bench-map-matching.mjs`, mesmo dataset).
+  `matchToRoads` acerta a rua em **92,33%** das 247 251 posições (contra 85,7% do encaixe
+  ingênuo), **98,53% nos 97 trajetos sem a marca `hives`**, mediana por trajeto 99,9% e 88 de 100
+  trajetos ≥ 97%; recupera 99,27% do comprimento da rota com 0,78% a mais; 48 quebras; 8,1 µs por
+  posição (Node 24, i9-13900F). A meta de 97% passa fora dos `hives` e não passa no total: os
+  trajetos 33 e 54 (25 157 posições, 10% do dataset) andam por pátios sem rua no recorte do OSM e
+  acertam 18% e 43% — nenhum parâmetro os salva, e é o mesmo sinal de "rua que a base não tem" da
+  fase 4.
+- **Padrões: σ 7 m, β 3 m, raio 200 m, k 16 ruas, desvio máximo 100 m, `lag` 5.** Varridos raio ×
+  k, σ × β e desvio, com a tabela inteira impressa. Raio 50 m deixava 7,2% das posições sem
+  candidata (`null`); k 4 multiplicava as quebras por 9 (48 → 416); desvio 1000 m custava 2,5× o tempo sem ganho. σ 7
+  descarta mais posições paradas (pré-filtro de `2σ`) e foi o mais estável entre os β. O ao vivo
+  com `lag` 5 fica a 0,1 pp do lote; `lag` 0 perde 3,3 pp.
+- **Posição descartada pelo pré-filtro volta projetada na aresta da anterior** (`inferred: true`),
+  não `null`: o veículo andou menos que o ruído, então aquela aresta é a resposta honesta. Tirar o
+  pré-filtro piora (98,53% → 96,97% sem `hives`) e dobra o tempo.
+- **Rejeição de outlier e Douglas–Peucker ficaram fora da fase 2.** Rejeitar posição com
+  velocidade implícita acima de 40/50/70 m/s antes do HMM mexeu ±0,05 pp (o modelo já absorve o
+  outlier pela transição); simplificar reduz amostra, que é o oposto do que o matcher quer. As duas
+  servem ao envio para o backend (fase 3), e entram lá, medidas contra o que economizam de rede.
+- **Desempenho no aparelho: medido em desktop, não em celular.** Grafo de 16 mil arestas: 8 ms e
+  ~1 MB; o maior do dataset (307 mil): 68 ms e 47 MB — por isso o grafo vem em tiles. Uma hora a
+  1 Hz: 11 ms, ~30 MB transitórios; ao vivo, ~3 µs por posição.
 
 ## Fora de escopo, com a conta que decide
 

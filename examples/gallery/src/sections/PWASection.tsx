@@ -5,6 +5,7 @@ import {
     Button,
     InstallBanner,
     InstallButton,
+    InstallCopyLink,
     PostInstallPrompt,
     SyncStatusBadge,
     UpdatePrompt,
@@ -69,7 +70,7 @@ export function PWASection() {
 
             <Example
                 title="InstallButton · InstallBanner"
-                note="Num navegador sem beforeinstallprompt (iOS Safari, forks Android) os dois mostram a instrução da plataforma em vez de sumir."
+                note="Num navegador sem beforeinstallprompt (iOS Safari, navegador interno do Instagram/WhatsApp, forks Android) os dois mostram a instrução da plataforma em vez de sumir."
                 code={`<InstallButton variant="primary" />
 
 <InstallBanner
@@ -82,6 +83,14 @@ export function PWASection() {
                     title="Instale o app"
                     description="Acesso offline e atalho na tela inicial."
                 />
+            </Example>
+
+            <Example
+                title="InstallCopyLink"
+                note="No navegador interno de um app (method open-in-browser) a instrução traz este botão. Tenta a Clipboard API, depois execCommand, e por fim mostra o link já selecionado."
+                code={`<InstallCopyLink />`}
+            >
+                <InstallCopyLink />
             </Example>
 
             <Example

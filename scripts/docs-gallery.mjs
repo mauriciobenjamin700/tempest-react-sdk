@@ -60,6 +60,7 @@ const SECTION_OVERRIDES = {
     Toggle: "form-primitives",
     ToggleGroupItem: "feedback-extra",
     PostInstallPrompt: "pwa",
+    InstallCopyLink: "pwa",
     UpdatePrompt: "pwa",
 };
 

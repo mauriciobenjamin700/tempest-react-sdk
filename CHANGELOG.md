@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.90.0] — 2026-11-19
+
 ### Adicionado
 
 - **Encaixe na rua por HMM: `createRoadGraph`, `matchToRoads` e `createRoadMatcher`** (fase 2 do

@@ -56,3 +56,12 @@ export type { UsePositionTrackerOptions, UsePositionTrackerResult } from "./use-
 // Trajectory map component (tile-free SVG + optional Leaflet tiles)
 export { TrajectoryMap } from "./TrajectoryMap";
 export type { TrajectoryMapProps } from "./TrajectoryMap";
+
+// Live trip map (route + trail + vehicle + markers with content, follow)
+export { LiveRouteMap } from "./LiveRouteMap";
+export type {
+    LiveRouteMapProps,
+    LiveRouteMarker,
+    LiveRouteMarkerKind,
+    LiveVehicle,
+} from "./LiveRouteMap";

@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`LiveRouteMap`: mapa de viagem ao vivo** (#660). Rota planejada (`route`, tracejada) e trilha
+  percorrida (`trail`, sólida) ao mesmo tempo; veículo (`vehicle: { position, heading?, label? }`)
+  com seta de direção, deslizando entre duas posições (`animationMs`, padrão 600 ms; pula sob
+  `prefers-reduced-motion`); marcadores com `kind` (origem/parada/destino, forma e cor por tipo),
+  `badge` numérico e `content?: ReactNode`, que abre por clique, toque, `Enter` ou `Espaço`, com
+  foco no painel e `Esc` devolvendo o foco ao marcador; `etaLabel` anunciado numa região `status`
+  para leitor de tela (o app calcula, o mapa só diz). Com `follow`, uma posição nova **não
+  reenquadra** o mapa: ele só desliza, no mesmo zoom, quando o veículo chega a 20% da borda; arrastar
+  pausa o seguir e mostra **Recentralizar**. O enquadramento sai só de `route` + `markers`, então
+  nenhuma posição do veículo dá zoom-out. SVG sem tiles e sem rede por padrão (offline e teste);
+  `tileUrl` desenha tiles do **seu** servidor na mesma projeção, sem Leaflet. Componente novo em vez
+  de estender o `TrajectoryMap`: aquele plota uma trajetória gravada, reenquadra a cada mudança e é
+  `role="img"` (filhos interativos somem da árvore de acessibilidade); o mapa ao vivo precisa de
+  view persistente, arrasto e marcadores operáveis. A política de enquadramento é função pura
+  (`src/geo/live-route-view.ts`, 23 testes) e o `TrajectoryMap` não mudou de comportamento — só
+  passou a importar a barra de escala de `src/geo/scale.ts`, compartilhada.
+
+### Budgets
+
+- **`LiveRouteMap` (#660): fatia nova `slice: LiveRouteMap` com teto de 4,9 kB; barrel ESM 161,9 →
+  165 kB, barrel CJS 191,9 → 195,7 kB, `styles.css` 31,6 → 32,3 kB.** Medido com
+  `npm run build && npx size-limit --json` sobre a `main` em `0053a1f` e sobre o branch: a fatia
+  `{ LiveRouteMap }` pesa 4 658 B; ESM 161 671 → 164 815 B (+3 144), CJS 191 795 → 195 556 B
+  (+3 761), `styles.css` 31 557 → 32 177 B (+620). `slice: geo` 3 685 → 3 688 B: quem importa só o
+  `TrajectoryMap` não carrega o mapa ao vivo.
+
 ## [0.88.0] — 2026-11-16
 
 ### Segurança

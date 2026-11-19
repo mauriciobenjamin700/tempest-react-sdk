@@ -1,14 +1,17 @@
-import { useCallback, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
 import {
     Badge,
     Button,
     Input,
+    LiveRouteMap,
     TrajectoryMap,
+    bearingDeg,
     estimateTravel,
     haversineKm,
     pathLengthKm,
     usePositionTracker,
     type Coordinate,
+    type LiveRouteMarker,
     type TrackPoint,
     type TravelMode,
 } from "tempest-react-sdk";
@@ -87,6 +90,118 @@ function TrajectoryDemo(): ReactElement {
             )}
 
             <TrajectoryMap points={points} current={current} height={340} />
+        </div>
+    );
+}
+
+/** Planned bus route through central São Paulo, for the live-trip demo. */
+const BUS_ROUTE: Coordinate[] = [
+    { latitude: -23.5505, longitude: -46.6333 },
+    { latitude: -23.552, longitude: -46.6318 },
+    { latitude: -23.5535, longitude: -46.6301 },
+    { latitude: -23.5553, longitude: -46.6285 },
+    { latitude: -23.5571, longitude: -46.6268 },
+    { latitude: -23.5592, longitude: -46.6255 },
+    { latitude: -23.5612, longitude: -46.6239 },
+    { latitude: -23.563, longitude: -46.6218 },
+    { latitude: -23.5648, longitude: -46.6197 },
+];
+
+const BUS_STOPS: LiveRouteMarker[] = [
+    {
+        id: "se",
+        label: "Praça da Sé",
+        kind: "origin",
+        badge: 2,
+        ...BUS_ROUTE[0],
+        content: <p style={{ margin: 0 }}>Ana e Bruno embarcam aqui.</p>,
+    },
+    {
+        id: "liberdade",
+        label: "Liberdade",
+        kind: "stop",
+        badge: 3,
+        ...BUS_ROUTE[4],
+        content: (
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+                <li>Carla</li>
+                <li>Diego</li>
+                <li>Elisa</li>
+            </ul>
+        ),
+    },
+    {
+        id: "paraiso",
+        label: "Paraíso",
+        kind: "destination",
+        ...BUS_ROUTE[8],
+        content: <p style={{ margin: 0 }}>Chegada prevista às 08:40.</p>,
+    },
+];
+
+/** Live trip: a simulated bus moving along a planned route, one fix per tick. */
+function LiveTripDemo(): ReactElement {
+    const [step, setStep] = useState<number>(1);
+    const [playing, setPlaying] = useState<boolean>(false);
+    const [follow, setFollow] = useState<boolean>(true);
+
+    useEffect(() => {
+        if (!playing) return;
+        const timer = window.setInterval(() => {
+            setStep((prev) => (prev < BUS_ROUTE.length - 1 ? prev + 1 : prev));
+        }, 1500);
+        return () => window.clearInterval(timer);
+    }, [playing]);
+
+    const trail = BUS_ROUTE.slice(0, step + 1);
+    const position = BUS_ROUTE[step];
+    const heading = bearingDeg(BUS_ROUTE[step - 1], position);
+    const minutes = (BUS_ROUTE.length - 1 - step) * 2;
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <Button
+                    size="sm"
+                    variant={playing ? "ghost" : "primary"}
+                    onClick={() => setPlaying((p) => !p)}
+                >
+                    {playing ? <Square size={14} /> : <Play size={14} />}
+                    {playing ? "Pausar" : "Rodar viagem"}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setStep((s) => Math.min(BUS_ROUTE.length - 1, s + 1))}
+                    data-testid="live-trip-next"
+                >
+                    Próxima posição
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setStep(1)}>
+                    <RotateCcw size={14} /> Reiniciar
+                </Button>
+                <Button
+                    size="sm"
+                    variant={follow ? "primary" : "ghost"}
+                    aria-pressed={follow}
+                    onClick={() => setFollow((f) => !f)}
+                >
+                    Seguir veículo
+                </Button>
+                <span style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}>
+                    {minutes > 0 ? `Chegada em ${minutes} min` : "Chegou"}
+                </span>
+            </div>
+            <LiveRouteMap
+                route={BUS_ROUTE}
+                trail={trail}
+                vehicle={{ position, heading, label: "Ônibus 42" }}
+                markers={BUS_STOPS}
+                follow={follow}
+                etaLabel={minutes > 0 ? `Chegada estimada em ${minutes} minutos` : "Ônibus chegou"}
+                height={380}
+                data-testid="live-trip-map"
+            />
         </div>
     );
 }
@@ -252,6 +367,57 @@ function LiveRun() {
                 ]}
             >
                 <TrajectoryDemo />
+            </Example>
+
+            <Example
+                id="ex-live-route-map"
+                title="LiveRouteMap — viagem ao vivo"
+                note={
+                    <>
+                        Rota planejada tracejada, trilha sólida, ônibus com direção e 3 pontos de
+                        embarque. Clique (ou <kbd>Tab</kbd> + <kbd>Enter</kbd>) num ponto para ver
+                        quem embarca. Arraste o mapa: o seguir pausa e aparece{" "}
+                        <strong>Recentralizar</strong>.
+                    </>
+                }
+                code={`import { LiveRouteMap, bearingDeg } from "tempest-react-sdk";
+
+<LiveRouteMap
+  route={osrmGeometry}
+  trail={traveled}
+  vehicle={{ position: fix, heading: bearingDeg(previousFix, fix) }}
+  markers={[
+    { id: "se", label: "Praça da Sé", kind: "origin", badge: 2, ...se,
+      content: <p>Ana e Bruno embarcam aqui.</p> },
+  ]}
+  follow
+  etaLabel="Chegada estimada em 6 minutos"
+/>`}
+                props={[
+                    {
+                        name: "route / trail",
+                        type: "readonly Coordinate[]",
+                        description: "Rota planejada (tracejada) e trilha percorrida (sólida).",
+                    },
+                    {
+                        name: "vehicle",
+                        type: "{ position, heading?, label? }",
+                        description: "Veículo com seta de direção; desliza entre posições.",
+                    },
+                    {
+                        name: "markers",
+                        type: "LiveRouteMarker[]",
+                        description: "kind (origem/parada/destino), badge e content (ReactNode).",
+                    },
+                    {
+                        name: "follow",
+                        type: "boolean",
+                        default: "false",
+                        description: "Segue o veículo sem reenquadrar nem mudar o zoom.",
+                    },
+                ]}
+            >
+                <LiveTripDemo />
             </Example>
 
             <Example

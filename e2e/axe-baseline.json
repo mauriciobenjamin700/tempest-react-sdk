@@ -38,7 +38,7 @@
       "landmark-no-duplicate-main": 1,
       "landmark-unique": 3,
       "listitem": 28,
-      "scrollable-region-focusable": 69
+      "scrollable-region-focusable": 1
     }
   },
   "light-1280": {
@@ -80,7 +80,7 @@
       "landmark-no-duplicate-main": 1,
       "landmark-unique": 3,
       "listitem": 28,
-      "scrollable-region-focusable": 69
+      "scrollable-region-focusable": 1
     }
   }
 }

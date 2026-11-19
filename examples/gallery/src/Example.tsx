@@ -43,6 +43,14 @@ interface ExampleProps {
  * Measured before the change: 148 of the 149 nodes axe reported for that rule at
  * 1280px were this element, one per example, so every new example raised the
  * count. No `aria-label` on it — a name on a `<pre>` is `aria-prohibited-attr`.
+ *
+ * The props table wrapper is the same defect one breakpoint down: at 390px its
+ * four columns overflow and it scrolls sideways with nothing focusable inside.
+ * Measured on main at 390px: 70 of the 71 `scrollable-region-focusable` nodes
+ * were `.example-props`, one per example with a props table, so the next example
+ * with `props` crossed the ratchet (#665 reached 72, ceiling 71). It takes the
+ * same tab stop, plus `role="group"` so it can carry a name — the table is long
+ * enough that a keyboard user landing on it should hear whose props they are.
  */
 export function Example({ title, code, note, id, props, children }: ExampleProps) {
     return (
@@ -71,7 +79,12 @@ export function Example({ title, code, note, id, props, children }: ExampleProps
                 </pre>
             </div>
             {props && props.length > 0 && (
-                <div className="example-props">
+                <div
+                    className="example-props"
+                    tabIndex={0}
+                    role="group"
+                    aria-label={`Props — ${title}`}
+                >
                     <table>
                         <thead>
                             <tr>

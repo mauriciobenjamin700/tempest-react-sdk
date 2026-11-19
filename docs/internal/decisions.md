@@ -93,6 +93,32 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
   `exactOptionalPropertyTypes` 113 (muda o `.d.ts` do consumidor),
   `noPropertyAccessFromIndexSignature` 1130.
 
+## Mapa de ruas a partir do GPS (#667)
+
+- **O mapa é híbrido: OpenStreetMap como base, GPS da frota como camada viva.**
+  Nome de rua, número e ruas por onde ninguém passou não saem de posição; saem
+  de cadastro, e o cadastro livre é o OSM (já usado por `createOSRMBackend` e
+  `tileUrl`). Decidido na fase 0 (19/11/2026), medindo com
+  `node scripts/bench-gps-map.mjs` sobre o dataset de Kubicka et al. (Zenodo
+  57731, CC BY-SA 4.0): 100 trajetos reais, 247 251 fixes, rota verdadeira e
+  trecho de rede do OSM por trajeto.
+- **Sem filtro de Kalman no rastro.** Distância do GPS cru até a rua percorrida:
+  mediana 3,7 m, p90 32,5 m, p99 188 m. Um Kalman de velocidade constante, só
+  para a frente (o mapa ao vivo não olha adiante), em 12 combinações de ruído
+  (σ medição 5/10/20 m × σ aceleração 0,5/1/2/4 m/s²), **nunca** melhorou: a
+  melhor iguala o cru (mediana 3,7 m), as outras pioram até 5,7 m — o receptor
+  já suaviza, e o filtro só atrasa na curva. O erro que importa é a cauda, e ele
+  não mexe nela. A limpeza do rastro fica em rejeição de outlier e simplificação.
+- **O ganho está no map-matching (HMM, Newson & Krumm 2009).** Encaixar cada fix
+  na rua mais próxima acerta a rua da rota em 85,7% dos fixes: um em cada sete
+  cai na rua errada. É o problema que o HMM resolve, e é a fase seguinte.
+- **9,4% dos fixes ficam a mais de 20 m de qualquer rua do trecho** — o sinal
+  bruto de "rua que a base não tem", misturado com estacionamento e erro de GPS.
+  Separar os dois é trabalho da inferência no backend, não do SDK.
+- **Validar no Brasil antes da fase de backend:** só 1 dos 100 trajetos tem
+  centroide no Brasil. Reabre a decisão do Kalman se rastros brasileiros (cânion
+  urbano, aparelho de entrada) mostrarem outro perfil de erro.
+
 ## Fora de escopo, com a conta que decide
 
 - **Inverter um vídeo não é primitiva de SDK** (registrado no #278). Um frame

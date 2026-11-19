@@ -166,9 +166,11 @@ export type { InstallBannerPosition, InstallBannerProps } from "./InstallBanner"
 
 export { PostInstallPrompt } from "./PostInstallPrompt";
 export type { PostInstallPromptProps } from "./PostInstallPrompt";
-export { InstallButton, defaultInstallHint } from "./InstallButton";
+export { InstallButton, InstallCopyLink, defaultInstallHint } from "./InstallButton";
 export type {
     InstallButtonProps,
+    InstallCopyLinkLabels,
+    InstallCopyLinkProps,
     InstallHintInput,
     InstallOutcome,
     RenderInstallHint,

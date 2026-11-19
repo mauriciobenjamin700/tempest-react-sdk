@@ -4,6 +4,47 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`useInstallPrompt`: método `"open-in-browser"` para o navegador interno de apps** (#661). Link
+  aberto dentro do WhatsApp, Instagram, Facebook, Messenger, TikTok, LinkedIn, Snapchat, LINE,
+  Threads, X, WeChat ou Telegram resolve `"open-in-browser"` na hora, antes de `"ios"` e sem
+  esperar o timer do `"manual"` — no iOS **e** no Android. Medido antes sobre a `main` em `0053a1f`
+  com UAs reais: Instagram e WhatsApp no iPhone resolviam `"ios"` (Compartilhar → Adicionar à Tela
+  de Início, que só o Safari tem), e o Instagram no Android ficava em `"none"` por 3 s e depois
+  caía no `"manual"` apontando um menu sem "Instalar app". Safari, Chrome (`CriOS`), Firefox
+  (`FxiOS`) e Edge (`EdgiOS`) do iOS continuam `"ios"`; Chrome do Android continua `"native"`. O
+  resultado ganha `isInAppBrowser`. O nome é `"open-in-browser"`, e não `"ios-in-app"`, porque
+  descreve a ação que a UI puxa e vale nas duas plataformas.
+- **`isInAppBrowser()` e `IN_APP_BROWSERS`** exportados. A detecção é pelo token de cada app
+  (`FBAN`/`FBAV`/`FB_IAB`/`MetaIAB`, `Instagram`, `Barcelona`, `WAiOS`/`WA4A`, `Line/`,
+  `musical_ly`/`BytedanceWebview`/`trill_`, `LinkedInApp`, `Snapchat/`, `Twitter for`,
+  `MicroMessenger/`), pelos globais do web view do Telegram e, no iOS, por UA WebKit sem `Safari/`
+  fora do modo standalone. A regra "sem `Safari/`" sozinha, proposta na issue, deixaria passar
+  WhatsApp, Instagram 393, Facebook (`MetaIAB`), TikTok e Snapchat, cujos UAs atuais trazem
+  `Safari/`. 36 UAs reais (ua-parser-js `8b7f928` e inapp-spy `bd32bfd`, com a fonte ao lado de
+  cada um) em `src/hooks/in-app-browser.test.tsx`.
+- **`InstallButton` e `InstallBanner` cobrem o navegador interno sem mudança no app**: o
+  `defaultInstallHint` mostra "Toque em ⋯ e escolha Abrir no Safari" no iPhone e o link **Abra no
+  Chrome** (`intent://`) no Android, mais o botão **Copiar link**.
+- **`InstallCopyLink`**: botão "Copiar link" que tenta `navigator.clipboard.writeText`, depois
+  `execCommand("copy")` — o navegador interno costuma negar a Clipboard API — e, se nada
+  funcionar, mostra o endereço num campo somente leitura já selecionado. Textos PT-BR por padrão,
+  traduzíveis por `labels`.
+- **`renderHint` que devolve `null` ou `undefined` cai no `defaultInstallHint`**, para um
+  renderizador escrito só para `"ios"` e `"manual"` não deixar o botão "Como instalar" vazio
+  dentro do Instagram.
+
+### Budgets
+
+- Medido com `npx size-limit --json` sobre a `main` em `0053a1f` e sobre este branch, os dois
+  buildados (#661): barrel ESM 161 671 → 162 581 B (teto 161,9 → 162,6 kB), barrel CJS 191 795 →
+  192 988 B (191,9 → 193 kB), `styles.css` 31 557 → 31 645 B (31,6 → 31,65 kB; as regras do
+  `InstallCopyLink`), e `AIChat` 11 284 → 11 308 B (11,3 → 11,31 kB). O `AIChat` não carrega nada
+  novo — um bundle esbuild de `{ AIChat }` não tem `WAiOS`, `Copiar link` nem `TelegramWebview`; os
+  24 B são ruído de minificação e brotli, da mesma ordem dos ±20 B que outras fatias variaram para
+  os dois lados. Fatia `offline + PWA surface`: 5 067 → 5 076 B, dentro dos 6 kB.
+
 ## [0.88.0] — 2026-11-16
 
 ### Segurança

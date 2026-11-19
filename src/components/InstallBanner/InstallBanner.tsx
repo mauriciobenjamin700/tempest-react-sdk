@@ -53,9 +53,12 @@ export interface InstallBannerProps {
      */
     hintLabel?: string;
     /**
-     * Replaces the instruction shown for the `"ios"` and `"manual"` methods.
+     * Replaces the instruction shown for the `"ios"`, `"open-in-browser"` and
+     * `"manual"` methods.
      *
-     * The default copy is in PT-BR and names the real menu entries.
+     * The default copy is in PT-BR and names the real menu entries. Returning
+     * `null` or `undefined` falls back to {@link defaultInstallHint}, so a
+     * renderer written before `"open-in-browser"` existed keeps a working hint.
      */
     renderHint?: RenderInstallHint;
     /**
@@ -129,7 +132,8 @@ function readDismissed(storageKey?: string, declineCooldownMs?: number): boolean
  * {@link useInstallPrompt}.
  *
  * Where the browser fires `beforeinstallprompt`, the button installs. Where it
- * does not — iOS Safari, and the Android Chromium forks that strip the API — the
+ * does not — iOS Safari, an app's embedded browser (Instagram, WhatsApp, …),
+ * and the Android Chromium forks that strip the API — the
  * banner shows that platform's instruction instead of disappearing. It used to
  * disappear: built on `useBeforeInstallPrompt`, it rendered `null` exactly where
  * the user has no other way to find the install entry, which is why every app
@@ -191,7 +195,11 @@ export function InstallBanner({
         }
     };
 
-    const hint = method === "native" ? null : renderHint({ method, openInChromeIntent });
+    const hint =
+        method === "native"
+            ? null
+            : (renderHint({ method, openInChromeIntent }) ??
+              defaultInstallHint({ method, openInChromeIntent }));
 
     return (
         <div

@@ -6,6 +6,7 @@ import {
     isStandalone,
     type BeforeInstallPromptEvent,
 } from "./pwa-env";
+import { isInAppBrowser } from "./in-app-browser";
 
 const DEFAULT_DECLINE_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_MANUAL_FALLBACK_DELAY_MS = 3000;
@@ -52,12 +53,15 @@ if (typeof window !== "undefined") {
  *
  * - `"native"`: trigger `BeforeInstallPromptEvent.prompt()`.
  * - `"ios"`: show iOS Safari Share → Add to Home Screen instructions.
+ * - `"open-in-browser"`: the page is inside an app's embedded browser
+ *   (Instagram, WhatsApp, Facebook, …; see {@link isInAppBrowser}), which has no
+ *   install path at all. Lead the user out to Safari on iOS or Chrome on Android.
  * - `"manual"`: show generic browser-menu instructions (Chromium forks that
  *   strip the prompt API, plus the timeout fallback when no event arrives).
  * - `"none"`: nothing to offer (running standalone, installed from this page
  *   — `appinstalled` fired or the prompt was accepted —, or unsupported runtime).
  */
-export type InstallMethod = "native" | "ios" | "manual" | "none";
+export type InstallMethod = "native" | "ios" | "open-in-browser" | "manual" | "none";
 
 /** Options for {@link useInstallPrompt}. */
 export interface UseInstallPromptOptions {
@@ -86,6 +90,8 @@ export interface UseInstallPromptResult {
     canInstall: boolean;
     /** True when running on iOS/iPadOS Safari. */
     isIOS: boolean;
+    /** True inside an app's embedded browser — see {@link isInAppBrowser}. */
+    isInAppBrowser: boolean;
     /** True when already running as an installed PWA. */
     isStandalone: boolean;
     /** True when the browser is an Android Chromium fork with no prompt API. */
@@ -136,9 +142,16 @@ function readDecline(key: string, cooldownMs: number): boolean {
  * React hook that resolves how (and whether) to offer PWA installation.
  *
  * It caches the `beforeinstallprompt` event, detects iOS/iPadOS, detects
- * Android Chromium forks that lack the prompt API, detects standalone display
- * mode, and applies a decline cooldown persisted in `localStorage`. The
+ * Android Chromium forks that lack the prompt API, detects an app's embedded
+ * browser, detects standalone display mode, and applies a decline cooldown persisted in `localStorage`. The
  * resulting `method` tells the UI which install affordance to render.
+ *
+ * An embedded browser resolves to `"open-in-browser"` ahead of `"ios"` and
+ * without waiting for the fallback timer (#661). Before, every iPhone UA —
+ * WhatsApp's and Instagram's included — resolved to `"ios"`, whose Share → Add to
+ * Home Screen entry does not exist outside Safari; on Android the same web view
+ * sat on `"none"` for 3 s and then pointed at a browser menu with no install
+ * entry. A real `beforeinstallprompt` still wins over it.
  *
  * Both sides of that persistence are best-effort: `localStorage` throws in
  * Safari private mode and in a cross-origin frame with storage blocked, and an
@@ -205,6 +218,7 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
     }, [event, manualFallbackDelayMs]);
 
     const ios = isIOS();
+    const inAppBrowser = isInAppBrowser();
     const manualAndroid = isAndroidWithoutPromptApi();
 
     const declineActive = readDecline(declineStorageKey, declineCooldownMs);
@@ -212,6 +226,7 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
     let method: InstallMethod = "none";
     if (!standalone && !installed && !declineActive) {
         if (event) method = "native";
+        else if (inAppBrowser) method = "open-in-browser";
         else if (ios) method = "ios";
         else if (manualAndroid || promptTimedOut) method = "manual";
     }
@@ -243,6 +258,7 @@ export function useInstallPrompt(options: UseInstallPromptOptions = {}): UseInst
         deferredPrompt: event,
         canInstall: method !== "none",
         isIOS: ios,
+        isInAppBrowser: inAppBrowser,
         isStandalone: standalone,
         isManualAndroid: manualAndroid,
         promptTimedOut,

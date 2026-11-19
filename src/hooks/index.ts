@@ -99,6 +99,8 @@ export {
     buildOpenInChromeIntent,
 } from "./pwa-env";
 export type { BeforeInstallPromptEvent } from "./pwa-env";
+export { IN_APP_BROWSERS, isInAppBrowser } from "./in-app-browser";
+export type { InAppBrowser } from "./in-app-browser";
 export { useInstallPrompt } from "./use-install-prompt";
 export type {
     InstallMethod,

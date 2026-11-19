@@ -890,6 +890,12 @@ function InstallButton() {
     return <button onClick={install}>Instalar app</button>;
   if (method === "ios")
     return <p>Toque em Compartilhar → Adicionar à Tela de Início</p>;
+  if (method === "open-in-browser")
+    return openInChromeIntent ? (
+      <a href={openInChromeIntent}>Abrir no Chrome para instalar</a>
+    ) : (
+      <p>Toque em ⋯ → Abrir no Safari</p>
+    );
   if (method === "manual")
     return openInChromeIntent ? (
       <a href={openInChromeIntent}>Abrir no Chrome para instalar</a>
@@ -900,12 +906,20 @@ function InstallButton() {
 }
 ```
 
-O `method` é resolvido assim:
+O `method` é resolvido nesta ordem — o primeiro que casar vence:
 
-- `"native"` → o evento `beforeinstallprompt` chegou; chame `install()` para disparar o prompt nativo.
-- `"ios"` → iOS/iPadOS Safari; mostre as instruções de "Adicionar à Tela de Início".
-- `"manual"` → fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3s por padrão); mostre instruções genéricas de menu.
-- `"none"` → já rodando como PWA instalado (display-mode standalone), app instalado a partir desta aba (`accepted` no prompt ou `appinstalled`) ou o cooldown de recusa está ativo. A instalação da sessão só é esquecida quando o navegador dispara um `beforeinstallprompt` novo.
+| `method`            | Quando                                                                                                   | O que mostrar |
+| ------------------- | -------------------------------------------------------------------------------------------------------- | ------------- |
+| `"none"`            | Já rodando como PWA instalado (display-mode standalone), app instalado a partir desta aba (`accepted` no prompt ou `appinstalled`), ou cooldown de recusa ativo. | Nada. |
+| `"native"`          | O evento `beforeinstallprompt` chegou.                                                                   | Botão que chama `install()`. |
+| `"open-in-browser"` | Navegador interno de um app (Instagram, WhatsApp, Facebook, Messenger, TikTok, LinkedIn, Snapchat, LINE, Telegram…), no iOS **e** no Android — ver `isInAppBrowser()` abaixo. | Sair para o navegador: "⋯ → Abrir no Safari" no iPhone, o link `openInChromeIntent` no Android, e um "Copiar link". |
+| `"ios"`             | iOS/iPadOS fora de app — Safari, e também Chrome (`CriOS`), Firefox (`FxiOS`) e Edge (`EdgiOS`), que instalam pelo Compartilhar desde o iOS 16.4. | Compartilhar → Adicionar à Tela de Início. |
+| `"manual"`          | Fork Chromium sem a API, **ou** nenhum evento chegou dentro de `manualFallbackDelayMs` (3 s por padrão). | Instrução genérica de menu. |
+
+A instalação da sessão só é esquecida quando o navegador dispara um `beforeinstallprompt` novo.
+
+!!! info "Por que `open-in-browser` e não `ios-in-app`"
+    O nome diz a **ação** que a interface tem de puxar, como `"native"` e `"manual"`: tirar o usuário do navegador interno. E vale nas duas plataformas — no Android o web view do Instagram também nunca dispara `beforeinstallprompt`. Até a v0.88.0 todo UA de iPhone resolvia `"ios"`, inclusive o do WhatsApp e o do Instagram, mandando procurar um **Adicionar à Tela de Início** que só o Safari tem; no Android o mesmo caso ficava 3 s em `"none"` e depois apontava um menu sem entrada de instalar.
 
 Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde a CTA por `declineCooldownMs` (7 dias por padrão). Tudo é plugável e safe sem `window`:
 
@@ -917,6 +931,30 @@ Quando o usuário recusa, o hook grava um timestamp no `localStorage` e esconde 
 
 !!! info "Helpers de ambiente exportados à parte"
     As funções puras por trás do hook também são exportadas — úteis sozinhas: `isIOS()`, `isAndroid()`, `isAndroidWithoutPromptApi()` (Mi/UC/Opera Mini/Huawei/KaiOS), `isStandalone()` e `buildOpenInChromeIntent()` (monta uma URL `intent://` que reabre a página no Chrome do Android, com fallback pra Play Store). O tipo `BeforeInstallPromptEvent` também vem do SDK.
+
+### Navegador interno de app — `isInAppBrowser`
+
+`isInAppBrowser()` diz se a página está dentro do navegador embutido de um app em vez de num navegador de verdade. Vale fora do fluxo de instalação também: o Web Push no iPhone exige o app instalado pelo Safari, então dentro do Instagram ele é inalcançável.
+
+```tsx
+import { isInAppBrowser } from "tempest-react-sdk";
+
+export function PushNotice() {
+    if (!isInAppBrowser()) return null;
+    return <p>Para receber notificações, abra esta página no Safari ou no Chrome.</p>;
+}
+```
+
+A detecção usa três sinais, nesta ordem:
+
+1. **Token do app no user agent**, da lista exportada `IN_APP_BROWSERS` (`{ id, name, pattern }`): `FBAN`/`FBAV`/`FB_IAB`/`MetaIAB` (Facebook e Messenger), `Instagram`, `Barcelona` (Threads), `WAiOS`/`WA4A` (WhatsApp), `Line/`, `musical_ly`/`BytedanceWebview`/`trill_` (TikTok), `LinkedInApp`, `Snapchat/`, `Twitter for`, `MicroMessenger/` (WeChat).
+2. **Telegram**, que não põe token no UA: pelos globais que o web view dele injeta (`TelegramWebviewProxy` e afins).
+3. **No iOS**, um UA WebKit **sem `Safari/` nenhum** — pega o `WKWebView` de um app fora da lista (KakaoTalk, Zalo). Safari, Chrome, Firefox e Edge do iOS mandam `Safari/`, então não são afetados. Ignorado em modo standalone.
+
+!!! note "Só a falta de `Safari/` não serve"
+    Os UAs atuais desses apps carregam `Safari/` na maioria: WhatsApp (`… Safari/604.1 [WAiOS/2.26.31]`), Instagram 393 (`… Safari/604.1)`), Facebook (`… Safari/604.1 MetaIAB Facebook`), TikTok (`… Safari/604.1 trill_43.0.0 …`) e Snapchat (`like Safari/…`). Por isso o token vem primeiro. Os UAs testados vêm, sem edição, das fixtures do `ua-parser-js` e do `inapp-spy`, com a fonte ao lado em `src/hooks/in-app-browser.test.tsx`.
+
+Um shell Capacitor/Cordova também é `WKWebView` e cai no sinal 3 — esse app não deveria mostrar convite de instalação de qualquer forma.
 
 ### Long-press que devolve handlers — `useLongPressHandlers`
 

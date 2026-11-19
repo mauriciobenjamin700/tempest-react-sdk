@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.89.0] — 2026-11-19
+
 ### Adicionado
 
 - **`TrackPoint.speed` e `TrackPoint.heading`** (#662): o `createPositionTracker` /

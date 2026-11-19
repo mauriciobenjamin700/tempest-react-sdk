@@ -19,10 +19,16 @@ export interface InstallButtonProps extends Omit<ButtonAsButtonProps, "onClick" 
     /** Called with the user's choice after the install prompt resolves. */
     onResult?: (outcome: InstallOutcome) => void;
     /**
-     * Replaces the instruction shown for the `"ios"` and `"manual"` methods.
+     * Replaces the instruction shown for the `"ios"`, `"open-in-browser"` and
+     * `"manual"` methods.
      *
      * The default copy is in PT-BR and names the real menu entries. Pass this to
      * translate it, to shorten it, or to point at a screenshot of your own.
+     *
+     * Returning `null` or `undefined` falls back to {@link defaultInstallHint}, so
+     * a renderer written for `"ios"` and `"manual"` keeps working when a method is
+     * added — `"open-in-browser"` arrived after most apps wrote theirs, and a
+     * `null` there left "Como instalar" revealing nothing inside Instagram.
      */
     renderHint?: RenderInstallHint;
     /**
@@ -39,7 +45,8 @@ export interface InstallButtonProps extends Omit<ButtonAsButtonProps, "onClick" 
  * Button wired to PWA installation, through {@link useInstallPrompt}.
  *
  * Where the browser fires `beforeinstallprompt`, the click installs. Where it
- * does not — iOS Safari, and the Android Chromium forks (Mi Browser, UC, Opera
+ * does not — iOS Safari, an app's embedded browser (Instagram, WhatsApp, …),
+ * and the Android Chromium forks (Mi Browser, UC, Opera
  * Mini, Huawei) that strip the API — the click reveals the instruction for that
  * platform instead of the button disappearing.
  *
@@ -88,7 +95,9 @@ export function InstallButton({
         );
     }
 
-    const hint = renderHint({ method, openInChromeIntent });
+    const hint =
+        renderHint({ method, openInChromeIntent }) ??
+        defaultInstallHint({ method, openInChromeIntent });
 
     return (
         <div className={cn(styles.wrapper, wrapperClassName)}>

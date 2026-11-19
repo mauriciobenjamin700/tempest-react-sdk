@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { InstallMethod } from "@/hooks/use-install-prompt";
+import { InstallCopyLink } from "./InstallCopyLink";
 
 /** What an install affordance needs to render the instruction for a method. */
 export interface InstallHintInput {
@@ -25,6 +26,12 @@ export type RenderInstallHint = (input: InstallHintInput) => ReactNode;
  * builds — reopening the page in Chrome is the only path that reaches a real
  * install on a browser whose menu has no install entry at all.
  *
+ * Inside an app's embedded browser (`"open-in-browser"`) nothing installs, so the
+ * copy leads out of it: on Android straight through that same `intent://` link,
+ * on iOS through the app's `⋯` menu — the entry is "Abrir no Safari" or "Abrir no
+ * navegador" depending on the app — plus {@link InstallCopyLink}, which works in
+ * every app whatever its menu calls the entry.
+ *
  * @param input - The resolved method and the optional Chrome intent.
  * @returns The instruction, or `null` when the method needs none.
  */
@@ -34,6 +41,25 @@ export function defaultInstallHint({ method, openInChromeIntent }: InstallHintIn
             <>
                 Toque em <strong>Compartilhar</strong> e escolha{" "}
                 <strong>Adicionar à Tela de Início</strong>.
+            </>
+        );
+    }
+    if (method === "open-in-browser") {
+        return (
+            <>
+                O navegador deste app não instala aplicativos.{" "}
+                {openInChromeIntent ? (
+                    <>
+                        <a href={openInChromeIntent}>Abra no Chrome</a> para instalar.
+                    </>
+                ) : (
+                    <>
+                        Toque em <strong>⋯</strong> e escolha <strong>Abrir no Safari</strong> (ou{" "}
+                        <strong>Abrir no navegador</strong>). Se não achar, copie o link e cole no
+                        Safari.
+                    </>
+                )}
+                <InstallCopyLink />
             </>
         );
     }

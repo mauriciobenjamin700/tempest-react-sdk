@@ -17,3 +17,39 @@
 .hint a {
     color: var(--tempest-primary);
 }
+
+.copyLink {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2);
+    margin-top: var(--tempest-space-2);
+}
+
+.copyStatus {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.copyField {
+    flex: 1 1 100%;
+    min-width: 0;
+    padding: var(--tempest-space-1) var(--tempest-space-2);
+    border: 1px solid var(--tempest-border);
+    border-radius: var(--tempest-radius-sm);
+    background: var(--tempest-bg);
+    color: var(--tempest-text);
+    font: inherit;
+    user-select: all;
+}
+
+.copyManual {
+    flex: 1 1 100%;
+}

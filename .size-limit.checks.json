@@ -803,7 +803,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ AIChat }"
     },
-    "limit": "11.3 KB",
+    "limit": "11.31 KB",
     "ignore": [
       "react",
       "react-dom",

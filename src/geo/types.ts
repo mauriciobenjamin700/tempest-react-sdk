@@ -36,6 +36,20 @@ export interface TrackPoint extends Coordinate {
     timestamp: number;
     /** Horizontal accuracy radius in meters, if the device reported one. */
     accuracy?: number;
+    /**
+     * Ground speed in meters per second (`GeolocationCoordinates.speed`, the
+     * browser's unit — multiply by `3.6` for km/h). `null` when the device did
+     * not report one. Optional so trajectories built before it existed, or by
+     * hand, still type-check.
+     */
+    speed?: number | null;
+    /**
+     * Direction of travel in degrees clockwise from true north
+     * (`GeolocationCoordinates.heading`). `null` when the device did not report
+     * one — including the `NaN` some browsers send while the device is
+     * stationary, so a consumer never has to test for `NaN` itself.
+     */
+    heading?: number | null;
 }
 
 /**

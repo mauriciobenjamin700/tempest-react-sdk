@@ -567,7 +567,7 @@ export function SairDaConta({ signOut }: { signOut: () => Promise<void> }) {
 *Seção `pwa` da [gallery](../gallery.md) — rode localmente para interagir.*
 <!-- /gallery -->
 
-Botão de instalação do PWA, ligado a [`useInstallPrompt`](../hooks.md). Onde o navegador dispara `beforeinstallprompt`, o clique instala. Onde **não** dispara — iOS Safari e os forks Chromium de Android (Mi Browser, UC, Opera Mini, Huawei) — o clique revela a instrução daquela plataforma em vez de o botão sumir. Herda todas as props do [`Button`](#button).
+Botão de instalação do PWA, ligado a [`useInstallPrompt`](../hooks.md). Onde o navegador dispara `beforeinstallprompt`, o clique instala. Onde **não** dispara — iOS Safari, o navegador interno de apps (Instagram, WhatsApp, Facebook…) e os forks Chromium de Android (Mi Browser, UC, Opera Mini, Huawei) — o clique revela a instrução daquela plataforma em vez de o botão sumir. Herda todas as props do [`Button`](#button).
 
 ```tsx
 import { InstallButton } from "tempest-react-sdk";
@@ -604,7 +604,57 @@ import { Download } from "lucide-react";
     />;
     ```
 
-    `InstallHintInput` traz `method` (`"native" | "ios" | "manual" | "none"`) e `openInChromeIntent`.
+    `InstallHintInput` traz `method` (`"native" | "ios" | "open-in-browser" | "manual" | "none"`) e `openInChromeIntent`.
+
+### Dentro do navegador interno de um app
+
+Link compartilhado no WhatsApp ou no Instagram abre **dentro** do app, num navegador interno. Ali não existe instalação: no iPhone só o Safari tem **Adicionar à Tela de Início**, e no Android o web view nunca dispara `beforeinstallprompt`. O `useInstallPrompt` reconhece esse caso e resolve `method: "open-in-browser"` — e o `InstallButton` e o `InstallBanner` passam a mostrar a saída certa sem mudança nenhuma no app:
+
+| Onde | O que a instrução padrão mostra |
+| ---- | ------------------------------- |
+| iPhone (Instagram, WhatsApp, Facebook, TikTok…) | "Toque em **⋯** e escolha **Abrir no Safari** (ou **Abrir no navegador**)" + botão **Copiar link** |
+| Android (os mesmos apps) | link **Abra no Chrome** (`intent://`) + botão **Copiar link** |
+
+O botão **Copiar link** é o `InstallCopyLink`. Ele tenta `navigator.clipboard.writeText`, depois `execCommand("copy")` — o navegador interno costuma negar a Clipboard API — e, se nenhum dos dois funcionar, mostra o endereço num campo somente leitura **já selecionado**, para o usuário copiar segurando o dedo. É o caminho que funciona em todo app, seja qual for o nome que o menu dá a "abrir no navegador".
+
+Para traduzir, use-o dentro do seu `renderHint`:
+
+```tsx
+import { InstallButton, InstallCopyLink, defaultInstallHint } from "tempest-react-sdk";
+
+export function InstallCta() {
+    return (
+        <InstallButton
+            hintLabel="How to install"
+            renderHint={(input) =>
+                input.method === "open-in-browser" ? (
+                    <>
+                        Tap <strong>⋯</strong> and choose <strong>Open in Safari</strong>.
+                        <InstallCopyLink
+                            labels={{
+                                copy: "Copy link",
+                                copied: "Link copied",
+                                manual: "Long-press the link to copy it.",
+                                field: "Page link",
+                            }}
+                        />
+                    </>
+                ) : (
+                    defaultInstallHint(input)
+                )
+            }
+        />
+    );
+}
+```
+
+| Prop     | Tipo                              | Default |
+| -------- | --------------------------------- | ------- |
+| `url`    | `string`                          | `window.location.href` no clique |
+| `labels` | `Partial<InstallCopyLinkLabels>`  | `copy: "Copiar link"`, `copied: "Link copiado"`, `manual: "Toque e segure o link para copiar."`, `field: "Link da página"` |
+
+!!! note "`renderHint` antigo continua funcionando"
+    Um `renderHint` escrito só para `"ios"` e `"manual"` devolve `null` para `"open-in-browser"`. O componente trata `null` (ou `undefined`) como "use o padrão" e cai no `defaultInstallHint` — sem isso, o botão **Como instalar** não revelaria nada dentro do Instagram.
 
 ## `InstallBanner`
 

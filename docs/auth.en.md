@@ -373,6 +373,17 @@ export async function loadOrders(): Promise<unknown[] | null> {
 
 Refreshes also collapse per **rotation**, not just per overlap in time: a 401 whose request left with a token the same session has since replaced replays with the new token and refreshes nothing. Three expired requests take one refresh, whether their 401s arrive together or one after another.
 
+#### Signed-out request and a `login()` in the middle: when the replay gains a token
+
+A request sent **without** a token can be replayed by two paths, and they answer differently on purpose (rule decided in #657):
+
+| Path | The request comes back… | A `login()` is in flight | Outcome |
+| --- | --- | --- | --- |
+| 401 cycle (`refresh`) | `401` | yes, and installs its token | replays **with** the login's token |
+| [`retry`](./http.en.md#built-in-retries) | `503`, network error… | lands during the backoff | rejects with `SessionSupersededError`, no replay |
+
+The 401 is the server saying the anonymous request did nothing and needs a session; the login was already in flight when it arrived, and replaying with its token is the 401 contract (#496). A `retry` failure says nothing about credentials, and the server may have acted on the anonymous attempt: sending the replay with a token changes the request's authority without anyone asking (#643). What both paths share — and what protects data — is that a request sent **with** a token is never replayed under another session. Pinned in `src/auth/create-tempest-auth.replay-rule.test.ts`.
+
 ### Several tabs — the session belongs to the origin, not the tab
 
 With `storage: "local"` (the default), every tab of the app reads and writes the **same** keys: `tempest-auth` (the `{ user, token }`), `tempest-auth-refresh` and `tempest-auth-lineage`. So there is one session for the whole origin, and each tab **follows** what another one wrote — on the browser's `storage` event and, before any refresh, `logout()`, ending of the session or write of the `mePath` user, by comparing the stored session with the one it holds in memory.

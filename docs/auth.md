@@ -372,6 +372,17 @@ export async function loadOrders(): Promise<unknown[] | null> {
 
 Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
 
+#### Request deslogada e `login()` no meio: quando a repetição ganha token
+
+Uma request que saiu **sem** token pode ser repetida por dois caminhos, e eles respondem diferente de propósito (regra decidida no #657):
+
+| Caminho | A request volta… | Um `login()` está em voo | Resultado |
+| --- | --- | --- | --- |
+| Ciclo de 401 (`refresh`) | `401` | sim, e instala o token | repete **com** o token do login |
+| [`retry`](./http.md#retentativa-embutida) | `503`, erro de rede… | termina durante o backoff | rejeita com `SessionSupersededError`, sem repetir |
+
+O 401 é o servidor dizendo que a request anônima não fez nada e precisa de sessão; o login já estava em voo quando ele chegou, e repetir com o token dele é o contrato do 401 (#496). Uma falha de `retry` não diz nada sobre credencial, e o servidor pode ter agido sobre a tentativa anônima: mandar a repetição com token troca a autoridade da request sem ninguém pedir (#643). O que os dois caminhos têm em comum — e é o que protege os dados — é que uma request que saiu **com** token nunca é repetida em outra sessão. Fixado em `src/auth/create-tempest-auth.replay-rule.test.ts`.
+
 ### Várias abas — a sessão é da origem, não da aba
 
 Com `storage: "local"` (o default), todas as abas do app leem e gravam as **mesmas** chaves: `tempest-auth` (o `{ user, token }`), `tempest-auth-refresh` e `tempest-auth-lineage`. Então a sessão é uma só para a origem inteira, e cada aba **segue** o que outra gravou — no evento `storage` do navegador e, antes de qualquer refresh, `logout()`, encerramento ou gravação do usuário do `mePath`, comparando a sessão guardada com a que ela tem em memória.

@@ -15,6 +15,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mudou **e** o token atual não é o da request nem vazio. Refresh que falha e desloga (sem token) e
   `onUnauthorized` que chama `logout()` continuam rejeitando com o 401 (regra do #646). O mesmo vale
   quando a troca acontece enquanto o `onUnauthorized` aguarda.
+- **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
+  comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
+  uma request anônima com o token do login que estava em voo (#496); o `retry` do
+  `createApiClient` recusa o mesmo formato (#655). A divergência fica, de propósito: um 401 diz que
+  a request anônima não fez nada e precisa de sessão; uma falha de `retry` não diz nada sobre
+  credencial e pode ter sido executada. Request que saiu **com** token nunca repete em outra
+  sessão por nenhum dos dois. Documentado em `docs/auth.md`/`.en.md` e fixado em
+  `src/auth/create-tempest-auth.replay-rule.test.ts`.
 
 ## [0.90.0] — 2026-11-19
 

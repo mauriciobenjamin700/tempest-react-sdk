@@ -1165,6 +1165,14 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      *   it (#579) — the request belonged to the session that ended, and is
      *   refused rather than replayed as the new account.
      *
+     * A tokenless request replayed with the token of a `login()` in flight
+     * disagrees on purpose with the client's `retry`, which refuses the same
+     * shape (#655). The rule (#657): a replay may gain a credential the
+     * attempt never carried only through a `401`, which says the anonymous
+     * request did nothing and needs a session; a `retry` failure says nothing
+     * about credentials and may have been acted on. An attempt that carried a
+     * token never replays under another session on either path.
+     *
      * @param context - The credential and epoch the rejected attempt left with.
      * @throws {SessionSupersededError} When the attempt belongs to an ended
      *   session, or the session changed during the refresh.

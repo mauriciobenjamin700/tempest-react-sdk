@@ -109,4 +109,38 @@ describe("usePositionTracker", () => {
 
         expect(onError).toHaveBeenCalledWith(denied);
     });
+
+    it("recovers from a transient error and exposes the last error meanwhile", () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => usePositionTracker({ minDistanceKm: 0 }));
+        act(() => result.current.start());
+
+        const unavailable = {
+            code: 2,
+            message: "Position unavailable",
+        } as GeolocationPositionError;
+        act(() => geo.fail(unavailable));
+        expect(result.current.status).toBe("error");
+        expect(result.current.lastError).toBe(unavailable);
+
+        act(() => geo.emit(0, 0));
+        expect(result.current.status).toBe("tracking");
+        expect(result.current.isTracking).toBe(true);
+        expect(result.current.lastError).toBeNull();
+    });
+
+    it("keeps a refusal in error and tells it apart through lastError", () => {
+        const geo = installGeolocation();
+        const { result } = renderHook(() => usePositionTracker({ minDistanceKm: 0 }));
+        act(() => result.current.start());
+
+        const timeout = { code: 3, message: "Timeout" } as GeolocationPositionError;
+        const denied = { code: 1, message: "User denied Geolocation" } as GeolocationPositionError;
+        act(() => geo.fail(timeout));
+        act(() => geo.fail(denied));
+
+        expect(result.current.status).toBe("error");
+        expect(result.current.lastError?.code).toBe(1);
+        expect(geo.clearWatch).toHaveBeenCalledWith(7);
+    });
 });

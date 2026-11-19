@@ -25,6 +25,12 @@ export interface UsePositionTrackerResult {
     distanceKm: number;
     /** Current tracker status. */
     status: TrackerStatus;
+    /**
+     * The error behind the current `"error"` status — mirrors
+     * {@link PositionTracker.lastError}. `code === 1` (`PERMISSION_DENIED`) is
+     * terminal; `2`/`3` clear on the next reading. `null` otherwise.
+     */
+    lastError: GeolocationPositionError | null;
     /** True while `status === "tracking"`. */
     isTracking: boolean;
     /** Begin watching position. */
@@ -39,6 +45,9 @@ export interface UsePositionTrackerResult {
  * React hook wrapping {@link createPositionTracker}. Records a live GPS
  * trajectory tied to the component lifecycle — the watch is torn down on
  * unmount. Fully browser-side; no external service.
+ *
+ * `status` recovers from `"error"` to `"tracking"` on the next reading after a
+ * lost signal; `lastError` tells that case apart from a refusal.
  *
  * @example
  * const { points, distanceKm, isTracking, start, stop } = usePositionTracker({
@@ -60,6 +69,7 @@ export function usePositionTracker(
     const [points, setPoints] = useState<readonly TrackPoint[]>([]);
     const [distanceKm, setDistanceKm] = useState<number>(0);
     const [status, setStatus] = useState<TrackerStatus>("idle");
+    const [lastError, setLastError] = useState<GeolocationPositionError | null>(null);
 
     const trackerRef = useRef<PositionTracker | null>(null);
     const onErrorRef = useLatestRef(onError);
@@ -71,8 +81,14 @@ export function usePositionTracker(
                 setPoints([...next]);
                 setDistanceKm(tracker.distanceKm);
             },
-            onStatusChange: setStatus,
-            onError: (error) => onErrorRef.current?.(error),
+            onStatusChange: (next) => {
+                setStatus(next);
+                setLastError(tracker.lastError);
+            },
+            onError: (error) => {
+                setLastError(error);
+                onErrorRef.current?.(error);
+            },
         });
         trackerRef.current = tracker;
         if (autoStart) tracker.start();
@@ -98,6 +114,7 @@ export function usePositionTracker(
         lastPoint: points.length > 0 ? points[points.length - 1] : null,
         distanceKm,
         status,
+        lastError,
         isTracking: status === "tracking",
         start,
         stop,

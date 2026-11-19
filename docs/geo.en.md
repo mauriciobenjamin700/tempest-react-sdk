@@ -27,8 +27,8 @@ import type { Coordinate, TrackPoint, TravelEstimate, TravelMode } from "tempest
 
 const sp: Coordinate = { latitude: -23.5505, longitude: -46.6333 };
 
-// TrackPoint = Coordinate + capture time (+ optional accuracy)
-const point: TrackPoint = { ...sp, timestamp: Date.now(), accuracy: 12 };
+// TrackPoint = Coordinate + capture time (+ optional accuracy, speed and heading)
+const point: TrackPoint = { ...sp, timestamp: Date.now(), accuracy: 12, speed: 8.3, heading: 90 };
 
 // TravelMode = "car" | "motorcycle" | "bus"
 const mode: TravelMode = "car";
@@ -161,10 +161,42 @@ export function LiveRun() {
 - `minDistanceKm` (default `0.005` = 5 m) discards samples that are too close — filters GPS jitter while standing still.
 - `maxPoints` caps the retained array (total distance keeps counting).
 - `autoStart: true` starts tracking on mount.
+- Each point carries `speed` (m/s, the browser's unit — `× 3.6` gives km/h) and `heading` (degrees from north), `null` when the device does not report them. The `NaN` heading some browsers send while the device is stationary becomes `null` too.
+
+### Transient error, refusal and `lastError`
+
+In a tunnel or an area without signal the browser sends `POSITION_UNAVAILABLE` (code `2`) or `TIMEOUT` (code `3`) and `status` becomes `"error"`, but the watch stays alive: **the next reading moves `status` back to `"tracking"`** — even one the jitter filter discards, because it already proves the signal is back. Repeated `TIMEOUT`s keep `"error"` and call `onError` each time.
+
+`PERMISSION_DENIED` (code `1`) is terminal: the browser sends no further readings, so the watch is released and `status` stays `"error"` until a new `start()`. `lastError` (on the hook and on the tracker) tells the screen which of the two cases it is in; it goes back to `null` on recovery, on `start()`, on `stop()` and on `clear()`.
+
+```tsx
+import { usePositionTracker } from "tempest-react-sdk";
+
+export function TrackingStatus() {
+  const { status, lastError, lastPoint, start } = usePositionTracker({ autoStart: true });
+
+  if (status === "error" && lastError?.code === 1) {
+    return (
+      <p>
+        Allow location access. <button onClick={start}>Try again</button>
+      </p>
+    );
+  }
+  if (status === "error") return <p>No GPS signal — waiting for the next reading…</p>;
+
+  const kmh = lastPoint?.speed != null ? (lastPoint.speed * 3.6).toFixed(0) : "—";
+  const direction = lastPoint?.heading != null ? `${lastPoint.heading.toFixed(0)}°` : "—";
+  return (
+    <p>
+      {kmh} km/h · heading {direction}
+    </p>
+  );
+}
+```
 
 ### Imperative version — `createPositionTracker`
 
-Outside React (services), the controller exposes `start`/`stop`/`clear` + `points`/`distanceKm`/`status` getters:
+Outside React (services), the controller exposes `start`/`stop`/`clear` + `points`/`distanceKm`/`status`/`lastError` getters:
 
 ```ts
 import { createPositionTracker } from "tempest-react-sdk";

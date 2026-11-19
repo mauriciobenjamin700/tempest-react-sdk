@@ -16,6 +16,7 @@ A **100% self-hosted** geolocation module: capture latitude/longitude through th
 - Capture the user's position (once or continuously) via `navigator.geolocation`.
 - Record and display a **trajectory** (run, delivery, trail).
 - Compute distance between points or estimate travel time **offline**.
+- Follow a trip **live**: planned route, trail, vehicle and pickup points.
 - Plot everything without depending on a paid/external map.
 
 ## Types — `Coordinate`, `TrackPoint`, `TravelEstimate`
@@ -258,11 +259,132 @@ import { TrajectoryMap } from "tempest-react-sdk";
 | `tileUrl` | `string` | — | `{z}/{x}/{y}` template of **your** tile server → enables Leaflet. |
 | `tileAttribution` | `string` | — | Attribution over the tiles. |
 
+## Live trip map — `LiveRouteMap`
+
+`TrajectoryMap` plots a **recorded** trajectory and refits the map on every change. On a trip that is happening, that gets in the way: every new vehicle position (over SSE, every few seconds) would zoom out. `LiveRouteMap` is the map of a trip **in progress**:
+
+- the **planned route** (`route`, e.g. the OSRM geometry) dashed, and the **traveled trail** (`trail`) solid on top;
+- the **vehicle** with a **heading** arrow (`vehicle.heading`), gliding between two positions instead of jumping;
+- the **trip points** (`markers`) by kind — origin, stop, destination —, with a numeric **badge** and **content** that opens by tap, click or keyboard;
+- **follow** mode (`follow`): a new position **does not refit** the map; it only pans, at the same zoom, when the vehicle nears an edge. If the user drags the map, follow pauses and a recenter button shows up.
+
+A complete example — route, trail, vehicle with heading and 3 pickup points with content:
+
+```tsx
+import { useEffect, useState } from "react";
+import { LiveRouteMap, bearingDeg, type Coordinate, type LiveRouteMarker } from "tempest-react-sdk";
+
+const ROUTE: Coordinate[] = [
+  { latitude: -23.5505, longitude: -46.6333 },
+  { latitude: -23.5535, longitude: -46.6301 },
+  { latitude: -23.5571, longitude: -46.6268 },
+  { latitude: -23.5612, longitude: -46.6239 },
+  { latitude: -23.5648, longitude: -46.6197 },
+];
+
+const STOPS: LiveRouteMarker[] = [
+  {
+    id: "se",
+    label: "Praça da Sé",
+    kind: "origin",
+    badge: 2,
+    ...ROUTE[0],
+    content: <p>Ana and Bruno board here.</p>,
+  },
+  {
+    id: "liberdade",
+    label: "Liberdade",
+    kind: "stop",
+    badge: 3,
+    ...ROUTE[2],
+    content: (
+      <ul>
+        <li>Carla</li>
+        <li>Diego</li>
+        <li>Elisa</li>
+      </ul>
+    ),
+  },
+  {
+    id: "paraiso",
+    label: "Paraíso",
+    kind: "destination",
+    ...ROUTE[4],
+    content: <p>Expected arrival at 08:40.</p>,
+  },
+];
+
+export function TripMap() {
+  const [traveled, setTraveled] = useState<Coordinate[]>([ROUTE[0]]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setTraveled((prev) =>
+        prev.length < ROUTE.length ? [...prev, ROUTE[prev.length]] : prev,
+      );
+    }, 3000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const position = traveled[traveled.length - 1];
+  const previous = traveled[traveled.length - 2];
+  const heading = previous ? bearingDeg(previous, position) : null;
+  const minutes = (ROUTE.length - traveled.length) * 2;
+
+  return (
+    <LiveRouteMap
+      route={ROUTE}
+      trail={traveled}
+      vehicle={{ position, heading, label: "Bus 42" }}
+      markers={STOPS}
+      follow
+      etaLabel={`Estimated arrival in ${minutes} minutes`}
+      label="Trip map"
+      recenterLabel="Recenter"
+      closeLabel="Close"
+      kindLabels={{ origin: "origin", stop: "stop", destination: "destination" }}
+      height={400}
+    />
+  );
+}
+```
+
+Piece by piece:
+
+- **`route` decides the initial framing**, together with the `markers`. The vehicle and the trail are **not** part of it — that is what prevents the zoom-out on every position.
+- **`vehicle.heading`** is the bearing in degrees (0 = north, clockwise). Without it the vehicle is a dot. If your backend already sends the heading, pass it through; if not, `bearingDeg(previous, current)` computes it.
+- **`markers[].content`** is any `ReactNode`. The marker is a button: it opens on click/tap, `Enter` or `Space`; focus moves into the panel and `Esc` closes it and returns focus to the marker.
+- **`etaLabel`** is the text the screen reader announces (a polite `status` region). The map does **not** compute the ETA: it comes from the app, which already knows where to get it.
+- The default texts are PT-BR; `label`, `recenterLabel`, `closeLabel` and `kindLabels` translate them.
+
+!!! tip "Reduced motion"
+    The vehicle glides for `animationMs` (600 ms by default) between two positions. With `prefers-reduced-motion: reduce` on the system it jumps straight there, with nothing for you to do. `animationMs={0}` turns it off for everyone.
+
+!!! note "Offline by default, tiles if you host them"
+    Without `tileUrl` it is pure SVG: zero requests, works offline and in tests. With `tileUrl` pointing at **your** tile server, the map draws the tiles under the lines, in the same projection — no Leaflet, no new dependency. There is no Google Maps path.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `route` | `readonly Coordinate[]` | — | Planned route, dashed. Frames the map. |
+| `trail` | `readonly Coordinate[]` | — | Traveled path, solid. |
+| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label? }`. |
+| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, content? }`. |
+| `follow` | `boolean` | `false` | Keeps the vehicle in sight without changing the zoom. |
+| `etaLabel` | `string` | — | Text announced to the screen reader. |
+| `height` / `padding` | `number` | `360` / `32` | Height and framing margin, in px. |
+| `animationMs` | `number` | `600` | Vehicle glide duration. `0` jumps. |
+| `showScale` | `boolean` | `true` | Scale bar in m/km. |
+| `tileUrl` / `tileAttribution` / `tileMaxZoom` | `string` / `string` / `number` | — / — / `19` | Tiles from **your** server. |
+| `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Accessible texts. |
+| `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Spoken name of each kind. |
+| `onMarkerOpenChange` | `(id: string \| null) => void` | — | A marker panel opened (`id`) or closed (`null`). |
+
 ## Recap
 
 - **Capture**: `usePositionTracker` / `createPositionTracker` record a trajectory via `navigator.geolocation`, filtering jitter — all in the browser.
 - **Math**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, mirroring `tempest-fastapi-sdk`.
 - **Map**: `TrajectoryMap` plots tile-free SVG by default; `tileUrl` enables Leaflet only with a server **you host**.
+- **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position.
 - **Real routing**: `createOSRMBackend` is opt-in and points at **your** OSRM — the only piece that touches the network.
 
 ## See also

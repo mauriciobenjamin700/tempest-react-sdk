@@ -10,6 +10,7 @@ import { cn } from "@/utils/cn";
 import { boundingBox, expandBounds } from "./bounds";
 import { haversineKm } from "./distance";
 import { fitProjection, type PixelPoint } from "./projection";
+import { formatScale, pickScaleKm } from "./scale";
 import type { Coordinate, GeoMarker } from "./types";
 import styles from "./TrajectoryMap.module.css";
 
@@ -48,23 +49,6 @@ export interface TrajectoryMapProps extends Omit<HTMLAttributes<HTMLDivElement>,
     markers?: readonly GeoMarker[];
     /** Fired when a marker is clicked. */
     onMarkerClick?: (marker: GeoMarker, index: number) => void;
-}
-
-const NICE_KM_STEPS = [0.05, 0.1, 0.25, 0.5, 1, 2, 5, 10, 25, 50, 100, 250, 500, 1000] as const;
-
-/** Pick the largest "nice" distance whose bar fits within `maxPixels`. */
-function pickScaleKm(kmPerPixel: number, maxPixels: number): { km: number; pixels: number } {
-    const maxKm = kmPerPixel * maxPixels;
-    let chosen: number = NICE_KM_STEPS[0];
-    for (const step of NICE_KM_STEPS) {
-        if (step <= maxKm) chosen = step;
-    }
-    return { km: chosen, pixels: chosen / kmPerPixel };
-}
-
-/** Format a distance in km for the scale bar (meters below 1 km). */
-function formatScale(km: number): string {
-    return km < 1 ? `${Math.round(km * 1000)} m` : `${km % 1 === 0 ? km : km.toFixed(1)} km`;
 }
 
 /**

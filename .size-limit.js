@@ -4,6 +4,11 @@
  * The limits themselves live in `.size-limit.checks.json`; this file is only the
  * measurement fix, and it exists because of one thing esbuild does not do.
  *
+ * The bundler is esbuild through `@size-limit/esbuild` + `@size-limit/file`, named
+ * explicitly: since size-limit 14 the `preset-small-lib` bundles with rolldown,
+ * which measures differently (no CSS at all, different chunking) — see
+ * `docs/internal/decisions.md`, section Dependências.
+ *
  * Since every `*.module.js` imports its own stylesheet, a bundler has to decide
  * whether an unreached module's CSS import can go. `sideEffects: ["**\/*.css"]` in
  * `package.json` is what tells it the JavaScript is free of side effects, so the

@@ -47,6 +47,21 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
 
 ## Dependências
 
+- **`size-limit` 14 mede com o plugin de esbuild, não com o preset**
+  (`@size-limit/esbuild` + `@size-limit/file`, auditoria de 20/11/2026). O
+  `@size-limit/preset-small-lib` 14 trocou o esbuild pelo rolldown, e as 61
+  checagens mediram, sobre o mesmo `dist` da `main` em `3576adc`, números que não
+  medem a mesma coisa: o rolldown recusa CSS (`UNSUPPORTED_FEATURE`, rolldown#4271),
+  então as checagens de folha passam a medir o arquivo cru em vez do minificado
+  (`utilities.css` 1 360 → 3 451 B), e as de JS mudam de −25 kB (barrel CJS
+  202 195 → 177 149) a +11 kB (`{ IconPicker }` 23 947 → 35 067) e +89 kB
+  (`br entry` 544 536 → 633 323) sem uma linha do SDK mudar. Além disso o
+  `@size-limit/rolldown` pede `rolldown ^1.2.15`, e o `overrides.rolldown` 1.2.14
+  (que segura o `core.css`) o forçaria para fora da faixa. Com o plugin de esbuild,
+  as 61 checagens dão **o mesmo byte** que no 13. **Reabre quando** o
+  `overrides.rolldown` sair e alguém quiser trocar de método de propósito: aí
+  remede tudo e reescreve os tetos num PR só disso.
+
 - **Peers de contexto, deps diretas para o resto** (v0.2.0+, revisado pós-0.42.1).
   O critério é contexto React. `react-router` virou peer `^7 || ^8` porque como
   dep direta gerava cópia aninhada em todo app que já tivesse router fora do

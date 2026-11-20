@@ -22,7 +22,7 @@ export interface IconPickerProps extends Omit<
      * Fires with the **canonical** slug on every keystroke.
      *
      * Legacy spellings are normalized on the way out (`Shopping_Cart` →
-     * `shopping-cart`, `alert-circle` → `circle-alert`), so what a form stores is
+     * `shopping-cart`, `alert-circle` → `circle-exclamation-point`), so what a form stores is
      * what `<Icon>` resolves without further cleanup.
      */
     onChange: (slug: string) => void;

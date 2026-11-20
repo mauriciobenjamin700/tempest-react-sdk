@@ -26,7 +26,7 @@ src/
 ├── hooks/           55 hooks `useX`
 ├── http/            createApiClient, parseResponse, uploadWithProgress, retry
 ├── i18n/            createI18n, I18nProvider, useI18n, useTranslate
-├── icons/        ⇢  <Icon name> por slug + IconProvider + 46 shards gerados
+├── icons/        ⇢  <Icon name> por slug + IconProvider + 53 shards gerados
 ├── imaging/      ⇢  decode/encode/resize/crop/compress em canvas, sem dep
 ├── logger/          createLogger leveled + sinks
 ├── oauth/           <GoogleSignIn>, useOAuthCallback

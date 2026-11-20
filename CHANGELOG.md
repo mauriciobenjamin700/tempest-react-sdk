@@ -73,6 +73,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **`slice: http client` e `slice: typical app` sobem com a checagem de época antes do ciclo de 401**
+  (auditoria run-17). As duas estavam no teto exato sobre a `main`. Antes/depois com
+  `npm run build && npx size-limit --json` sobre a `main` em `bd0a15c` e sobre este branch, em bytes
+  brotli: `slice: http client` 5 900 → 5 933 (teto 5,9 → 5,94 kB); `slice: typical app (shell + 5
+components + http + auth + hook)` 12 898 → 12 920 (teto 12,9 → 12,93 kB). `slice: resumable upload`
+  5 385 → 5 377, dentro do teto.
+
 - **Ícones e `VideoPlayer` sobem com o `lucide-react` 1.77**, que emite cada ícone com o nome e o
   tamanho junto do desenho (`__iconData`) — só as checagens que medem lucide mudaram. Antes/depois
   com `npm run build && npx size-limit --json` sobre a `main` em `3576adc` e sobre este branch, em
@@ -96,6 +103,26 @@ validateIconName }` 9 255 → 10 750 (teto 9,5 → 10,8 kB, a lista tem 2409 slu
 
 ### Segurança
 
+- **`createApiClient`: o `401` de uma sessão que já acabou não chama mais `refresh` nem
+  `onUnauthorized`** (auditoria run-17, low). O cliente lia `endedOnArrival` e mesmo assim rodava o
+  ciclo de 401: num `createApiClient` próprio (fora do `createTempestAuth`, que já comparava a
+  época), o 401 atrasado da conta A que chegava depois de `logout()` + `login(B)` chamava o
+  `onUnauthorized` que desloga — e derrubava a sessão de B —, ou rodava o `refresh` com o contexto
+  de A sob B. O mesmo valia para o 401 da **repetição** depois do refresh e para o 401 de uma
+  request **sem token** que chegava depois do `login(B)`. Agora a época é comparada na chegada,
+  antes de qualquer hook — no primeiro 401 e no da repetição —, e a request rejeita com
+  `SessionSupersededError`. A regra do #646 fica: um 401 cujo **próprio** tratamento encerra a
+  sessão (refresh que falha e desloga, `onUnauthorized` que chama `logout()`) continua rejeitando
+  com o 401. **4 dos 5 testes novos falham sobre a `main` em `bd0a15c`** (o quinto é o controle da
+  sessão corrente) — `src/http/api-client.unauthorized-session.test.ts`.
+- **`createResumableUpload`: o `abort({ discard: true })` de um handle sem vínculo guardado de antes
+  de um `clear()` não apaga mais o registro da sessão seguinte** (auditoria run-17, low). Num upload
+  por cookie ou anônimo (sem `getToken` nem `getPrincipal`), o `ownerMoved()` respondia "não mudou"
+  sem olhar a geração do `clear()`: o descarte mandava o `DELETE` com os cookies de B e apagava o
+  registro de B, que fica sob a mesma chave para o mesmo arquivo. Agora todo handle já anexado é
+  conferido contra o `clear()`, e um `getPrincipal` que lança conta como dono mudado em vez de
+  fazer o `abort()` rejeitar. **2 dos 3 testes novos falham sobre a `main` em `bd0a15c`** (o
+  terceiro é o controle sem `clear()`) — `src/http/resumable-upload.clear.test.ts`.
 - **`persistQueryClientOffline`: o `setQueryData` feito deslogado depois de uma sessão não vai mais
   para o snapshot** (#653, auditoria run-14 U7 / run-15). Uma promise do app iniciada na sessão de A
   que gravava dados de A com `setQueryData` depois do `logout()` e do `clear({ resetClient: true })`

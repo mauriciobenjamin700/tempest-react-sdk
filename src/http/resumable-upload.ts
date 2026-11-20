@@ -929,16 +929,26 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * When the owner moved, the discard only forgets this run's own record, as
      * a supersession does, and nothing goes to the server.
      *
-     * @returns `true` when {@link assertCurrentOwner} would throw.
+     * A handle with no binding — a cookie session or an anonymous upload — is
+     * checked too, against the `clear()` generation: up to 0.90.0 an unbound
+     * owner short-circuited to `false`, and a handle kept from before
+     * `clear()` sent the `DELETE` with the next session's cookies and deleted
+     * that session's record under the same key (security audit run-17).
+     *
+     * Fails closed: a `getPrincipal` that throws counts as a moved owner, so
+     * `abort()` neither rejects with it nor sends a request it cannot
+     * attribute.
+     *
+     * @returns `true` when {@link assertCurrentOwner} would throw, for any
+     * reason.
      */
     function ownerMoved(): boolean {
-        if (owner === undefined) return false;
+        if (!attached) return false;
         try {
             assertCurrentOwner();
             return false;
-        } catch (error) {
-            if (error instanceof ResumableUploadSupersededError) return true;
-            throw error;
+        } catch {
+            return true;
         }
     }
 

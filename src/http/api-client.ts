@@ -420,6 +420,28 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     /**
+     * Whether `getSessionEpoch` moved since the attempt left, with or without
+     * a token on it.
+     *
+     * The gate in front of the `401` hooks. A `401` that lands after its
+     * session ended speaks for nobody signed in now: `refresh()` would run with
+     * the ended session's context and `onUnauthorized` — the documented place
+     * to end the session — would sign the next account out. Unlike
+     * {@link sessionEndedSince}, a tokenless attempt counts too: its `401`
+     * landing after `login(B)` is no reason to end B's session either. Read on
+     * arrival, before any hook runs, so a `401` whose own handling ends the
+     * session still rejects with the `401` (#646).
+     *
+     * @param context - The credential and epoch the attempt left with.
+     * @returns `true` when the epoch differs now; `false` without
+     * `getSessionEpoch`.
+     */
+    function epochMovedSince(context: RequestAuthContext): boolean {
+        if (context.epoch === null || !config.getSessionEpoch) return false;
+        return config.getSessionEpoch() !== context.epoch;
+    }
+
+    /**
      * Whether another session was installed since the attempt left: its epoch
      * ended and a bearer token that is not the attempt's own is current now.
      *
@@ -521,6 +543,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * with {@link SessionSupersededError} too, without calling
      * `onUnauthorized`, which would end B's session for A's `401` (#657).
      *
+     * A `401` — to the first attempt or to the replay — that lands after the
+     * session epoch it left under moved rejects with
+     * {@link SessionSupersededError} before `refresh` or `onUnauthorized` run
+     * (see `epochMovedSince`). Up to 0.90.0 the hooks ran anyway: a standalone
+     * client whose `onUnauthorized` signs out ended account B's session for
+     * account A's stale `401` after `logout()` + `login(B)`, and a tokenless
+     * `401` landing after `login(B)` did the same (security audit run-17). The
+     * `createTempestAuth` preset compared the epoch itself and was not
+     * affected.
+     *
      * @param path - The path as the call site wrote it.
      * @param options - Request options, policy fields included.
      * @param decode - How to turn the response into a value.
@@ -543,6 +575,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         let handled = false;
 
         if (response.status === 401 && inScope && !skipAuth && !skipAuthRetry) {
+            if (epochMovedSince(sent)) throw new SessionSupersededError();
             handled = true;
             if (config.refresh) {
                 let replayed: RequestAuthContext;
@@ -561,6 +594,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                     throw await failure(response, requestId, sent, endedOnArrival, true);
                 }
                 if (response.status === 401) {
+                    if (epochMovedSince(replayed)) throw new SessionSupersededError();
                     await notifyUnauthorized(response, requestId, replayed);
                 }
             } else {

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.91.0] — 2026-11-20
+
 ### Adicionado
 
 - **`/br`: coordenada da sede do município — `municipalitySeat(id)`** (#677). Até aqui o `/br` só

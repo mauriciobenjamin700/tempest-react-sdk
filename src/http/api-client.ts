@@ -553,6 +553,13 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * `createTempestAuth` preset compared the epoch itself and was not
      * affected.
      *
+     * Only a failing `refresh()` counts as the session failing. The replay is
+     * sent outside that `try`: a network error on it — after a refresh that
+     * succeeded, so the session is alive — rejects with that error, as on any
+     * first attempt, without calling `onUnauthorized`. Up to 0.91.0 the same
+     * `catch` took it, and a network blip right after a refresh signed the
+     * user out (security audit run-17 §5, #684).
+     *
      * @param path - The path as the call site wrote it.
      * @param options - Request options, policy fields included.
      * @param decode - How to turn the response into a value.
@@ -583,16 +590,16 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                     await config.refresh(sent);
                     if (sessionEndedSince(sent)) throw new SessionSupersededError();
                     replayed = authContext(skipAuth);
-                    answered = replayed;
-                    response = await send(path, url, inScope, init, requestId, method, skipAuth);
-                    endedOnArrival = sessionEndedSince(replayed);
-                    handled = response.status === 401;
                 } catch (error) {
                     if (error instanceof SessionSupersededError) throw error;
                     if (sessionReplacedSince(sent)) throw new SessionSupersededError();
                     await notifyUnauthorized(response, requestId, sent);
                     throw await failure(response, requestId, sent, endedOnArrival, true);
                 }
+                answered = replayed;
+                response = await send(path, url, inScope, init, requestId, method, skipAuth);
+                endedOnArrival = sessionEndedSince(replayed);
+                handled = response.status === 401;
                 if (response.status === 401) {
                     if (epochMovedSince(replayed)) throw new SessionSupersededError();
                     await notifyUnauthorized(response, requestId, replayed);

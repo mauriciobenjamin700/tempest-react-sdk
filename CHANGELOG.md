@@ -4,6 +4,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createApiClient`: falha de rede na repetição depois do `refresh` não desloga mais** (#684,
+  auditoria run-17 §5). O `catch` em volta do `refresh()` também pegava o envio da repetição: com o
+  `refresh` resolvido (a sessão está viva) e a rede caindo na repetição, o cliente chamava
+  `onUnauthorized` e rejeitava com o 401 da primeira tentativa — num app cujo `onUnauthorized`
+  desloga, um soluço de rede logo depois do refresh encerrava uma sessão válida. A repetição agora
+  sai fora desse `try`: o erro de rede chega ao chamador como numa primeira tentativa, e
+  `onUnauthorized` só roda quando o próprio `refresh` falha. Teste:
+  `api-client.resilience.test.ts` › "rejects with the network error and does not sign out".
+
 ## [0.91.0] — 2026-11-20
 
 ### Adicionado

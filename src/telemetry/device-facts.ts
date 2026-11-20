@@ -77,17 +77,20 @@ function deviceModel(model: string): string | undefined {
 }
 
 /**
- * Shape of a Client Hints `platformVersion`: one to four dotted groups of up
- * to five digits — `14.0.0` (Android), `15.0.0` (Windows 11), `14.2.1`
- * (macOS).
+ * Shape of a Client Hints `platformVersion`: one to three dotted groups of up
+ * to three digits, without a leading zero — `14.0.0` (Android), `15.0.0`
+ * (Windows 11), `0.3.0` (Windows 8.1), `14.2.1` and `10.15.7` (macOS).
  *
  * The hint is answered by whatever browser or WebView embeds the app, and it
  * was interpolated into `os_version` as it came: `"14 user=alice"` was
  * uploaded as `"Android 14 user=alice"` (security audit run-16 §6, #657). Like
  * the model (#644), what does not have the shape is dropped, and the user
- * agent's version stays.
+ * agent's version stays. Up to 0.91.0 the shape took four groups of up to
+ * five digits, a 23-character channel of arbitrary digits that no real
+ * version needs; the bound is now the widest real one (#684). ChromeOS
+ * reports five-digit groups (`15183.69.0`), but its hint is never read.
  */
-const PLATFORM_VERSION = /^\d{1,5}(?:\.\d{1,5}){0,3}$/;
+const PLATFORM_VERSION = /^(?:0|[1-9]\d{0,2})(?:\.(?:0|[1-9]\d{0,2})){0,2}$/;
 
 /** The OS facts read from a user agent: the coarse version and, on Android, the model. */
 export interface UserAgentFacts {

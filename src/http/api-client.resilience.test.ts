@@ -163,3 +163,49 @@ describe("createApiClient — opt-in retry", () => {
         expect(fetcher).toHaveBeenCalledTimes(2);
     });
 });
+
+/**
+ * Security audit run-17 §5 (#684): the `catch` around `refresh()` also caught
+ * the replay's own send. A network failure right after a refresh that
+ * succeeded — the session is alive, only the connection dropped — ran
+ * `onUnauthorized` and rejected with the first attempt's `401`, so an app
+ * whose `onUnauthorized` signs out ended a valid session over a network blip.
+ */
+describe("createApiClient — network failure on the replay after a refresh", () => {
+    it("rejects with the network error and does not sign out", async () => {
+        const offline = new TypeError("Failed to fetch");
+        const fetcher = vi
+            .fn()
+            .mockResolvedValueOnce(new Response("{}", { status: 401 }))
+            .mockRejectedValueOnce(offline);
+        const refresh = vi.fn().mockResolvedValue(undefined);
+        const onUnauthorized = vi.fn();
+        const api = createApiClient({
+            baseURL: "https://api.example.com",
+            getToken: () => "token",
+            refresh,
+            onUnauthorized,
+            fetcher,
+        });
+
+        await expect(api.get("/me")).rejects.toBe(offline);
+        expect(refresh).toHaveBeenCalledOnce();
+        expect(onUnauthorized).not.toHaveBeenCalled();
+    });
+
+    it("still signs out when the refresh itself fails", async () => {
+        const fetcher = vi.fn().mockResolvedValue(new Response("{}", { status: 401 }));
+        const onUnauthorized = vi.fn();
+        const api = createApiClient({
+            baseURL: "https://api.example.com",
+            getToken: () => "token",
+            refresh: vi.fn().mockRejectedValue(new Error("refresh refused")),
+            onUnauthorized,
+            fetcher,
+        });
+
+        await expect(api.get("/me")).rejects.toMatchObject({ status: 401 });
+        expect(onUnauthorized).toHaveBeenCalledOnce();
+        expect(fetcher).toHaveBeenCalledOnce();
+    });
+});

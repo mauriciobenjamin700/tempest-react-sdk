@@ -802,3 +802,71 @@ describe("createResumableUpload — forgetting a superseded record is one storag
         expect(local.get("k")).toBeNull();
     });
 });
+
+/**
+ * Security audit run-17 §5 (#684): a handle bound only to a bare token getter
+ * — no `getPrincipal`, no `createTempestAuth` getter, no `clear()` at session
+ * end — cannot see the account switch, so `abort({ discard: true })` takes the
+ * same-session branch. That branch deleted whatever record sat under the file
+ * fingerprint: B's own resume record of the same file, written after B signed
+ * in. The record half is now matched by the run's `Idempotency-Key`; the
+ * `DELETE` still goes to A's upload URL, which only the server can refuse.
+ */
+describe("createResumableUpload — discard of a token-bound handle keeps another run's record (#684)", () => {
+    let tus: TusDouble;
+    let token: string;
+    const recordKey = uploadFingerprint("/api/uploads", file);
+
+    beforeEach(() => {
+        localStorage.clear();
+        token = "A-tok";
+        tus = new TusDouble();
+        installXhr(tus);
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+    });
+
+    async function abandonedHandleOfA() {
+        tus.failPatchAt = 2;
+        const handle = createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: () => token,
+            retry: { shouldRetry: () => false },
+        });
+        await handle.start().catch(() => undefined);
+        tus.failPatchAt = null;
+        return handle;
+    }
+
+    it("keeps B's record under the same key when A's handle discards", async () => {
+        const handle = await abandonedHandleOfA();
+        token = "B-tok";
+        createLocalUploadStorage().set(recordKey, {
+            url: "http://localhost:3000/api/uploads/of-B",
+            offset: 4,
+            size: file.size,
+            idempotencyKey: "key-of-B",
+            updatedAt: 1,
+        });
+
+        await handle.abort({ discard: true });
+
+        expect((await createLocalUploadStorage().get(recordKey))?.idempotencyKey).toBe("key-of-B");
+    });
+
+    it("still forgets its own record when it discards", async () => {
+        const handle = await abandonedHandleOfA();
+        expect(await createLocalUploadStorage().get(recordKey)).not.toBeNull();
+
+        await handle.abort({ discard: true });
+
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+        expect(tus.seen.filter((request) => request.method === "DELETE")).toHaveLength(1);
+    });
+});

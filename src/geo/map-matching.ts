@@ -11,6 +11,19 @@ import {
 import type { RoadCandidate, RoadEdge, RoadGraph, RoadGraphCore } from "./road-graph";
 import type { Coordinate } from "./types";
 
+/**
+ * A fix the matchers take: a {@link Coordinate}, optionally with the time it
+ * was captured. A `TrackPoint` is one as is.
+ */
+export interface RoadFix extends Coordinate {
+    /**
+     * Capture time in epoch milliseconds. When two consecutive fixes both have
+     * one, the detour allowed between them grows with the interval
+     * (`detourPerSecondM`); without it the bound is the fixed `maxDetourM`.
+     */
+    timestamp?: number;
+}
+
 /** Tuning of the hidden Markov model behind {@link matchToRoads}. */
 export interface MatchToRoadsOptions {
     /**
@@ -41,6 +54,21 @@ export interface MatchToRoadsOptions {
      * chain breaks instead of failing.
      */
     maxDetourM?: number;
+    /**
+     * Extra detour allowed per second between two timed fixes, in metres: the
+     * bound becomes `maxDetourM + detourPerSecondM · Δt`. A sparse source (a
+     * fix every 5–30 s) turns corners and goes round blocks between fixes, so
+     * a bound fixed for 1 Hz breaks the chain on real drives; growing it with
+     * the interval keeps it tight where fixes are dense. Applies only when both
+     * fixes carry a `timestamp`. `0` turns it off.
+     */
+    detourPerSecondM?: number;
+    /**
+     * Intervals longer than this, in seconds, grant no more detour: the slack
+     * stops at `detourPerSecondM · maxIntervalS`, which bounds the
+     * shortest-path search after a long gap.
+     */
+    maxIntervalS?: number;
 }
 
 /**
@@ -48,6 +76,15 @@ export interface MatchToRoadsOptions {
  * real drives, 247 251 fixes at ~1 Hz, OpenStreetMap excerpts): `node
  * scripts/bench-map-matching.mjs` sweeps every knob and prints the whole
  * table.
+ *
+ * `detourPerSecondM` and `maxIntervalS` were chosen on the same drives thinned
+ * to one fix every 5–300 s and on public OpenStreetMap traces of five
+ * Brazilian city centres (`node scripts/bench-br-osm.mjs`): 2 m/s is the
+ * largest rate that leaves the 1 Hz result where it was (92.33% right road),
+ * and it already takes the breaks of the runs at ≥ 6 m/s to zero at 5, 10 and
+ * 30 s; a larger rate mostly turns one-way streets driven the wrong way into
+ * a loop round the block. Without a cap, the long gaps a 1 Hz trace also has
+ * cost 0.2 pp of right road; 60 s keeps the gain at 30–120 s.
  */
 export const ROAD_MATCH_DEFAULTS: Readonly<Required<Omit<MatchToRoadsOptions, "minSpacingM">>> =
     Object.freeze({
@@ -56,6 +93,8 @@ export const ROAD_MATCH_DEFAULTS: Readonly<Required<Omit<MatchToRoadsOptions, "m
         radiusM: 200,
         maxCandidates: 16,
         maxDetourM: 100,
+        detourPerSecondM: 2,
+        maxIntervalS: 60,
     });
 
 /** A directed pass over one of the app's edges. */
@@ -145,8 +184,8 @@ export interface RoadMatcherUpdate<E extends RoadEdge = RoadEdge> {
 
 /** Incremental, fixed-lag matcher for a live map. */
 export interface RoadMatcher<E extends RoadEdge = RoadEdge> {
-    /** Feed the next fix. */
-    push(fix: Coordinate): RoadMatcherUpdate<E>;
+    /** Feed the next fix; with its `timestamp`, sparse fixes stay chained. */
+    push(fix: RoadFix): RoadMatcherUpdate<E>;
     /** Commit everything still pending and start a new chain. */
     flush(): CommittedMatch<E>[];
     /** Chain breaks so far. */
@@ -168,6 +207,8 @@ interface Params {
     k: number;
     spacing: number;
     detour: number;
+    perSecond: number;
+    interval: number;
 }
 
 interface Follower {
@@ -181,6 +222,7 @@ interface Column {
     fix: number;
     x: number;
     y: number;
+    t: number;
     cands: RoadCandidate[];
     score: Float64Array;
     back: Int32Array;
@@ -205,9 +247,11 @@ function resolveParams(options: MatchToRoadsOptions): Params {
         k: options.maxCandidates ?? ROAD_MATCH_DEFAULTS.maxCandidates,
         spacing: options.minSpacingM ?? 2 * sigma,
         detour: options.maxDetourM ?? ROAD_MATCH_DEFAULTS.maxDetourM,
+        perSecond: options.detourPerSecondM ?? ROAD_MATCH_DEFAULTS.detourPerSecondM,
+        interval: options.maxIntervalS ?? ROAD_MATCH_DEFAULTS.maxIntervalS,
     };
     for (const [name, value] of Object.entries(params)) {
-        const zeroOk = name === "spacing";
+        const zeroOk = name === "spacing" || name === "perSecond";
         if (!Number.isFinite(value) || value < 0 || (!zeroOk && value === 0)) {
             throw new RangeError(`road matching: invalid ${name} (${String(value)})`);
         }
@@ -228,6 +272,13 @@ function resolveParams(options: MatchToRoadsOptions): Params {
  * when both sit on the same directed edge with `b` ahead. One bounded
  * Dijkstra runs per distinct end node of the previous candidates.
  *
+ * A route longer than `straight + maxDetourM + detourPerSecondM · Δt` is
+ * impossible, where `Δt` is the time between this fix and the previous kept
+ * one, capped at `maxIntervalS`. A fix without a timestamp has `t = NaN`, so
+ * `Δt` is not positive and the slack is zero — the bound of an untimed trace
+ * is exactly the fixed one. The same zero covers clocks that repeat or go
+ * back.
+ *
  * When no previous candidate reaches any current one, the column restarts the
  * chain from its emissions alone (`start = true`) — the HMM break.
  *
@@ -247,7 +298,8 @@ function advance(core: RoadGraphCore, prev: Column | null, col: Column, p: Param
     col.back = new Int32Array(m).fill(-1);
     if (prev !== null) {
         const straight = Math.hypot(col.x - prev.x, col.y - prev.y);
-        const limit = straight + p.detour;
+        const dt = (col.t - prev.t) / 1000;
+        const limit = straight + p.detour + p.perSecond * Math.min(dt > 0 ? dt : 0, p.interval);
         const consider = (a: number, j: number, route: number): void => {
             if (route > limit) return;
             const value = prev.score[a] - Math.abs(route - straight) / p.beta;
@@ -419,9 +471,10 @@ function intake(
     state: Intake,
     p: Params,
     index: number,
-    fix: Coordinate,
+    fix: RoadFix,
 ): Column | null {
     const [x, y] = toPlane(core, fix);
+    const t = fix.timestamp ?? NaN;
     const last = cols.length > 0 ? cols[cols.length - 1] : null;
     if (last !== null && Math.hypot(x - state.lastX, y - state.lastY) < p.spacing) {
         last.followers.push({ fix: index, x, y, dropped: true });
@@ -438,6 +491,7 @@ function intake(
         fix: index,
         x,
         y,
+        t,
         cands,
         score: new Float64Array(0),
         back: new Int32Array(0),
@@ -473,11 +527,17 @@ function intake(
  *   and are projected onto that fix's edge, with `inferred: true`.
  * - **No road in reach**: the match is `null` and the fix is counted in
  *   `unmatched`; it does not break the chain.
+ * - **Sparse fixes**: give each fix its `timestamp` and the detour allowed
+ *   between two of them grows by `detourPerSecondM` per second of interval
+ *   (capped at `maxIntervalS`). Without timestamps the bound is the fixed
+ *   `maxDetourM`, tuned for 1 Hz, and a fix every 5–30 s breaks the chain
+ *   where the vehicle turned a corner or went round a block in between.
  *
  * Runs synchronously and allocates per call only what it explores. For a live
  * map, {@link createRoadMatcher} gives the same model a fix at a time.
  *
- * @param fixes - The trace, in time order (`TrackPoint` works as is).
+ * @param fixes - The trace, in time order (`TrackPoint` works as is, timestamp
+ * included).
  * @param graph - The network, from {@link createRoadGraph}.
  * @param options - Model tuning; defaults in {@link ROAD_MATCH_DEFAULTS}.
  * @returns The match of every fix, the route, and what was skipped.
@@ -485,7 +545,7 @@ function intake(
  * @throws {TypeError} When `graph` did not come from `createRoadGraph`.
  */
 export function matchToRoads<E extends RoadEdge>(
-    fixes: readonly Coordinate[],
+    fixes: readonly RoadFix[],
     graph: RoadGraph<E>,
     options: MatchToRoadsOptions = {},
 ): RoadMatchResult<E> {
@@ -565,7 +625,7 @@ export function matchToRoads<E extends RoadEdge>(
  *
  * @example
  * const matcher = createRoadMatcher(graph);
- * const { current, committed } = matcher.push({ latitude, longitude });
+ * const { current, committed } = matcher.push({ latitude, longitude, timestamp });
  */
 export function createRoadMatcher<E extends RoadEdge>(
     graph: RoadGraph<E>,
@@ -583,7 +643,7 @@ export function createRoadMatcher<E extends RoadEdge>(
     let next = 0;
 
     return {
-        push(fix: Coordinate): RoadMatcherUpdate<E> {
+        push(fix: RoadFix): RoadMatcherUpdate<E> {
             const index = next;
             next += 1;
             const col = intake(core, cols, state, p, index, fix);

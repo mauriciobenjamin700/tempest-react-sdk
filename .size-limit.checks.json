@@ -269,7 +269,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createRoadGraph, matchToRoads, createRoadMatcher }"
     },
-    "limit": "3.6 kB",
+    "limit": "3.7 kB",
     "ignore": [
       "react",
       "react-dom",

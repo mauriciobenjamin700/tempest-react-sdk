@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { projectLive, type LiveMapView, type LiveMapViewport } from "./live-route-view";
 import type * as LiveRouteSnap from "./live-route-snap";
 import type { VehicleOnRoad } from "./live-route-snap";
-import type { MatchedFix } from "./map-matching";
+import type { MatchedFix, RoadFix } from "./map-matching";
 import type { RoadEdge, RoadGraph } from "./road-graph";
 import type { Coordinate } from "./types";
 
@@ -48,7 +48,9 @@ export interface RoadSnap<E extends RoadEdge = RoadEdge> {
  * Snap the live vehicle (and the trail) of a `LiveRouteMap` to a road graph.
  *
  * The vehicle runs through `createVehicleSnapper` (a `createRoadMatcher` with
- * its default lag), one push per new position. The matcher lives as long as
+ * its default lag), one push per new position, its `timestamp` included when
+ * the position has one — that is what keeps a vehicle reporting every few
+ * seconds chained to the road. The matcher lives as long as
  * the graph object does; a new graph starts a new chain.
  *
  * The trail is matched in one batch whenever it changes (`matchToRoads`,
@@ -66,8 +68,8 @@ export interface RoadSnap<E extends RoadEdge = RoadEdge> {
  */
 export function useRoadSnap<E extends RoadEdge>(
     roads: RoadGraph<E> | undefined,
-    position: Coordinate | undefined,
-    trail: readonly Coordinate[] | undefined,
+    position: RoadFix | undefined,
+    trail: readonly RoadFix[] | undefined,
     onMatch: ((match: MatchedFix<E> | null) => void) | undefined,
 ): RoadSnap<E> {
     const [mod, setMod] = useState<SnapModule | null>(() => loadedModule);
@@ -92,11 +94,14 @@ export function useRoadSnap<E extends RoadEdge>(
     );
     const latitude = position?.latitude;
     const longitude = position?.longitude;
+    const timestamp = position?.timestamp;
 
     const vehicle = useMemo<VehicleOnRoad<E> | null>(() => {
         if (!snapVehicle || latitude === undefined || longitude === undefined) return null;
-        return snapVehicle({ latitude, longitude });
-    }, [snapVehicle, latitude, longitude]);
+        return snapVehicle(
+            timestamp === undefined ? { latitude, longitude } : { latitude, longitude, timestamp },
+        );
+    }, [snapVehicle, latitude, longitude, timestamp]);
 
     const snappedTrail = useMemo(
         () => (mod && roads && trail && trail.length > 0 ? mod.snapTrail(trail, roads) : null),

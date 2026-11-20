@@ -1,5 +1,5 @@
 import { bearingDeg } from "./distance";
-import { createRoadMatcher, matchToRoads, type MatchedFix } from "./map-matching";
+import { createRoadMatcher, matchToRoads, type MatchedFix, type RoadFix } from "./map-matching";
 import type { RoadEdge, RoadGraph } from "./road-graph";
 import type { Coordinate } from "./types";
 
@@ -36,12 +36,13 @@ function edgeHeading<E extends RoadEdge>(roads: RoadGraph<E>, match: MatchedFix<
  * starts a new one, and a run with a single matched position draws nothing,
  * like a one-point trail.
  *
- * @param trail - The raw trail.
+ * @param trail - The raw trail; fixes with a `timestamp` stay chained across
+ * sparse intervals.
  * @param roads - The graph.
  * @returns One polyline per run, in order.
  */
 export function snapTrail<E extends RoadEdge>(
-    trail: readonly Coordinate[],
+    trail: readonly RoadFix[],
     roads: RoadGraph<E>,
 ): Coordinate[][] {
     const result = matchToRoads(trail, roads);
@@ -78,14 +79,16 @@ export function snapTrail<E extends RoadEdge>(
  * closer does not steal the vehicle. Pushing the same position twice is
  * harmless — the repeat falls inside the matcher's minimum spacing and lands
  * where the first one did — so a double render under `StrictMode` does not
- * skew the model.
+ * skew the model. A position with a `timestamp` reaches the matcher with it,
+ * so a vehicle reporting every few seconds is not cut where it turned a
+ * corner between two reports.
  *
  * @param roads - The graph.
  * @returns A function from the raw position to where the vehicle is drawn.
  */
 export function createVehicleSnapper<E extends RoadEdge>(
     roads: RoadGraph<E>,
-): (position: Coordinate) => VehicleOnRoad<E> {
+): (position: RoadFix) => VehicleOnRoad<E> {
     const matcher = createRoadMatcher(roads);
     return (position) => {
         const { current } = matcher.push(position);

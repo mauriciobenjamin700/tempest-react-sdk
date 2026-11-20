@@ -6,6 +6,7 @@
  */
 import { sessionIdentityOf } from "@/auth/session-identity";
 import { randomId } from "../utils";
+import { isDevBuild } from "../utils/dev-mode";
 import {
     isTrustedCredentialTarget,
     reportSuppressedCredential,
@@ -52,7 +53,8 @@ export interface UploadWithProgressOptions {
      * needs no extra option. A wrapper around it (`() => auth.getToken()`) is
      * another function and carries no session: pass
      * `sessionKey: auth.sessionKey` with it. Without either the upload is not
-     * bound, as before.
+     * bound, as before, and a development build says so once per getter
+     * (#657).
      */
     sessionKey?: () => string | number | null | undefined;
     /**
@@ -310,6 +312,32 @@ async function sendWithoutRedirects(init: ManualUpload): Promise<UploadAnswer> {
  * @returns A check to run when the answer arrives: `true` when the upload
  *   carried a token and the session reads differently now.
  */
+/** The `getToken` getters already warned about, so each warns once. */
+const warnedUnbound = new WeakSet<object>();
+
+/**
+ * Warn, in a development build and once per getter, that an upload sent with
+ * a `getToken` token is bound to no session: no `sessionKey`, and the getter
+ * is not the one `createTempestAuth` returned (a wrapper such as
+ * `() => auth.getToken()` is another function and carries no session).
+ *
+ * Unbound, an answer that lands after an account switch settles into the
+ * continuation of whoever is signed in now. The docs said so, and nothing told
+ * the developer who wrote the wrapper (security audit run-16 §6, #657).
+ *
+ * @param getToken - The getter the upload was given.
+ */
+function warnUnboundSession(getToken: () => string | null | undefined): void {
+    if (!isDevBuild() || warnedUnbound.has(getToken)) return;
+    warnedUnbound.add(getToken);
+    console.warn(
+        "[tempest-react-sdk/http] uploadWithProgress() with a `getToken` that is not " +
+            "createTempestAuth's own getter and no `sessionKey`: the upload is not bound to a " +
+            "session, so an answer that lands after an account switch reaches the next " +
+            "account. Pass `getToken: auth.getToken` or `sessionKey: auth.sessionKey`.",
+    );
+}
+
 function sessionWatch(
     token: string | null | undefined,
     readSession: (() => string | number | null | undefined) | undefined,
@@ -361,7 +389,9 @@ export function uploadWithProgress<T = unknown>(options: UploadWithProgressOptio
     if (signal?.aborted) return Promise.reject(new DOMException("Aborted", "AbortError"));
 
     const token = getToken?.();
-    const superseded = sessionWatch(token, sessionKey ?? sessionIdentityOf(getToken)?.current);
+    const readSession = sessionKey ?? sessionIdentityOf(getToken)?.current;
+    if (getToken && !readSession) warnUnboundSession(getToken);
+    const superseded = sessionWatch(token, readSession);
     const sentRequestId = requestId ? requestId() : randomId();
     const finalHeaders: Record<string, string> = { ...headers };
     const scope = credentialOrigin ?? globalThis.location?.origin ?? url;

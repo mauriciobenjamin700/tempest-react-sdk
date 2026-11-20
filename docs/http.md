@@ -717,7 +717,7 @@ export function AvatarUpload() {
 
 Um upload demora — e a sessão pode trocar enquanto ele sobe. A resposta que chega depois de `logout()` + `login(B)` é de **A**: a URL do arquivo de A, ou o envelope de erro de A. Até a 0.87.0 ela resolvia (ou rejeitava com o `TempestApiError` de A) já na continuação de B: o `onSuccess` gravava a URL de A no cache de B (#642). Desde a **0.88.0**, um upload que saiu com token de `getToken` e cuja sessão mudou antes de a resposta chegar rejeita com `SessionSupersededError`, sucesso ou erro — o mesmo contrato do [`createApiClient`](#createapiclient) com `getSessionEpoch` (#609).
 
-Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto. Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
+Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto; num build de desenvolvimento, o wrapper sem `sessionKey` gera um `console.warn` (uma vez por getter, #657). Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
 
 ```ts
 import { SessionSupersededError, createTempestAuth, uploadWithProgress } from "tempest-react-sdk";

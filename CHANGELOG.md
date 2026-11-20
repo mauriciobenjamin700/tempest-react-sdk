@@ -28,6 +28,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   que a conta seguinte gravou entre as duas era o apagado, e o upload dela recomeçava. Quando o
   storage tem `deleteIf(key, matches)`, a comparação e a remoção vão numa chamada; o
   `createLocalUploadStorage()` já o implementa. Storage sem `deleteIf` continua no `get` + `delete`.
+- **Aviso em dev para upload sem vínculo de sessão** (#657, run-16 §6). `uploadWithProgress` com
+  `getToken` que não é o getter do `createTempestAuth` e sem `sessionKey`, e `createResumableUpload`
+  com esse `getToken` e sem `getPrincipal`, ficam sem vínculo de sessão (documentado): a resposta
+  que chega depois de uma troca de conta vai para a conta nova, e o run resumível não percebe a
+  troca no meio. Nada avisava quem escreveu `() => auth.getToken()`. Agora um build de
+  desenvolvimento dá um `console.warn` por getter, no mesmo padrão do
+  `provideBackgroundSyncCredentials()` sem `getPrincipal`; produção fica em silêncio.
 - **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
   comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
   uma request anônima com o token do login que estava em voo (#496); o `retry` do

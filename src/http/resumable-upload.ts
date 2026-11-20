@@ -8,6 +8,7 @@
 import { sessionIdentityOf } from "@/auth/session-identity";
 import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { bytesToBase64 } from "@/utils/base64";
+import { isDevBuild } from "@/utils/dev-mode";
 import {
     isTrustedCredentialTarget,
     reportSuppressedCredential,
@@ -262,7 +263,8 @@ export interface ResumableUploadOptions {
      * `createLocalUploadStorage().clear()` from `onSessionEnd` stops the runs in
      * flight and, since 0.84.0, makes a paused handle start over with a fresh
      * `Idempotency-Key`; with a custom `storage`, call `abort()` on the uploads
-     * in progress there instead.
+     * in progress there instead. A development build warns once per getter
+     * when `getToken` is given without it and is not the preset's own (#657).
      */
     getPrincipal?: () => string | number | null | undefined;
     /**
@@ -411,6 +413,35 @@ export function uploadFingerprint(endpoint: string, file: Blob | File): string {
     const name = typeof named.name === "string" ? named.name : "blob";
     const modified = typeof named.lastModified === "number" ? named.lastModified : 0;
     return `${endpoint}|${name}|${file.size}|${file.type}|${modified}`;
+}
+
+/** The `getToken` getters already warned about, so each warns once. */
+const warnedUnbound = new WeakSet<object>();
+
+/**
+ * Warn, in a development build and once per getter, that a resumable upload
+ * with a `getToken` token is bound to the token alone: no `getPrincipal`, and
+ * the getter is not the one `createTempestAuth` returned.
+ *
+ * Bound to the token, the run cannot tell a refresh from another account's
+ * sign-in: it keeps going under the next account's token unless `abort()` or
+ * `createLocalUploadStorage().clear()` runs at the end of the session, and a
+ * reload after a rotation starts over. The docs said so, and nothing told the
+ * developer who wrote `() => auth.getToken()` (security audit run-16 §6,
+ * #657).
+ *
+ * @param getToken - The getter the upload was given.
+ */
+function warnTokenBound(getToken: () => string | null | undefined): void {
+    if (!isDevBuild() || warnedUnbound.has(getToken)) return;
+    warnedUnbound.add(getToken);
+    console.warn(
+        "[tempest-react-sdk/http] createResumableUpload() with a `getToken` that is not " +
+            "createTempestAuth's own getter and no `getPrincipal`: the upload is bound to the " +
+            "token, not to the session, so an account switch mid-run is not detected unless " +
+            "abort() or clear() runs at session end. Pass `getToken: auth.getToken` or " +
+            "`getPrincipal: () => currentUserId`.",
+    );
 }
 
 /**
@@ -831,6 +862,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         onStateChange,
     } = options;
     const getPrincipal = principalOption ?? sessionIdentityOf(getToken)?.current;
+    if (getToken && !getPrincipal) warnTokenBound(getToken);
 
     let state: ResumableUploadState = "idle";
     let offset = 0;

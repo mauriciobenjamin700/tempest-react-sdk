@@ -8,8 +8,11 @@ export { useZodForm } from "./use-zod-form";
 
 export { validateCPF, validateCNPJ, formatCEP, formatCNPJ, unmask } from "./br-validators";
 
-export { CPFInput, CNPJInput, PhoneInput, CEPInput, MoneyInput } from "./masked-inputs";
-export type { MoneyInputProps } from "./masked-inputs";
+export { CPFInput, CNPJInput, PhoneInput, CEPInput } from "./masked-inputs";
+export { MoneyInput } from "./money-input";
+export type { MoneyInputProps, MoneyNameFormat } from "./money-input";
+export { centsFromDigits, useMoneyMask } from "./money-mask";
+export type { MoneyMaskInputProps, UseMoneyMaskOptions } from "./money-mask";
 
 export { useViaCEP } from "./use-viacep";
 export type { UseViaCEPResult, ViaCEPResult } from "./use-viacep";

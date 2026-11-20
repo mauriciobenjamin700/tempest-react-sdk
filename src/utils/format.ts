@@ -1,4 +1,4 @@
-import { fallbackText, isAbsent, type FormatFallbackOptions } from "@/utils/absent";
+import { fallbackText, isAbsent, type FormatFallbackOptions } from "./absent";
 import { dateTimeFormat, numberFormat } from "@/utils/intl-cache";
 
 /**
@@ -27,6 +27,79 @@ export function formatCurrency(
 ): string {
     if (isAbsent(value) || !Number.isFinite(value)) return fallbackText(options);
     return numberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+}
+
+/** Options of {@link formatCents}. */
+export interface FormatCentsOptions extends FormatFallbackOptions {
+    /** ISO 4217 currency code. Default: `"BRL"`. */
+    currency?: string;
+    /** BCP 47 locale. Default: `"pt-BR"`. */
+    locale?: string;
+}
+
+/**
+ * The slice of `Intl.NumberFormat` that takes a decimal string.
+ *
+ * ES2023's Intl.NumberFormat v3 formats a string such as `"90071992547409.91"`
+ * as an exact decimal; the `ES2022` lib this package compiles against only
+ * declares `number | bigint`. Engines without v3 coerce the string with
+ * `Number()`, which is exactly what the float path did before.
+ */
+interface DecimalStringFormatter {
+    format(value: string): string;
+}
+
+/**
+ * Write an integer number of cents as a plain decimal string with a dot and two
+ * fraction digits — `1234` → `"12.34"`, `5` → `"0.05"`, `-250` → `"-2.50"`.
+ *
+ * Built from the digits rather than `(cents / 100).toFixed(2)`: the division is a
+ * float, and at the top of the safe-integer range it rounds the last cent away
+ * (`9007199254740991 / 100` formats as `…409,90`, the digits say `…409,91`).
+ *
+ * @param cents - A safe integer.
+ * @returns The amount in the major unit, as a dot-decimal string.
+ */
+export function centsToDecimalString(cents: number): string {
+    const digits = Math.abs(cents).toString().padStart(3, "0");
+    const sign = cents < 0 ? "-" : "";
+    return `${sign}${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}
+
+/**
+ * Format an amount held as integer cents as currency — `1234` → `"R$ 12,34"`.
+ *
+ * The cents-native sibling of {@link formatCurrency}, which takes the major unit
+ * and is fixed to BRL. Money that travels as cents (what `<MoneyInput>`,
+ * `<Money>` and every payment gateway hand you) is formatted from its digits, so
+ * no amount is ever divided into a float first: that division loses the last
+ * cent at the top of the safe-integer range.
+ *
+ * Absent or non-finite input answers the fallback (`"—"` by default; pass
+ * `{ fallback: "" }` to feed an `<input>`). A fractional cent is rounded to the
+ * nearest one.
+ *
+ * @example
+ * ```typescript
+ * formatCents(1234);                                    // "R$ 12,34"
+ * formatCents(null);                                    // "—"
+ * formatCents(500, { currency: "USD", locale: "en-US" }); // "$5.00"
+ * ```
+ *
+ * @param cents - The amount in cents, or `null`/`undefined` when there is none.
+ * @param options - Currency, locale and the text for an absent amount.
+ * @returns The locale-formatted amount, or the fallback.
+ */
+export function formatCents(
+    cents: number | null | undefined,
+    options?: FormatCentsOptions,
+): string {
+    if (isAbsent(cents) || !Number.isFinite(cents)) return fallbackText(options);
+    const { currency = "BRL", locale = "pt-BR" } = options ?? {};
+    const formatter = numberFormat(locale, { style: "currency", currency });
+    const whole = Math.round(cents);
+    if (!Number.isSafeInteger(whole)) return formatter.format(whole / 100);
+    return (formatter as unknown as DecimalStringFormatter).format(centsToDecimalString(whole));
 }
 
 /**

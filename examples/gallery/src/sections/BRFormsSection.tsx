@@ -10,6 +10,7 @@ import {
     MoneyInput,
     PhoneInput,
     Stack,
+    useMoneyMask,
     useViaCEP,
     validateCNPJ,
     validateCPF,
@@ -22,6 +23,10 @@ export function BRFormsSection() {
     const [phone, setPhone] = useState("");
     const [cep, setCep] = useState("");
     const [money, setMoney] = useState<number>(0);
+    const [optional, setOptional] = useState<number | null>(null);
+    const [bank, setBank] = useState<number | null>(null);
+    const [submitted, setSubmitted] = useState<string>("");
+    const bankMask = useMoneyMask({ value: bank, onChange: setBank, maxCents: 1_000_000 });
     const [street, setStreet] = useState("");
     const [city, setCity] = useState("");
     const [uf, setUf] = useState("");
@@ -123,6 +128,82 @@ const cpfValid = cpf ? validateCPF(cpf) : null;
                             Armazenado em centavos: <code>{money}</code>
                         </p>
                     </Stack>
+                </Card>
+            </Example>
+
+            <Example
+                title="Dinheiro estilo banco: opcional, FormData e sem moldura"
+                note="Dígitos entram pela direita, o cursor fica no fim; apagar tudo volta a null e mostra o placeholder."
+                code={`const [optional, setOptional] = useState<number | null>(null);
+const [bank, setBank] = useState<number | null>(null);
+const bankMask = useMoneyMask({ value: bank, onChange: setBank, maxCents: 1_000_000 });
+
+<form onSubmit={(event) => {
+    event.preventDefault();
+    setSubmitted(JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))));
+}}>
+    <MoneyInput
+        nullable
+        value={optional}
+        onChange={setOptional}
+        name="price"
+        nameFormat="decimal"
+        label="Preço do litro (opcional)"
+        placeholder="R$ 0,00"
+    />
+    <input {...bankMask} aria-label="Valor sem moldura" placeholder="R$ 0,00" />
+    <input type="hidden" name="amount" value={bank ?? ""} />
+    <Button type="submit">Enviar</Button>
+</form>`}
+            >
+                <Card title="MoneyInput nullable + useMoneyMask">
+                    <form
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            setSubmitted(
+                                JSON.stringify(
+                                    Object.fromEntries(new FormData(event.currentTarget)),
+                                ),
+                            );
+                        }}
+                    >
+                        <Stack gap={3} style={{ maxWidth: 420 }}>
+                            <MoneyInput
+                                nullable
+                                value={optional}
+                                onChange={setOptional}
+                                name="price"
+                                nameFormat="decimal"
+                                label="Preço do litro (opcional)"
+                                placeholder="R$ 0,00"
+                            />
+                            <input
+                                {...bankMask}
+                                aria-label="Valor sem moldura"
+                                placeholder="R$ 0,00"
+                                style={{
+                                    font: "inherit",
+                                    fontSize: 28,
+                                    fontWeight: 600,
+                                    border: "none",
+                                    borderBottom: "2px solid var(--tempest-border)",
+                                    background: "transparent",
+                                    color: "var(--tempest-text)",
+                                    padding: "4px 0",
+                                    width: "100%",
+                                    minWidth: 0,
+                                    boxSizing: "border-box",
+                                }}
+                            />
+                            <input type="hidden" name="amount" value={bank ?? ""} />
+                            <Button type="submit">Enviar</Button>
+                            <p style={{ fontSize: 12, color: "var(--tempest-text-muted)" }}>
+                                Estado: <code>{String(optional)}</code> /{" "}
+                                <code>{String(bank)}</code> — FormData:{" "}
+                                <code data-testid="money-formdata">{submitted || "—"}</code>
+                            </p>
+                        </Stack>
+                    </form>
                 </Card>
             </Example>
 

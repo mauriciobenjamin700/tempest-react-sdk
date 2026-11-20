@@ -172,14 +172,51 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
     contra o encaixe denso da mesma corrida: mesma via em 94,9% / 93,6% / 89,8%, rota recuperada
     98,6% / 97,2% / 89,8%, quebras 5,7 / 10,1 / 24,2 por 1000. Desvio máximo de 1000 m divide as
     quebras por ~3 e quintuplica a rota a mais (1,3% → 6,1% a 5 s). O padrão de 100 m fica
-    (calibrado e certo a 1 Hz); para fonte esparsa a proposta — **não aplicada** — está no #667:
-    limite de desvio proporcional ao intervalo, que exige o tempo da posição no `matchToRoads`.
+    (calibrado e certo a 1 Hz); para fonte esparsa, ver "Fonte esparsa: desvio que cresce com o
+    intervalo" abaixo.
   - **55% das posições saem `inferred`:** o pré-filtro de `2σ` (14 m) a 1 Hz descarta toda posição
     abaixo de ~50 km/h, e o trânsito de centro é lento. É o comportamento decidido, não defeito.
   - **Limite:** amostra pequena e desigual — São Carlos tem 63% das posições; Teresina, um traço
     (740 posições); Rio, 10 corridas. Quem sobe traço no OSM é mapeador, com aparelho bom e muitas
     vezes log a 10 Hz suavizado (reamostrado a 1 Hz pelo script): o perfil "aparelho de entrada" da
     frota **não** está coberto. A decisão reabre com rastro real da frota.
+- **Fonte esparsa: desvio que cresce com o intervalo** (20/11/2026). A posição passa a aceitar
+  `timestamp` (`RoadFix`; `TrackPoint` serve), e com tempo nas duas posições o limite vira
+  `maxDetourM + detourPerSecondM · min(Δt, maxIntervalS)`, padrões **2 m/s e 60 s**. Sem tempo, o
+  limite é o fixo de antes, idêntico (teste). Vale no `matchToRoads`, no `createRoadMatcher` e no
+  `LiveRouteMap` com `roads` (vehicle e trail repassam o `timestamp`). Medido com
+  `npm run build && node --expose-gc scripts/bench-map-matching.mjs [cache-dir]` (Kubicka, cada
+  trajeto raleado pelo próprio relógio, contra a rota verdadeira) e
+  `npm run build && node scripts/bench-br-osm.mjs [cache-dir]` (Brasil, contra o encaixe denso
+  da mesma corrida), Node 24, máquina carregada (tempos ~2× os da fase 2):
+  - **A causa das quebras esparsas não é o limite fixo, é contramão.** Com todas as ruas em mão
+    dupla, o padrão antigo quebra 0,3 / 0,6 / 5,2 vezes por 1000 posições a 5 / 10 / 30 s (contra
+    5,7 / 10,1 / 24,2). O desvio de 1000 m "resolve" essas quebras inventando a volta no quarteirão
+    para respeitar a mão única — é daí que vem a rota a mais de 6,1%. Nenhuma folga separa as duas
+    coisas; o que se pode é não inventar a volta onde as posições são densas.
+  - **Forma escolhida: soma** (`maxDetourM + v·Δt`). Varridas também `max(linha reta + desvio,
+    v·Δt)` (teto físico de velocidade: 20 m/s dá 5,1 quebras e 2,2% a mais a 5 s) e folga só acima
+    de 2 s (5,4 e 1,9%): mesma fronteira quebras × rota a mais, com um parâmetro a mais. β escalado
+    com Δt não mexe nas quebras (5,7 / 10,1 / 24,2). A soma é a proposta do #667, com um parâmetro.
+  - **Taxa 2 m/s:** a maior que não piora o 1 Hz com tempo (Kubicka 92,33% / 98,53% / 99,27% /
+    48 quebras → 92,34% / 98,54% / 99,30% / 43); 3 m/s perde 0,05 pp; 15 m/s perde 2,3 pp (os
+    `hives`). Brasil, todas as corridas, 5 / 10 / 30 s: quebras 5,7 → 5,4, 10,1 → 8,9, 24,2 → 13,8;
+    rota a mais 1,3% → 1,6%, 1,4% → 1,9%, 3,6% → 4,4% (meta de ≤ +1,5 pp a 5 s: +0,3); mesma via
+    95,0% → 95,0%, 93,7% → 93,7%, 89,6% → 90,1%. **Corridas a ≥ 6 m/s: 0,8 / 1,5 / 9,3 → 0 / 0 / 0
+    quebras**, rota a mais +0,7 / +0,6 / +0,3 pp. 10 m/s corta mais quebras (4,7 a 5 s) mas leva a
+    rota a mais a 2,8% (+1,5 pp, no limite) e 3,1% a 10 s.
+  - **Teto de 60 s:** sem teto, os buracos longos que os trajetos de 1 Hz já têm custam 0,2 pp
+    (92,13%); com 30 s perde-se o ganho a 30–60 s. Kubicka 30 / 60 / 120 / 300 s, quebras
+    71 → 38, 207 → 70, 372 → 180, 385 → 298; rota recuperada 97,75% → 98,25%, 90,87% → 94,98%,
+    72,05% → 83,23%, 34,44% → 44,79%; rua certa nunca abaixo do padrão antigo por mais de 0,07 pp.
+  - **Quebrar a cadeia acima de uma lacuna máxima piora tudo**: medido com corte em 60 s, as
+    quebras do Kubicka a 1 Hz vão de 48 a 258 e a rota recuperada a 120 s cai a 13%. Não entrou.
+  - **Custo:** a 300 s, 1378 → 1545 µs por posição (+12%) e pico de heap por chamada igual
+    (2,4 MB); a 1 Hz dentro do ruído. O teto limita a folga a 120 m, então o Dijkstra cresce no
+    máximo isso além do que a linha reta já pedia.
+  - **Limite:** o raleamento é sintético (corrida densa com amostras tiradas), não fonte esparsa
+    real; o aparelho de entrada da frota continua não coberto. Reabre com o envio em lote real da
+    fase 3.
 - **`LiveRouteMap` encaixa com `roads`, e o matcher é import dinâmico** (19/11/2026). Uma prop
   só (o grafo) em vez de o app chamar o matcher: o app passa a posição crua e recebe o encaixe por
   `onMatch`. O matcher entra por `import()` porque estático custaria +3,7 kB brotli a todo

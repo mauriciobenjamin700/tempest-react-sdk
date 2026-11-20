@@ -451,6 +451,7 @@ Piece by piece:
 
 - **`roads`** is the same `RoadGraph` from [`createRoadGraph`](#where-the-graph-comes-from). Build it once per region and pass **the same instance** on every render: snapping keeps its history while the object stays the same, and a new graph starts a new chain.
 - **`vehicle.position` is still the raw position.** You snap nothing: the map does. If your backend sends `heading`, it wins; without it, the arrow follows the road.
+- **A position with a `timestamp` stays chained even when sparse.** If the vehicle reports every 5–30 s, send each position's `timestamp` (a `TrackPoint` has one): the snapping then accepts the trip round the block between two reports instead of cutting the chain. Without `timestamp`, everything works as before — see [Sparse sources](#sparse-sources-timestamp).
 - **`onMatch`** is called on each new position with the match — the edge (**your** object, with name, id, speed limit), the point on the road (`point`) and the distance (`distanceM`) — or with `null` when the position is far from every road.
 - **The graph does not enter the framing.** A whole city of streets does not zoom the map out: `route` and `markers` still decide the framing.
 
@@ -476,7 +477,7 @@ It is the hidden Markov model of Newson & Krumm (2009), decoded with Viterbi:
 
 - **Candidates**: the roads within `radiusM` of the position, at most `maxCandidates`.
 - **Emission**: a Gaussian on the distance from the position to the road (`sigmaM`) — a near road is more likely.
-- **Transition**: an exponential on `|straight line − network distance|` (`betaM`) — between two consecutive positions, the path along the network should be as long as the move. The network distance comes from a bounded Dijkstra (`maxDetourM`).
+- **Transition**: an exponential on `|straight line − network distance|` (`betaM`) — between two consecutive positions, the path along the network should be as long as the move. The network distance comes from a bounded Dijkstra (`maxDetourM`, which grows with the interval when the position carries a `timestamp`).
 
 ### Where the graph comes from
 
@@ -543,7 +544,7 @@ Piece by piece:
 - **Break (`breaks`)**: when no transition is possible (a signal gap, a road missing from the graph), the chain restarts at that position instead of failing. Each unbroken run becomes one entry in `routes`.
 - **Stopped position (`dropped`)**: a position closer than `minSpacingM` (default `2 × sigmaM`) to the previous one skips the model — the vehicle moved less than the GPS noise. It is projected onto the previous position's edge and comes back with `inferred: true`, never `null`.
 
-`TrackPoint` is a `Coordinate`, so the `points` of `usePositionTracker` go straight in.
+`TrackPoint` is a `Coordinate` with a `timestamp`, so the `points` of `usePositionTracker` go straight in — and their `timestamp` already keeps the chain on a [sparse source](#sparse-sources-timestamp).
 
 ### On the live map — `createRoadMatcher`
 
@@ -570,6 +571,64 @@ export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
 - **`current`** is the best guess for the position that just arrived: draw the vehicle with it. It can still change.
 - **`committed`** holds the positions that became **final**: each waits for `lag` newer positions before it is decided. A confirmed position never changes.
 - Memory is bounded by `lag`; `flush()` confirms what is left (end of the trip). The route between positions is not rebuilt here: run `matchToRoads` on the finished trace for it.
+
+### Sparse sources — `timestamp`
+
+The fixed maximum detour (`maxDetourM`, 100 m) was calibrated at 1 Hz. With one position every 5, 10 or 30 s, the vehicle turns corners and goes round the block between two points, the path along the network exceeds the straight line by more than 100 m, and the chain **breaks**. Raising `maxDetourM` for everyone does not work: at 1 Hz it lets the model invent loops that never happened.
+
+The way out is to say **when** each position was taken. With a `timestamp` on both positions, the detour allowed between them becomes:
+
+```text
+maxDetourM + detourPerSecondM × min(Δt, maxIntervalS)
+```
+
+Tight where positions are dense, loose where they are sparse. Without `timestamp` (or with a clock that repeats or goes back), the bound is exactly the one before.
+
+```ts
+import { matchToRoads, type RoadFix, type RoadGraph } from "tempest-react-sdk";
+
+interface Ping {
+  lat: number;
+  lon: number;
+  sentAt: string;
+}
+
+export function tripRuns(pings: Ping[], graph: RoadGraph): number {
+  const fixes: RoadFix[] = pings.map((ping) => ({
+    latitude: ping.lat,
+    longitude: ping.lon,
+    timestamp: Date.parse(ping.sentAt),
+  }));
+  const result = matchToRoads(fixes, graph);
+  console.log(`${result.breaks} breaks in ${fixes.length} positions`);
+  return result.routes.length;
+}
+```
+
+- **`timestamp`** is in milliseconds since the epoch, the same as `GeolocationPosition.timestamp`. The `points` of `usePositionTracker` already carry it.
+- `createRoadMatcher` and `LiveRouteMap` with `roads` use the `timestamp` the same way: `matcher.push({ latitude, longitude, timestamp })`.
+- **`detourPerSecondM`** (default `2`) is how much detour each second of interval earns. **`maxIntervalS`** (default `60`) is where that stops: after a 10-minute hole the bound is the 60 s one, and Dijkstra does not sweep the city.
+
+!!! info "What breaks remain are wrong-way driving"
+    Measured on Brazilian traces (below), almost every break left with a sparse source vanishes once every road is made two-way: it is a bicycle, or a wrong `oneway` in OSM, going against the direction. For those, more slack does not help — it trades the break for a **loop round the block that never happened**, which is why the default is small.
+
+??? info "Technical details: how the defaults were chosen"
+    Two datasets, the same sweep (`detourPerSecondM` 1/2/3/5/10, `maxIntervalS` 30/60/no cap, against the fixed detour of 100/300/1000 m), each trace thinned by its own clock:
+
+    - Kubicka (`npm run build && node --expose-gc scripts/bench-map-matching.mjs`), with the true route;
+    - public OSM traces in five Brazilian city centres (`npm run build && node scripts/bench-br-osm.mjs [cache-dir]`), compared with the dense match of the same run.
+
+    `2` is the largest rate that does not hurt 1 Hz (92.33% → 92.34% right road on Kubicka, with `timestamp`); `3` already loses 0.05 pp. Without a cap, the long holes inside the 1 Hz traces cost 0.2 pp (92.13%); with 60 s, they do not.
+
+| Brazil, all runs (default without → with `timestamp`) | 5 s | 10 s | 30 s |
+| --- | --- | --- | --- |
+| Breaks per 1000 positions | 5.7 → 5.4 | 10.1 → 8.9 | 24.2 → 13.8 |
+| Extra route | 1.3% → 1.6% | 1.4% → 1.9% | 3.6% → 4.4% |
+| Same way as the 1 Hz match | 95.0% → 95.0% | 93.7% → 93.7% | 89.6% → 90.1% |
+| Breaks, runs at ≥ 6 m/s only | 0.8 → **0** | 1.5 → **0** | 9.3 → **0** |
+| Breaks with every road two-way, with `timestamp` | 0.3 | 0.6 | 0 |
+
+For comparison: the fixed 1000 m detour brings breaks down to 1.9 at 5 s, but the extra route up to 6.1%.
 
 ### What was measured
 
@@ -600,6 +659,8 @@ export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
 | `maxCandidates` | `16` | At most this many roads per position (a two-way road counts once). |
 | `minSpacingM` | `2 × sigmaM` | Positions closer than this to the previous one skip the model. |
 | `maxDetourM` | `100` | Maximum network detour over the straight line. Beyond it the transition is impossible. |
+| `detourPerSecondM` | `2` | Extra detour per second between two positions with a `timestamp`. `0` turns it off. |
+| `maxIntervalS` | `60` | Interval past which the detour stops growing. |
 | `lag` (`createRoadMatcher` only) | `5` | Newer positions before one is confirmed. |
 
 The defaults live in `ROAD_MATCH_DEFAULTS` and `ROAD_MATCHER_DEFAULT_LAG`. The full sweep table (radius × k, σ × β, detour, pre-filter) comes out of the same command.
@@ -610,7 +671,7 @@ The defaults live in `ROAD_MATCH_DEFAULTS` and `ROAD_MATCHER_DEFAULT_LAG`. The f
 - **Math**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, mirroring `tempest-fastapi-sdk`.
 - **Map**: `TrajectoryMap` plots tile-free SVG by default; `tileUrl` enables Leaflet only with a server **you host**.
 - **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position. With `roads`, it draws the streets and snaps the vehicle and trail to them, with no code in the app.
-- **Road snapping**: `createRoadGraph` + `matchToRoads` (whole trace) and `createRoadMatcher` (live) put each position on the right road — 98.5% measured outside the road-less areas.
+- **Road snapping**: `createRoadGraph` + `matchToRoads` (whole trace) and `createRoadMatcher` (live) put each position on the right road — 98.5% measured outside the road-less areas. With `timestamp`, one position every 5–30 s does not break the chain at the corner.
 - **Real routing**: `createOSRMBackend` is opt-in and points at **your** OSRM — the only piece that touches the network.
 
 ## See also

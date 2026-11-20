@@ -5,7 +5,7 @@ import {
     ROAD_MATCH_DEFAULTS,
     ROAD_MATCHER_DEFAULT_LAG,
 } from "./map-matching";
-import type { CommittedMatch, MatchedFix } from "./map-matching";
+import type { CommittedMatch, MatchedFix, RoadFix } from "./map-matching";
 import { createRoadGraph } from "./road-graph";
 import type { RoadEdge } from "./road-graph";
 import type { Coordinate } from "./types";
@@ -61,6 +61,132 @@ function parallelStreets(): ReturnType<typeof createRoadGraph<NamedEdge>> {
     edges.push({ from: 7, to: side + 4, twoWay: true, id: "link-east" });
     return createRoadGraph({ nodes, edges });
 }
+
+/**
+ * A one-way block round which a vehicle must drive to get from one side to the
+ * other: up a west leg (x = 0), along a top (y = `height`) and down an east leg
+ * (x = 150). Driving it from a fix 10 m up the west leg to one 10 m up the east
+ * leg takes `2 · (height − 10) + 150` metres against 150 in a straight line.
+ *
+ * @param height - Length of the legs, in metres.
+ * @returns The graph.
+ */
+function block(height: number): ReturnType<typeof createRoadGraph<NamedEdge>> {
+    return createRoadGraph<NamedEdge>({
+        nodes: [at(0, 0), at(0, height), at(150, height), at(150, 0)],
+        edges: [
+            { from: 0, to: 1, id: "west" },
+            { from: 1, to: 2, id: "top" },
+            { from: 2, to: 3, id: "east" },
+        ],
+    });
+}
+
+/**
+ * The two fixes across {@link block}, `seconds` apart; `null` drops the
+ * timestamps.
+ *
+ * @param seconds - Interval between them, or `null` for untimed fixes.
+ * @returns The fixes.
+ */
+function acrossBlock(seconds: number | null): RoadFix[] {
+    const t0 = 1_700_000_000_000;
+    if (seconds === null) return [at(0, 10), at(150, 10)];
+    return [
+        { ...at(0, 10), timestamp: t0 },
+        { ...at(150, 10), timestamp: t0 + seconds * 1000 },
+    ];
+}
+
+/** Options that keep the far leg out of reach, so a break is a break. */
+const NEAR_ONLY = { radiusM: 50 };
+
+describe("matchToRoads — timed fixes (#667)", () => {
+    it("chains a 30 s gap round a block that breaks the chain without time", () => {
+        const graph = block(80);
+
+        const untimed = matchToRoads(acrossBlock(null), graph, NEAR_ONLY);
+        const timed = matchToRoads(acrossBlock(30), graph, NEAR_ONLY);
+
+        expect(untimed.breaks).toBe(1);
+        expect(untimed.routes).toHaveLength(2);
+        expect(timed.breaks).toBe(0);
+        expect(ids(timed.matches)).toEqual(["west", "east"]);
+        expect(timed.routes.map((r) => r.edges.map((s) => s.edge.id))).toEqual([
+            ["west", "top", "east"],
+        ]);
+    });
+
+    it("keeps a sparse fix on its own road instead of a far one that dodges the break", () => {
+        const t0 = 1_700_000_000_000;
+        const trace: [number, number, number][] = [
+            [0, 10, 0],
+            [0, 30, 10],
+            [150, 30, 40],
+            [150, 10, 50],
+        ];
+        const untimed = matchToRoads(
+            trace.map(([x, y]) => at(x, y)),
+            block(100),
+        );
+        const timed = matchToRoads(
+            trace.map(([x, y, s]) => ({ ...at(x, y), timestamp: t0 + s * 1000 })),
+            block(100),
+        );
+
+        expect(ids(untimed.matches)).toEqual(["west", "top", "east", "east"]);
+        expect(ids(timed.matches)).toEqual(["west", "west", "east", "east"]);
+        expect(timed.breaks).toBe(0);
+    });
+
+    it("still breaks when the interval is too short for the detour", () => {
+        expect(matchToRoads(acrossBlock(5), block(80), NEAR_ONLY).breaks).toBe(1);
+    });
+
+    it("keeps the fixed bound, identical result, when the fixes carry no time", () => {
+        const graph = parallelStreets();
+        const fixes: Coordinate[] = [];
+        for (let x = 20; x <= 980; x += 45) fixes.push(at(x, x > 350 && x < 650 ? 12 : 3));
+
+        const before = matchToRoads(fixes, graph, { detourPerSecondM: 0 });
+
+        expect(matchToRoads(fixes, graph)).toEqual(before);
+        expect(matchToRoads(acrossBlock(null), block(80), NEAR_ONLY)).toEqual(
+            matchToRoads(acrossBlock(30), block(80), { ...NEAR_ONLY, detourPerSecondM: 0 }),
+        );
+    });
+
+    it("ignores the time unless both fixes carry it", () => {
+        const [first] = acrossBlock(30);
+        const [, untimedSecond] = acrossBlock(null);
+        const result = matchToRoads([first, untimedSecond], block(80), NEAR_ONLY);
+        expect(result.breaks).toBe(1);
+    });
+
+    it("grants nothing to a clock that repeats or goes back", () => {
+        expect(matchToRoads(acrossBlock(0), block(80), NEAR_ONLY).breaks).toBe(1);
+        expect(matchToRoads(acrossBlock(-30), block(80), NEAR_ONLY).breaks).toBe(1);
+    });
+
+    it("stops growing the bound at maxIntervalS, so a gap past the cap still breaks", () => {
+        const graph = block(130);
+
+        expect(matchToRoads(acrossBlock(600), graph, NEAR_ONLY).breaks).toBe(1);
+        expect(
+            matchToRoads(acrossBlock(600), graph, { ...NEAR_ONLY, maxIntervalS: 120 }).breaks,
+        ).toBe(0);
+        expect(
+            matchToRoads(acrossBlock(600), graph, { ...NEAR_ONLY, detourPerSecondM: 3 }).breaks,
+        ).toBe(0);
+    });
+
+    it("rejects a negative rate and a non-positive cap", () => {
+        const graph = createRoadGraph({ nodes: [], edges: [] });
+        expect(() => matchToRoads([], graph, { detourPerSecondM: -1 })).toThrow(RangeError);
+        expect(() => matchToRoads([], graph, { maxIntervalS: 0 })).toThrow(RangeError);
+        expect(() => matchToRoads([], graph, { detourPerSecondM: 0 })).not.toThrow();
+    });
+});
 
 describe("matchToRoads", () => {
     it("keeps the trace on the street it drives where a parallel street is nearer", () => {
@@ -288,6 +414,8 @@ describe("matchToRoads", () => {
             radiusM: 200,
             maxCandidates: 16,
             maxDetourM: 100,
+            detourPerSecondM: 2,
+            maxIntervalS: 60,
         });
         expect(Object.isFrozen(ROAD_MATCH_DEFAULTS)).toBe(true);
         expect(ROAD_MATCHER_DEFAULT_LAG).toBe(5);
@@ -387,6 +515,18 @@ describe("createRoadMatcher", () => {
         const matcher = createRoadMatcher(graph);
         for (const fix of [at(20, 2), at(100, 2), at(2020, 2), at(2100, 2)]) matcher.push(fix);
         expect(matcher.breaks).toBe(1);
+    });
+
+    it("keeps sparse timed fixes chained, one push at a time", () => {
+        const untimed = createRoadMatcher(block(80), NEAR_ONLY);
+        for (const fix of acrossBlock(null)) untimed.push(fix);
+        const timed = createRoadMatcher(block(80), NEAR_ONLY);
+        for (const fix of acrossBlock(30)) timed.push(fix);
+        const committed = timed.flush();
+
+        expect(untimed.breaks).toBe(1);
+        expect(timed.breaks).toBe(0);
+        expect(committed.map((c) => c.match?.edge.id)).toEqual(["west", "east"]);
     });
 
     it("rejects a negative or fractional lag", () => {

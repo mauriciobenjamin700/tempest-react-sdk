@@ -37,7 +37,7 @@ import {
     type LiveMapViewport,
     type LiveViewState,
 } from "./live-route-view";
-import type { MatchedFix } from "./map-matching";
+import type { MatchedFix, RoadFix } from "./map-matching";
 import type { RoadEdge, RoadGraph } from "./road-graph";
 import { formatScale, pickScaleKm } from "./scale";
 import type { Coordinate } from "./types";
@@ -62,8 +62,12 @@ export interface LiveRouteMarker extends Coordinate {
 
 /** The live vehicle position. */
 export interface LiveVehicle {
-    /** Last known position. */
-    position: Coordinate;
+    /**
+     * Last known position. With `roads`, give it the `timestamp` it was captured
+     * at (a `TrackPoint` has one): a vehicle reporting every few seconds then
+     * stays chained to the road where it turned a corner between reports.
+     */
+    position: RoadFix;
     /**
      * Compass heading in degrees (0 = north, clockwise). With it the vehicle is an
      * arrow pointing that way; without it, a plain dot.
@@ -79,8 +83,11 @@ export interface LiveRouteMapProps<E extends RoadEdge = RoadEdge> extends Omit<
 > {
     /** Planned route (e.g. an OSRM geometry), drawn dashed. Decides the initial framing. */
     route?: readonly Coordinate[];
-    /** Path already traveled, drawn solid on top of the route. */
-    trail?: readonly Coordinate[];
+    /**
+     * Path already traveled, drawn solid on top of the route. With `roads`,
+     * positions with a `timestamp` are matched across sparse intervals.
+     */
+    trail?: readonly RoadFix[];
     /** Live vehicle. `null`/absent hides it. */
     vehicle?: LiveVehicle | null;
     /** Pickup points, stops, origin and destination. Included in the initial framing. */

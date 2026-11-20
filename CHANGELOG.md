@@ -22,6 +22,10 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **`slice: road map-matching` sobe pelo limite com tempo** (#667, `npm run build && npx size-limit
+--json` sobre a `main` em `d205818` e sobre este branch): 3 585 → 3 673 B (teto 3,6 → 3,7 kB).
+  `slice: LiveRouteMap` 8 277 → 8 395 B (teto 8,4 kB), `ceiling: full barrel ESM` 170 903 →
+  170 917 B e `CJS` 202 140 → 202 195 B seguem nos tetos.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #675** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 170 903 B (teto 170.3 kB → 171 kB); `ceiling: full barrel CJS` 202 140 B (teto 201.4 kB → 202.2 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #674** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 169 738 B (teto 169.7 kB → 169.8 kB); `ceiling: full barrel CJS` 201 024 B (teto 200.9 kB → 201.1 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Tetos do barrel sobem pelo observador do client** (`npm run build && npx size-limit --json` sobre
@@ -108,6 +112,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **Map-matching com fonte esparsa: posição com `timestamp`** (#667). `matchToRoads`,
+  `createRoadMatcher` e o `LiveRouteMap` com `roads` aceitam o tempo de cada posição (tipo novo
+  `RoadFix`; `TrackPoint` serve como está), e com tempo nas duas posições o desvio máximo vira
+  `maxDetourM + detourPerSecondM · min(Δt, maxIntervalS)`. Opções novas em `ROAD_MATCH_DEFAULTS`,
+  escolhidas por medição: `detourPerSecondM` 2 e `maxIntervalS` 60. Sem `timestamp` o resultado é
+  idêntico ao de antes. Medido (`npm run build && node scripts/bench-br-osm.mjs [cache-dir]`,
+  corridas de 1 Hz raleadas): quebras por 1000 posições a 5 / 10 / 30 s de 5,7 / 10,1 / 24,2 para
+  5,4 / 8,9 / 13,8, e **0 / 0 / 0** nas corridas a ≥ 6 m/s (eram 0,8 / 1,5 / 9,3), com a rota a
+  mais em 1,3% → 1,6% a 5 s (o desvio fixo de 1000 m dava 6,1%). O que sobra de quebra é contramão
+  (0,3 / 0,6 / 0 com todas as ruas em mão dupla). Kubicka a 1 Hz sem regressão (92,33% → 92,34% de
+  rua certa com tempo; `npm run build && node --expose-gc scripts/bench-map-matching.mjs`).
 - **`LiveRouteMap` encaixa o veículo na rua: prop `roads`** (resto da fase 2 do #667). Com um grafo
   do `createRoadGraph`, o mapa (1) desenha as ruas como camada vetorial por baixo de rota e trilha,
   offline, sem tiles; (2) passa cada `vehicle.position` por um `createRoadMatcher` interno (padrões

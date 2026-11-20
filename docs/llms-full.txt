@@ -1702,6 +1702,17 @@ export async function loadOrders(): Promise<unknown[] | null> {
 
 Os refreshes também colapsam por **rotação**, não só por sobreposição no tempo: um 401 cuja request saiu com um token que a mesma sessão já trocou repete com o token novo e não renova nada. Três requests expiradas gastam um refresh, cheguem os 401 juntos ou um depois do outro.
 
+#### Request deslogada e `login()` no meio: quando a repetição ganha token
+
+Uma request que saiu **sem** token pode ser repetida por dois caminhos, e eles respondem diferente de propósito (regra decidida no #657):
+
+| Caminho | A request volta… | Um `login()` está em voo | Resultado |
+| --- | --- | --- | --- |
+| Ciclo de 401 (`refresh`) | `401` | sim, e instala o token | repete **com** o token do login |
+| [`retry`](./http.md#retentativa-embutida) | `503`, erro de rede… | termina durante o backoff | rejeita com `SessionSupersededError`, sem repetir |
+
+O 401 é o servidor dizendo que a request anônima não fez nada e precisa de sessão; o login já estava em voo quando ele chegou, e repetir com o token dele é o contrato do 401 (#496). Uma falha de `retry` não diz nada sobre credencial, e o servidor pode ter agido sobre a tentativa anônima: mandar a repetição com token troca a autoridade da request sem ninguém pedir (#643). O que os dois caminhos têm em comum — e é o que protege os dados — é que uma request que saiu **com** token nunca é repetida em outra sessão. Fixado em `src/auth/create-tempest-auth.replay-rule.test.ts`.
+
 ### Várias abas — a sessão é da origem, não da aba
 
 Com `storage: "local"` (o default), todas as abas do app leem e gravam as **mesmas** chaves: `tempest-auth` (o `{ user, token }`), `tempest-auth-refresh` e `tempest-auth-lineage`. Então a sessão é uma só para a origem inteira, e cada aba **segue** o que outra gravou — no evento `storage` do navegador e, antes de qualquer refresh, `logout()`, encerramento ou gravação do usuário do `mePath`, comparando a sessão guardada com a que ela tem em memória.
@@ -21465,6 +21476,96 @@ Pedaço por pedaço:
 | `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Textos acessíveis. |
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Nome falado de cada tipo. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
+| `roads` | `RoadGraph<E>` | — | Grafo do `createRoadGraph`: desenha as ruas e encaixa veículo e trilha. |
+| `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Cada posição nova encaixada (sua aresta, ponto, distância), ou `null` fora de qualquer rua. Só com `roads`. |
+
+### Ruas no mapa e veículo na rua — `roads`
+
+O GPS erra de 3 a 30 m na cidade. Desenhado cru, o ônibus "anda" pela calçada, atravessa o quarteirão na curva e, numa avenida com uma rua paralela ao lado, pula de uma para a outra. Passe o grafo de ruas da região em `roads` e o mapa resolve isso **sem código no app**:
+
+- desenha as **ruas** do grafo como camada vetorial, por baixo da rota e da trilha — sem tiles, funciona offline;
+- passa cada `vehicle.position` por um [`createRoadMatcher`](#no-mapa-ao-vivo-createroadmatcher) interno e desenha o veículo **no ponto encaixado na rua**;
+- quando a posição não traz `heading`, a seta segue a **direção da rua** em que o veículo está;
+- desenha a `trail` **pelas ruas encaixadas**, dobrando a esquina em vez de cortar o quarteirão.
+
+```tsx
+import { useEffect, useState } from "react";
+import {
+  LiveRouteMap,
+  createRoadGraph,
+  type Coordinate,
+  type MatchedFix,
+  type RoadEdge,
+  type RoadGraph,
+} from "tempest-react-sdk";
+
+interface Street extends RoadEdge {
+  id: string;
+  name: string;
+}
+
+interface RoadTile {
+  nodes: Coordinate[];
+  edges: Street[];
+}
+
+export function BusOnTheStreet({ fixes }: { fixes: Coordinate[] }) {
+  const [roads, setRoads] = useState<RoadGraph<Street> | undefined>(undefined);
+  const [street, setStreet] = useState<string>("");
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/roads?bbox=-46.66,-23.57,-46.64,-23.55")
+      .then((response) => response.json() as Promise<RoadTile>)
+      .then((tile) => {
+        if (alive) setRoads(createRoadGraph({ ...tile, twoWay: true }));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const onMatch = (match: MatchedFix<Street> | null): void => {
+    setStreet(match ? match.edge.name : "fora da malha viária");
+  };
+
+  return (
+    <>
+      <p aria-live="polite">{street}</p>
+      <LiveRouteMap
+        trail={fixes}
+        vehicle={{ position: fixes[fixes.length - 1], label: "Ônibus 7" }}
+        roads={roads}
+        onMatch={onMatch}
+        follow
+        height={400}
+      />
+    </>
+  );
+}
+```
+
+Pedaço por pedaço:
+
+- **`roads`** é o mesmo `RoadGraph` do [`createRoadGraph`](#de-onde-vem-o-grafo). Monte uma vez por região e passe **a mesma instância** a cada render: o encaixe guarda o histórico enquanto o objeto for o mesmo, e um grafo novo começa uma cadeia nova.
+- **`vehicle.position` continua sendo a posição crua.** Você não encaixa nada: o mapa encaixa. Se o seu backend manda `heading`, ele vale; sem ele, a seta segue a rua.
+- **Posição com `timestamp` fica encadeada mesmo esparsa.** Se o veículo reporta a cada 5–30 s, mande o `timestamp` de cada posição (um `TrackPoint` já tem): o encaixe passa a aceitar a volta no quarteirão entre dois reportes em vez de cortar a cadeia. Sem `timestamp`, tudo funciona como antes — veja [Fonte esparsa](#fonte-esparsa-timestamp).
+- **`onMatch`** é chamado a cada posição nova com o encaixe — a aresta (o **seu** objeto, com nome, id, velocidade máxima), o ponto na rua (`point`) e a distância (`distanceM`) —, ou com `null` quando a posição está longe de qualquer rua.
+- **O grafo não entra no enquadramento.** Uma cidade inteira de ruas não dá zoom-out no mapa: quem enquadra continua sendo `route` e `markers`.
+
+!!! note "Fora de qualquer rua, o veículo aparece onde está"
+    Sem rua a até 200 m (o `radiusM` do matcher), não há o que encaixar: o veículo é desenhado na posição crua, com o halo trocado por um **anel tracejado**, e o `onMatch` recebe `null`. O veículo nunca some — num pátio de garagem ou numa rua que o grafo ainda não tem, ele continua visível.
+
+!!! info "Quem não passa `roads` não baixa o matcher"
+    O encaixe (`createRoadMatcher` + `matchToRoads`) entra por **import dinâmico**, na primeira vez que um mapa com `roads` monta. Sem `roads`, nada muda: o mapa desenha exatamente o que desenhava, e o bundler deixa o matcher num chunk separado que ninguém pede.
+
+As ruas usam dois tokens próprios, que você troca no tema: `--tempest-live-route-road` (o leito, padrão `--tempest-bg`) e `--tempest-live-route-road-casing` (a borda, padrão `--tempest-text-subtle`).
+
+??? info "Detalhes técnicos: o que o mapa faz por baixo"
+    - O veículo passa por um `createRoadMatcher(roads)` com os padrões medidos (`lag` 5). O ponto desenhado é o `current` — o melhor palpite para a posição que acabou de chegar, que já pesa todas as anteriores. É isso que segura o veículo na avenida quando o ruído o põe mais perto da rua paralela.
+    - A trilha passa inteira pelo `matchToRoads` a cada mudança (~3 ms por mil posições, medido em desktop), e cada trecho sem quebra vira uma linha que passa pelos nós das ruas percorridas. Posições sem rua ao alcance ficam fora dessa linha.
+    - Só as ruas que cruzam a tela entram no SVG.
+    - Peso, medido sobre o `dist` da 0.90.0 com esbuild (`bundle` + `minify`, CSS fora, o import dinâmico como externo — que é o chunk que o bundler do app separa), em brotli: `{ LiveRouteMap }` sai em **5,33 kB brotli**, contra 4,67 kB antes do `roads`; com o matcher no mesmo arquivo seriam 8,42 kB.
 
 ## Encaixe na rua (map-matching) — `createRoadGraph`, `matchToRoads`, `createRoadMatcher`
 
@@ -21474,7 +21575,7 @@ O GPS erra de 3 a 30 m na cidade, e às vezes muito mais. Encaixar cada posiçã
 
 - **Candidatas**: as ruas a até `radiusM` do ponto, no máximo `maxCandidates`.
 - **Emissão**: uma gaussiana na distância do ponto até a rua (`sigmaM`) — rua perto é mais provável.
-- **Transição**: uma exponencial em `|linha reta − distância pela rede|` (`betaM`) — entre dois pontos seguidos, o caminho pela rede deve ter o tamanho do deslocamento. A distância pela rede vem de um Dijkstra limitado (`maxDetourM`).
+- **Transição**: uma exponencial em `|linha reta − distância pela rede|` (`betaM`) — entre dois pontos seguidos, o caminho pela rede deve ter o tamanho do deslocamento. A distância pela rede vem de um Dijkstra limitado (`maxDetourM`, que cresce com o intervalo quando a posição traz `timestamp`).
 
 ### De onde vem o grafo
 
@@ -21541,11 +21642,14 @@ Pedaço por pedaço:
 - **Quebra (`breaks`)**: quando nenhuma transição é possível (um buraco no sinal, uma rua que não está no grafo), a cadeia recomeça naquela posição em vez de falhar. Cada trecho sem quebra vira uma entrada em `routes`.
 - **Posição parada (`dropped`)**: uma posição a menos de `minSpacingM` (padrão `2 × sigmaM`) da anterior não entra no modelo — o veículo andou menos que o ruído do GPS. Ela é projetada na aresta da posição anterior e volta com `inferred: true`, nunca `null`.
 
-`TrackPoint` é um `Coordinate`, então os `points` do `usePositionTracker` entram direto.
+`TrackPoint` é um `Coordinate` com `timestamp`, então os `points` do `usePositionTracker` entram direto — e o `timestamp` deles já mantém a cadeia em [fonte esparsa](#fonte-esparsa-timestamp).
 
 ### No mapa ao vivo — `createRoadMatcher`
 
 O `matchToRoads` precisa do trajeto inteiro. Para desenhar o veículo **agora**, o `createRoadMatcher` roda o mesmo modelo posição a posição, com Viterbi de atraso fixo:
+
+!!! tip "No `LiveRouteMap`, é só passar `roads`"
+    Se o seu mapa é o `LiveRouteMap`, você não precisa chamar o matcher: [`roads`](#ruas-no-mapa-e-veiculo-na-rua-roads) faz isso por dentro. Use o `createRoadMatcher` direto quando o desenho é seu.
 
 ```ts
 import { createRoadMatcher, type Coordinate, type RoadGraph } from "tempest-react-sdk";
@@ -21565,6 +21669,64 @@ export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
 - **`current`** é o melhor palpite para a posição que acabou de chegar: use para desenhar o veículo. Ele ainda pode mudar.
 - **`committed`** traz as posições que ficaram **definitivas**: cada uma espera `lag` posições novas antes de ser decidida. Uma posição confirmada não muda mais.
 - A memória é limitada pelo `lag`; `flush()` confirma o que falta (fim da viagem). A rota entre posições não é reconstruída aqui: rode `matchToRoads` no trajeto terminado para ela.
+
+### Fonte esparsa — `timestamp`
+
+O desvio máximo fixo (`maxDetourM`, 100 m) foi calibrado a 1 Hz. Com uma posição a cada 5, 10 ou 30 s, o veículo dobra esquinas e dá a volta no quarteirão entre dois pontos, o caminho pela rede passa da linha reta por mais de 100 m e a cadeia **quebra**. Subir o `maxDetourM` para todo mundo não serve: a 1 Hz ele deixa o modelo inventar voltas que não aconteceram.
+
+A saída é dizer **quando** cada posição foi tomada. Com `timestamp` nas duas posições, o desvio permitido entre elas vira:
+
+```text
+maxDetourM + detourPerSecondM × min(Δt, maxIntervalS)
+```
+
+Apertado onde as posições são densas, folgado onde são esparsas. Sem `timestamp` (ou com o relógio repetido ou voltando), o limite é exatamente o de antes.
+
+```ts
+import { matchToRoads, type RoadFix, type RoadGraph } from "tempest-react-sdk";
+
+interface Ping {
+  lat: number;
+  lon: number;
+  sentAt: string;
+}
+
+export function tripRuns(pings: Ping[], graph: RoadGraph): number {
+  const fixes: RoadFix[] = pings.map((ping) => ({
+    latitude: ping.lat,
+    longitude: ping.lon,
+    timestamp: Date.parse(ping.sentAt),
+  }));
+  const result = matchToRoads(fixes, graph);
+  console.log(`${result.breaks} quebras em ${fixes.length} posições`);
+  return result.routes.length;
+}
+```
+
+- **`timestamp`** é em milissegundos desde a época, o mesmo do `GeolocationPosition.timestamp`. Os `points` do `usePositionTracker` já trazem.
+- O `createRoadMatcher` e o `LiveRouteMap` com `roads` usam o `timestamp` do mesmo jeito: `matcher.push({ latitude, longitude, timestamp })`.
+- **`detourPerSecondM`** (padrão `2`) é quanto desvio ganha cada segundo de intervalo. **`maxIntervalS`** (padrão `60`) é onde esse ganho para: depois de um buraco de 10 min, o limite é o de 60 s, e o Dijkstra não varre a cidade.
+
+!!! info "O que sobra de quebra é contramão"
+    Medido em rastros do Brasil (abaixo), quase toda quebra que fica com fonte esparsa some quando todas as ruas viram mão dupla: é bicicleta, ou `oneway` errado no OSM, andando contra o sentido. Para essas, folga maior não ajuda — ela troca a quebra por uma **volta no quarteirão que não aconteceu**, e é por isso que o padrão é pequeno.
+
+??? info "Detalhes técnicos: como os padrões foram escolhidos"
+    Dois conjuntos, a mesma varredura (`detourPerSecondM` 1/2/3/5/10, `maxIntervalS` 30/60/sem teto, contra o desvio fixo de 100/300/1000 m), cada trajeto raleado pelo próprio relógio:
+
+    - Kubicka (`npm run build && node --expose-gc scripts/bench-map-matching.mjs`), com rota verdadeira;
+    - rastros públicos do OSM em cinco centros brasileiros (`npm run build && node scripts/bench-br-osm.mjs [cache-dir]`), comparados com o encaixe denso da mesma corrida.
+
+    `2` é a maior taxa que não piora o 1 Hz (92,33% → 92,34% de rua certa no Kubicka, com `timestamp`); `3` já perde 0,05 pp. Sem teto, os buracos longos dentro dos trajetos a 1 Hz custam 0,2 pp (92,13%); com 60 s, não.
+
+| Brasil, todas as corridas (padrão sem → com `timestamp`) | 5 s | 10 s | 30 s |
+| --- | --- | --- | --- |
+| Quebras por 1000 posições | 5,7 → 5,4 | 10,1 → 8,9 | 24,2 → 13,8 |
+| Rota a mais | 1,3% → 1,6% | 1,4% → 1,9% | 3,6% → 4,4% |
+| Mesma via que o encaixe a 1 Hz | 95,0% → 95,0% | 93,7% → 93,7% | 89,6% → 90,1% |
+| Quebras, só corridas a ≥ 6 m/s | 0,8 → **0** | 1,5 → **0** | 9,3 → **0** |
+| Quebras com todas as ruas em mão dupla, com `timestamp` | 0,3 | 0,6 | 0 |
+
+Para comparar: o desvio fixo de 1000 m leva as quebras a 1,9 a 5 s, mas a rota a mais a 6,1%.
 
 ### O que foi medido
 
@@ -21595,6 +21757,8 @@ export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
 | `maxCandidates` | `16` | No máximo esse número de ruas por posição (uma rua de mão dupla conta uma vez). |
 | `minSpacingM` | `2 × sigmaM` | Posições mais perto que isso da anterior não entram no modelo. |
 | `maxDetourM` | `100` | Desvio máximo da rede sobre a linha reta. Acima disso a transição é impossível. |
+| `detourPerSecondM` | `2` | Desvio a mais por segundo entre duas posições com `timestamp`. `0` desliga. |
+| `maxIntervalS` | `60` | Intervalo a partir do qual o desvio para de crescer. |
 | `lag` (só `createRoadMatcher`) | `5` | Posições novas antes de confirmar uma. |
 
 Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabela completa da varredura (raio × k, σ × β, desvio, pré-filtro) sai do mesmo comando.
@@ -21604,8 +21768,8 @@ Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabe
 - **Coleta**: `usePositionTracker` / `createPositionTracker` gravam trajetória via `navigator.geolocation`, filtrando jitter — tudo no navegador.
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
 - **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
-- **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição.
-- **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua.
+- **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app.
+- **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua. Com `timestamp`, uma posição a cada 5–30 s não quebra a cadeia na esquina.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.
 
 ## Veja também
@@ -22730,7 +22894,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro.
 - `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura. Com `retry` ligado, também impede que uma repetição saia em outra sessão — veja [Retentativa embutida](#retentativa-embutida). A proteção segue o bearer: um cliente só com cookie (`withCredentials`, sem `getToken`) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.
-- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`.
+- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`. Um `refresh` que **lança** depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com `SessionSupersededError`, sem chamar `onUnauthorized` — senão o envelope 401 da conta anterior chegaria ao `onError` da atual, e um `onUnauthorized` que chama `logout()` derrubaria a sessão nova (#657). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
@@ -23223,7 +23387,7 @@ Repetir um `400` ou um `403` não conserta payload errado nem permissão que o u
 Detalhes que valem saber:
 
 - A retentativa envolve a requisição **inteira**, refresh incluído. Uma tentativa que gasta o ciclo de 401 → refresh → repetição conta como uma tentativa só.
-- **A repetição não troca de conta.** Com `getSessionEpoch` (o `auth.api` do `createTempestAuth` já tem), a sessão da primeira tentativa é a sessão da request. Se, durante o backoff, essa sessão acabou (`logout()`, com ou sem o `login()` seguinte) ou a repetição sairia com um token que a primeira tentativa não tinha (um `login()` no meio de uma request que saiu deslogada), a repetição **não é enviada** e a request rejeita com `SessionSupersededError`. Antes da correção (#643), a repetição de A saía com o bearer de B e resolvia na continuação que A começou — e, com um `shouldRetry` que repete escrita, o `POST` de A rodava na conta de B. Request com `skipAuth`, ou deslogada nas duas pontas, não carrega conta e segue repetindo. Um `SessionSupersededError` nunca é repetido, diga o `shouldRetry` o que disser.
+- **A repetição não troca de conta.** Com `getSessionEpoch` (o `auth.api` do `createTempestAuth` já tem), a sessão da primeira tentativa é a sessão da request. Se, durante o backoff, essa sessão acabou (`logout()`, com ou sem o `login()` seguinte) ou a repetição sairia com um token que a primeira tentativa não tinha (um `login()` no meio de uma request que saiu deslogada), a repetição **não é enviada** e a request rejeita com `SessionSupersededError`. Antes da correção (#643), a repetição de A saía com o bearer de B e resolvia na continuação que A começou — e, com um `shouldRetry` que repete escrita, o `POST` de A rodava na conta de B. Request com `skipAuth`, ou deslogada nas duas pontas, não carrega conta e segue repetindo. O ciclo de 401 tem outra regra para a request deslogada — repete com o token de um `login()` que já estava em voo —, e o porquê está em [Auth → Request deslogada e `login()` no meio](./auth.md#request-deslogada-e-login-no-meio-quando-a-repeticao-ganha-token). Um `SessionSupersededError` nunca é repetido, diga o `shouldRetry` o que disser.
 - Cada tentativa carrega o seu próprio `X-Request-ID`, então o backend consegue distinguir as tentativas nos logs.
 - `Retry-After` (em `429`/`503`) é respeitado e sobrepõe o backoff daquela tentativa.
 - `retry: true` faz **3 tentativas no total** (a primeira + 2 repetições). `retry: { retries: N }` faz `N` no total, e `retries: 0` faz uma só — veja [o que `retries` conta](#o-que-retries-conta).
@@ -23399,7 +23563,7 @@ export function AvatarUpload() {
 
 Um upload demora — e a sessão pode trocar enquanto ele sobe. A resposta que chega depois de `logout()` + `login(B)` é de **A**: a URL do arquivo de A, ou o envelope de erro de A. Até a 0.87.0 ela resolvia (ou rejeitava com o `TempestApiError` de A) já na continuação de B: o `onSuccess` gravava a URL de A no cache de B (#642). Desde a **0.88.0**, um upload que saiu com token de `getToken` e cuja sessão mudou antes de a resposta chegar rejeita com `SessionSupersededError`, sucesso ou erro — o mesmo contrato do [`createApiClient`](#createapiclient) com `getSessionEpoch` (#609).
 
-Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto. Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
+Com o `createTempestAuth`, passe o **próprio** `auth.getToken`: o upload lê dele a sessão do preset, sem opção nenhuma. Um wrapper (`() => auth.getToken()`) é outra função e não carrega sessão — passe `sessionKey: auth.sessionKey` junto; num build de desenvolvimento, o wrapper sem `sessionKey` gera um `console.warn` (uma vez por getter, #657). Fora do preset, `sessionKey` aceita qualquer getter que mude quando a sessão troca e fique parado quando o token gira (o id do usuário, por exemplo):
 
 ```ts
 import { SessionSupersededError, createTempestAuth, uploadWithProgress } from "tempest-react-sdk";
@@ -29753,7 +29917,8 @@ export async function boot(): Promise<void> {
 - **Toda sessão instalada enquanto o cache vive conta**, não só a que uma mudança do cache viu. O preset avisa cada instalação, e o handle anota a sessão no `QueryClient`. Quando uma segunda sessão, ou ninguém depois de uma, foi instalada — `logout()` em outra aba, `logout()` nesta sem `clear()`, outro `login()` por cima —, toda gravação apaga a linha e o `restore()` não hidrata nada, porque o cache pode ter respostas da sessão que acabou. Inclui a requisição que saiu **sem token** e que o api client repetiu com o token de um `login()` ou do `refresh()` do boot em voo: se essa sessão acabou antes da resposta chegar, ninguém estava logado nem na saída nem na chegada, e, antes desta correção, a resposta de A era carimbada `p:anonymous` para o próximo boot deslogado (auditoria run-12, C1). Ninguém seguido de uma sessão não conta como fim (o dado de visitante não é de conta nenhuma), e a rotação do token mantém a chave.
 - **A anotação é do `QueryClient`, não do handle.** Um handle novo sobre o mesmo client continua apagando até o client ser zerado, e só duas coisas zeram: `clear({ resetClient: true })` do handle anterior (a anotação sai depois do `queryClient.clear()`, quando nada da sessão encerrada fica em memória — **desde que ninguém esteja logado** nessa hora) ou um handle criado com o client vazio (`queryClient.clear()` ou `removeQueries()` de tudo antes). O `clear()` **sem** `resetClient` não zera: o client ainda guarda as respostas da sessão, então a anotação fica marcada como encerrada, e isso vale também para o handle de outra `key` sobre o mesmo client. Antes da 0.85.0, esse `clear()` apagava a anotação, e o handle novo criado no login carimbava as respostas de A com a impressão de B — e o `restore()` do próximo boot de B as hidratava (auditoria run-13, C1). Sem isso, seguir o conselho "crie um handle novo depois do login" carimbava as respostas de A, ainda em memória, como de B. O custo é deliberado: depois de uma sessão que acaba sem `clear()` — inclusive a sessão salva que venceu no boot —, a próxima não persiste naquele carregamento até o client ser zerado ou a página recarregar. Para não pagar, chame `clear({ resetClient: true })` no fim de toda sessão e crie o handle de novo.
 - **O reset vai no `onSessionEnd` ou depois do `logout()`**, não antes. Um `clear({ resetClient: true })` com a sessão de A ainda instalada não apaga a anotação: o handle encerrado já não observa a sessão, e uma query de A que caísse no intervalo (refetch, intervalo, foco, prefetch) chegava ao handle de B como dado anônimo e era gravada com a impressão de B — o próximo boot de B hidratava as respostas de A (auditoria run-14, C1, #609). Agora a anotação fica marcada como encerrada até um handle ser criado com o client vazio; se nada de A entrou no intervalo, o handle do login de B persiste normalmente.
-- **A resposta de uma sessão que acabou não chega ao cache.** O `auth.api` recusa, com `SessionSupersededError`, a resposta de uma request que saiu com o token de uma sessão encerrada antes de ela chegar — inclusive a `mutation` iniciada antes do `logout()`, cujo `onSuccess` fazia `setQueryData` com os dados de A já na sessão de B (na tela e no snapshot). Veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). O que não passa pelo `auth.api` (um `fetch` seu, uma promise do app) continua sendo responsabilidade do app.
+- **A resposta de uma sessão que acabou não chega ao cache.** O `auth.api` recusa, com `SessionSupersededError`, a resposta de uma request que saiu com o token de uma sessão encerrada antes de ela chegar — inclusive a `mutation` iniciada antes do `logout()`, cujo `onSuccess` fazia `setQueryData` com os dados de A já na sessão de B (na tela e no snapshot). Veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). Um `fetch` seu, fora do `auth.api`, continua sendo responsabilidade do app.
+- **O `setQueryData` feito deslogado depois de uma sessão não vai para o snapshot** (#653). Uma promise do app iniciada na sessão de A — um `onSuccess` que faz `await` de algo seu e depois `setQueryData` — pode gravar dados de A **depois** do `logout()` e do `clear({ resetClient: true })`, quando nenhum handle observa o client: o de A já acabou, o de B ainda não existe. Antes, o handle criado no login de B começava uma anotação nova sobre esse client e gravava os dados de A com a impressão de B (medido na 0.90.0: a linha saía com o dono de B e `a-late: ["private-of-A"]`; com o handle novo criado logo após o logout, o snapshot anônimo do intervalo já os levava). Agora o client inteiro é observado desde o primeiro handle com `auth` ou `getPrincipal`, e a query escrita por `setQueryData` com ninguém logado, depois que alguém esteve, fica **fora de todo snapshot** até um fetch substituir o dado. Só ela: o resto do cache e a persistência de B continuam. Uma query buscada (fetch) no intervalo — o catálogo público da tela de login — é gravada normalmente, e o `setQueryData` de visitante antes de qualquer login na aba também. O custo: um `setQueryData` legítimo de visitante depois de um logout (carrinho anônimo, rascunho público) não persiste até a query ser buscada de novo; na tela e em memória nada muda. Reproduzido em `src/query/offline-persistence.signed-out-write.test.ts` (`npx vitest run src/query/offline-persistence.signed-out-write.test.ts`).
 - **O que fica de fora**: com um objeto de sessão seu em `auth` (não o preset), não há aviso de instalação — a sessão só é lida em mudança de cache, gravação e restore, e uma sessão instalada e encerrada entre duas delas passa despercebida. O handle só anota as sessões enquanto as observa: depois de `unsubscribe()`, o `flush()` não grava nada, e um handle criado sobre um client que **já** guarda respostas não tem como saber de qual sessão elas vieram — crie o handle no boot, antes da primeira query. E um backend que autentica por cookie sem bearer (`withCredentials`) não instala sessão nenhuma no SDK: o que ele responde é gravado como anônimo, como em qualquer app sem login.
 - **Quer o id do usuário como dono?** Passe `getPrincipal` junto com `auth`. Aí o principal também precisa estar carregado: com sessão instalada e `getPrincipal` respondendo ninguém (o perfil ainda não veio), conta como desconhecido — não como anônimo.
 - Chame o `restore()` **depois** do `refresh()` do boot. Antes dele, a sessão ainda não existe, e o `restore()` só hidrata o que é de ninguém.
@@ -30144,6 +30309,8 @@ createResumableUpload({
 });
 ```
 
+Um storage assíncrono pode implementar também `deleteIf(key, matches)`: apaga o registro só se `matches` aceitar o que está gravado **agora**, lendo e apagando numa transação só. O upload o usa para esquecer o registro de um run cuja conta saiu, e sem ele cai em `get` seguido de `delete` — entre os dois, a conta seguinte pode ter gravado o próprio registro sob a mesma chave, e é esse que seria apagado (o upload dela recomeçaria do zero; #657). O `createLocalUploadStorage()` já traz o `deleteIf`, e por ser síncrono não precisa de mais nada.
+
 `storage: null` desliga a persistência: aí a retomada sobrevive a uma queda de rede, mas não a um reload.
 
 ### Um registro por usuário — `getPrincipal` e `clear()`
@@ -30241,7 +30408,7 @@ Vale também para sessão **restaurada** por `auth.refresh()` — o restore do b
 Medido em `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/resumable-upload.session.test.ts`): na `main` antes desta mudança, um `login()` de B entre o primeiro e o segundo `PATCH` fazia o upload **terminar**, com os `PATCH` seguintes levando `Bearer B-tok-1` para a URL do upload de A; e o reload depois de um refresh recomeçava com um `POST` novo. Agora o run rejeita com `ResumableUploadSupersededError` e o reload retoma com `HEAD`.
 
 !!! note "O getter, não um wrapper"
-    `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário.
+    `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário. Num build de desenvolvimento, `getToken` sem `getPrincipal` que não seja o getter do preset gera um `console.warn` (uma vez por getter, #657) — produção fica em silêncio.
 
 !!! warning "Sessão por cookie: `clear()` no fim de sessão, ou `getPrincipal`"
     Sem `getToken` — sessão só por cookie, fora do `createTempestAuth`, que sempre tem token — o SDK não enxerga quem está logado: o cookie é HttpOnly, e nada no navegador avisa a troca de conta. O registro fica sem dono e é retomado por quem vier depois. O teardown que alcança esse caso é o `createLocalUploadStorage().clear()` no fim de sessão, e ele basta: apaga os registros, para o run em andamento (`reason: "cleared"`) e, desde a **0.84.0**, faz o handle **pausado** antes dele recomeçar com `Idempotency-Key` nova em vez de levar a da sessão anterior para a criação do upload da conta seguinte (#528 — até a 0.83.0 o `resume()` de B reaproveitava a chave de A). O `abort()` deixa de ser necessário aqui. Para retomar entre reloads sem depender do teardown, passe `getPrincipal`.
@@ -30326,7 +30493,7 @@ const upload = createResumableUpload({
 
 - `onProgress` recebe **bytes do arquivo inteiro**, não do chunk. `resumedFrom` diz quantos já estavam no servidor quando esta execução começou — útil pra não anunciar "0%" num upload que retomou em 80%.
 - `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
-- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica.
+- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica. O `abort()` **sem** `discard` num handle assim também apaga o registro deste upload (com chunk em voo ou pausado): ninguém mais pode retomá-lo, e ele guardava a URL e a `Idempotency-Key` da conta anterior no storage da seguinte até um `clear()` (#657).
 
 !!! warning "O token não segue o `Location` para fora da sua origem"
     O tus responde a criação com um `Location` que **o servidor escolhe**, e o spec permite que seja uma URL absoluta em outro host — entregar o upload a um storage é operação normal, não ataque. Até a 0.65.0 o bearer token seguia aquele header para onde ele apontasse, junto com os bytes do arquivo.
@@ -34667,6 +34834,11 @@ O que ele lê, e o que ele **não** manda:
     `CPH2449`, `2201117TG`, `ONEPLUS A6013`, `Redmi Note 9 Pro`, `ASUS_X00TD`); `=`, `@`, `:`, `/`
     e caractere de controle ficam de fora. O que não passa é **omitido**, nunca truncado.
 
+    A versão das Client Hints (`platformVersion`) passa pela mesma regra: só número com ponto
+    (`14.0.0`, `15.0.0`, `14.2.1`). A auditoria run-16 viu `"14 user=alice"` virar
+    `os_version: "Android 14 user=alice"`; desde o #657 uma versão sem esse formato é ignorada, e
+    fica a do user agent.
+
 !!! check "`device_id` não denuncia relato anônimo"
     O id do aparelho sobrevive ao logout. Se fosse junto num relato anônimo — antes do login, depois
     do logout, ou de outra sessão — o backend ligaria esse relato aos relatos atribuídos do mesmo
@@ -37700,7 +37872,7 @@ export async function exportarHistorico(
 
 Pedaço por pedaço:
 
-- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte. O mesmo vale para o nome que deixaria um extrator ingênuo escrever fora da pasta de destino (*zip-slip*): segmento `..`, caminho absoluto (`/x`), letra de drive (`C:/x`, `C:x`), barra invertida ou NUL. O `createZip` recusa em vez de reescrever o nome — só você sabe qual era o caminho pretendido. Subpasta com `/` (`fotos/a.jpg`) segue valendo.
+- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte. O mesmo vale para o nome que deixaria um extrator ingênuo escrever fora da pasta de destino (*zip-slip*): segmento `..`, caminho absoluto (`/x`), letra de drive (`C:/x`, `C:x`), barra invertida ou NUL. O mesmo formato escrito com sósia Unicode também é recusado (#657): `．．/x` (ponto de largura total), `..∕x` (barra de divisão), `‥/x`, `..¥x` — um extrator que aplica NFKC, ou que converte o nome para a página de código ANSI do Windows com *best-fit*, devolve o caractere ASCII e o nome escapa da pasta. Sósia que não forma escape (`recibo ¥1000.pdf`, `a．b.jpg`) passa como está. O `createZip` recusa em vez de reescrever o nome — só você sabe qual era o caminho pretendido. Subpasta com `/` (`fotos/a.jpg`) segue valendo.
 - **`onProgress({ loaded, total })`** — em bytes de **entrada**. O `total` é conhecido antes de começar (tamanho do `Blob`, bytes UTF-8 da string), então a porcentagem é real desde a primeira chamada; a última sempre traz `loaded === total`.
 - **`level`** — deflate de `0` (só guarda) a `9`. Padrão `6`.
 - **`signal`** — um `AbortSignal` cancela no meio; a promise rejeita com o `reason` do sinal.

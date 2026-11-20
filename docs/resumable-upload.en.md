@@ -121,6 +121,8 @@ createResumableUpload({
 });
 ```
 
+An asynchronous storage can also implement `deleteIf(key, matches)`: it deletes the record only when `matches` accepts what is stored **now**, reading and deleting in one transaction. The upload uses it to forget the record of a run whose account left, and without it falls back to `get` followed by `delete` — between the two, the next account may have written its own record under the same key, and that is the one that would be deleted (its upload would start over; #657). `createLocalUploadStorage()` already ships `deleteIf`, and being synchronous needs nothing else.
+
 `storage: null` turns persistence off: resuming then survives a network drop, but not a reload.
 
 ### One record per user — `getPrincipal` and `clear()`
@@ -218,7 +220,7 @@ This also holds for a session **restored** by `auth.refresh()` — the boot rest
 Measured in `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/resumable-upload.session.test.ts`): on `main` before this change, B's `login()` between the first and second `PATCH` let the upload **finish**, with the following `PATCH`es carrying `Bearer B-tok-1` to A's upload URL; and a reload after a refresh started over with a new `POST`. Now the run rejects with `ResumableUploadSupersededError` and the reload resumes with a `HEAD`.
 
 !!! note "The getter, not a wrapper"
-    `getToken: () => auth.getToken()` is another function and carries no session: it stays bound to the token, like the "any other getter" row. A `login()` into the same account is a new session — the upload starts over; to resume across logins, pass `getPrincipal` with the user's id.
+    `getToken: () => auth.getToken()` is another function and carries no session: it stays bound to the token, like the "any other getter" row. A `login()` into the same account is a new session — the upload starts over; to resume across logins, pass `getPrincipal` with the user's id. In a development build, a `getToken` without `getPrincipal` that is not the preset's getter logs a `console.warn` (once per getter, #657) — production stays silent.
 
 !!! warning "A cookie session: `clear()` at session end, or `getPrincipal`"
     Without `getToken` — a cookie-only session, outside `createTempestAuth`, which always has a token — the SDK cannot see who is signed in: the cookie is HttpOnly, and nothing in the browser announces an account switch. The record has no owner and is resumed by whoever comes next. The teardown that reaches this case is `createLocalUploadStorage().clear()` at session end, and it is enough: it removes the records, stops the run in flight (`reason: "cleared"`) and, since **0.84.0**, makes a handle **paused** before it start over with a fresh `Idempotency-Key` instead of carrying the previous session's into the next account's upload creation (#528 — until 0.83.0 B's `resume()` reused A's key). `abort()` is no longer needed here. To resume across reloads without relying on the teardown, pass `getPrincipal`.
@@ -303,7 +305,7 @@ const upload = createResumableUpload({
 
 - `onProgress` reports **bytes of the whole file**, not of the chunk. `resumedFrom` says how many were already on the server when this run started — useful so you do not announce "0%" for an upload that resumed at 80%.
 - `pause()` drops the in-flight chunk; the persisted offset stays at the last **confirmed** chunk. `resume()` does a `HEAD` first, so partial bytes the server accepted are not lost.
-- `abort({ discard: true })` sends `DELETE` and clears the record; without `discard`, the resume point stays. On a handle from before an account switch (the `getPrincipal`/session changed, or the storage was cleared), the discard does **not** reach the server — the `DELETE` would carry the new account's credential — and deletes the record only while it is still this upload's: a record the other account wrote under the same key (the file fingerprint) stays.
+- `abort({ discard: true })` sends `DELETE` and clears the record; without `discard`, the resume point stays. On a handle from before an account switch (the `getPrincipal`/session changed, or the storage was cleared), the discard does **not** reach the server — the `DELETE` would carry the new account's credential — and deletes the record only while it is still this upload's: a record the other account wrote under the same key (the file fingerprint) stays. An `abort()` **without** `discard` on such a handle also deletes this upload's record (chunk in flight or paused): nobody can resume it any more, and it kept the previous account's URL and `Idempotency-Key` in the next account's storage until a `clear()` (#657).
 
 !!! warning "The token does not follow `Location` off your origin"
     tus answers creation with a `Location` **the server chooses**, and the spec allows an absolute URL on another host — handing the upload to object storage is ordinary operation, not an attack. Up to 0.65.0 the bearer token followed that header wherever it pointed, along with the file bytes.

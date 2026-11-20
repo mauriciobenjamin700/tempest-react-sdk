@@ -420,6 +420,30 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     /**
+     * Whether another session was installed since the attempt left: its epoch
+     * ended and a bearer token that is not the attempt's own is current now.
+     *
+     * The epoch alone cannot tell the two ways a `401`'s handling can end:
+     * `refresh()` failing and signing out, or `onUnauthorized` calling
+     * `logout()`, move the epoch *because of* this `401`, and its caller must
+     * see it (#646); a `logout()` + `login(B)` that ran while the refresh or
+     * `onUnauthorized` awaited moves it too, and then the `401` envelope is
+     * account A's data reaching B's `onError` (security audit run-16 §6,
+     * #657). What differs is the credential left behind: signing out leaves
+     * none, a rotation that failed leaves the attempt's own, and only a new
+     * session leaves another one.
+     *
+     * @param context - The credential and epoch the attempt left with.
+     * @returns `true` when the attempt's session ended and another token is
+     * installed; `false` without `getSessionEpoch`.
+     */
+    function sessionReplacedSince(context: RequestAuthContext): boolean {
+        if (!sessionEndedSince(context)) return false;
+        const current = config.getToken?.() ?? null;
+        return current !== null && current !== context.token;
+    }
+
+    /**
      * The error to reject a failed attempt with.
      *
      * An error response answers the attempt it belongs to just as a success
@@ -437,7 +461,10 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * out, `onUnauthorized` calling `logout()` — moves the epoch *because of*
      * this response, and its caller must still see the `401`. Only when no
      * `401` handling ran is the epoch read again after decoding, to catch a
-     * session change during the decode itself.
+     * session change during the decode itself. When it ran, the response is
+     * refused only if another session was installed meanwhile (see
+     * `sessionReplacedSince`), which signing out because of the `401` never
+     * does.
      *
      * @param response - The failed response.
      * @param requestId - The correlation id of the attempt.
@@ -456,7 +483,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         handled: boolean,
     ): Promise<Error> {
         const error = await parseError(response, requestId);
-        const ended = endedOnArrival || (!handled && sessionEndedSince(context));
+        const ended =
+            endedOnArrival ||
+            (handled ? sessionReplacedSince(context) : sessionEndedSince(context));
         return ended ? new SessionSupersededError() : error;
     }
 
@@ -488,7 +517,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * refuses inside its own refresh; a `refresh` hook of a standalone client
      * that ignores its context did not, and up to 0.87.0 `logout()` +
      * `login(B)` during it resent account A's `POST` with B's bearer (security
-     * audit run-16).
+     * audit run-16). A `refresh()` that throws after the same switch rejects
+     * with {@link SessionSupersededError} too, without calling
+     * `onUnauthorized`, which would end B's session for A's `401` (#657).
      *
      * @param path - The path as the call site wrote it.
      * @param options - Request options, policy fields included.
@@ -525,6 +556,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
                     handled = response.status === 401;
                 } catch (error) {
                     if (error instanceof SessionSupersededError) throw error;
+                    if (sessionReplacedSince(sent)) throw new SessionSupersededError();
                     await notifyUnauthorized(response, requestId, sent);
                     throw await failure(response, requestId, sent, endedOnArrival, true);
                 }

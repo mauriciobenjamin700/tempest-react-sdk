@@ -255,6 +255,10 @@ export interface ApiClientConfig {
      * Throwing {@link SessionSupersededError} rejects the request with that
      * error **without** calling `onUnauthorized`: the session the refresh
      * belonged to is gone, and the one in its place must not be ended for it.
+     * Throwing anything else after another session was installed during the
+     * hook — the epoch moved and `getToken` returns a token that is neither
+     * the request's nor absent — does the same (#657). A hook that fails and
+     * signs out leaves no token, so its caller still sees the `401` (#646).
      */
     refresh?: (context: RequestAuthContext) => Promise<void>;
     /**

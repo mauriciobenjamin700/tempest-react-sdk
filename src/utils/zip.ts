@@ -106,6 +106,46 @@ function levelFor(entry: ZipEntry, level: ZipLevel): ZipLevel {
 const DRIVE_PREFIX = /^[A-Za-z]:/;
 
 /**
+ * Characters that Windows best-fit conversion turns into a path separator, a
+ * dot or a colon, and that NFKC leaves alone.
+ *
+ * Ported from Microsoft's `WindowsBestFit` tables
+ * (`https://www.unicode.org/Public/MAPPINGS/VENDORS/MICSFT/WindowsBestFit/`,
+ * the `WCTABLE` of `bestfit874`, `bestfit932`, `bestfit936`, `bestfit949`,
+ * `bestfit950` and `bestfit1250`–`bestfit1258`): every code point those
+ * tables map to `0x2E`, `0x2F`, `0x5C` or `0x3A`, minus the fullwidth forms
+ * (`U+FF0E`, `U+FF0F`, `U+FF1A`, `U+FF3C`), which NFKC already folds. An
+ * extractor that converts entry names to the ANSI code page with best-fit —
+ * the default of `WideCharToMultiByte` — writes these as the ASCII character,
+ * so `..\u2215evil.sh` lands as `../evil.sh` (security audit run-16 §6, #657).
+ */
+const BEST_FIT_PATH_LOOK_ALIKES: Readonly<Record<string, string>> = {
+    "\u00A5": "\\",
+    "\u00B4": "/",
+    "\u0589": ":",
+    "\u2044": "/",
+    "\u20A9": "\\",
+    "\u2215": "/",
+    "\u2216": "\\",
+    "\u2236": ":",
+};
+
+/**
+ * The path as an extractor that folds Unicode would write it: the best-fit
+ * look-alikes, NFKC, and the look-alikes again (NFKC turns `U+FFE5` into
+ * `¥`, and would turn `´` into a space and a combining accent before the
+ * table saw it), with `\` read as a separator.
+ *
+ * @param path - The entry path.
+ * @returns The folded path.
+ */
+function foldedPath(path: string): string {
+    const bestFit = (text: string): string =>
+        Array.from(text, (char) => BEST_FIT_PATH_LOOK_ALIKES[char] ?? char).join("");
+    return bestFit(bestFit(path).normalize("NFKC")).replace(/\\/g, "/");
+}
+
+/**
  * Why a path is unsafe to hand to an extractor, or `null` when it is safe.
  *
  * The zip format stores names verbatim and leaves interpretation to whoever
@@ -120,6 +160,13 @@ const DRIVE_PREFIX = /^[A-Za-z]:/;
  * A dot inside a segment (`a..b.txt`, `..config`) and a `./` segment are left
  * alone — neither leaves the extraction folder.
  *
+ * The same shapes are refused once the path is folded (see `foldedPath`):
+ * Unicode look-alikes of `.`, `/`, `\` and `:` — `U+FF0E`, `U+2215`, `U+FF3C`,
+ * `U+2024` and the rest — pass the ASCII checks and come back as the ASCII
+ * character in an extractor that applies NFKC or Windows best-fit conversion
+ * (#657). Only the escape is refused: a look-alike that folds into an
+ * ordinary name (`recibo ¥1000.pdf`, `a．b.jpg`) is kept as written.
+ *
  * @param path - The entry path.
  * @returns A short reason, or `null` when the path is safe.
  */
@@ -129,6 +176,10 @@ function unsafePathReason(path: string): string | null {
     if (path.startsWith("/")) return "is absolute";
     if (DRIVE_PREFIX.test(path)) return "starts with a drive letter";
     if (path.split("/").includes("..")) return "has a .. segment";
+    const folded = foldedPath(path);
+    if (folded.startsWith("/")) return "folds to an absolute path (Unicode look-alike)";
+    if (DRIVE_PREFIX.test(folded)) return "folds to a drive letter (Unicode look-alike)";
+    if (folded.split("/").includes("..")) return "folds to a .. segment (Unicode look-alike)";
     return null;
 }
 
@@ -200,7 +251,9 @@ async function bytesOf(data: ZipEntry["data"], encoded: Uint8Array | null): Prom
  * Entry names are checked before any byte is read. A name that would let a
  * naive extractor write outside its target folder (zip-slip) is refused with a
  * `TypeError` rather than rewritten: a `..` segment, an absolute path (`/x`), a
- * drive letter (`C:\x`, `C:/x`, `C:x`), a backslash, or a NUL. Subfolders with
+ * drive letter (`C:\x`, `C:/x`, `C:x`), a backslash, or a NUL — written in
+ * ASCII or with a Unicode look-alike that NFKC or Windows best-fit folds into
+ * one (`．．/x`, `..∕x`; #657). Subfolders with
  * `/` (`fotos/a.jpg`) are the supported shape.
  *
  * @param entries - Files to archive, in order. Paths must be unique, relative

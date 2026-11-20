@@ -10,7 +10,7 @@
  * only one PR grew must still fail `make check`.
  */
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -167,6 +167,34 @@ describe("merge-queue remeasure", () => {
         expect(unreleased).toContain("`npm run build && npx size-limit --json`");
         expect(unreleased).toContain("191.9 kB → 192.1 kB");
         expect(unreleased).not.toContain("slice: typical app");
+    });
+
+    it("re-measures when size-limit exits non-zero, which it does exactly when a budget overflows", () => {
+        const dir = repo({
+            "CHANGELOG.md":
+                "# Changelog\n\n## [Unreleased]\n\n### Adicionado\n\n- x\n\n## [0.89.0] — 2026-11-18\n",
+            ".size-limit.checks.json": JSON.stringify(config, null, 2),
+        });
+        const bin = join(dir, "fake-bin");
+        mkdirSync(bin);
+        const npx = join(bin, "npx");
+        writeFileSync(
+            npx,
+            `#!/bin/sh\necho "▲ [WARNING] noise" >&2\necho '${JSON.stringify(checks)}'\nexit 1\n`,
+        );
+        chmodSync(npx, 0o755);
+
+        const result = spawnSync(process.execPath, [SCRIPT, "remeasure", "674"], {
+            cwd: dir,
+            encoding: "utf8",
+            env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` },
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toMatch(/^bumped/);
+        expect(result.stderr).not.toContain("noise");
+        const next = JSON.parse(readFileSync(join(dir, ".size-limit.checks.json"), "utf8"));
+        expect(next[2].limit).toBe("192.1 kB");
     });
 
     it("prints nothing and changes nothing when every budget passes", () => {

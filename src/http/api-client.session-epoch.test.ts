@@ -322,3 +322,78 @@ describe("createApiClient — replay after a refresh that outlived the session (
         await expect(api.get("/me")).resolves.toEqual({ owner: "Bearer A-token-2" });
     });
 });
+
+/**
+ * Security audit run-16 §6 (#657): a `refresh()` that **throws** after
+ * `logout()` + `login(B)` ran during it marked A's `401` as handled, so its
+ * envelope reached B's `onError` and a generic `onUnauthorized` ran under B.
+ * The epoch alone cannot tell this from a refresh that fails and signs out
+ * because of this `401` (#646): the signal is the credential installed now.
+ * A token that is neither the request's nor absent means another session was
+ * installed during the handling; no token, or the request's own, keeps the
+ * `401`.
+ */
+describe("createApiClient — refresh that throws after an account switch (#657)", () => {
+    function failingRefreshClient(next: string | null) {
+        let token: string | null = "A-token";
+        let epoch = 0;
+        const unauthorized: (string | null)[] = [];
+        const fetcher = (async () =>
+            new Response(JSON.stringify({ detail: "private-of-A" }), {
+                status: 401,
+                headers: { "content-type": "application/json" },
+            })) as typeof fetch;
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => token,
+            getSessionEpoch: () => epoch,
+            refresh: async () => {
+                epoch += 1;
+                token = next;
+                throw new Error("refresh failed");
+            },
+            onUnauthorized: (_response, context) => {
+                unauthorized.push(context.token);
+            },
+        });
+        return { api, unauthorized };
+    }
+
+    it("rejects with SessionSupersededError and skips onUnauthorized when B signed in during the refresh", async () => {
+        const { api, unauthorized } = failingRefreshClient("B-token");
+
+        await expect(api.get("/me")).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(unauthorized).toEqual([]);
+    });
+
+    it("keeps the 401 when the session ended during the refresh and nobody signed in", async () => {
+        const { api, unauthorized } = failingRefreshClient(null);
+
+        await expect(api.get("/me")).rejects.toMatchObject({ status: 401 });
+        expect(unauthorized).toEqual(["A-token"]);
+    });
+
+    it("rejects with SessionSupersededError when B was signed in by the time onUnauthorized settled", async () => {
+        let token: string | null = "A-token";
+        let epoch = 0;
+        const fetcher = (async () =>
+            new Response(JSON.stringify({ detail: "private-of-A" }), {
+                status: 401,
+                headers: { "content-type": "application/json" },
+            })) as typeof fetch;
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => token,
+            getSessionEpoch: () => epoch,
+            onUnauthorized: async () => {
+                await Promise.resolve();
+                epoch += 2;
+                token = "B-token";
+            },
+        });
+
+        await expect(api.get("/me")).rejects.toBeInstanceOf(SessionSupersededError);
+    });
+});

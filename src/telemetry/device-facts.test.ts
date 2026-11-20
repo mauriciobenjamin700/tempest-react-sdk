@@ -110,6 +110,16 @@ describe("parseUserAgent", () => {
         });
     });
 
+    it.each([
+        "HTC Sensation XE with Beats Audio Z715a",
+        "Lenovo ThinkPad 11e 4th Gen Chromebook",
+        "Acer Chromebook 14 for Work (CP5-471)",
+        "ADMIRE SHINE",
+        "AI PONT PLUS",
+    ])("keeps the long or digitless real model %s, so the cap stays at 40 (#657)", (model) => {
+        expect(parseUserAgent(androidUa(model)).device_model).toBe(model);
+    });
+
     it("keeps a model up to 40 characters", () => {
         const model = "A".repeat(40);
         expect(parseUserAgent(androidUa(model)).device_model).toBe(model);
@@ -246,6 +256,61 @@ describe("applyDeviceHints", () => {
             os_version: "Linux",
         });
     });
+});
+
+/**
+ * Security audit run-16 §6 (#657): `platformVersion` was interpolated into
+ * `os_version` as it came, so an embedding browser or WebView answering
+ * `"14 user=alice"` uploaded `"Android 14 user=alice"`. It now passes an
+ * allowlist of dotted numbers, as the model passes its own (#644); one that
+ * does not keeps what the user agent said.
+ */
+describe("applyDeviceHints — platformVersion allowlist (#657)", () => {
+    const NOT_VERSIONS = [
+        "14 user=alice",
+        "14.0.0; token=abc",
+        "alice@example.com",
+        "14.0.0\u0000",
+        "1".repeat(30),
+        "14..0",
+        ".14",
+    ] as const;
+
+    it.each(NOT_VERSIONS)("keeps the user agent's Android version over %j", (platformVersion) => {
+        const facts = applyDeviceHints(
+            { os_version: "Android" },
+            { platform: "Android", platformVersion, model: "SM-A105M" },
+        );
+        expect(facts).toEqual({ os_version: "Android", device_model: "SM-A105M" });
+    });
+
+    it.each(NOT_VERSIONS)("keeps bare macOS over %j", (platformVersion) => {
+        expect(
+            applyDeviceHints({ os_version: "macOS" }, { platform: "macOS", platformVersion }),
+        ).toEqual({ os_version: "macOS" });
+    });
+
+    it("does not read a Windows major out of free text", () => {
+        expect(
+            applyDeviceHints(
+                { os_version: "Windows" },
+                { platform: "Windows", platformVersion: "15 user=alice" },
+            ),
+        ).toEqual({ os_version: "Windows" });
+    });
+
+    it.each(["14.0.0", "13", "15.0.0", "10.0.0", "0.3.0", "14.2.1", "16.1"])(
+        "keeps the real platformVersion %s",
+        (platformVersion) => {
+            const facts = applyDeviceHints(
+                { os_version: "Android" },
+                { platform: "Android", platformVersion },
+            );
+            expect(facts.os_version).toBe(
+                `Android ${platformVersion.replace(/(?:\.0)+$/, "")}`.trimEnd(),
+            );
+        },
+    );
 });
 
 describe("randomDeviceId", () => {

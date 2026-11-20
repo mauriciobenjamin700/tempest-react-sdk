@@ -18,6 +18,53 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   está oculta). O `timeoutMs` da captura (default 3000) é o último recurso, e alcançá-lo nesse
   caminho continua não sendo erro. O `signal` passa a abortar também essa espera.
 
+### Segurança
+
+- **`createApiClient`: falha de rede na repetição depois do `refresh` não desloga mais** (#684,
+  auditoria run-17 §5). O `catch` em volta do `refresh()` também pegava o envio da repetição: com o
+  `refresh` resolvido (a sessão está viva) e a rede caindo na repetição, o cliente chamava
+  `onUnauthorized` e rejeitava com o 401 da primeira tentativa — num app cujo `onUnauthorized`
+  desloga, um soluço de rede logo depois do refresh encerrava uma sessão válida. A repetição agora
+  sai fora desse `try`: o erro de rede chega ao chamador como numa primeira tentativa, e
+  `onUnauthorized` só roda quando o próprio `refresh` falha. Teste:
+  `api-client.resilience.test.ts` › "rejects with the network error and does not sign out".
+- **`createZip` recusa segmento feito só de pontos e espaços** (#684, auditoria run-17 §5). `...`,
+  `.. ` e ` ` passavam por todas as checagens. O Win32 apara ponto e espaço no fim de um segmento,
+  então `.. ` pode voltar a ser `..` e `... `, um segmento vazio, conforme o extrator — o SDK não
+  deve depender disso, e nenhum arquivo de verdade tem esse nome. A checagem roda também sobre o
+  nome dobrado (NFKC + best-fit), então `．．．/x` e `..\u3000/x` caem junto. O `.` sozinho
+  (`./leia-me.txt`) e ponto dentro de nome (`..config`, `a..b.txt`) seguem aceitos. Teste:
+  `zip.test.ts` › "refuses a segment of only dots and spaces".
+- **Telemetria: `platformVersion` das Client Hints com o formato das versões reais** (#684,
+  auditoria run-17 §5). A allowlist do #657 aceitava até quatro grupos de até cinco dígitos — um
+  canal de 23 caracteres de dígitos arbitrários até o `os_version`. Toda versão que o
+  `applyDeviceHints` lê (Android `Build.VERSION.RELEASE`, Windows `UniversalApiContract`, macOS) cabe
+  em até três grupos de até três dígitos, sem zero à esquerda; agora é esse o formato. O que não
+  passa é ignorado, e fica a versão do user agent, como antes. Teste: `device-facts.test.ts` ›
+  "platformVersion shape (#684)".
+- **Upload resumível: `abort({ discard: true })` só apaga o registro do próprio upload** (#684,
+  auditoria run-17 §5). Um handle amarrado só a um `getToken` próprio — sem `getPrincipal`, sem o
+  getter do `createTempestAuth`, sem `clear()` no fim da sessão — não enxerga a troca de conta, e o
+  descarte dele depois da troca apagava o que estivesse sob o fingerprint do arquivo: o registro de
+  retomada que a conta B gravou para o mesmo arquivo, e o upload de B recomeçava do zero. Agora um
+  handle que já rodou apaga só o registro com a **própria** `Idempotency-Key` (por `deleteIf`
+  quando o storage tem). O `DELETE` desse handle ainda sai para a URL de upload de A com a
+  credencial atual — essa metade só o servidor recusa, e continua documentada com o aviso de dev. Um
+  handle que nunca rodou segue apagando o registro do arquivo. Teste:
+  `resumable-upload.session.test.ts` › "discard of a token-bound handle keeps another run's
+  record".
+
+### Budgets
+
+- **Sete checagens sobem pelos quatro reforços do #684** (`npm run build && npx size-limit --json`
+  sobre a `main` em `4108734` e sobre este branch, bytes brotli): `slice: typical app (shell + 5
+components + http + auth + hook)` 12 920 → 12 931 (teto 12,93 → 12,94 kB); `slice: http client`
+  5 933 → 5 942 (teto 5,94 → 5,95 kB); `slice: device facts` 1 249 → 1 255 (teto 1,25 → 1,26 kB);
+  `slice: resumable upload` 5 377 → 5 418 (teto 5,4 → 5,42 kB); `slice: createZip` 5 779 → 5 807
+  (teto 5,8 → 5,81 kB); `slice: createZip + writeXlsx` 6 892 → 6 938 (teto 6,9 → 6,94 kB);
+  `ceiling: full barrel ESM` 170 920 → 171 095 (teto 171 → 171,1 kB). `ceiling: full barrel CJS`
+  202 112 → 202 194, dentro do teto.
+
 ## [0.91.0] — 2026-11-20
 
 ### Adicionado

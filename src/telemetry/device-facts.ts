@@ -63,6 +63,19 @@ function deviceModel(model: string): string | undefined {
     return model;
 }
 
+/**
+ * Shape of a Client Hints `platformVersion`: one to four dotted groups of up
+ * to five digits — `14.0.0` (Android), `15.0.0` (Windows 11), `14.2.1`
+ * (macOS).
+ *
+ * The hint is answered by whatever browser or WebView embeds the app, and it
+ * was interpolated into `os_version` as it came: `"14 user=alice"` was
+ * uploaded as `"Android 14 user=alice"` (security audit run-16 §6, #657). Like
+ * the model (#644), what does not have the shape is dropped, and the user
+ * agent's version stays.
+ */
+const PLATFORM_VERSION = /^\d{1,5}(?:\.\d{1,5}){0,3}$/;
+
 /** The OS facts read from a user agent: the coarse version and, on Android, the model. */
 export interface UserAgentFacts {
     /** Coarse operating system, e.g. `"Android 14"`, `"iOS 17.2"`, `"macOS"`. */
@@ -210,14 +223,17 @@ export function parseUserAgent(ua: string, maxTouchPoints: number = 0): UserAgen
  * Only the families whose user agent is frozen gain from it: Android (version
  * and model behind the reduced `K`), Windows (`platformVersion` 13+ is
  * Windows 11) and macOS. The hinted model passes the same allowlist as the
- * user agent's; one that does not keeps the user agent's model, if any.
+ * user agent's; one that does not keeps the user agent's model, if any. The
+ * hinted version passes {@link PLATFORM_VERSION}; one that does not is
+ * ignored, as if the hint had not answered.
  *
  * @param facts - What the user agent said.
  * @param hints - What `getHighEntropyValues` returned.
  * @returns The refined facts.
  */
 export function applyDeviceHints(facts: UserAgentFacts, hints: DeviceHints): UserAgentFacts {
-    const version = hints.platformVersion ? trimZeros(hints.platformVersion) : "";
+    const hinted = hints.platformVersion?.trim() ?? "";
+    const version = PLATFORM_VERSION.test(hinted) ? trimZeros(hinted) : "";
     const model = deviceModel(hints.model?.trim() ?? "");
     if (hints.platform === "Android" && facts.os_version?.startsWith("Android")) {
         return {

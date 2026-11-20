@@ -35,6 +35,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   troca no meio. Nada avisava quem escreveu `() => auth.getToken()`. Agora um build de
   desenvolvimento dá um `console.warn` por getter, no mesmo padrão do
   `provideBackgroundSyncCredentials()` sem `getPrincipal`; produção fica em silêncio.
+- **`createDeviceFacts`: `platformVersion` das Client Hints passa por allowlist** (#657, run-16 §6).
+  A versão vinha interpolada como chegava, e um navegador/WebView que respondesse `"14 user=alice"`
+  subia `os_version: "Android 14 user=alice"` (no macOS, `"macOS …"`; no Windows o `parseInt` lia
+  um major de texto livre). Agora só passa número com ponto (`^\d{1,5}(\.\d{1,5}){0,3}$`, o
+  formato de `14.0.0`/`15.0.0`/`14.2.1`); o resto é ignorado e fica a versão do user agent, como já
+  acontecia com o modelo (#644).
 - **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
   comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
   uma request anônima com o token do login que estava em voo (#496); o `retry` do

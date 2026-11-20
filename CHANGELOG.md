@@ -28,6 +28,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   em até três grupos de até três dígitos, sem zero à esquerda; agora é esse o formato. O que não
   passa é ignorado, e fica a versão do user agent, como antes. Teste: `device-facts.test.ts` ›
   "platformVersion shape (#684)".
+- **Upload resumível: `abort({ discard: true })` só apaga o registro do próprio upload** (#684,
+  auditoria run-17 §5). Um handle amarrado só a um `getToken` próprio — sem `getPrincipal`, sem o
+  getter do `createTempestAuth`, sem `clear()` no fim da sessão — não enxerga a troca de conta, e o
+  descarte dele depois da troca apagava o que estivesse sob o fingerprint do arquivo: o registro de
+  retomada que a conta B gravou para o mesmo arquivo, e o upload de B recomeçava do zero. Agora um
+  handle que já rodou apaga só o registro com a **própria** `Idempotency-Key` (por `deleteIf`
+  quando o storage tem). O `DELETE` desse handle ainda sai para a URL de upload de A com a
+  credencial atual — essa metade só o servidor recusa, e continua documentada com o aviso de dev. Um
+  handle que nunca rodou segue apagando o registro do arquivo. Teste:
+  `resumable-upload.session.test.ts` › "discard of a token-bound handle keeps another run's
+  record".
 
 ## [0.91.0] — 2026-11-20
 

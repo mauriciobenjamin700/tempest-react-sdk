@@ -349,6 +349,10 @@ export interface ResumableUpload {
      * account's upload URL and `Idempotency-Key` (#657). A record another
      * account wrote under the same key stays.
      *
+     * With `discard`, a handle that has run forgets only the record carrying
+     * its own `Idempotency-Key`, so a record another account wrote under the
+     * same key stays even when the handle cannot see the switch (#684).
+     *
      * @param options - `discard: true` also sends `DELETE` (tus termination) and
      *   forgets the persisted record, so the next `start()` uploads from zero.
      */
@@ -1070,16 +1074,52 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * the caller is about to receive.
      */
     async function forgetSupersededRecord(): Promise<void> {
-        if (!storage || !idempotencyKey) return;
+        if (!idempotencyKey) return;
         const runKey = idempotencyKey;
-        const ours = (record: ResumableUploadRecord): boolean =>
-            record.idempotencyKey === runKey && record.owner === owner;
+        await forgetRecordIf(
+            (record) => record.idempotencyKey === runKey && record.owner === owner,
+        );
+    }
+
+    /**
+     * Delete the record under `key` only when `ours` accepts the record
+     * stored there now — through `storage.deleteIf` when the storage has it,
+     * so a record written between the read and the delete is never the one
+     * deleted; otherwise through `get` and `delete`.
+     *
+     * @param ours - Whether the record stored now is the one to forget.
+     */
+    async function forgetRecordIf(ours: (record: ResumableUploadRecord) => boolean): Promise<void> {
+        if (!storage) return;
         if (storage.deleteIf) {
             await storage.deleteIf(key, ours);
             return;
         }
         const stored = await storage.get(key);
         if (stored && ours(stored)) await storage.delete(key);
+    }
+
+    /**
+     * Forget the record of a discarded upload.
+     *
+     * A handle that ran deletes only the record carrying its own
+     * `Idempotency-Key`. A handle bound to a bare token getter — no
+     * `getPrincipal`, no `createTempestAuth` getter, no `clear()` at session
+     * end — cannot see an account switch, so its discard after one takes this
+     * branch; up to 0.91.0 it deleted whatever sat under the file fingerprint,
+     * which can be the next account's resume record of the same file
+     * (security audit run-17 §5, #684). A handle that never ran has no record
+     * of its own, and discarding through it still forgets the file's record,
+     * as documented.
+     */
+    async function forgetDiscardedRecord(): Promise<void> {
+        if (!storage) return;
+        if (!attached || idempotencyKey === null) {
+            await storage.delete(key);
+            return;
+        }
+        const runKey = idempotencyKey;
+        await forgetRecordIf((record) => record.idempotencyKey === runKey);
     }
 
     /**
@@ -1419,7 +1459,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
                     holdRedirects: holdsRedirects(url),
                 }).catch(() => undefined);
             }
-            if (storage) await storage.delete(key);
+            await forgetDiscardedRecord();
         },
         get state() {
             return state;

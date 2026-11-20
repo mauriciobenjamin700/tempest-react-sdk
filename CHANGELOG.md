@@ -22,9 +22,88 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #674** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 169 738 B (teto 169.7 kB → 169.8 kB); `ceiling: full barrel CJS` 201 024 B (teto 200.9 kB → 201.1 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Tetos do barrel sobem pelo observador do client** (`npm run build && npx size-limit --json` sobre
   a `main` em `d272b88` e sobre este branch): `ceiling: full barrel ESM` 168 996 → 169 220 B (teto
   169,1 → 169,3 kB); `ceiling: full barrel CJS` 200 182 → 200 738 B (teto 200,2 → 200,8 kB).
+- **`createApiClient`: `refresh()` que lança depois de uma troca de conta não entrega mais o 401 da
+  conta anterior** (#657, auditoria run-16 §6). Com um `refresh` próprio, `logout()` + `login(B)`
+  durante o hook e o hook rejeitando em seguida, a request rejeitava com o `TempestApiError` de A
+  (envelope `detail`/`code` no `onError` de B) e chamava o `onUnauthorized` sob B — um
+  `onUnauthorized` que chama `logout()` derrubava a sessão de B. Agora rejeita com
+  `SessionSupersededError`, sem chamar `onUnauthorized`. O sinal é a credencial que ficou: época
+  mudou **e** o token atual não é o da request nem vazio. Refresh que falha e desloga (sem token) e
+  `onUnauthorized` que chama `logout()` continuam rejeitando com o 401 (regra do #646). O mesmo vale
+  quando a troca acontece enquanto o `onUnauthorized` aguarda.
+- **`createResumableUpload`: `abort()` sem `discard` depois de uma troca de conta esquece o registro
+  da conta anterior** (#657, run-16 §6). Com chunk em voo ou com o handle pausado, o `abort()` sem
+  `discard` voltava antes de apagar o registro, e a URL de upload e a `Idempotency-Key` de A
+  ficavam no storage de B até um `clear()`. Agora, quando o dono que anexou o run mudou
+  (`getPrincipal`/sessão do preset trocou, ou o storage foi limpo), o registro **deste** upload é
+  apagado como numa supersessão; registro que B gravou sob a mesma chave fica, e nada vai ao
+  servidor. Na mesma sessão, o `abort()` sem `discard` continua guardando o ponto de retomada.
+- **`ResumableUploadStorage.deleteIf` (opcional): esquecer o registro de uma conta que saiu numa
+  operação só** (#657, run-16 §6). O `forgetSupersededRecord` lia o registro, comparava dono e
+  `Idempotency-Key` e apagava a chave numa segunda chamada; com um storage assíncrono, um registro
+  que a conta seguinte gravou entre as duas era o apagado, e o upload dela recomeçava. Quando o
+  storage tem `deleteIf(key, matches)`, a comparação e a remoção vão numa chamada; o
+  `createLocalUploadStorage()` já o implementa. Storage sem `deleteIf` continua no `get` + `delete`.
+- **Aviso em dev para upload sem vínculo de sessão** (#657, run-16 §6). `uploadWithProgress` com
+  `getToken` que não é o getter do `createTempestAuth` e sem `sessionKey`, e `createResumableUpload`
+  com esse `getToken` e sem `getPrincipal`, ficam sem vínculo de sessão (documentado): a resposta
+  que chega depois de uma troca de conta vai para a conta nova, e o run resumível não percebe a
+  troca no meio. Nada avisava quem escreveu `() => auth.getToken()`. Agora um build de
+  desenvolvimento dá um `console.warn` por getter, no mesmo padrão do
+  `provideBackgroundSyncCredentials()` sem `getPrincipal`; produção fica em silêncio.
+- **`createDeviceFacts`: `platformVersion` das Client Hints passa por allowlist** (#657, run-16 §6).
+  A versão vinha interpolada como chegava, e um navegador/WebView que respondesse `"14 user=alice"`
+  subia `os_version: "Android 14 user=alice"` (no macOS, `"macOS …"`; no Windows o `parseInt` lia
+  um major de texto livre). Agora só passa número com ponto (`^\d{1,5}(\.\d{1,5}){0,3}$`, o
+  formato de `14.0.0`/`15.0.0`/`14.2.1`); o resto é ignorado e fica a versão do user agent, como já
+  acontecia com o modelo (#644).
+- **`device_model`: teto de 40 caracteres mantido, por medição (decisão, sem mudança de
+  comportamento)** (#657, run-16 §6). Sobre os 44 809 modelos distintos da lista de aparelhos do
+  Google Play que passam a allowlist: teto 30 derrubaria 41 modelos reais, 24 derrubaria 251;
+  exigir dígito derrubaria 4 334, dígito ou hífen 4 108. Modelo real também é texto livre
+  (`HTC Sensation XE with Beats Audio Z715a`, 39), então nenhuma regra de forma separa um nome
+  curto com número de um modelo. Método em `docs/internal/decisions.md`; um teste fixa modelos
+  reais longos e sem dígito.
+- **`createZip` recusa sósias Unicode que formam zip-slip** (#657, run-16 §6). `．．/x` (U+FF0E),
+  `．．＼x` (U+FF3C), `..∕x` (U+2215), `‥/x` / `․․/x` (U+2025/U+2024), `..¥x` (U+00A5) passavam
+  pelas checagens ASCII; um extrator que aplica NFKC, ou que converte o nome para a página de
+  código ANSI do Windows com _best-fit_ (`WideCharToMultiByte`), devolve `.`, `/`, `\` ou `:` e o
+  nome escapa da pasta. Decidido recusar, não só documentar: o nome agora é dobrado (tabela
+  _best-fit_ portada de `WindowsBestFit` da Unicode, NFKC, `\` como separador) e recusado se virar
+  caminho absoluto, letra de drive ou segmento `..`. Sósia que não forma escape
+  (`recibo ¥1000.pdf`, `a．b.jpg`) passa como está, então nome legítimo em japonês ou com moeda
+  segue funcionando.
+- **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
+  comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
+  uma request anônima com o token do login que estava em voo (#496); o `retry` do
+  `createApiClient` recusa o mesmo formato (#655). A divergência fica, de propósito: um 401 diz que
+  a request anônima não fez nada e precisa de sessão; uma falha de `retry` não diz nada sobre
+  credencial e pode ter sido executada. Request que saiu **com** token nunca repete em outra
+  sessão por nenhum dos dois. Documentado em `docs/auth.md`/`.en.md` e fixado em
+  `src/auth/create-tempest-auth.replay-rule.test.ts`.
+
+### Corrigido
+
+- **`deepEqual` (de `useDeepMemo` e `useDraftFilters`) compara buracos de array** (#657, run-16 §6).
+  O `every` pulava buracos: `deepEqual(new Array(1), ["x"])` dava `true` e o inverso `false`, e o
+  `useDeepMemo` devolvia a referência antiga quando um buraco era preenchido. Agora a comparação é
+  índice a índice, e um buraco só é igual a outro buraco — distinto de um índice com `undefined`,
+  como uma chave ausente já era distinta (#645). Só correção de UI.
+
+### Budgets
+
+- **Hardening da run-16 (#657)**, medido com `npm run build && npx size-limit --json` sobre a `main`
+  em `d272b88` e sobre este branch: `slice: http client` 5 722 → 5 900 B (teto 5,8 → 5,9 kB; o
+  aviso de dev do `uploadWithProgress` e o `sessionReplacedSince`); `slice: resumable upload`
+  5 150 → 5 385 B (teto 5,2 → 5,4 kB; `deleteIf`, `abort()` e o aviso de dev); `slice: createZip`
+  5 619 → 5 779 B (teto 5,65 → 5,8 kB) e `createZip + writeXlsx` 6 723 → 6 892 B (teto 6,75 →
+  6,9 kB), pela tabela _best-fit_ e a dobra NFKC; `ceiling: full barrel ESM` 168 996 → 169 677 B
+  (teto 169,1 → 169,7 kB); `ceiling: full barrel CJS` 200 182 → 200 877 B (teto 200,2 → 200,9 kB).
+  `typical app` (12 877 → 12 898 B) e `device facts` (1 219 → 1 249 B) seguem nos tetos.
 
 ## [0.90.0] — 2026-11-19
 

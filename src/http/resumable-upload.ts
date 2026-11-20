@@ -8,6 +8,7 @@
 import { sessionIdentityOf } from "@/auth/session-identity";
 import { ownerFingerprint } from "@/utils/owner-fingerprint";
 import { bytesToBase64 } from "@/utils/base64";
+import { isDevBuild } from "@/utils/dev-mode";
 import {
     isTrustedCredentialTarget,
     reportSuppressedCredential,
@@ -162,6 +163,27 @@ export interface ResumableUploadStorage {
     set(key: string, record: ResumableUploadRecord): Promise<void> | void;
     /** Forget the record for `key`. */
     delete(key: string): Promise<void> | void;
+    /**
+     * Forget the record for `key` only when `matches` accepts the record
+     * stored there now, reading and deleting in one step.
+     *
+     * Optional. The upload calls it to forget the record of a run whose account
+     * is gone, and the record must still be that run's: another account may
+     * have written its own under the same key (the file fingerprint). Without
+     * it, the upload falls back to `get` and then `delete`, and an
+     * asynchronous storage (IndexedDB, a network store) can take a write
+     * between the two — the next account's record is deleted and its upload
+     * starts over (security audit run-16 §6, #657). Implement it inside one
+     * transaction; the default `localStorage` storage has it, and being
+     * synchronous it needs nothing else.
+     *
+     * @param key - The record's key.
+     * @param matches - Whether the record stored now is the one to forget.
+     */
+    deleteIf?(
+        key: string,
+        matches: (record: ResumableUploadRecord) => boolean,
+    ): Promise<void> | void;
 }
 
 /**
@@ -241,7 +263,8 @@ export interface ResumableUploadOptions {
      * `createLocalUploadStorage().clear()` from `onSessionEnd` stops the runs in
      * flight and, since 0.84.0, makes a paused handle start over with a fresh
      * `Idempotency-Key`; with a custom `storage`, call `abort()` on the uploads
-     * in progress there instead.
+     * in progress there instead. A development build warns once per getter
+     * when `getToken` is given without it and is not the preset's own (#657).
      */
     getPrincipal?: () => string | number | null | undefined;
     /**
@@ -319,6 +342,13 @@ export interface ResumableUpload {
      * with whatever token was current — after an account switch, the next
      * account's (#561).
      *
+     * Without `discard` the persisted record stays for a later resume — unless
+     * the account that attached the run is gone (the principal changed or the
+     * storage was cleared): then the record this run wrote is forgotten, as a
+     * supersession does, since nobody can resume it and it holds the previous
+     * account's upload URL and `Idempotency-Key` (#657). A record another
+     * account wrote under the same key stays.
+     *
      * @param options - `discard: true` also sends `DELETE` (tus termination) and
      *   forgets the persisted record, so the next `start()` uploads from zero.
      */
@@ -385,6 +415,35 @@ export function uploadFingerprint(endpoint: string, file: Blob | File): string {
     return `${endpoint}|${name}|${file.size}|${file.type}|${modified}`;
 }
 
+/** The `getToken` getters already warned about, so each warns once. */
+const warnedUnbound = new WeakSet<object>();
+
+/**
+ * Warn, in a development build and once per getter, that a resumable upload
+ * with a `getToken` token is bound to the token alone: no `getPrincipal`, and
+ * the getter is not the one `createTempestAuth` returned.
+ *
+ * Bound to the token, the run cannot tell a refresh from another account's
+ * sign-in: it keeps going under the next account's token unless `abort()` or
+ * `createLocalUploadStorage().clear()` runs at the end of the session, and a
+ * reload after a rotation starts over. The docs said so, and nothing told the
+ * developer who wrote `() => auth.getToken()` (security audit run-16 §6,
+ * #657).
+ *
+ * @param getToken - The getter the upload was given.
+ */
+function warnTokenBound(getToken: () => string | null | undefined): void {
+    if (!isDevBuild() || warnedUnbound.has(getToken)) return;
+    warnedUnbound.add(getToken);
+    console.warn(
+        "[tempest-react-sdk/http] createResumableUpload() with a `getToken` that is not " +
+            "createTempestAuth's own getter and no `getPrincipal`: the upload is bound to the " +
+            "token, not to the session, so an account switch mid-run is not detected unless " +
+            "abort() or clear() runs at session end. Pass `getToken: auth.getToken` or " +
+            "`getPrincipal: () => currentUserId`.",
+    );
+}
+
 /**
  * `localStorage`-backed resume storage — the default.
  *
@@ -429,6 +488,10 @@ export function createLocalUploadStorage(prefix = "tempest-upload:"): LocalUploa
         },
         delete(key) {
             backend()?.removeItem(prefix + key);
+        },
+        deleteIf(key, matches) {
+            const current = storage.get(key) as ResumableUploadRecord | null;
+            if (current && matches(current)) storage.delete(key);
         },
         clear() {
             clearGenerations.set(prefix, (clearGenerations.get(prefix) ?? 0) + 1);
@@ -799,6 +862,7 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
         onStateChange,
     } = options;
     const getPrincipal = principalOption ?? sessionIdentityOf(getToken)?.current;
+    if (getToken && !getPrincipal) warnTokenBound(getToken);
 
     let state: ResumableUploadState = "idle";
     let offset = 0;
@@ -983,17 +1047,29 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * stamp keeps it from being adopted (#479), and a session bound through
      * `createTempestAuth` never comes back under the same key. Keeping it only
      * served the previous account switching back in the same tab, at the price
-     * of leaving its capability where the next one can read it. A record the
+     * of leaving its capability where the next one can read it. The
+     * comparison and the deletion go through `storage.deleteIf` when the
+     * storage has it, so a record written between them is never the one
+     * deleted; otherwise through `get` and `delete` (#657). The same
+     * holds for an `abort()` without `discard` that lands after the switch,
+     * with a chunk in flight or on a paused handle: up to 0.90.0 it returned
+     * before this ran and left the record until a `clear()` (security audit
+     * run-16 §6, #657). A record the
      * new account wrote under the same key in the meantime is not this run's,
      * and stays. A storage that fails here does not replace the supersession
      * the caller is about to receive.
      */
     async function forgetSupersededRecord(): Promise<void> {
         if (!storage || !idempotencyKey) return;
-        const stored = await storage.get(key);
-        if (stored?.idempotencyKey === idempotencyKey && stored.owner === owner) {
-            await storage.delete(key);
+        const runKey = idempotencyKey;
+        const ours = (record: ResumableUploadRecord): boolean =>
+            record.idempotencyKey === runKey && record.owner === owner;
+        if (storage.deleteIf) {
+            await storage.deleteIf(key, ours);
+            return;
         }
+        const stored = await storage.get(key);
+        if (stored && ours(stored)) await storage.delete(key);
     }
 
     /**
@@ -1315,7 +1391,10 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             stop("abort");
             abandoned = true;
             setState("aborted");
-            if (!discard) return;
+            if (!discard) {
+                if (ownerMoved()) await forgetSupersededRecord().catch(() => undefined);
+                return;
+            }
             if (ownerMoved()) {
                 await forgetSupersededRecord();
                 return;

@@ -280,6 +280,11 @@ What it reads, and what it does **not** send:
     `CPH2449`, `2201117TG`, `ONEPLUS A6013`, `Redmi Note 9 Pro`, `ASUS_X00TD`); `=`, `@`, `:`, `/`
     and control characters are out. What does not pass is **omitted**, never truncated.
 
+    The Client Hints version (`platformVersion`) goes through the same rule: dotted numbers only
+    (`14.0.0`, `15.0.0`, `14.2.1`). Audit run-16 saw `"14 user=alice"` become
+    `os_version: "Android 14 user=alice"`; since #657 a version without that shape is ignored, and
+    the user agent's stays.
+
 !!! check "`device_id` does not give away an anonymous report"
     The device id survives sign-out. Sent with an anonymous report — before login, after logout, or
     from another session — it would let the backend join that report to the same device's attributed

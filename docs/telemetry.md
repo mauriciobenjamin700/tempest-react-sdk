@@ -280,6 +280,11 @@ O que ele lê, e o que ele **não** manda:
     `CPH2449`, `2201117TG`, `ONEPLUS A6013`, `Redmi Note 9 Pro`, `ASUS_X00TD`); `=`, `@`, `:`, `/`
     e caractere de controle ficam de fora. O que não passa é **omitido**, nunca truncado.
 
+    A versão das Client Hints (`platformVersion`) passa pela mesma regra: só número com ponto
+    (`14.0.0`, `15.0.0`, `14.2.1`). A auditoria run-16 viu `"14 user=alice"` virar
+    `os_version: "Android 14 user=alice"`; desde o #657 uma versão sem esse formato é ignorada, e
+    fica a do user agent.
+
 !!! check "`device_id` não denuncia relato anônimo"
     O id do aparelho sobrevive ao logout. Se fosse junto num relato anônimo — antes do login, depois
     do logout, ou de outra sessão — o backend ligaria esse relato aos relatos atribuídos do mesmo

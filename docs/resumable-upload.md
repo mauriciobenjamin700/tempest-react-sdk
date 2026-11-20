@@ -121,6 +121,8 @@ createResumableUpload({
 });
 ```
 
+Um storage assíncrono pode implementar também `deleteIf(key, matches)`: apaga o registro só se `matches` aceitar o que está gravado **agora**, lendo e apagando numa transação só. O upload o usa para esquecer o registro de um run cuja conta saiu, e sem ele cai em `get` seguido de `delete` — entre os dois, a conta seguinte pode ter gravado o próprio registro sob a mesma chave, e é esse que seria apagado (o upload dela recomeçaria do zero; #657). O `createLocalUploadStorage()` já traz o `deleteIf`, e por ser síncrono não precisa de mais nada.
+
 `storage: null` desliga a persistência: aí a retomada sobrevive a uma queda de rede, mas não a um reload.
 
 ### Um registro por usuário — `getPrincipal` e `clear()`
@@ -218,7 +220,7 @@ Vale também para sessão **restaurada** por `auth.refresh()` — o restore do b
 Medido em `src/http/resumable-upload.session.test.ts` (`npx vitest run src/http/resumable-upload.session.test.ts`): na `main` antes desta mudança, um `login()` de B entre o primeiro e o segundo `PATCH` fazia o upload **terminar**, com os `PATCH` seguintes levando `Bearer B-tok-1` para a URL do upload de A; e o reload depois de um refresh recomeçava com um `POST` novo. Agora o run rejeita com `ResumableUploadSupersededError` e o reload retoma com `HEAD`.
 
 !!! note "O getter, não um wrapper"
-    `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário.
+    `getToken: () => auth.getToken()` é outra função e não carrega a sessão: continua amarrado ao token, como a linha "qualquer outro getter" da tabela. Um `login()` na mesma conta é sessão nova — o upload recomeça; para retomar através de logins, passe `getPrincipal` com o id do usuário. Num build de desenvolvimento, `getToken` sem `getPrincipal` que não seja o getter do preset gera um `console.warn` (uma vez por getter, #657) — produção fica em silêncio.
 
 !!! warning "Sessão por cookie: `clear()` no fim de sessão, ou `getPrincipal`"
     Sem `getToken` — sessão só por cookie, fora do `createTempestAuth`, que sempre tem token — o SDK não enxerga quem está logado: o cookie é HttpOnly, e nada no navegador avisa a troca de conta. O registro fica sem dono e é retomado por quem vier depois. O teardown que alcança esse caso é o `createLocalUploadStorage().clear()` no fim de sessão, e ele basta: apaga os registros, para o run em andamento (`reason: "cleared"`) e, desde a **0.84.0**, faz o handle **pausado** antes dele recomeçar com `Idempotency-Key` nova em vez de levar a da sessão anterior para a criação do upload da conta seguinte (#528 — até a 0.83.0 o `resume()` de B reaproveitava a chave de A). O `abort()` deixa de ser necessário aqui. Para retomar entre reloads sem depender do teardown, passe `getPrincipal`.
@@ -303,7 +305,7 @@ const upload = createResumableUpload({
 
 - `onProgress` recebe **bytes do arquivo inteiro**, não do chunk. `resumedFrom` diz quantos já estavam no servidor quando esta execução começou — útil pra não anunciar "0%" num upload que retomou em 80%.
 - `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
-- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica.
+- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica. O `abort()` **sem** `discard` num handle assim também apaga o registro deste upload (com chunk em voo ou pausado): ninguém mais pode retomá-lo, e ele guardava a URL e a `Idempotency-Key` da conta anterior no storage da seguinte até um `clear()` (#657).
 
 !!! warning "O token não segue o `Location` para fora da sua origem"
     O tus responde a criação com um `Location` que **o servidor escolhe**, e o spec permite que seja uma URL absoluta em outro host — entregar o upload a um storage é operação normal, não ataque. Até a 0.65.0 o bearer token seguia aquele header para onde ele apontasse, junto com os bytes do arquivo.

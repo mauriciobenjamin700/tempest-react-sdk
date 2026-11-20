@@ -5,6 +5,8 @@ import {
     createLocalUploadStorage,
     createResumableUpload,
     ResumableUploadSupersededError,
+    type ResumableUploadRecord,
+    type ResumableUploadStorage,
     uploadFingerprint,
 } from "./resumable-upload";
 
@@ -573,5 +575,230 @@ describe("createResumableUpload — an answer of the session before the switch (
 
         expect(result?.size).toBe(12);
         expect(tus.seen.every((request) => request.authorization === undefined)).toBe(true);
+    });
+});
+
+/**
+ * Security audit run-16 §6 (#657): `abort()` **without** `discard` returned
+ * before `forgetSupersededRecord`, so a handle stopped after the switch left
+ * A's upload URL and `Idempotency-Key` in B's storage until a `clear()`. A run
+ * stopped by the supersession itself already forgot them; an abort that comes
+ * after the switch now does the same.
+ */
+describe("createResumableUpload — abort() after the switch forgets the previous account's record (#657)", () => {
+    let auth: Auth;
+    let tus: TusDouble;
+    const recordKey = uploadFingerprint("/api/uploads", file);
+
+    beforeEach(async () => {
+        localStorage.clear();
+        auth = createTempestAuth({ baseURL: "https://api.example.com", fetcher: authBackend() });
+        await auth.login({ email: "a@x.test", password: "x" });
+        tus = new TusDouble();
+        installXhr(tus);
+    });
+
+    afterEach(() => {
+        auth.dispose();
+        vi.unstubAllGlobals();
+    });
+
+    function upload() {
+        return createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: auth.getToken,
+            retry: { shouldRetry: () => false },
+        });
+    }
+
+    it("forgets A's record when abort() lands with a chunk in flight after login(B)", async () => {
+        const handle = upload();
+        let aborting: Promise<void> = Promise.resolve();
+        tus.beforePatch = async (n) => {
+            if (n !== 2) return;
+            await auth.login({ email: "b@x.test", password: "x" });
+            aborting = handle.abort();
+        };
+
+        await expect(handle.start()).resolves.toBeNull();
+        await aborting;
+
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+        expect(tus.seen.filter((request) => request.method === "DELETE")).toEqual([]);
+    });
+
+    it("forgets A's record when a paused handle is aborted after login(B)", async () => {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+        expect(await createLocalUploadStorage().get(recordKey)).not.toBeNull();
+        await auth.login({ email: "b@x.test", password: "x" });
+
+        await handle.abort();
+
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+    });
+
+    it("keeps B's record under the same key", async () => {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+        await auth.login({ email: "b@x.test", password: "x" });
+        await createLocalUploadStorage().set(recordKey, {
+            url: "http://localhost:3000/api/uploads/of-B",
+            offset: 0,
+            size: file.size,
+            idempotencyKey: "key-of-B",
+            updatedAt: 1,
+        });
+
+        await handle.abort();
+
+        expect((await createLocalUploadStorage().get(recordKey))?.idempotencyKey).toBe("key-of-B");
+    });
+
+    it("still keeps the record for a later resume when the session did not change", async () => {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+
+        await handle.abort();
+
+        expect(await createLocalUploadStorage().get(recordKey)).not.toBeNull();
+    });
+});
+
+/**
+ * Security audit run-16 §6 (#657): `forgetSupersededRecord` read the record,
+ * compared its owner and key, and deleted the key in a second call. With an
+ * asynchronous storage, a record the next account wrote between the two calls
+ * was the one deleted, and its upload started over. A storage that implements
+ * `deleteIf` gets the comparison and the deletion in one call.
+ */
+describe("createResumableUpload — forgetting a superseded record is one storage call (#657)", () => {
+    let tus: TusDouble;
+    let principal = "A";
+    const recordOfB = {
+        url: "http://localhost:3000/api/uploads/of-B",
+        offset: 0,
+        size: file.size,
+        idempotencyKey: "key-of-B",
+        updatedAt: 1,
+    };
+
+    beforeEach(() => {
+        principal = "A";
+        tus = new TusDouble();
+        installXhr(tus);
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    /**
+     * An asynchronous storage whose `get` answers with what it read before
+     * `duringGet` ran — the shape of an IndexedDB or network store, where
+     * another writer can land between the read and the answer. Its
+     * `deleteIf` runs the same hook first, since a write can only land before
+     * or after one transaction, never inside it.
+     *
+     * @param atomic - Whether to implement `deleteIf`.
+     * @returns The storage, its records and the hook.
+     */
+    function asyncStorage(atomic: boolean) {
+        const records = new Map<string, ResumableUploadRecord>();
+        const hooks: { duringGet: (() => void) | null } = { duringGet: null };
+        const storage: ResumableUploadStorage = {
+            async get(key) {
+                const read = records.get(key) ?? null;
+                await Promise.resolve();
+                const hook = hooks.duringGet;
+                hooks.duringGet = null;
+                hook?.();
+                return read;
+            },
+            async set(key, record) {
+                records.set(key, record);
+            },
+            async delete(key) {
+                records.delete(key);
+            },
+            ...(atomic
+                ? {
+                      async deleteIf(
+                          key: string,
+                          matches: (record: ResumableUploadRecord) => boolean,
+                      ) {
+                          const hook = hooks.duringGet;
+                          hooks.duringGet = null;
+                          hook?.();
+                          const current = records.get(key);
+                          if (current && matches(current)) records.delete(key);
+                      },
+                  }
+                : {}),
+        };
+        return { storage, records, hooks };
+    }
+
+    async function abandonedHandle(storage: ResumableUploadStorage) {
+        tus.failPatchAt = 2;
+        const handle = createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getPrincipal: () => principal,
+            storage,
+            retry: { shouldRetry: () => false },
+        });
+        await handle.start().catch(() => undefined);
+        return handle;
+    }
+
+    it("keeps the record B wrote while the discard of A's handle was reading", async () => {
+        const { storage, records, hooks } = asyncStorage(true);
+        const handle = await abandonedHandle(storage);
+        const key = [...records.keys()][0] as string;
+        principal = "B";
+        hooks.duringGet = () => records.set(key, recordOfB);
+
+        await handle.abort({ discard: true });
+
+        expect(records.get(key)?.idempotencyKey).toBe("key-of-B");
+    });
+
+    it("forgets A's record through deleteIf when nobody wrote in between", async () => {
+        const { storage, records } = asyncStorage(true);
+        const handle = await abandonedHandle(storage);
+        principal = "B";
+
+        await handle.abort({ discard: true });
+
+        expect(records.size).toBe(0);
+    });
+
+    it("still forgets A's record with a storage that has no deleteIf", async () => {
+        const { storage, records } = asyncStorage(false);
+        const handle = await abandonedHandle(storage);
+        principal = "B";
+
+        await handle.abort({ discard: true });
+
+        expect(records.size).toBe(0);
+    });
+
+    it("compares and deletes in the default local storage in one call", () => {
+        localStorage.clear();
+        const local = createLocalUploadStorage();
+        local.set("k", recordOfB);
+
+        local.deleteIf?.("k", (record) => record.idempotencyKey === "key-of-A");
+        expect(local.get("k")).toEqual(recordOfB);
+
+        local.deleteIf?.("k", (record) => record.idempotencyKey === "key-of-B");
+        expect(local.get("k")).toBeNull();
     });
 });

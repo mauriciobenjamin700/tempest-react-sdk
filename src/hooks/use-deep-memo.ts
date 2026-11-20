@@ -35,6 +35,9 @@ function bytesOf(value: ArrayBuffer | ArrayBufferView): Uint8Array {
  *   `File`, `Error`, `Promise`) has nothing visible to compare, so it is equal
  *   only to itself. Instances that do carry own fields keep the structural
  *   comparison, as do arrays and plain objects.
+ * - Arrays compare index by index, holes included: a hole is an absent index,
+ *   so it equals only another hole. `every` skipped holes, which made
+ *   `deepEqual(new Array(1), ["x"])` `true` and the reverse `false` (#657).
  * - Objects compare by key **set**, not key count: with the counts equal, every
  *   own enumerable key of one must be an own key of the other. Counting alone
  *   made `{ a: undefined }` equal to `{ b: undefined }`, since a missing key reads
@@ -54,7 +57,10 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     if (prototype !== Object.getPrototypeOf(b)) return false;
     if (Array.isArray(a) && Array.isArray(b)) {
         if (a.length !== b.length) return false;
-        return a.every((value, index) => deepEqual(value, b[index]));
+        for (let index = 0; index < a.length; index += 1) {
+            if (index in a !== index in b || !deepEqual(a[index], b[index])) return false;
+        }
+        return true;
     }
     if (a instanceof Set && b instanceof Set) {
         if (a.size !== b.size) return false;

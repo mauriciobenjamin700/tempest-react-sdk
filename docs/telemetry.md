@@ -283,7 +283,7 @@ O que ele lê, e o que ele **não** manda:
     A versão das Client Hints (`platformVersion`) passa pela mesma regra: só número com ponto
     (`14.0.0`, `15.0.0`, `14.2.1`). A auditoria run-16 viu `"14 user=alice"` virar
     `os_version: "Android 14 user=alice"`; desde o #657 uma versão sem esse formato é ignorada, e
-    fica a do user agent.
+    fica a do user agent. Desde o #684 o formato é o das versões reais: até três grupos de até três dígitos, sem zero à esquerda (`10.15.7`, `0.3.0`) — `12345` ou `1.2.3.4` também ficam de fora.
 
 !!! check "`device_id` não denuncia relato anônimo"
     O id do aparelho sobrevive ao logout. Se fosse junto num relato anônimo — antes do login, depois

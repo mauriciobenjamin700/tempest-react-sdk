@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+    centsToDecimalString,
+    formatCents,
     formatCPF,
     formatCurrency,
     formatDate,
@@ -217,5 +219,40 @@ describe("formatPhone — mobile mode", () => {
     it("leaves the default behaviour untouched", () => {
         expect(formatPhone("1132654321")).toBe("(11) 3265-4321");
         expect(formatPhone("11987654321")).toBe("(11) 98765-4321");
+    });
+});
+
+describe("formatCents", () => {
+    it("formats integer cents as BRL by default", () => {
+        expect(formatCents(1234)).toBe("R$ 12,34");
+        expect(formatCents(5)).toBe("R$ 0,05");
+    });
+
+    it("keeps the last cent at the top of the safe-integer range, where cents / 100 loses it", () => {
+        expect(formatCents(Number.MAX_SAFE_INTEGER)).toBe("R$ 90.071.992.547.409,91");
+    });
+
+    it("answers the fallback for absent or non-finite amounts instead of R$ 0,00 or R$ NaN", () => {
+        expect(formatCents(null)).toBe("—");
+        expect(formatCents(undefined, { fallback: "" })).toBe("");
+        expect(formatCents(Number.NaN)).toBe("—");
+    });
+
+    it("honours currency and locale", () => {
+        expect(formatCents(500, { currency: "USD", locale: "en-US" })).toBe("$5.00");
+    });
+
+    it("rounds a fractional cent and falls back to the float path past the safe range", () => {
+        expect(formatCents(1234.6)).toBe("R$ 12,35");
+        expect(formatCents(1e20)).toContain("1.000.000.000.000.000.000,00");
+    });
+});
+
+describe("centsToDecimalString", () => {
+    it("writes cents in the major unit with a dot, padding small and negative amounts", () => {
+        expect(centsToDecimalString(1234)).toBe("12.34");
+        expect(centsToDecimalString(5)).toBe("0.05");
+        expect(centsToDecimalString(0)).toBe("0.00");
+        expect(centsToDecimalString(-250)).toBe("-2.50");
     });
 });

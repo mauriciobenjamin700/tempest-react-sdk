@@ -202,7 +202,11 @@ that actually came out, and `confirmed`.
     So:
 
     - capturing from a **playing** video (the screen-recording print) waits for
-      the next presented frame → `confirmed: true`;
+      the next presented frame → `confirmed: true`. The wait ends on an event,
+      not on a fixed window: on the frame, or the moment the video pauses,
+      ends, stalls for data (`waiting`) or the tab is hidden — then
+      `confirmed: false`. `timeoutMs` is only the last resort, and reaching it
+      here is not an error;
     - capturing at an **`atMs`** waits for `seeked` plus two animation frames →
       `confirmed: false`, always;
     - capturing the current frame of a **paused** video waits for nothing — the

@@ -310,6 +310,29 @@ formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
 !!! danger "`Math.trunc(value * 10000)` gets 573 of 10001 fractions wrong"
     The multiplication rounds **before** the cut: `0.57 * 10000` is `5699.999999999999`, so the naive version shows `"56,99%"` for 57%. Measured over every fraction `i / 10000` from 0 to 1, it is wrong for 573 of the 10001 values at two decimals, and for 3 of 101 at zero decimals (`0.29 * 100` is `28.999999999999996`). The SDK shifts the decimal exponent of the number's string form (`"0.57e4"`), which parses to the exact integer: zero errors on the same grids — pinned in `src/utils/format-percent-truncate.test.ts`.
 
+### Currency from cents — `formatCents` {#format-cents}
+
+Money that travels as integer cents (what `<MoneyInput>`, `<Money>` and every payment gateway hand
+you) is formatted straight from the cents, without dividing by 100 first:
+
+```ts
+import { formatCents } from "tempest-react-sdk";
+
+formatCents(1234); // "R$ 12,34"
+formatCents(null); // "—"
+formatCents(null, { fallback: "" }); // "" — to feed an <input>
+formatCents(500, { currency: "USD", locale: "en-US" }); // "$5.00"
+```
+
+It is the cents sibling of `formatCurrency`, which takes the major unit and is fixed to BRL. A
+fractional cent is rounded to the nearest one.
+
+!!! info "Why not `formatCurrency(cents / 100)`"
+    The division is a float, and at the top of the safe-integer range it loses the last cent:
+    `formatCurrency(9007199254740991 / 100)` gives `R$ 90.071.992.547.409,90`; the digits say
+    `,91`. `formatCents` builds the decimal string from the digits (`"90071992547409.91"`) and
+    hands it to `Intl.NumberFormat`, which formats a decimal string exactly.
+
 ---
 
 ## Day label — `relativeDayLabel`
@@ -506,7 +529,7 @@ export async function exportHistory(
 
 Piece by piece:
 
-- **`entries`** — `{ path, data, level? }` in archive order. `data` takes a `Blob` (a `File` from an `<input>`), a `Uint8Array` or a `string` (written as UTF-8). `path` uses `/` and must be unique: an empty or repeated path throws `TypeError` before any byte is read. So does a name that would let a naive extractor write outside its target folder (*zip-slip*): a `..` segment, an absolute path (`/x`), a drive letter (`C:/x`, `C:x`), a backslash or a NUL. The same shape written with Unicode look-alikes is refused too (#657): `．．/x` (fullwidth full stop), `..∕x` (division slash), `‥/x`, `..¥x` — an extractor that applies NFKC, or converts the name to the Windows ANSI code page with best-fit mapping, gets the ASCII character back and the name escapes the folder. A look-alike that forms no escape (`recibo ¥1000.pdf`, `a．b.jpg`) goes through as written. `createZip` refuses instead of rewriting the name — only you know what the path was meant to be. Subfolders with `/` (`fotos/a.jpg`) still work.
+- **`entries`** — `{ path, data, level? }` in archive order. `data` takes a `Blob` (a `File` from an `<input>`), a `Uint8Array` or a `string` (written as UTF-8). `path` uses `/` and must be unique: an empty or repeated path throws `TypeError` before any byte is read. So does a name that would let a naive extractor write outside its target folder (*zip-slip*): a `..` segment, an absolute path (`/x`), a drive letter (`C:/x`, `C:x`), a backslash or a NUL. The same shape written with Unicode look-alikes is refused too (#657): `．．/x` (fullwidth full stop), `..∕x` (division slash), `‥/x`, `..¥x` — an extractor that applies NFKC, or converts the name to the Windows ANSI code page with best-fit mapping, gets the ASCII character back and the name escapes the folder. A look-alike that forms no escape (`recibo ¥1000.pdf`, `a．b.jpg`) goes through as written. A segment made only of dots and spaces (`...`, `.. `, ` `) is refused too (#684): Win32 trims trailing dots and spaces from a segment, and whether `.. ` comes back as `..` depends on the extractor — no real file has that name. The lone `.` (`./leia-me.txt`) still works. `createZip` refuses instead of rewriting the name — only you know what the path was meant to be. Subfolders with `/` (`fotos/a.jpg`) still work.
 - **`onProgress({ loaded, total })`** — in **input** bytes. `total` is known before the start (the `Blob` size, the string's UTF-8 bytes), so the percentage is real from the first call; the last one always has `loaded === total`.
 - **`level`** — deflate from `0` (store only) to `9`. Defaults to `6`.
 - **`signal`** — an `AbortSignal` cancels mid-way; the promise rejects with the signal's `reason`.

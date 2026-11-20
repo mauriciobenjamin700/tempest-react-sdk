@@ -352,12 +352,95 @@ describe("captureFrame · how fresh the pixels are known to be", () => {
         expect(fake.seeks, "reading the current frame moves nothing").toEqual([]);
     });
 
-    /** A hidden tab presents no frames at all, so the wait has to expire. */
-    it("captures anyway when a playing video presents no frame, unconfirmed", async () => {
+    /**
+     * The regression behind #680. Up to 0.91.0 this wait gave up after a fixed
+     * 200 ms, and in Chromium on a loaded machine the first frame after
+     * `play()` arrived after 43–272 ms (12 runs, 2026-11-20): 4 of the 12
+     * captures of a video that was playing would have reported `false`. A
+     * frame presented later than that is still the confirmation.
+     */
+    it("keeps waiting for a slow first frame instead of giving up at a fixed window", async () => {
+        vi.useFakeTimers();
+        try {
+            const fake = fakeVideo();
+            await fake.video.play();
+
+            const capture = captureFrame(fake.video);
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(fake.pending(), "still waiting one second in").toBe(true);
+            fake.present();
+
+            await expect(capture).resolves.toMatchObject({ confirmed: true });
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it.each(["pause", "ended", "waiting", "emptied"])(
+        "stops waiting, unconfirmed, the moment the element fires %s",
+        async (type) => {
+            const fake = fakeVideo();
+            await fake.video.play();
+
+            const capture = captureFrame(fake.video);
+            await settled();
+            fake.video.dispatchEvent(new Event(type));
+
+            await expect(capture).resolves.toMatchObject({ confirmed: false });
+            expect(fake.pending(), "the frame callback is cancelled").toBe(false);
+            expect(fake.removed()).toBe(fake.added());
+        },
+    );
+
+    /** A hidden page presents no frames at all, so there is nothing to wait for. */
+    it("does not wait at all when the page is hidden", async () => {
+        vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
         const fake = fakeVideo();
         await fake.video.play();
 
         await expect(captureFrame(fake.video)).resolves.toMatchObject({ confirmed: false });
+        expect(fake.added(), "no listener, no frame callback").toBe(0);
+    });
+
+    it("stops waiting when the page is hidden mid-wait, and ignores it becoming visible", async () => {
+        const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+        const fake = fakeVideo();
+        await fake.video.play();
+
+        const capture = captureFrame(fake.video);
+        await settled();
+        document.dispatchEvent(new Event("visibilitychange"));
+        expect(fake.pending(), "a change to visible keeps the wait").toBe(true);
+        visibility.mockReturnValue("hidden");
+        document.dispatchEvent(new Event("visibilitychange"));
+
+        await expect(capture).resolves.toMatchObject({ confirmed: false });
+        expect(fake.pending()).toBe(false);
+    });
+
+    it("captures anyway, unconfirmed, when no frame arrives within timeoutMs", async () => {
+        const fake = fakeVideo();
+        await fake.video.play();
+
+        await expect(captureFrame(fake.video, { timeoutMs: 20 })).resolves.toMatchObject({
+            confirmed: false,
+        });
+        expect(fake.pending()).toBe(false);
+        expect(fake.removed()).toBe(fake.added());
+    });
+
+    it("aborts the wait for a presented frame", async () => {
+        const fake = fakeVideo();
+        await fake.video.play();
+        const controller = new AbortController();
+
+        const capture = captureFrame(fake.video, { signal: controller.signal });
+        await settled();
+        controller.abort();
+
+        await expect(capture).rejects.toThrow(/aborted/);
+        expect(fake.pending()).toBe(false);
+        expect(fake.removed()).toBe(fake.added());
     });
 
     it("settles on animation frames after a seek where the callback is absent", async () => {

@@ -52,7 +52,7 @@ Algoritmo completo (dígitos verificadores), não só "11 dígitos". Aceita stri
 | `CEPInput`   | `00000-000`                       | numeric   |
 | `MoneyInput` | `R$ X.XXX,XX` (cents)             | numeric   |
 
-API uniforme — todos recebem `value: string` (ou `number` para `MoneyInput`) + `onChange`:
+API uniforme — todos recebem `value: string` (ou centavos `number` para `MoneyInput`) + `onChange`:
 
 ```tsx
 import { useState } from "react";
@@ -69,7 +69,9 @@ function CPFExample() {
     string já formatada — **não** com um `ChangeEvent`. Não tente `e.target.value`.
     Para guardar só os dígitos, use [`unmask`](#unmask-strip) na hora de enviar.
 
-`MoneyInput` trabalha em **centavos** (`number`) pra evitar erro de float:
+`MoneyInput` trabalha em **centavos** (`number`) pra evitar erro de float, no estilo dos apps de
+banco: os dígitos entram pela direita (`1` → `R$ 0,01`, `1234` → `R$ 12,34`), Backspace tira o
+último dígito, colar aproveita só os dígitos e o cursor fica sempre no fim.
 
 ```tsx
 import { useState } from "react";
@@ -87,7 +89,115 @@ Para outras moedas: `<MoneyInput currency="USD" locale="en-US" />`.
 !!! warning "MoneyInput é centavos inteiros — nunca float"
     `value` e `onChange` lidam com **centavos inteiros** (`12990`), não reais
     (`129.90`). Persistir o valor como inteiro evita o clássico `0.1 + 0.2 !== 0.3`.
-    Na hora de exibir/calcular em reais, divida por 100 só na borda.
+    Na hora de exibir/calcular em reais, divida por 100 só na borda — ou formate
+    direto dos centavos com [`formatCents`](./utilities.md#format-cents).
+
+### Campo opcional: `nullable` {#money-nullable}
+
+Com `value: number` o campo **nunca fica vazio**: apagar tudo volta para `R$ 0,00`, o placeholder
+some e "não informado" vira zero. Para campo opcional (preço do litro, taxa extra), passe
+`nullable`: `value` passa a aceitar `null`, o campo vazio mostra o placeholder, e apagar todos os
+dígitos (ou digitar só zeros) entrega `onChange(null)`.
+
+```tsx
+import { useState } from "react";
+import { MoneyInput } from "tempest-react-sdk";
+
+function OptionalPriceExample() {
+  const [cents, setCents] = useState<number | null>(null);
+  return (
+    <MoneyInput
+      nullable
+      value={cents}
+      onChange={setCents}
+      label="Preço do litro"
+      placeholder="R$ 0,00"
+      maxCents={99_999}
+    />
+  );
+}
+```
+
+`maxCents` é o teto em centavos: o dígito que passaria dele é **ignorado** (o valor fica onde
+estava), em vez de virar um número que ninguém digitou. O padrão é `Number.MAX_SAFE_INTEGER`.
+
+!!! info "Por que `nullable` é uma prop, e não só `value: number | null`"
+    O tipo do `onChange` é o que o seu `setState` precisa casar. Sem `nullable`, o contrato é o de
+    sempre — `onChange(cents: number)`, apagar entrega `0` — e um `useState(0)` continua compilando
+    sem nunca receber `null`. Com `nullable`, é `onChange(cents: number | null)`.
+
+### Formulário não controlado: `name` {#money-name}
+
+O texto visível é formatado (`R$ 12,34`), então um `FormData` lido dele não serve para o backend.
+Com `name`, o `MoneyInput` renderiza um `<input type="hidden">` com o valor cru; o campo visível
+fica sem `name`. `nameFormat` escolhe o formato: `"cents"` (padrão, `"1234"`) ou `"decimal"`
+(reais com ponto, `"12.34"`). Vazio vira `""`; campo `disabled` fica fora do `FormData`, como o
+visível.
+
+```tsx
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { MoneyInput } from "tempest-react-sdk";
+
+function StopForm() {
+  const [cents, setCents] = useState<number | null>(null);
+
+  function submit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    console.log(data.get("price")); // "12.34" — ou "" quando vazio
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <MoneyInput nullable value={cents} onChange={setCents} name="price" nameFormat="decimal" label="Preço" />
+      <button type="submit">Salvar</button>
+    </form>
+  );
+}
+```
+
+### Sem moldura: `useMoneyMask` {#use-money-mask}
+
+O `MoneyInput` é o `<Input>` do SDK (label, borda, erro). Quando o campo do app já tem a própria
+caixa com ícone, espalhe a máscara direto no seu `<input>`: `useMoneyMask({ value, onChange,
+maxCents })` devolve `{ type, inputMode, value, onChange, onFocus, onClick, onSelect }`, com
+`value: number | null` e `onChange(cents: number | null)`. É exatamente o que o `MoneyInput` usa
+por baixo.
+
+```tsx
+import { useState } from "react";
+import { useMoneyMask } from "tempest-react-sdk";
+
+function BankStyleField() {
+  const [cents, setCents] = useState<number | null>(null);
+  const mask = useMoneyMask({ value: cents, onChange: setCents, maxCents: 1_000_000 });
+  return (
+    <label className="my-field">
+      <span aria-hidden="true">💰</span>
+      <input {...mask} aria-label="Valor" placeholder="R$ 0,00" />
+      <input type="hidden" name="amount" value={cents ?? ""} />
+    </label>
+  );
+}
+```
+
+!!! tip "Cursor sempre no fim"
+    Clique, seta e foco devolvem o cursor ao fim do texto. Sem isso, medido no Chromium contra a
+    0.91.0: com `R$ 12,34` e o cursor depois do `1`, digitar `5` dava `R$ 152,34` (em vez de
+    `R$ 123,45`) e o Backspace apagava o `1`, dando `R$ 52,34`. Uma seleção (selecionar tudo e
+    colar, ou apagar) continua valendo — substitui o valor inteiro.
+
+A regra de leitura dos dígitos é pura e exportada, para validar no servidor ou no `zod` com o mesmo
+código: `centsFromDigits(texto, maxCents?)` → centavos ou `null`.
+
+```ts
+import { centsFromDigits } from "tempest-react-sdk";
+
+centsFromDigits("R$ 1.234,56 (à vista)"); // 123456
+centsFromDigits("R$ 0,00");               // null
+centsFromDigits("99999", 10_000);         // 9999
+```
 
 ### `unmask` — só os dígitos {#unmask-strip}
 

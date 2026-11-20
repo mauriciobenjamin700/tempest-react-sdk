@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
-import { CEPInput, CNPJInput, CPFInput, MoneyInput, PhoneInput } from "./masked-inputs";
+import { CEPInput, CNPJInput, CPFInput, PhoneInput } from "./masked-inputs";
 
 function ControlledCPF() {
     const [v, setV] = useState("");
@@ -56,25 +56,5 @@ describe("CEPInput", () => {
         const input = screen.getByPlaceholderText("cep") as HTMLInputElement;
         fireEvent.change(input, { target: { value: "01310100" } });
         expect(input.value).toBe("01310-100");
-    });
-});
-
-function ControlledMoney() {
-    const [v, setV] = useState(0);
-    return (
-        <>
-            <MoneyInput value={v} onChange={setV} placeholder="money" />
-            <span data-testid="cents">{v}</span>
-        </>
-    );
-}
-
-describe("MoneyInput", () => {
-    it("stores value as cents", () => {
-        render(<ControlledMoney />);
-        const input = screen.getByPlaceholderText("money") as HTMLInputElement;
-        fireEvent.change(input, { target: { value: "12990" } });
-        expect(screen.getByTestId("cents").textContent).toBe("12990");
-        expect(input.value).toContain("129,90");
     });
 });

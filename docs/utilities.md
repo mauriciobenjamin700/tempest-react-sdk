@@ -309,6 +309,29 @@ formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
 !!! danger "`Math.trunc(valor * 10000)` erra 573 de 10001 frações"
     A multiplicação arredonda **antes** do corte: `0.57 * 10000` é `5699.999999999999`, então a versão ingênua mostra `"56,99%"` para 57%. Medido sobre toda fração `i / 10000` de 0 a 1, ela erra 573 dos 10001 valores com duas casas, e 3 de 101 com zero casas (`0.29 * 100` é `28.999999999999996`). O SDK desloca o expoente decimal da representação textual do número (`"0.57e4"`), que vira o inteiro exato: zero erros nas mesmas grades — fixado em `src/utils/format-percent-truncate.test.ts`.
 
+### Moeda a partir de centavos — `formatCents` {#format-cents}
+
+Dinheiro que anda em centavos inteiros (o que o `<MoneyInput>`, o `<Money>` e todo gateway de
+pagamento entregam) se formata direto dos centavos, sem dividir por 100 antes:
+
+```ts
+import { formatCents } from "tempest-react-sdk";
+
+formatCents(1234); // "R$ 12,34"
+formatCents(null); // "—"
+formatCents(null, { fallback: "" }); // "" — para alimentar um <input>
+formatCents(500, { currency: "USD", locale: "en-US" }); // "$5.00"
+```
+
+É o irmão em centavos do `formatCurrency`, que recebe reais e é fixo em BRL. Centavo fracionário
+é arredondado para o mais próximo.
+
+!!! info "Por que não `formatCurrency(cents / 100)`"
+    A divisão é um float, e no topo da faixa de inteiros seguros ela perde o último centavo:
+    `formatCurrency(9007199254740991 / 100)` dá `R$ 90.071.992.547.409,90`; os dígitos dizem
+    `,91`. O `formatCents` monta a string decimal a partir dos dígitos (`"90071992547409.91"`) e
+    entrega ao `Intl.NumberFormat`, que formata string decimal de forma exata.
+
 ---
 
 ## Rótulo de dia — `relativeDayLabel`
@@ -505,7 +528,7 @@ export async function exportarHistorico(
 
 Pedaço por pedaço:
 
-- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte. O mesmo vale para o nome que deixaria um extrator ingênuo escrever fora da pasta de destino (*zip-slip*): segmento `..`, caminho absoluto (`/x`), letra de drive (`C:/x`, `C:x`), barra invertida ou NUL. O mesmo formato escrito com sósia Unicode também é recusado (#657): `．．/x` (ponto de largura total), `..∕x` (barra de divisão), `‥/x`, `..¥x` — um extrator que aplica NFKC, ou que converte o nome para a página de código ANSI do Windows com *best-fit*, devolve o caractere ASCII e o nome escapa da pasta. Sósia que não forma escape (`recibo ¥1000.pdf`, `a．b.jpg`) passa como está. O `createZip` recusa em vez de reescrever o nome — só você sabe qual era o caminho pretendido. Subpasta com `/` (`fotos/a.jpg`) segue valendo.
+- **`entries`** — `{ path, data, level? }` na ordem do arquivo. `data` aceita `Blob` (um `File` do `<input>`), `Uint8Array` ou `string` (gravada em UTF-8). `path` usa `/` e precisa ser único: caminho vazio ou repetido lança `TypeError` antes de ler qualquer byte. O mesmo vale para o nome que deixaria um extrator ingênuo escrever fora da pasta de destino (*zip-slip*): segmento `..`, caminho absoluto (`/x`), letra de drive (`C:/x`, `C:x`), barra invertida ou NUL. O mesmo formato escrito com sósia Unicode também é recusado (#657): `．．/x` (ponto de largura total), `..∕x` (barra de divisão), `‥/x`, `..¥x` — um extrator que aplica NFKC, ou que converte o nome para a página de código ANSI do Windows com *best-fit*, devolve o caractere ASCII e o nome escapa da pasta. Sósia que não forma escape (`recibo ¥1000.pdf`, `a．b.jpg`) passa como está. Segmento feito só de pontos e espaços (`...`, `.. `, ` `) também é recusado (#684): o Win32 apara ponto e espaço no fim do segmento, e se `.. ` volta a ser `..` depende do extrator — nenhum arquivo de verdade tem esse nome. O `.` sozinho (`./leia-me.txt`) segue valendo. O `createZip` recusa em vez de reescrever o nome — só você sabe qual era o caminho pretendido. Subpasta com `/` (`fotos/a.jpg`) segue valendo.
 - **`onProgress({ loaded, total })`** — em bytes de **entrada**. O `total` é conhecido antes de começar (tamanho do `Blob`, bytes UTF-8 da string), então a porcentagem é real desde a primeira chamada; a última sempre traz `loaded === total`.
 - **`level`** — deflate de `0` (só guarda) a `9`. Padrão `6`.
 - **`signal`** — um `AbortSignal` cancela no meio; a promise rejeita com o `reason` do sinal.

@@ -106,6 +106,18 @@ function levelFor(entry: ZipEntry, level: ZipLevel): ZipLevel {
 const DRIVE_PREFIX = /^[A-Za-z]:/;
 
 /**
+ * A path segment made only of dots and spaces (`...`, `.. `, ` `).
+ *
+ * Win32 path normalization trims trailing dots and spaces from a segment, so
+ * such a segment can come back as `..` or as an empty one depending on the
+ * extractor and on where it sits. No real file is named like that, so the
+ * name is refused instead of relying on how a given extractor treats it
+ * (security audit run-17 §5, #684). The lone `.` is the exception: it names
+ * the extraction folder itself and is kept.
+ */
+const DOTS_AND_SPACES_SEGMENT = /^[. ]+$/;
+
+/**
  * Characters that Windows best-fit conversion turns into a path separator, a
  * dot or a colon, and that NFKC leaves alone.
  *
@@ -158,7 +170,10 @@ function foldedPath(path: string): string {
  * the caller knows what the name was meant to be.
  *
  * A dot inside a segment (`a..b.txt`, `..config`) and a `./` segment are left
- * alone — neither leaves the extraction folder.
+ * alone — neither leaves the extraction folder. A segment made only of dots
+ * and spaces other than `.` (`...`, `.. `, ` `) is refused: Win32 trims
+ * trailing dots and spaces, and whether that turns it into `..` depends on the
+ * extractor (#684).
  *
  * The same shapes are refused once the path is folded (see `foldedPath`):
  * Unicode look-alikes of `.`, `/`, `\` and `:` — `U+FF0E`, `U+2215`, `U+FF3C`,
@@ -180,6 +195,11 @@ function unsafePathReason(path: string): string | null {
     if (folded.startsWith("/")) return "folds to an absolute path (Unicode look-alike)";
     if (DRIVE_PREFIX.test(folded)) return "folds to a drive letter (Unicode look-alike)";
     if (folded.split("/").includes("..")) return "folds to a .. segment (Unicode look-alike)";
+    const dotsAndSpaces = (segment: string): boolean =>
+        segment !== "." && DOTS_AND_SPACES_SEGMENT.test(segment);
+    if (folded.split("/").some(dotsAndSpaces)) {
+        return "has a segment made only of dots and spaces";
+    }
     return null;
 }
 
@@ -253,7 +273,8 @@ async function bytesOf(data: ZipEntry["data"], encoded: Uint8Array | null): Prom
  * `TypeError` rather than rewritten: a `..` segment, an absolute path (`/x`), a
  * drive letter (`C:\x`, `C:/x`, `C:x`), a backslash, or a NUL — written in
  * ASCII or with a Unicode look-alike that NFKC or Windows best-fit folds into
- * one (`．．/x`, `..∕x`; #657). Subfolders with
+ * one (`．．/x`, `..∕x`; #657), or a segment made only of dots and spaces
+ * (`...`, `.. `; #684). Subfolders with
  * `/` (`fotos/a.jpg`) are the supported shape.
  *
  * @param entries - Files to archive, in order. Paths must be unique, relative

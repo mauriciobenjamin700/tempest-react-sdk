@@ -71,7 +71,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ Button, Input, Modal, Table, ToastProvider, AppProviders, AppRouter, createApiClient, createAuthStore, useDebounce }"
     },
-    "limit": "12.93 kB",
+    "limit": "12.94 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -93,7 +93,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "5.94 kB",
+    "limit": "5.95 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -137,7 +137,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createDeviceFacts }"
     },
-    "limit": "1.25 KB",
+    "limit": "1.26 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -357,7 +357,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createResumableUpload, createLocalUploadStorage, uploadFingerprint }"
     },
-    "limit": "5.4 kB",
+    "limit": "5.42 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -489,7 +489,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createZip }"
     },
-    "limit": "5.8 KB",
+    "limit": "5.85 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -510,7 +510,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createZip, writeXlsx }"
     },
-    "limit": "6.9 KB",
+    "limit": "6.94 KB",
     "ignore": [
       "react",
       "react-dom",

@@ -64,14 +64,15 @@ const HAVE_CURRENT_DATA = 2;
 const SAME_FRAME_EPSILON = 0.001;
 
 /**
- * How long to wait for a presented frame, in milliseconds.
+ * Media events after which a playing element stops presenting frames.
  *
- * Its own budget, not the caller's `timeoutMs`: this wait is an optimisation on
- * freshness, and a video playing at 24 fps presents one every 42 ms. Spending
- * seconds here would stall the capture for a guarantee the platform may simply
- * not be able to give.
+ * Each one ends the wait for a presented frame with `confirmed: false` at the
+ * moment it happens, so the wait is bounded by what the element does rather
+ * than by a guess about how fast a frame arrives: `pause` and `ended` stop
+ * playback, `waiting` stalls it for lack of data, and `emptied` drops the
+ * source.
  */
-const FRAME_SETTLE_MS = 200;
+const FRAME_STOP_EVENTS = ["pause", "ended", "waiting", "emptied"] as const;
 
 /**
  * A video element that reports presented frames.
@@ -146,25 +147,64 @@ function onceEvent(
 }
 
 /**
+ * Whether the page is hidden, where the compositor presents nothing at all.
+ *
+ * @returns `true` when the document reports itself hidden.
+ */
+function pageHidden(): boolean {
+    return typeof document !== "undefined" && document.visibilityState === "hidden";
+}
+
+/**
  * Wait for the next frame the compositor presents.
  *
  * Only ever called for a **playing** element, because that is the only state in
- * which the callback fires — measured, not assumed. The timeout is the escape
- * for a hidden tab, which presents nothing at all.
+ * which the callback fires — measured, not assumed.
+ *
+ * The wait ends on an event, not on a fixed window. Up to 0.91.0 it gave up
+ * after 200 ms, and that guessed wrong for a visible, playing video: the first
+ * frame after `play()` on a freshly loaded element arrived after 43–272 ms in
+ * Chromium on a loaded machine (12 runs, 2026-11-20), and 4 of the 12 were
+ * past 200 ms — a capture of a video that was demonstrably playing reported
+ * `confirmed: false` (#680). What actually makes the callback never fire is
+ * observable, so each of those ends the wait the moment it happens: a hidden
+ * page (checked up front and on `visibilitychange`) and the element leaving
+ * playback ({@link FRAME_STOP_EVENTS}). The caller's `timeoutMs` is the last
+ * resort for a cause no event reports.
  *
  * @param video A playing element that reports presented frames.
- * @returns `true` when a frame was presented, `false` when the wait expired.
+ * @param timeoutMs The longest the wait may take.
+ * @param signal Optional abort signal.
+ * @returns `true` when a frame was presented, `false` when the element or the
+ *   page stopped presenting, or the wait ran out.
+ * @throws `AbortError` `DOMException` when `signal` aborts the wait.
  */
-function nextPresentedFrame(video: FrameCallbackVideo): Promise<boolean> {
-    return new Promise<boolean>((resolve) => {
-        const timer = setTimeout(() => {
-            video.cancelVideoFrameCallback(handle);
-            resolve(false);
-        }, FRAME_SETTLE_MS);
-        const handle = video.requestVideoFrameCallback(() => {
+function nextPresentedFrame(
+    video: FrameCallbackVideo,
+    timeoutMs: number,
+    signal: AbortSignal | undefined,
+): Promise<boolean> {
+    if (pageHidden()) return Promise.resolve(false);
+    return new Promise<boolean>((resolve, reject) => {
+        const finish = (settle: () => void): void => {
             clearTimeout(timer);
-            resolve(true);
-        });
+            video.cancelVideoFrameCallback(handle);
+            for (const type of FRAME_STOP_EVENTS) video.removeEventListener(type, onStop);
+            document.removeEventListener("visibilitychange", onVisibility);
+            signal?.removeEventListener("abort", onAbort);
+            settle();
+        };
+        const onStop = (): void => finish(() => resolve(false));
+        const onVisibility = (): void => {
+            if (pageHidden()) onStop();
+        };
+        const onAbort = (): void => finish(() => reject(abortError()));
+
+        const timer = setTimeout(onStop, timeoutMs);
+        const handle = video.requestVideoFrameCallback(() => finish(() => resolve(true)));
+        for (const type of FRAME_STOP_EVENTS) video.addEventListener(type, onStop);
+        document.addEventListener("visibilitychange", onVisibility);
+        signal?.addEventListener("abort", onAbort);
     });
 }
 
@@ -192,10 +232,19 @@ function settleAfterSeek(): Promise<void> {
  *
  * @param video The element about to be read.
  * @param seeked Whether a seek just moved it.
+ * @param timeoutMs The longest a wait for a presented frame may take.
+ * @param signal Optional abort signal.
  * @returns `true` when a presented frame was observed.
  */
-async function awaitReadableFrame(video: HTMLVideoElement, seeked: boolean): Promise<boolean> {
-    if (!video.paused && reportsFrames(video)) return await nextPresentedFrame(video);
+async function awaitReadableFrame(
+    video: HTMLVideoElement,
+    seeked: boolean,
+    timeoutMs: number,
+    signal: AbortSignal | undefined,
+): Promise<boolean> {
+    if (!video.paused && reportsFrames(video)) {
+        return await nextPresentedFrame(video, timeoutMs, signal);
+    }
     if (seeked) await settleAfterSeek();
     return false;
 }
@@ -285,7 +334,7 @@ async function seekTo(
 
     const target = Math.min(Math.max(atMs / 1000, 0), duration);
     if (Math.abs(video.currentTime - target) < SAME_FRAME_EPSILON) {
-        return await awaitReadableFrame(video, false);
+        return await awaitReadableFrame(video, false, timeoutMs, signal);
     }
 
     const seeked = onceEvent(
@@ -299,7 +348,7 @@ async function seekTo(
     );
     video.currentTime = target;
     await seeked;
-    return await awaitReadableFrame(video, true);
+    return await awaitReadableFrame(video, true, timeoutMs, signal);
 }
 
 /**
@@ -405,7 +454,7 @@ export async function captureFrame(
     try {
         let confirmed: boolean;
         if (requestedMs === undefined) {
-            confirmed = await awaitReadableFrame(video, false);
+            confirmed = await awaitReadableFrame(video, false, timeoutMs, options.signal);
         } else {
             if (wasPlaying) video.pause();
             confirmed = await seekTo(video, requestedMs, timeoutMs, options.signal);

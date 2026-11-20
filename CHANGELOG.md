@@ -4,6 +4,116 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`/imaging`: `captureFrame` de vídeo tocando não desiste mais da confirmação depois de 200 ms**
+  (#680). A espera pelo próximo frame apresentado (`requestVideoFrameCallback`) tinha uma janela
+  fixa de 200 ms, e com a CPU disputada o primeiro frame depois do `play()` chega mais tarde: medido
+  no Chromium em 20/11/2026, 43–272 ms em 12 execuções com a máquina carregada (4 acima de 200 ms),
+  e com `Emulation.setCPUThrottlingRate` a captura de um vídeo que **estava tocando** saía
+  `confirmed: false` em 7 de 20 execuções a 10× e 13 de 20 a 20×. Era a causa do e2e intermitente
+  `captureFrame › confirms the frame when the video is playing`. Agora a espera termina num evento:
+  no frame (`confirmed: true`), ou no instante em que o vídeo pausa, termina, trava (`waiting`),
+  perde a fonte (`emptied`) ou a aba fica oculta (`confirmed: false`, sem esperar nada se ela já
+  está oculta). O `timeoutMs` da captura (default 3000) é o último recurso, e alcançá-lo nesse
+  caminho continua não sendo erro. O `signal` passa a abortar também essa espera.
+
+### Segurança
+
+- **`createApiClient`: falha de rede na repetição depois do `refresh` não desloga mais** (#684,
+  auditoria run-17 §5). O `catch` em volta do `refresh()` também pegava o envio da repetição: com o
+  `refresh` resolvido (a sessão está viva) e a rede caindo na repetição, o cliente chamava
+  `onUnauthorized` e rejeitava com o 401 da primeira tentativa — num app cujo `onUnauthorized`
+  desloga, um soluço de rede logo depois do refresh encerrava uma sessão válida. A repetição agora
+  sai fora desse `try`: o erro de rede chega ao chamador como numa primeira tentativa, e
+  `onUnauthorized` só roda quando o próprio `refresh` falha. Teste:
+  `api-client.resilience.test.ts` › "rejects with the network error and does not sign out".
+- **`createZip` recusa segmento feito só de pontos e espaços** (#684, auditoria run-17 §5). `...`,
+  `.. ` e ` ` passavam por todas as checagens. O Win32 apara ponto e espaço no fim de um segmento,
+  então `.. ` pode voltar a ser `..` e `... `, um segmento vazio, conforme o extrator — o SDK não
+  deve depender disso, e nenhum arquivo de verdade tem esse nome. A checagem roda também sobre o
+  nome dobrado (NFKC + best-fit), então `．．．/x` e `..\u3000/x` caem junto. O `.` sozinho
+  (`./leia-me.txt`) e ponto dentro de nome (`..config`, `a..b.txt`) seguem aceitos. Teste:
+  `zip.test.ts` › "refuses a segment of only dots and spaces".
+- **Telemetria: `platformVersion` das Client Hints com o formato das versões reais** (#684,
+  auditoria run-17 §5). A allowlist do #657 aceitava até quatro grupos de até cinco dígitos — um
+  canal de 23 caracteres de dígitos arbitrários até o `os_version`. Toda versão que o
+  `applyDeviceHints` lê (Android `Build.VERSION.RELEASE`, Windows `UniversalApiContract`, macOS) cabe
+  em até três grupos de até três dígitos, sem zero à esquerda; agora é esse o formato. O que não
+  passa é ignorado, e fica a versão do user agent, como antes. Teste: `device-facts.test.ts` ›
+  "platformVersion shape (#684)".
+- **Upload resumível: `abort({ discard: true })` só apaga o registro do próprio upload** (#684,
+  auditoria run-17 §5). Um handle amarrado só a um `getToken` próprio — sem `getPrincipal`, sem o
+  getter do `createTempestAuth`, sem `clear()` no fim da sessão — não enxerga a troca de conta, e o
+  descarte dele depois da troca apagava o que estivesse sob o fingerprint do arquivo: o registro de
+  retomada que a conta B gravou para o mesmo arquivo, e o upload de B recomeçava do zero. Agora um
+  handle que já rodou apaga só o registro com a **própria** `Idempotency-Key` (por `deleteIf`
+  quando o storage tem). O `DELETE` desse handle ainda sai para a URL de upload de A com a
+  credencial atual — essa metade só o servidor recusa, e continua documentada com o aviso de dev. Um
+  handle que nunca rodou segue apagando o registro do arquivo. Teste:
+  `resumable-upload.session.test.ts` › "discard of a token-bound handle keeps another run's
+  record".
+
+### Budgets
+
+- **Sete checagens sobem pelos quatro reforços do #684** (`npm run build && npx size-limit --json`
+  sobre a `main` em `4108734` e sobre este branch, bytes brotli): `slice: typical app (shell + 5
+components + http + auth + hook)` 12 920 → 12 931 (teto 12,93 → 12,94 kB); `slice: http client`
+  5 933 → 5 942 (teto 5,94 → 5,95 kB); `slice: device facts` 1 249 → 1 255 (teto 1,25 → 1,26 kB);
+  `slice: resumable upload` 5 377 → 5 418 (teto 5,4 → 5,42 kB); `slice: createZip` 5 779 → 5 807
+  (teto 5,8 → 5,81 kB); `slice: createZip + writeXlsx` 6 892 → 6 938 (teto 6,9 → 6,94 kB);
+  `ceiling: full barrel ESM` 170 920 → 171 095 (teto 171 → 171,1 kB). `ceiling: full barrel CJS`
+  202 112 → 202 194, dentro do teto.
+
+### Adicionado
+
+- **`MoneyInput` estilo banco: `nullable`, `name`, `maxCents` e cursor no fim** (#687). Medido
+  contra a 0.91.0 no Chromium (gallery, Playwright headless): com `R$ 12,34` e o cursor depois do
+  `1`, digitar `5` dava **`R$ 152,34`** (em vez de `R$ 123,45`) e o Backspace apagava o `1`
+  (`R$ 52,34`); apagar tudo voltava a `R$ 0,00` sem placeholder; `name` ia para o campo visível,
+  então o `FormData` lia `"R$ 12,34"`; e 20 dígitos digitados apareciam como
+  `R$ 123.456.789.012.345.660,00` (passou de `Number.MAX_SAFE_INTEGER`). Colar já aproveitava só os
+  dígitos — esse item da issue estava certo. Agora: o cursor volta ao fim no foco, clique e seta
+  (seleção não colapsada continua valendo, para selecionar tudo e colar); `nullable` troca o
+  contrato para `value: number | null` / `onChange(cents: number | null)` — vazio ou só zeros
+  entrega `null` e mostra o placeholder; `name` renderiza um `<input type="hidden">` com o valor cru
+  (`nameFormat: "cents"` padrão, `"1234"`, ou `"decimal"`, `"12.34"`) e o campo visível fica sem
+  `name`; `maxCents` ignora o dígito que passaria do teto (padrão `Number.MAX_SAFE_INTEGER`).
+  `value`/`onChange` viram opcionais, como nos outros inputs mascarados, então
+  `<FormField><MoneyInput /></FormField>` passa a compilar.
+- **`useMoneyMask({ value, onChange, maxCents, currency, locale })`** (#687): a máscara sem moldura,
+  para espalhar em qualquer `<input>` (`{ type, inputMode, value, onChange, onFocus, onClick,
+onSelect }`). O `MoneyInput` é esse hook dentro do `<Input>`.
+- **`centsFromDigits(text, maxCents?)`** (#687): a regra pura de leitura — cada dígito é uma casa de
+  centavo, o resto é ignorado, nenhum dígito ou só zeros é `null`.
+- **`formatCents(cents, { currency, locale, fallback })`** (#687): formata centavos inteiros a
+  partir dos dígitos. A issue pedia um `formatCentsBRL`; não entrou com esse nome porque seria o
+  `formatCurrency(cents / 100)` de novo, e essa divisão perde o último centavo no topo da faixa
+  segura (`9007199254740991` → `…409,90`; os dígitos dizem `…409,91`, medido no Node 24 com
+  `Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`). `formatCents` monta a
+  string decimal e o `Intl` a formata exata; BRL/pt-BR é o padrão.
+
+### Alterado
+
+- **`MoneyInputProps` vira um `type` (união por `nullable`)**, não mais `interface`: quem fazia
+  `interface X extends MoneyInputProps` passa a usar `type X = MoneyInputProps & {...}`. Sem
+  `nullable`, o comportamento em tela é o de antes — `useState(0)` continua compilando e nunca
+  recebe `null`.
+
+### Budgets
+
+- **#687, medido com `npm run build && npx size-limit --json` sobre a `main` em `4108734` e sobre este
+  branch**, em bytes brotli: `slice: forms + BR masks` 2 229 → 2 846 (teto 3 kB, dentro);
+  `ceiling: full barrel ESM` 170 920 → 171 484 (teto 171 → 171,5 kB); `ceiling: full barrel CJS`
+  202 112 → 202 679 (teto 202,2 → 202,7 kB). O `MoneyInput` saiu de `masked-inputs.tsx` para
+  `money-input.tsx`: o `forwardRef` não é removido pelo tree-shaking, então o `AuthFieldControl`
+  (que importa `CPFInput`/`CNPJInput`/`PhoneInput` dali) carregava o `MoneyInput` junto —
+  `slice: auth screens` cai de 9 192 → 8 946.
+- **Soma de #684 + #687, remedida na fila de merge** (`npm run build && npx size-limit --json` sobre
+  `origin/main` em `e336619` + este branch, bytes brotli): `slice: createZip` 5 807 → 5 847 (teto
+  5,81 → 5,85 kB) — o #687 não toca o `zip.ts`, os 40 B só aparecem na soma dos dois;
+  `ceiling: full barrel CJS` 202 679 → 203 015 (teto 202,7 → 203,1 kB).
+
 ### Adicionado
 
 - **`LiveRouteMap`: destaque, texto e ícone no glifo, e `markerScale`** (#688). Quatro campos novos,

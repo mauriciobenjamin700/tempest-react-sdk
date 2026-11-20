@@ -56,6 +56,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #693** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 172 596 B (teto 172.1 kB → 172.7 kB); `ceiling: full barrel CJS` 203 908 B (teto 203.5 kB → 204 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Sete checagens sobem pelos quatro reforços do #684** (`npm run build && npx size-limit --json`
   sobre a `main` em `4108734` e sobre este branch, bytes brotli): `slice: typical app (shell + 5
 components + http + auth + hook)` 12 920 → 12 931 (teto 12,93 → 12,94 kB); `slice: http client`

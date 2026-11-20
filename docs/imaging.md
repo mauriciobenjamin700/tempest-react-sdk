@@ -203,7 +203,11 @@ de fato saiu, e `confirmed`.
     Então:
 
     - captura de vídeo **tocando** (o print de gravação de tela) espera o
-      próximo frame apresentado → `confirmed: true`;
+      próximo frame apresentado → `confirmed: true`. A espera termina num
+      evento, não numa janela fixa: no frame, ou no instante em que o vídeo
+      pausa, termina, trava por falta de dado (`waiting`) ou a aba fica oculta
+      — aí `confirmed: false`. O `timeoutMs` é só o último recurso, e
+      alcançá-lo aqui não é erro;
     - captura com **`atMs`** espera `seeked` + dois animation frames →
       `confirmed: false`, sempre;
     - captura do frame corrente de vídeo **pausado** não espera nada — o frame

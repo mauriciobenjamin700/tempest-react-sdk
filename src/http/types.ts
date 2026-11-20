@@ -213,6 +213,13 @@ export interface ApiClientConfig {
      * `context` describes the attempt that came back `401` — the replay's, when
      * it was the replay. Throwing {@link SessionSupersededError} here rejects the
      * request with it; any other error is logged and the `401` is thrown as usual.
+     *
+     * Not called for a `401` that lands after `getSessionEpoch` moved since its
+     * attempt left — with or without a token on it: that `401` belongs to an
+     * ended session, and ending the current one for it would sign the next
+     * account out. The request rejects with {@link SessionSupersededError}.
+     * The epoch is read on arrival, so a hook that signs out because of this
+     * very `401` still leaves its caller with the `401` (#646).
      */
     onUnauthorized?: (response: Response, context: RequestAuthContext) => void | Promise<void>;
     /**
@@ -246,6 +253,10 @@ export interface ApiClientConfig {
      * request carried. A hook that ignores it keeps working; one that reads it
      * can tell a stale `401` — the token already rotated since the request left —
      * from a fresh one, and skip a second refresh.
+     *
+     * Not called when the `401` lands after `getSessionEpoch` moved since the
+     * request left: the request rejects with {@link SessionSupersededError}
+     * instead, without refreshing a session that already ended.
      *
      * When the refresh resolves after the rejected request's session ended —
      * `getSessionEpoch` moved and the request had left with a token — the

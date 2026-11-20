@@ -226,3 +226,77 @@ describe("createResumableUpload — clear() ends the session for handles already
         expect(localStorage.length).toBe(0);
     });
 });
+
+/**
+ * Security audit run-17 (low): `ownerMoved()` answered `false` for a handle
+ * with no binding — a cookie session or an anonymous upload — without
+ * looking at the `clear()` generation. A's handle kept after `clear()` sent
+ * the discarding `DELETE` with B's cookies and deleted B's resume record,
+ * which sits under the same fingerprint key for the same file. Failed on
+ * bd0a15c.
+ */
+describe("createResumableUpload — abort({ discard: true }) of a handle kept across clear() (run-17)", () => {
+    /**
+     * Pause `upload` after its first chunk, as account B does with the same
+     * file, so B's record sits under the key A's handle discards.
+     *
+     * @param upload - B's handle.
+     */
+    async function pauseAfterFirstChunk(upload: ResumableUpload): Promise<void> {
+        server.beforePatch = () => upload.pause();
+        await upload.start();
+        server.beforePatch = null;
+    }
+
+    it("sends no DELETE and keeps B's record when A's unbound handle discards after clear()", async () => {
+        const handleOfA = createResumableUpload({ endpoint: "/api/uploads", file, chunkSize: 4 });
+        const { urlOfA } = await pauseAsAThenEndSession(handleOfA);
+        const handleOfB = createResumableUpload({ endpoint: "/api/uploads", file, chunkSize: 4 });
+        await pauseAfterFirstChunk(handleOfB);
+        const recordOfB = createLocalUploadStorage().get(handleOfB.key);
+        const seen = server.seen.length;
+
+        await handleOfA.abort({ discard: true });
+
+        expect(recordOfB).toMatchObject({ url: "http://localhost:3000/api/uploads/2" });
+        expect(server.seen.slice(seen)).toEqual([]);
+        expect(server.seen.filter((request) => request.url === urlOfA)).not.toContainEqual(
+            expect.objectContaining({ method: "DELETE" }),
+        );
+        expect(createLocalUploadStorage().get(handleOfB.key)).toEqual(recordOfB);
+    });
+
+    it("still discards on the server and locally when nothing was cleared", async () => {
+        const upload = createResumableUpload({ endpoint: "/api/uploads", file, chunkSize: 4 });
+        await pauseAfterFirstChunk(upload);
+        const seen = server.seen.length;
+
+        await upload.abort({ discard: true });
+
+        expect(server.seen.slice(seen)).toEqual([
+            expect.objectContaining({
+                method: "DELETE",
+                url: "http://localhost:3000/api/uploads/1",
+            }),
+        ]);
+        expect(createLocalUploadStorage().get(upload.key)).toBeNull();
+    });
+
+    it("treats a getPrincipal that throws as a moved owner instead of rejecting abort()", async () => {
+        let principal: () => string = () => "user-1";
+        const upload = createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getPrincipal: () => principal(),
+        });
+        await pauseAfterFirstChunk(upload);
+        const seen = server.seen.length;
+        principal = () => {
+            throw new Error("session store unavailable");
+        };
+
+        await expect(upload.abort({ discard: true })).resolves.toBeUndefined();
+        expect(server.seen.slice(seen)).toEqual([]);
+    });
+});

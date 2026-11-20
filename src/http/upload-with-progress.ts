@@ -303,15 +303,6 @@ async function sendWithoutRedirects(init: ManualUpload): Promise<UploadAnswer> {
     };
 }
 
-/**
- * Whether an upload's answer arrived after the session it was sent under
- * ended, see {@link UploadWithProgressOptions.sessionKey}.
- *
- * @param token - The bearer token read when the upload left.
- * @param readSession - The session reader, when the upload is bound.
- * @returns A check to run when the answer arrives: `true` when the upload
- *   carried a token and the session reads differently now.
- */
 /** The `getToken` getters already warned about, so each warns once. */
 const warnedUnbound = new WeakSet<object>();
 
@@ -338,6 +329,15 @@ function warnUnboundSession(getToken: () => string | null | undefined): void {
     );
 }
 
+/**
+ * Whether an upload's answer arrived after the session it was sent under
+ * ended, see {@link UploadWithProgressOptions.sessionKey}.
+ *
+ * @param token - The bearer token read when the upload left.
+ * @param readSession - The session reader, when the upload is bound.
+ * @returns A check to run when the answer arrives: `true` when the upload
+ *   carried a token and the session reads differently now.
+ */
 function sessionWatch(
     token: string | null | undefined,
     readSession: (() => string | number | null | undefined) | undefined,

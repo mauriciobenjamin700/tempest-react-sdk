@@ -85,4 +85,5 @@ export type {
     RoadMatcher,
     RoadMatcherUpdate,
     CommittedMatch,
+    RoadFix,
 } from "./map-matching";

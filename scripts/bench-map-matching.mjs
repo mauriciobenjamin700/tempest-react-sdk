@@ -19,6 +19,12 @@
  * live matcher's lag — and every row is printed, so the default is visible
  * against what it beat.
  *
+ * Sparse sampling (#667): every drive is also thinned by its own clock to one
+ * fix every 1–300 s and matched with and without the timestamps, sweeping
+ * `detourPerSecondM` and `maxIntervalS`, scored against the same ground
+ * truth. The `1 s` rows are the full drives: the untimed one must equal the
+ * default row above, and the timed default must not fall below it.
+ *
  * Needs the built package (`npm run build`): it imports `dist/geo/*.js`
  * directly, which are plain modules with no stylesheet.
  *
@@ -42,6 +48,38 @@ const KS = [4, 8, 16, 32];
 const DETOURS = [100, 300, 1000];
 const LAGS = [0, 1, 2, 5, 10, 20];
 const HOUR_FIXES = 3600;
+const THIN_STEPS_S = [1, 5, 10, 30, 60, 120, 300];
+const SPARSE_CONFIGS = [
+    { id: "untimed, maxDetour=100", timed: false, options: {} },
+    { id: "untimed, maxDetour=300", timed: false, options: { maxDetourM: 300 } },
+    { id: "untimed, maxDetour=1000", timed: false, options: { maxDetourM: 1000 } },
+    ...[1, 2, 3, 5, 10].map((v) => ({
+        id: `timed, perSecond=${v}${v === ROAD_MATCH_DEFAULTS.detourPerSecondM ? " (default)" : ""}`,
+        timed: true,
+        options: { detourPerSecondM: v },
+    })),
+    ...[30, 1e9].map((s) => ({
+        id: `timed, maxInterval=${s > 1e6 ? "none" : s}`,
+        timed: true,
+        options: { maxIntervalS: s },
+    })),
+];
+
+/**
+ * Thin a trace to one fix every `stepS` seconds.
+ *
+ * @param {{ timestamp: number }[]} fixes - Timed fixes.
+ * @param {number} stepS - Minimum interval kept.
+ * @returns {number[]} Indices of the kept fixes.
+ */
+function thin(fixes, stepS) {
+    const kept = [0];
+    for (let i = 1; i < fixes.length; i += 1) {
+        if (fixes[i].timestamp - fixes[kept[kept.length - 1]].timestamp >= stepS * 1000)
+            kept.push(i);
+    }
+    return kept;
+}
 
 /**
  * Haversine distance between two `[lon, lat]` pairs.
@@ -163,6 +201,7 @@ configs.push({ stage: "spacing", label: "minSpacing=2*sigma (default)", options:
 const stats = configs.map(() => emptyStats());
 const cleanStats = configs.map(() => emptyStats());
 const perRecord = [];
+const sparseStats = new Map();
 const lagStats = LAGS.map(() => ({ fixes: 0, right: 0, ms: 0 }));
 let buildMs = 0;
 let records_ = 0;
@@ -217,6 +256,11 @@ for (const [id, rec] of [...all.entries()].sort()) {
     }
     const truth = { keys, lengthM };
     const fixes = track.map(([longitude, latitude]) => ({ latitude, longitude }));
+    const timed = track.map(([longitude, latitude, t]) => ({
+        latitude,
+        longitude,
+        timestamp: t * 1000,
+    }));
     const hives = (tags.get(id) ?? []).includes("hives");
 
     gc();
@@ -248,6 +292,27 @@ for (const [id, rec] of [...all.entries()].sort()) {
             });
         }
     });
+
+    for (const step of THIN_STEPS_S) {
+        const kept = thin(timed, step);
+        for (const cfg of SPARSE_CONFIGS) {
+            const id = `${step}|${cfg.id}`;
+            const acc = sparseStats.get(id) ?? {
+                all: emptyStats(),
+                clean: emptyStats(),
+                peakMB: 0,
+            };
+            const input = kept.map((k) => (cfg.timed ? timed : fixes)[k]);
+            const before = memoryMB();
+            t = performance.now();
+            const result = matchToRoads(input, graph, cfg.options);
+            const ms = performance.now() - t;
+            acc.peakMB = Math.max(acc.peakMB, memoryMB() - before);
+            score(acc.all, result, truth, ms);
+            if (!hives) score(acc.clean, result, truth, ms);
+            sparseStats.set(id, acc);
+        }
+    }
 
     LAGS.forEach((lag, i) => {
         const matcher = createRoadMatcher(graph, { lag });
@@ -309,6 +374,19 @@ const sortedRight = perRecord.map((r) => r.right).sort((a, b) => a - b);
 console.log(
     `per-record right road: median ${(sortedRight[sortedRight.length >> 1] * 100).toFixed(1)}%; ${perRecord.filter((r) => r.right >= 0.97).length}/${perRecord.length} records at or above 97%`,
 );
+console.log("");
+console.log(
+    "-- sparse sampling: traces thinned to one fix every N s by their own time, scored against the ground truth; timed = fixes carry their timestamp; peak MB = largest heap growth over one matchToRoads call, no GC in between (an upper bound on the transient)",
+);
+console.log(
+    `${HEADER.replace("configuration".padEnd(34), "step | configuration".padEnd(34))} ${"peak MB".padStart(7)}`,
+);
+for (const [id, acc] of sparseStats) {
+    const [step, label] = id.split("|");
+    console.log(
+        `${row(`${step} s | ${label}`, acc.all, acc.clean)} ${acc.peakMB.toFixed(1).padStart(7)}`,
+    );
+}
 console.log("");
 console.log("-- live matcher (createRoadMatcher, defaults), committed matches");
 console.log(`${"lag".padEnd(10)} ${"right".padStart(7)} ${"µs/fix".padStart(7)}`);

@@ -21591,6 +21591,7 @@ Pedaço por pedaço:
 
 - **`roads`** é o mesmo `RoadGraph` do [`createRoadGraph`](#de-onde-vem-o-grafo). Monte uma vez por região e passe **a mesma instância** a cada render: o encaixe guarda o histórico enquanto o objeto for o mesmo, e um grafo novo começa uma cadeia nova.
 - **`vehicle.position` continua sendo a posição crua.** Você não encaixa nada: o mapa encaixa. Se o seu backend manda `heading`, ele vale; sem ele, a seta segue a rua.
+- **Posição com `timestamp` fica encadeada mesmo esparsa.** Se o veículo reporta a cada 5–30 s, mande o `timestamp` de cada posição (um `TrackPoint` já tem): o encaixe passa a aceitar a volta no quarteirão entre dois reportes em vez de cortar a cadeia. Sem `timestamp`, tudo funciona como antes — veja [Fonte esparsa](#fonte-esparsa-timestamp).
 - **`onMatch`** é chamado a cada posição nova com o encaixe — a aresta (o **seu** objeto, com nome, id, velocidade máxima), o ponto na rua (`point`) e a distância (`distanceM`) —, ou com `null` quando a posição está longe de qualquer rua.
 - **O grafo não entra no enquadramento.** Uma cidade inteira de ruas não dá zoom-out no mapa: quem enquadra continua sendo `route` e `markers`.
 
@@ -21616,7 +21617,7 @@ O GPS erra de 3 a 30 m na cidade, e às vezes muito mais. Encaixar cada posiçã
 
 - **Candidatas**: as ruas a até `radiusM` do ponto, no máximo `maxCandidates`.
 - **Emissão**: uma gaussiana na distância do ponto até a rua (`sigmaM`) — rua perto é mais provável.
-- **Transição**: uma exponencial em `|linha reta − distância pela rede|` (`betaM`) — entre dois pontos seguidos, o caminho pela rede deve ter o tamanho do deslocamento. A distância pela rede vem de um Dijkstra limitado (`maxDetourM`).
+- **Transição**: uma exponencial em `|linha reta − distância pela rede|` (`betaM`) — entre dois pontos seguidos, o caminho pela rede deve ter o tamanho do deslocamento. A distância pela rede vem de um Dijkstra limitado (`maxDetourM`, que cresce com o intervalo quando a posição traz `timestamp`).
 
 ### De onde vem o grafo
 
@@ -21683,7 +21684,7 @@ Pedaço por pedaço:
 - **Quebra (`breaks`)**: quando nenhuma transição é possível (um buraco no sinal, uma rua que não está no grafo), a cadeia recomeça naquela posição em vez de falhar. Cada trecho sem quebra vira uma entrada em `routes`.
 - **Posição parada (`dropped`)**: uma posição a menos de `minSpacingM` (padrão `2 × sigmaM`) da anterior não entra no modelo — o veículo andou menos que o ruído do GPS. Ela é projetada na aresta da posição anterior e volta com `inferred: true`, nunca `null`.
 
-`TrackPoint` é um `Coordinate`, então os `points` do `usePositionTracker` entram direto.
+`TrackPoint` é um `Coordinate` com `timestamp`, então os `points` do `usePositionTracker` entram direto — e o `timestamp` deles já mantém a cadeia em [fonte esparsa](#fonte-esparsa-timestamp).
 
 ### No mapa ao vivo — `createRoadMatcher`
 
@@ -21710,6 +21711,64 @@ export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
 - **`current`** é o melhor palpite para a posição que acabou de chegar: use para desenhar o veículo. Ele ainda pode mudar.
 - **`committed`** traz as posições que ficaram **definitivas**: cada uma espera `lag` posições novas antes de ser decidida. Uma posição confirmada não muda mais.
 - A memória é limitada pelo `lag`; `flush()` confirma o que falta (fim da viagem). A rota entre posições não é reconstruída aqui: rode `matchToRoads` no trajeto terminado para ela.
+
+### Fonte esparsa — `timestamp`
+
+O desvio máximo fixo (`maxDetourM`, 100 m) foi calibrado a 1 Hz. Com uma posição a cada 5, 10 ou 30 s, o veículo dobra esquinas e dá a volta no quarteirão entre dois pontos, o caminho pela rede passa da linha reta por mais de 100 m e a cadeia **quebra**. Subir o `maxDetourM` para todo mundo não serve: a 1 Hz ele deixa o modelo inventar voltas que não aconteceram.
+
+A saída é dizer **quando** cada posição foi tomada. Com `timestamp` nas duas posições, o desvio permitido entre elas vira:
+
+```text
+maxDetourM + detourPerSecondM × min(Δt, maxIntervalS)
+```
+
+Apertado onde as posições são densas, folgado onde são esparsas. Sem `timestamp` (ou com o relógio repetido ou voltando), o limite é exatamente o de antes.
+
+```ts
+import { matchToRoads, type RoadFix, type RoadGraph } from "tempest-react-sdk";
+
+interface Ping {
+  lat: number;
+  lon: number;
+  sentAt: string;
+}
+
+export function tripRuns(pings: Ping[], graph: RoadGraph): number {
+  const fixes: RoadFix[] = pings.map((ping) => ({
+    latitude: ping.lat,
+    longitude: ping.lon,
+    timestamp: Date.parse(ping.sentAt),
+  }));
+  const result = matchToRoads(fixes, graph);
+  console.log(`${result.breaks} quebras em ${fixes.length} posições`);
+  return result.routes.length;
+}
+```
+
+- **`timestamp`** é em milissegundos desde a época, o mesmo do `GeolocationPosition.timestamp`. Os `points` do `usePositionTracker` já trazem.
+- O `createRoadMatcher` e o `LiveRouteMap` com `roads` usam o `timestamp` do mesmo jeito: `matcher.push({ latitude, longitude, timestamp })`.
+- **`detourPerSecondM`** (padrão `2`) é quanto desvio ganha cada segundo de intervalo. **`maxIntervalS`** (padrão `60`) é onde esse ganho para: depois de um buraco de 10 min, o limite é o de 60 s, e o Dijkstra não varre a cidade.
+
+!!! info "O que sobra de quebra é contramão"
+    Medido em rastros do Brasil (abaixo), quase toda quebra que fica com fonte esparsa some quando todas as ruas viram mão dupla: é bicicleta, ou `oneway` errado no OSM, andando contra o sentido. Para essas, folga maior não ajuda — ela troca a quebra por uma **volta no quarteirão que não aconteceu**, e é por isso que o padrão é pequeno.
+
+??? info "Detalhes técnicos: como os padrões foram escolhidos"
+    Dois conjuntos, a mesma varredura (`detourPerSecondM` 1/2/3/5/10, `maxIntervalS` 30/60/sem teto, contra o desvio fixo de 100/300/1000 m), cada trajeto raleado pelo próprio relógio:
+
+    - Kubicka (`npm run build && node --expose-gc scripts/bench-map-matching.mjs`), com rota verdadeira;
+    - rastros públicos do OSM em cinco centros brasileiros (`npm run build && node scripts/bench-br-osm.mjs [cache-dir]`), comparados com o encaixe denso da mesma corrida.
+
+    `2` é a maior taxa que não piora o 1 Hz (92,33% → 92,34% de rua certa no Kubicka, com `timestamp`); `3` já perde 0,05 pp. Sem teto, os buracos longos dentro dos trajetos a 1 Hz custam 0,2 pp (92,13%); com 60 s, não.
+
+| Brasil, todas as corridas (padrão sem → com `timestamp`) | 5 s | 10 s | 30 s |
+| --- | --- | --- | --- |
+| Quebras por 1000 posições | 5,7 → 5,4 | 10,1 → 8,9 | 24,2 → 13,8 |
+| Rota a mais | 1,3% → 1,6% | 1,4% → 1,9% | 3,6% → 4,4% |
+| Mesma via que o encaixe a 1 Hz | 95,0% → 95,0% | 93,7% → 93,7% | 89,6% → 90,1% |
+| Quebras, só corridas a ≥ 6 m/s | 0,8 → **0** | 1,5 → **0** | 9,3 → **0** |
+| Quebras com todas as ruas em mão dupla, com `timestamp` | 0,3 | 0,6 | 0 |
+
+Para comparar: o desvio fixo de 1000 m leva as quebras a 1,9 a 5 s, mas a rota a mais a 6,1%.
 
 ### O que foi medido
 
@@ -21740,6 +21799,8 @@ export function snapLive(graph: RoadGraph): (fix: Coordinate) => Coordinate {
 | `maxCandidates` | `16` | No máximo esse número de ruas por posição (uma rua de mão dupla conta uma vez). |
 | `minSpacingM` | `2 × sigmaM` | Posições mais perto que isso da anterior não entram no modelo. |
 | `maxDetourM` | `100` | Desvio máximo da rede sobre a linha reta. Acima disso a transição é impossível. |
+| `detourPerSecondM` | `2` | Desvio a mais por segundo entre duas posições com `timestamp`. `0` desliga. |
+| `maxIntervalS` | `60` | Intervalo a partir do qual o desvio para de crescer. |
 | `lag` (só `createRoadMatcher`) | `5` | Posições novas antes de confirmar uma. |
 
 Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabela completa da varredura (raio × k, σ × β, desvio, pré-filtro) sai do mesmo comando.
@@ -21750,7 +21811,7 @@ Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabe
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
 - **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
 - **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app.
-- **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua.
+- **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua. Com `timestamp`, uma posição a cada 5–30 s não quebra a cadeia na esquina.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.
 
 ## Veja também

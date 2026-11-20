@@ -3,15 +3,29 @@ import { StrictMode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { LiveRouteMap } from "./LiveRouteMap";
 import type * as MapMatching from "./map-matching";
-import type { MatchedFix } from "./map-matching";
+import type { MatchedFix, RoadFix } from "./map-matching";
 import { createRoadGraph, type RoadEdge } from "./road-graph";
 import type { Coordinate } from "./types";
 
-const loads = vi.hoisted(() => ({ count: 0 }));
+const loads = vi.hoisted(() => ({ count: 0, pushed: [] as unknown[], trails: [] as unknown[] }));
 
 vi.mock("./map-matching", async (importOriginal) => {
     loads.count += 1;
-    return importOriginal<typeof MapMatching>();
+    const actual = await importOriginal<typeof MapMatching>();
+    const createRoadMatcher: typeof actual.createRoadMatcher = (graph, options) => {
+        const matcher = actual.createRoadMatcher(graph, options);
+        const push = matcher.push.bind(matcher);
+        matcher.push = (fix) => {
+            loads.pushed.push(fix);
+            return push(fix);
+        };
+        return matcher;
+    };
+    const matchToRoads: typeof actual.matchToRoads = (fixes, graph, options) => {
+        loads.trails.push(fixes);
+        return actual.matchToRoads(fixes, graph, options);
+    };
+    return { ...actual, createRoadMatcher, matchToRoads };
 });
 
 const LAT0 = -5.09;
@@ -208,6 +222,34 @@ describe("LiveRouteMap — roads", () => {
         await waitFor(() => expect(vehicle().getAttribute("data-road-match")).toBe("snapped"));
         for (let i = 1; i < DRIVE.length; i += 1) rerender(view(i));
         expect(vehiclePixel()[1]).toBeCloseTo(routeY(container), 0);
+    });
+
+    it("hands the trail's timestamps to the matcher", async () => {
+        const t0 = 1_700_000_000_000;
+        const timed: RoadFix[] = DRIVE.map((fix, i) => ({ ...fix, timestamp: t0 + i * 5000 }));
+        render(<LiveRouteMap route={ROUTE} roads={GRAPH} trail={timed} />);
+        await waitFor(() =>
+            expect(screen.getByTestId("live-route-trail").getAttribute("data-road-match")).toBe(
+                "snapped",
+            ),
+        );
+        expect(loads.trails.at(-1)).toEqual(timed);
+    });
+
+    it("hands the position's timestamp to the matcher", async () => {
+        const t0 = 1_700_000_000_000;
+        const view = (i: number) => (
+            <LiveRouteMap
+                route={ROUTE}
+                roads={GRAPH}
+                vehicle={{ position: { ...DRIVE[i], timestamp: t0 + i * 5000 } }}
+            />
+        );
+        const { rerender } = render(view(0));
+        await waitFor(() => expect(vehicle().getAttribute("data-road-match")).toBe("snapped"));
+        loads.pushed.length = 0;
+        rerender(view(1));
+        expect(loads.pushed).toEqual([{ ...DRIVE[1], timestamp: t0 + 5000 }]);
     });
 
     it("loaded the matcher module once for every map that passed roads", () => {

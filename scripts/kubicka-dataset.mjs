@@ -14,6 +14,8 @@ import { join } from "node:path";
 import { strFromU8 } from "fflate";
 
 const ZIP_URL = "https://zenodo.org/api/records/57731/files/map-matching-dataset.zip/content";
+/** Zenodo answers 403 to a request without a User-Agent (measured 20/11/2026). */
+const USER_AGENT = "tempest-gps-bench/1.0 (map-matching benchmark; low volume)";
 const ZIP_MD5 = "38a224b5607ae3c1fca8534496a9680a";
 
 /**
@@ -29,7 +31,7 @@ export async function loadZip(cacheDir) {
     if (existsSync(path)) {
         bytes = new Uint8Array(readFileSync(path));
     } else {
-        const response = await fetch(ZIP_URL);
+        const response = await fetch(ZIP_URL, { headers: { "User-Agent": USER_AGENT } });
         if (!response.ok) throw new Error(`download failed: HTTP ${response.status}`);
         bytes = new Uint8Array(await response.arrayBuffer());
     }

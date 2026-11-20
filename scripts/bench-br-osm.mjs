@@ -30,8 +30,10 @@
  * - `matchToRoads` with `ROAD_MATCH_DEFAULTS`: matched share, breaks per 1000
  *   fixes, fix → snapped point distance, inferred share;
  * - the sampling interval of the traces, and the effect of sparse sampling
- *   measured by thinning the ~1 Hz runs to 5/10/30 s and comparing against the
- *   dense match of the same run, with the detour bound swept;
+ *   measured by thinning the ~1 Hz runs to 5–120 s and comparing against the
+ *   dense match of the same run: the fixed detour bound swept, the timed bound
+ *   (`detourPerSecondM`, `maxIntervalS`) swept, the same on a two-way copy of
+ *   the graph, and every row again for the runs at ≥ 6 m/s only (`FAST`);
  * - zigzag: on straight stretches of the raw track, how often the matched
  *   road jumps to a parallel road and back, per km;
  * - the forward Kalman of phase 0, scored by matching its output and by the
@@ -61,6 +63,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import { createRoadGraph } from "../dist/geo/road-graph.js";
 import { matchToRoads, ROAD_MATCH_DEFAULTS } from "../dist/geo/map-matching.js";
@@ -87,8 +90,24 @@ const MIN_LENGTH_M = 300;
 const VEHICLE_MIN_SPEED_MS = 3;
 const FAST_MIN_SPEED_MS = 6;
 const DENSE_MAX_INTERVAL_S = 1.5;
-const THIN_STEPS_S = [5, 10, 30];
-const DETOURS_M = [100, 300, 1000];
+const THIN_STEPS_S = [1, 5, 10, 30, 60, 120];
+const SPARSE_CONFIGS = [
+    { id: "untimed, maxDetour=100", timed: false, options: {} },
+    { id: "untimed, maxDetour=300", timed: false, options: { maxDetourM: 300 } },
+    { id: "untimed, maxDetour=1000", timed: false, options: { maxDetourM: 1000 } },
+    ...[1, 2, 3, 5, 10].map((v) => ({
+        id: `timed, perSecond=${v}${v === ROAD_MATCH_DEFAULTS.detourPerSecondM ? " (default)" : ""}`,
+        timed: true,
+        options: { detourPerSecondM: v },
+    })),
+    ...[30, 1e9].map((s) => ({
+        id: `timed, maxInterval=${s > 1e6 ? "none" : s}`,
+        timed: true,
+        options: { maxIntervalS: s },
+    })),
+    { id: "2-way, untimed, maxDetour=100", timed: false, twoWay: true, options: {} },
+    { id: "2-way, timed (default)", timed: true, twoWay: true, options: {} },
+];
 const STRAIGHT_HALF_M = 75;
 const STRAIGHT_MAX_TURN_DEG = 10;
 const PARALLEL_MAX_DEG = 20;
@@ -795,6 +814,11 @@ for (const city of CITIES) {
         }
 
         const coords = run.map((f) => ({ latitude: f.lat, longitude: f.lon }));
+        const timed = run.map((f) => ({
+            latitude: f.lat,
+            longitude: f.lon,
+            timestamp: f.t * 1000,
+        }));
         const result = matchToRoads(coords, graph);
         for (const m of result.matches) {
             if (m === null) continue;
@@ -844,38 +868,43 @@ for (const city of CITIES) {
         for (const step of THIN_STEPS_S) {
             const kept = thin(run, step);
             if (kept.length < 3) continue;
-            for (const maxDetourM of DETOURS_M) {
-                const id = `${step}/${maxDetourM}`;
-                const t = acc.thinned.get(id) ?? {
-                    fixes: 0,
-                    agree: 0,
-                    sameWay: 0,
-                    sameWay: 0,
-                    breaks: 0,
-                    denseM: 0,
-                    foundM: 0,
-                    extraM: 0,
-                };
-                const sparse = matchToRoads(
-                    kept.map((i) => coords[i]),
-                    graph,
-                    { maxDetourM },
-                );
-                sparse.matches.forEach((m, j) => {
-                    const ref = result.matches[kept[j]];
-                    if (m === null || ref === null) return;
-                    if (m.edgeIndex === ref.edgeIndex) t.agree += 1;
-                    if (m.edge.way === ref.edge.way) t.sameWay += 1;
-                });
-                const r = routeOf(sparse, geo);
-                t.fixes += kept.length;
-                t.breaks += sparse.breaks;
-                t.denseM += denseRoute.lengthM;
-                for (const ei of r.edges) {
-                    if (denseRoute.edges.has(ei)) t.foundM += geo.length[ei];
-                    else t.extraM += geo.length[ei];
+            for (const cfg0 of SPARSE_CONFIGS) {
+                for (const cfg of fast ? [cfg0, { ...cfg0, id: `${cfg0.id} FAST` }] : [cfg0]) {
+                    const id = `${step}|${cfg.id}`;
+                    const t = acc.thinned.get(id) ?? {
+                        fixes: 0,
+                        agree: 0,
+                        sameWay: 0,
+                        breaks: 0,
+                        denseM: 0,
+                        foundM: 0,
+                        extraM: 0,
+                        ms: 0,
+                    };
+                    const input = cfg.timed ? timed : coords;
+                    const t0 = performance.now();
+                    const sparse = matchToRoads(
+                        kept.map((i) => input[i]),
+                        cfg.twoWay ? twoWayGraph : graph,
+                        cfg.options,
+                    );
+                    t.ms += performance.now() - t0;
+                    sparse.matches.forEach((m, j) => {
+                        const ref = result.matches[kept[j]];
+                        if (m === null || ref === null) return;
+                        if (m.edgeIndex === ref.edgeIndex) t.agree += 1;
+                        if (m.edge.way === ref.edge.way) t.sameWay += 1;
+                    });
+                    const r = routeOf(sparse, geo);
+                    t.fixes += kept.length;
+                    t.breaks += sparse.breaks;
+                    t.denseM += denseRoute.lengthM;
+                    for (const ei of r.edges) {
+                        if (denseRoute.edges.has(ei)) t.foundM += geo.length[ei];
+                        else t.extraM += geo.length[ei];
+                    }
+                    acc.thinned.set(id, t);
                 }
-                acc.thinned.set(id, t);
             }
         }
     }
@@ -939,6 +968,7 @@ for (const { acc } of results) {
             denseM: 0,
             foundM: 0,
             extraM: 0,
+            ms: 0,
         };
         for (const key of Object.keys(t)) t[key] += k[key];
         all.thinned.set(id, t);
@@ -1007,15 +1037,15 @@ for (const { city, acc } of results) for (const j of acc.jumps) console.log(`  $
 
 console.log("");
 console.log(
-    "-- sparse sampling: ~1 Hz runs thinned, matched with the detour bound swept, scored against the dense match of the same run",
+    "-- sparse sampling: ~1 Hz runs thinned, scored against the dense (untimed, default) match of the same run; timed = fixes carry their timestamp; 2-way = every road two-way (breaks that vanish there are one-way streets driven against their direction); FAST = runs at >= 6 m/s only",
 );
 console.log(
-    `${"step/detour".padEnd(12)} ${"fixes".padStart(6)} ${"same edge".padStart(9)} ${"same way".padStart(8)} ${"brk/1k".padStart(7)} ${"route".padStart(6)} ${"extra".padStart(6)}`,
+    `${"step | configuration".padEnd(44)} ${"fixes".padStart(6)} ${"same edge".padStart(9)} ${"same way".padStart(8)} ${"brk/1k".padStart(7)} ${"route".padStart(6)} ${"extra".padStart(6)} ${"µs/fix".padStart(7)}`,
 );
 for (const [id, t] of [...all.thinned.entries()]) {
-    const [step, detour] = id.split("/");
+    const [step, label] = id.split("|");
     console.log(
-        `${`${step} s/${detour} m`.padEnd(12)} ${String(t.fixes).padStart(6)} ${fmt.pct(t.agree / t.fixes).padStart(9)} ${fmt.pct(t.sameWay / t.fixes).padStart(8)} ${fmt.n((1000 * t.breaks) / t.fixes, 1).padStart(7)} ${fmt.pct(t.foundM / t.denseM).padStart(6)} ${fmt.pct(t.extraM / Math.max(1, t.foundM + t.extraM)).padStart(6)}`,
+        `${`${step} s | ${label}`.padEnd(44)} ${String(t.fixes).padStart(6)} ${fmt.pct(t.agree / t.fixes).padStart(9)} ${fmt.pct(t.sameWay / t.fixes).padStart(8)} ${fmt.n((1000 * t.breaks) / t.fixes, 1).padStart(7)} ${fmt.pct(t.foundM / t.denseM).padStart(6)} ${fmt.pct(t.extraM / Math.max(1, t.foundM + t.extraM)).padStart(6)} ${fmt.n((1000 * t.ms) / t.fixes, 1).padStart(7)}`,
     );
 }
 

@@ -117,7 +117,8 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
   Separar os dois é trabalho da inferência no backend, não do SDK.
 - **Validar no Brasil antes da fase de backend:** só 1 dos 100 trajetos tem
   centroide no Brasil. Reabre a decisão do Kalman se rastros brasileiros (cânion
-  urbano, aparelho de entrada) mostrarem outro perfil de erro.
+  urbano, aparelho de entrada) mostrarem outro perfil de erro. Validado com rastros
+  públicos do OSM em 19/11/2026 (ver "Validação no Brasil" abaixo): **não reabre**.
 - **Fase 2 entregue: HMM no SDK, padrões por medição** (19/11/2026,
   `npm run build && node --expose-gc scripts/bench-map-matching.mjs`, mesmo dataset).
   `matchToRoads` acerta a rua em **92,33%** das 247 251 posições (contra 85,7% do encaixe
@@ -142,6 +143,43 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
 - **Desempenho no aparelho: medido em desktop, não em celular.** Grafo de 16 mil arestas: 8 ms e
   ~1 MB; o maior do dataset (307 mil): 68 ms e 47 MB — por isso o grafo vem em tiles. Uma hora a
   1 Hz: 11 ms, ~30 MB transitórios; ao vivo, ~3 µs por posição.
+- **Validação no Brasil: o Kalman continua fora e os padrões do matcher ficam** (19/11/2026,
+  `npm run build && node scripts/bench-br-osm.mjs [cache-dir]`, ~15 s com cache). Rastros GPS
+  públicos do OSM e a rede de ruas do OSM via Overpass (© OpenStreetMap contributors, ODbL), em
+  cinco recortes de 2–4 km registrados no script: centro de São Paulo e do Rio (cânion urbano),
+  Teresina (capital média), São Carlos e Parnaíba (cidades menores). Corridas com velocidade
+  mediana < 3 m/s saem como a pé/bicicleta: ficam 161 de 179, 19 806 posições, 218 km. Sem rota
+  verdadeira, as medidas são indicadores:
+  - **Distância à rua mais próxima:** 94,5% / 99,0% das posições a ≤10 / ≤20 m de qualquer rua
+    (Kubicka: 85,8% / 90,6%), mediana 2,9 m, p90 8,0 m, p99 19,5 m. O recorte de centro é denso —
+    um ponto sorteado no recorte já cai a ≤10 m de rua em 34,5% das vezes —, então a comparação só
+    diz que o perfil brasileiro **não é pior**. A cauda de cânion existe e é pequena: p99 de 62 m
+    no centro de São Paulo, concentrada nas corridas lentas; nas corridas a ≥ 6 m/s de lá, 98,2% a
+    ≤10 m.
+  - **Kalman:** nas 12 combinações da fase 0, filtrar nunca melhora — nem a distância à rua, nem a
+    distância posição → ponto encaixado (cru: mediana 3,7 m, p90 11,6 m; o melhor filtro empata, o
+    pior vai a 4,6 / 16,5 m), nem as quebras. Mesmo resultado do Kubicka.
+  - **`matchToRoads` com os padrões:** 100% das posições encaixadas, mediana posição → ponto
+    encaixado 3,7 m (Kubicka, posição → rota verdadeira: 3,7 m), 0 ping-pong entre ruas paralelas e
+    0,11 troca para rua paralela por km de trecho reto — as 13 listadas pelo script são pista dupla
+    da mesma avenida, elevado × túnel × superfície (o GPS não separa nível) e dois casos em área de
+    calçadão.
+  - **Quebras:** 1,06 por 1000 posições (Kubicka: 0,19), mas 0,05 com todas as ruas em mão dupla e
+    0,34 só nas corridas a ≥ 6 m/s: a quebra é contramão em centro de 65–76% de mão única
+    (bicicleta que passou do corte de 3 m/s, ou `oneway` errado no OSM), não o modelo.
+  - **Amostragem esparsa:** 35% dos intervalos passam de 1,5 s, e os traços nativos a 2 s
+    (Teresina, Parnaíba) encaixam sem quebra. Raleando as corridas de 1 Hz para 5 / 10 / 30 s,
+    contra o encaixe denso da mesma corrida: mesma via em 94,9% / 93,6% / 89,8%, rota recuperada
+    98,6% / 97,2% / 89,8%, quebras 5,7 / 10,1 / 24,2 por 1000. Desvio máximo de 1000 m divide as
+    quebras por ~3 e quintuplica a rota a mais (1,3% → 6,1% a 5 s). O padrão de 100 m fica
+    (calibrado e certo a 1 Hz); para fonte esparsa a proposta — **não aplicada** — está no #667:
+    limite de desvio proporcional ao intervalo, que exige o tempo da posição no `matchToRoads`.
+  - **55% das posições saem `inferred`:** o pré-filtro de `2σ` (14 m) a 1 Hz descarta toda posição
+    abaixo de ~50 km/h, e o trânsito de centro é lento. É o comportamento decidido, não defeito.
+  - **Limite:** amostra pequena e desigual — São Carlos tem 63% das posições; Teresina, um traço
+    (740 posições); Rio, 10 corridas. Quem sobe traço no OSM é mapeador, com aparelho bom e muitas
+    vezes log a 10 Hz suavizado (reamostrado a 1 Hz pelo script): o perfil "aparelho de entrada" da
+    frota **não** está coberto. A decisão reabre com rastro real da frota.
 
 ## Telemetria: `device_model` (#657)
 

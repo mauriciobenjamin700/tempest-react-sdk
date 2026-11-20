@@ -70,6 +70,10 @@
     outline: none;
 }
 
+.hit {
+    fill: transparent;
+}
+
 .focusRing {
     fill: none;
     stroke: transparent;
@@ -81,34 +85,65 @@
 }
 
 .markerShape {
+    fill: currentColor;
     stroke: var(--tempest-surface);
     stroke-width: 2.5;
 }
 
-.origin .markerShape {
-    fill: var(--tempest-success-fg);
+.origin {
+    color: var(--tempest-success-fg);
+    --tempest-live-route-ink: var(--tempest-live-route-origin-ink, var(--tempest-surface));
 }
 
-.stop .markerShape {
-    fill: var(--tempest-info-solid);
+.stop {
+    color: var(--tempest-info-solid);
+    --tempest-live-route-ink: var(--tempest-live-route-stop-ink, var(--tempest-info-on-solid));
 }
 
-.destination .markerShape {
-    fill: var(--tempest-danger-solid);
+.destination {
+    color: var(--tempest-danger-solid);
+    --tempest-live-route-ink: var(
+        --tempest-live-route-destination-ink,
+        var(--tempest-danger-on-solid)
+    );
 }
 
 .markerDot {
     fill: var(--tempest-surface);
 }
 
+.emphasisHalo {
+    fill: currentColor;
+    fill-opacity: 0.22;
+    stroke: currentColor;
+    stroke-width: 2;
+}
+
+.glyphText {
+    fill: var(--tempest-live-route-ink);
+    font-family: var(--tempest-font-sans);
+    font-weight: var(--tempest-weight-bold);
+    pointer-events: none;
+}
+
+.glyphIcon {
+    color: var(--tempest-live-route-ink);
+    overflow: visible;
+    pointer-events: none;
+}
+
+.badge {
+    pointer-events: none;
+}
+
 .badge rect {
-    fill: var(--tempest-text);
+    fill: var(--tempest-live-route-badge, var(--tempest-gray-700));
     stroke: var(--tempest-surface);
     stroke-width: 1.5;
 }
 
 .badge text {
-    fill: var(--tempest-bg);
+    fill: var(--tempest-live-route-badge-text, var(--tempest-neutral-on-solid));
     font-size: 11px;
     font-weight: var(--tempest-weight-bold);
     font-family: var(--tempest-font-sans);
@@ -168,11 +203,11 @@
 }
 
 .above {
-    transform: translate(-50%, calc(-100% - 18px));
+    transform: translate(-50%, calc(-100% - var(--tempest-live-route-panel-gap, 18px)));
 }
 
 .below {
-    transform: translate(-50%, 18px);
+    transform: translate(-50%, var(--tempest-live-route-panel-gap, 18px));
 }
 
 .panelHeader {
@@ -284,4 +319,28 @@
     stroke-width: 2;
     stroke-dasharray: 4 3;
     opacity: 1;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--tempest-space-2) var(--tempest-space-4);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--tempest-font-sans);
+    font-size: var(--tempest-text-sm);
+    color: var(--tempest-text);
+}
+
+.legendItem {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tempest-space-2);
+}
+
+.legendSymbol {
+    flex: none;
+    overflow: visible;
 }

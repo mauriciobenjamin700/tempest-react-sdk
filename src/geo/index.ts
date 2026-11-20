@@ -65,6 +65,12 @@ export type {
     LiveRouteMarkerKind,
     LiveVehicle,
 } from "./LiveRouteMap";
+export { LiveRouteMapLegend } from "./LiveRouteMapLegend";
+export type {
+    LiveRouteLegendItem,
+    LiveRouteLegendSymbol,
+    LiveRouteMapLegendProps,
+} from "./LiveRouteMapLegend";
 
 // Road network + HMM map-matching (pure, data-source agnostic)
 export { createRoadGraph } from "./road-graph";

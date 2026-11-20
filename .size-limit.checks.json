@@ -247,7 +247,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ LiveRouteMap }"
     },
-    "limit": "8.4 kB",
+    "limit": "9.2 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -559,7 +559,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "171.5 kB",
+    "limit": "172.7 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -578,7 +578,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "203.1 kB",
+    "limit": "204 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -825,7 +825,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ AIChat }"
     },
-    "limit": "11.31 KB",
+    "limit": "11.4 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -888,7 +888,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "32.4 kB"
+    "limit": "32.6 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

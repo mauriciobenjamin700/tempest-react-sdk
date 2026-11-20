@@ -368,10 +368,11 @@ Piece by piece:
 | `route` | `readonly Coordinate[]` | — | Planned route, dashed. Frames the map. |
 | `trail` | `readonly Coordinate[]` | — | Traveled path, solid. |
 | `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label? }`. |
-| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, content? }`. |
+| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, content? }`. |
 | `follow` | `boolean` | `false` | Keeps the vehicle in sight without changing the zoom. |
 | `etaLabel` | `string` | — | Text announced to the screen reader. |
 | `height` / `padding` | `number` | `360` / `32` | Height and framing margin, in px. |
+| `markerScale` | `number` | `1` | Size of the marker glyphs. The touch target is 44 px at any scale. |
 | `animationMs` | `number` | `600` | Vehicle glide duration. `0` jumps. |
 | `showScale` | `boolean` | `true` | Scale bar in m/km. |
 | `tileUrl` / `tileAttribution` / `tileMaxZoom` | `string` / `string` / `number` | — / — / `19` | Tiles from **your** server. |
@@ -380,6 +381,121 @@ Piece by piece:
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | A marker panel opened (`id`) or closed (`null`). |
 | `roads` | `RoadGraph<E>` | — | Graph from `createRoadGraph`: draws the roads and snaps the vehicle and trail. |
 | `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Each new snapped position (your edge, point, distance), or `null` off every road. Only with `roads`. |
+
+### Symbology: emphasis, number, icon and size
+
+Colors and spoken names you already change with tokens and `kindLabels`. Four fields change the **glyph** itself:
+
+- **`emphasis`** sets one marker apart from the others — the passenger's "Your pickup" among the line's stops. The glyph grows 1.4× and gets a halo in its own color, so it stays the same kind.
+- **`glyphText`** writes short text **inside** the glyph, such as the stop order (`"1"`, `"2"`). `badge` stays free for the count.
+- **`icon`** draws SVG inside the glyph, in a 24×24 box — a `lucide-react` icon fits as is. The finish flag is `icon: <Flag />` on the destination.
+- **`markerScale`** (on the map) grows every glyph together — shape, badge and focus ring.
+
+```tsx
+import { Flag } from "lucide-react";
+import { LiveRouteMap, type Coordinate, type LiveRouteMarker } from "tempest-react-sdk";
+
+const ROUTE: Coordinate[] = [
+  { latitude: -23.5505, longitude: -46.6333 },
+  { latitude: -23.5571, longitude: -46.6268 },
+  { latitude: -23.5612, longitude: -46.6239 },
+  { latitude: -23.5648, longitude: -46.6197 },
+];
+
+const STOPS: LiveRouteMarker[] = [
+  { id: "p1", label: "Stop 1 — Praça da Sé", kind: "origin", glyphText: "1", ...ROUTE[0] },
+  { id: "p2", label: "Stop 2 — Liberdade", glyphText: "2", badge: 3, ...ROUTE[1] },
+  {
+    id: "p3",
+    label: "Your pickup — Stop 3, São Joaquim",
+    glyphText: "3",
+    emphasis: true,
+    ...ROUTE[2],
+  },
+  { id: "end", label: "Arrival — Paraíso", kind: "destination", icon: <Flag />, ...ROUTE[3] },
+];
+
+export function PassengerMap() {
+  return (
+    <LiveRouteMap
+      route={ROUTE}
+      markers={STOPS}
+      markerScale={1.25}
+      kindLabels={{ origin: "origin", stop: "stop", destination: "destination" }}
+      height={360}
+    />
+  );
+}
+```
+
+Piece by piece:
+
+- **`emphasis`, `glyphText` and `icon` are visual only.** The screen reader reads the `label` and the kind — which is why the example puts "Your pickup" and "Stop 3" **in the `label`** too.
+- **With `glyphText` or `icon`, a stop grows from 16 to 20 px**, so the text fits at 12 px. One or two characters read best; longer text shrinks to fit. When both are set, `glyphText` wins.
+- **`icon` takes the glyph's ink** through `currentColor` — `lucide-react` icons already paint that way.
+
+!!! info "A 44 px touch target, at any size"
+    Measured in Chromium on the 0.91.0 gallery (`elementFromPoint` in 16 directions, every 2 px): a stop answered only inside its **16 px** disc, and then only on a 3 px ring 16 px from the center — the transparent stroke of the focus ring. Each marker now has an invisible **44 px** circle (WCAG 2.2, SC 2.5.5) that takes the touch, and `markerScale` never shrinks it. That is why `markerScale` still defaults to `1`: it is for **reading** the glyph from afar, not for being able to tap it.
+
+### Legend — `LiveRouteMapLegend`
+
+Each app drew its own legend, imitating the SDK glyphs with SVG of its own — and a theme or glyph change left the legend behind. `LiveRouteMapLegend` draws **the same glyphs**, with the same classes and tokens as the map:
+
+```tsx
+import { Flag } from "lucide-react";
+import { LiveRouteMapLegend } from "tempest-react-sdk";
+
+export function PassengerLegend() {
+  return (
+    <LiveRouteMapLegend
+      label="Map legend"
+      markerScale={1.25}
+      items={[
+        { symbol: "stop", label: "Your pickup", emphasis: true },
+        { symbol: "stop", label: "Stop (trip order)", glyphText: "1" },
+        { symbol: "destination", label: "Arrival", icon: <Flag /> },
+        { symbol: "vehicle", label: "Bus" },
+        { symbol: "route", label: "Planned route" },
+        { symbol: "trail", label: "Already traveled" },
+      ]}
+    />
+  );
+}
+```
+
+- **`symbol`** is a marker kind (`"origin"`, `"stop"`, `"destination"`), `"vehicle"` or one of the lines (`"route"`, `"trail"`). `emphasis`, `glyphText` and `icon` apply to the marker kinds, the same as on `LiveRouteMarker`.
+- **Without `items`**, the legend lists the six symbols with PT-BR labels.
+- **Pass the map's `markerScale`** so the glyphs match; the vehicle and the lines do not scale, as on the map.
+- It is a list (`<ul>`) with the accessible name `"Legenda do mapa"` (change it with `label`); the drawings are `aria-hidden`, and the screen reader reads the text.
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `items` | `readonly LiveRouteLegendItem[]` | the six symbols, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon? }`, in order. |
+| `markerScale` | `number` | `1` | The same factor as the map. |
+| `label` | `string` | `"Legenda do mapa"` | Accessible name of the list. |
+
+### CSS variables the map reads
+
+The map and the legend are themed by tokens only. To recolor, override them on `:root` or on a common ancestor — the legend follows.
+
+| Variable | Where it shows | Default |
+| --- | --- | --- |
+| `--tempest-surface-2` / `--tempest-border` | Map background and border | theme |
+| `--tempest-text` / `--tempest-text-muted` | Text, scale bar / planned route | theme |
+| `--tempest-surface` | Outline of glyphs and lines, panel, origin dot | theme |
+| `--tempest-success-fg` | Origin glyph | theme |
+| `--tempest-info-solid` | Stop glyph | theme |
+| `--tempest-danger-solid` | Destination glyph | theme |
+| `--tempest-primary` / `--tempest-primary-foreground` | Trail and vehicle / vehicle arrow | theme |
+| `--tempest-focus-ring-color` | Marker focus ring | theme |
+| `--tempest-live-route-badge` / `--tempest-live-route-badge-text` | `badge` background / number | `--tempest-gray-700` / `--tempest-neutral-on-solid` |
+| `--tempest-live-route-origin-ink` | `glyphText` and `icon` on the origin | `--tempest-surface` |
+| `--tempest-live-route-stop-ink` | `glyphText` and `icon` on a stop | `--tempest-info-on-solid` |
+| `--tempest-live-route-destination-ink` | `glyphText` and `icon` on the destination | `--tempest-danger-on-solid` |
+| `--tempest-live-route-road` / `--tempest-live-route-road-casing` | `roads` streets | `--tempest-bg` / `--tempest-text-subtle` |
+
+!!! note "Why the badge no longer uses `--tempest-text` over `--tempest-bg`"
+    Up to 0.91.0 the `badge` was `--tempest-text` behind a number in `--tempest-bg` — the inverted pair. In the SDK's own theme that gave 17.75:1 (light) and 17.51:1 (dark). But the contrast hung on **two** tokens an app overrides separately: a theme that lightened `--tempest-text` and left `--tempest-bg` white put a white number on an almost-white badge — **1.11:1**, measured in Chromium. The badge now uses the fixed neutral pair (`--tempest-gray-700` + `--tempest-neutral-on-solid`), the same as the solid neutral `Badge`: **10.46:1** in both themes, and with the partial theme too. Glyph inks use the measured `*-solid`/`*-on-solid` pairs — 5.17 and 4.83:1 in light, 5.25 and 5.13:1 in dark; the origin, `--tempest-surface` over `--tempest-success-fg` (8.65 and 10.28:1). If your theme changes `--tempest-surface` without `--tempest-success-fg`, set `--tempest-live-route-origin-ink` along with it.
 
 ### Roads on the map and the vehicle on the road — `roads`
 
@@ -670,7 +786,7 @@ The defaults live in `ROAD_MATCH_DEFAULTS` and `ROAD_MATCHER_DEFAULT_LAG`. The f
 - **Capture**: `usePositionTracker` / `createPositionTracker` record a trajectory via `navigator.geolocation`, filtering jitter — all in the browser.
 - **Math**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, mirroring `tempest-fastapi-sdk`.
 - **Map**: `TrajectoryMap` plots tile-free SVG by default; `tileUrl` enables Leaflet only with a server **you host**.
-- **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position. With `roads`, it draws the streets and snaps the vehicle and trail to them, with no code in the app.
+- **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position. With `roads`, it draws the streets and snaps the vehicle and trail to them, with no code in the app. `emphasis`, `glyphText`, `icon` and `markerScale` change the glyph, and `LiveRouteMapLegend` draws the legend with the same glyphs.
 - **Road snapping**: `createRoadGraph` + `matchToRoads` (whole trace) and `createRoadMatcher` (live) put each position on the right road — 98.5% measured outside the road-less areas. With `timestamp`, one position every 5–30 s does not break the chain at the corner.
 - **Real routing**: `createOSRMBackend` is opt-in and points at **your** OSRM — the only piece that touches the network.
 

@@ -363,10 +363,11 @@ Pedaço por pedaço:
 | `route` | `readonly Coordinate[]` | — | Rota planejada, tracejada. Enquadra o mapa. |
 | `trail` | `readonly Coordinate[]` | — | Caminho percorrido, sólido. |
 | `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label? }`. |
-| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, content? }`. |
+| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, content? }`. |
 | `follow` | `boolean` | `false` | Mantém o veículo à vista sem mudar o zoom. |
 | `etaLabel` | `string` | — | Texto anunciado ao leitor de tela. |
 | `height` / `padding` | `number` | `360` / `32` | Altura e margem do enquadramento, em px. |
+| `markerScale` | `number` | `1` | Tamanho dos glifos dos marcadores. O alvo de toque é 44 px em qualquer escala. |
 | `animationMs` | `number` | `600` | Duração do deslize do veículo. `0` pula. |
 | `showScale` | `boolean` | `true` | Barra de escala em m/km. |
 | `tileUrl` / `tileAttribution` / `tileMaxZoom` | `string` / `string` / `number` | — / — / `19` | Tiles do **seu** servidor. |
@@ -375,6 +376,112 @@ Pedaço por pedaço:
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
 | `roads` | `RoadGraph<E>` | — | Grafo do `createRoadGraph`: desenha as ruas e encaixa veículo e trilha. |
 | `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Cada posição nova encaixada (sua aresta, ponto, distância), ou `null` fora de qualquer rua. Só com `roads`. |
+
+### Simbologia: destaque, número, ícone e tamanho
+
+As cores e os nomes falados você já troca por token e por `kindLabels`. Quatro campos mudam o **glifo** em si:
+
+- **`emphasis`** separa um marcador dos outros — o "Seu embarque" do passageiro entre as paradas da linha. O glifo cresce 1,4× e ganha um halo na própria cor, então continua sendo do mesmo tipo.
+- **`glyphText`** escreve um texto curto **dentro** do glifo, como a ordem da parada (`"1"`, `"2"`). O `badge` continua livre para a contagem.
+- **`icon`** desenha um SVG dentro do glifo, numa caixa 24×24 — um ícone do `lucide-react` cabe direto. A bandeira de chegada é `icon: <Flag />` no destino.
+- **`markerScale`** (no mapa) aumenta todos os glifos juntos — forma, badge e anel de foco.
+
+```tsx
+import { Flag } from "lucide-react";
+import { LiveRouteMap, type Coordinate, type LiveRouteMarker } from "tempest-react-sdk";
+
+const ROUTE: Coordinate[] = [
+  { latitude: -23.5505, longitude: -46.6333 },
+  { latitude: -23.5571, longitude: -46.6268 },
+  { latitude: -23.5612, longitude: -46.6239 },
+  { latitude: -23.5648, longitude: -46.6197 },
+];
+
+const STOPS: LiveRouteMarker[] = [
+  { id: "p1", label: "Parada 1 — Praça da Sé", kind: "origin", glyphText: "1", ...ROUTE[0] },
+  { id: "p2", label: "Parada 2 — Liberdade", glyphText: "2", badge: 3, ...ROUTE[1] },
+  {
+    id: "p3",
+    label: "Seu embarque — Parada 3, São Joaquim",
+    glyphText: "3",
+    emphasis: true,
+    ...ROUTE[2],
+  },
+  { id: "fim", label: "Chegada — Paraíso", kind: "destination", icon: <Flag />, ...ROUTE[3] },
+];
+
+export function PassengerMap() {
+  return <LiveRouteMap route={ROUTE} markers={STOPS} markerScale={1.25} height={360} />;
+}
+```
+
+Pedaço por pedaço:
+
+- **`emphasis`, `glyphText` e `icon` são só visuais.** O leitor de tela lê o `label` e o tipo — por isso o exemplo escreve "Seu embarque" e "Parada 3" **no `label`** também.
+- **Com `glyphText` ou `icon`, a parada cresce de 16 para 20 px**, para o texto caber em 12 px. Um ou dois caracteres leem melhor; com mais, a fonte encolhe para caber. Se os dois vierem, vale o `glyphText`.
+- **O `icon` herda a tinta do glifo** por `currentColor` — os ícones do `lucide-react` já pintam assim.
+
+!!! info "Alvo de toque de 44 px, em qualquer tamanho"
+    Medido no Chromium sobre a gallery da 0.91.0 (`elementFromPoint` em 16 direções, a cada 2 px): uma parada só respondia dentro do disco de **16 px**, e depois só num anel de 3 px a 16 px do centro — o traço transparente do anel de foco. Agora cada marcador tem um círculo invisível de **44 px** (WCAG 2.2, SC 2.5.5) que recebe o toque, e o `markerScale` não o encolhe. Por isso o `markerScale` padrão continua `1`: ele serve para **ler** o glifo de longe, não para conseguir tocá-lo.
+
+### Legenda — `LiveRouteMapLegend`
+
+Cada app desenhava a própria legenda imitando os glifos do SDK com SVG próprio — e uma mudança de tema ou de glifo deixava a legenda para trás. O `LiveRouteMapLegend` desenha **os mesmos glifos**, com as mesmas classes e os mesmos tokens do mapa:
+
+```tsx
+import { Flag } from "lucide-react";
+import { LiveRouteMapLegend } from "tempest-react-sdk";
+
+export function PassengerLegend() {
+  return (
+    <LiveRouteMapLegend
+      markerScale={1.25}
+      items={[
+        { symbol: "stop", label: "Seu embarque", emphasis: true },
+        { symbol: "stop", label: "Parada (ordem da viagem)", glyphText: "1" },
+        { symbol: "destination", label: "Chegada", icon: <Flag /> },
+        { symbol: "vehicle", label: "Ônibus" },
+        { symbol: "route", label: "Rota planejada" },
+        { symbol: "trail", label: "Já percorrido" },
+      ]}
+    />
+  );
+}
+```
+
+- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"` ou uma das linhas (`"route"`, `"trail"`). Os campos `emphasis`, `glyphText` e `icon` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`.
+- **Sem `items`**, a legenda lista os seis símbolos com rótulos em PT-BR.
+- **Passe o mesmo `markerScale` do mapa** para os glifos baterem; veículo e linhas não escalam, como no mapa.
+- É uma lista (`<ul>`) com nome acessível `"Legenda do mapa"` (troque com `label`); os desenhos são `aria-hidden`, e o leitor de tela lê o texto.
+
+| Prop | Tipo | Default | Descrição |
+| --- | --- | --- | --- |
+| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon? }`, na ordem. |
+| `markerScale` | `number` | `1` | O mesmo fator do mapa. |
+| `label` | `string` | `"Legenda do mapa"` | Nome acessível da lista. |
+
+### Variáveis CSS que o mapa lê
+
+O mapa e a legenda são temados só por tokens. Para recolorir, sobrescreva no `:root` ou num ancestral comum — a legenda acompanha.
+
+| Variável | Onde aparece | Padrão |
+| --- | --- | --- |
+| `--tempest-surface-2` / `--tempest-border` | Fundo e borda do mapa | tema |
+| `--tempest-text` / `--tempest-text-muted` | Texto, barra de escala / rota planejada | tema |
+| `--tempest-surface` | Contorno dos glifos e das linhas, painel, ponto da origem | tema |
+| `--tempest-success-fg` | Glifo da origem | tema |
+| `--tempest-info-solid` | Glifo da parada | tema |
+| `--tempest-danger-solid` | Glifo do destino | tema |
+| `--tempest-primary` / `--tempest-primary-foreground` | Trilha e veículo / seta do veículo | tema |
+| `--tempest-focus-ring-color` | Anel de foco do marcador | tema |
+| `--tempest-live-route-badge` / `--tempest-live-route-badge-text` | Fundo / número do `badge` | `--tempest-gray-700` / `--tempest-neutral-on-solid` |
+| `--tempest-live-route-origin-ink` | `glyphText` e `icon` na origem | `--tempest-surface` |
+| `--tempest-live-route-stop-ink` | `glyphText` e `icon` na parada | `--tempest-info-on-solid` |
+| `--tempest-live-route-destination-ink` | `glyphText` e `icon` no destino | `--tempest-danger-on-solid` |
+| `--tempest-live-route-road` / `--tempest-live-route-road-casing` | Ruas do `roads` | `--tempest-bg` / `--tempest-text-subtle` |
+
+!!! note "Por que o selo não usa mais `--tempest-text` sobre `--tempest-bg`"
+    Até a 0.91.0 o `badge` era `--tempest-text` de fundo com o número em `--tempest-bg` — o par invertido. No tema do próprio SDK isso dava 17,75:1 (claro) e 17,51:1 (escuro). Mas o contraste dependia de **dois** tokens que o app troca separados: um tema que clareou `--tempest-text` e deixou `--tempest-bg` branco pôs o número branco num selo quase branco — **1,11:1**, medido no Chromium. Agora o selo usa o par neutro fixo (`--tempest-gray-700` + `--tempest-neutral-on-solid`), o mesmo do `Badge` sólido neutro: **10,46:1** nos dois temas, e também com o tema parcial. As tintas dos glifos usam os pares `*-solid`/`*-on-solid` medidos — 5,17 e 4,83:1 no claro, 5,25 e 5,13:1 no escuro; a origem, `--tempest-surface` sobre `--tempest-success-fg` (8,65 e 10,28:1). Se o seu tema troca `--tempest-surface` sem trocar `--tempest-success-fg`, ajuste `--tempest-live-route-origin-ink` junto.
 
 ### Ruas no mapa e veículo na rua — `roads`
 
@@ -665,7 +772,7 @@ Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabe
 - **Coleta**: `usePositionTracker` / `createPositionTracker` gravam trajetória via `navigator.geolocation`, filtrando jitter — tudo no navegador.
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
 - **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
-- **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app.
+- **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app. `emphasis`, `glyphText`, `icon` e `markerScale` mudam o glifo, e o `LiveRouteMapLegend` desenha a legenda com os mesmos glifos.
 - **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua. Com `timestamp`, uma posição a cada 5–30 s não quebra a cadeia na esquina.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.
 

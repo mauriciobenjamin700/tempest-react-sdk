@@ -203,6 +203,33 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `map-matching` em inicialização preguiçosa por ele ser alvo de import dinâmico (o arquivo
   `dist/geo/map-matching.js` é byte a byte o mesmo); os tetos não mudam.
 
+### Interno
+
+- **Toolchain de teste nas majors novas: `vitest` e `@vitest/coverage-v8` 4.1.12 → 5.1.1, `jsdom`
+  30.0.1 → 31.0.1, `@testing-library/jest-dom` 7.0.1 → 8.0.0** (só `devDependencies`; o pacote
+  publicado não muda). Adaptações, cada uma pelo que a fonte primária diz (guia de migração do
+  Vitest 5 e release notes do jest-dom 8, que só suporta Vitest ≥ 5):
+  - o `tsconfig.json` passa a carregar `@testing-library/jest-dom/vitest` no `types`: o Vitest 5
+    não lê mais matcher declarado no `jest.Matchers` global, e com a raiz do jest-dom todo
+    `toBeInTheDocument` virava erro de tipo;
+  - o Vitest 5 limpa os mocks antes de cada teste (`clearMocks: true` por padrão). Um teste do
+    `/neural` conferia `addModule` em `FakeAudioContext.instances`, lista estática com os contextos
+    dos testes anteriores, e só passava porque os mocks deles ainda tinham uma chamada — agora
+    confere os dois contextos que ele cria;
+  - o jsdom 31 serializa estilo inline como o CSSOM manda: número com 6 dígitos significativos
+    (`aspect-ratio: 1.33333 / 1`, `width: 33.3333%`), `0` com unidade em `minmax(0px, 1fr)`,
+    `translateX(0%)` sem o `-0` e `translate(40px)` sem o `0px` do eixo y. As asserções de
+    `AspectRatio`, `BarList`, `Carousel`, `FilterPanel`, `Form`, `Grid`, `ImageCropper` e
+    `VideoPlayer` foram para a forma nova; nenhum componente mudou. O `ScrollArea` lê o `style`
+    inline em vez do `background` computado (por extenso desde o jsdom 30.1).
+
+  Cobertura com `npm run test:coverage` no branch: 99,12% linhas / 98,29% statements / 99,14%
+  funções / 95,55% branches, acima dos pisos 99/98/99/95; 9519 testes em 733 arquivos.
+  **Vitest do consumidor**: o SDK não declara faixa de Vitest (quem escolhe é o app), então o
+  `scripts/smoke-vitest.sh` passou a rodar todos os cenários no Vitest 4 **e** no 5 — o
+  `tempestVitest()` funciona nos dois (4.1.12 e 5.1.1, sobre o tarball da 0.90.0), e sem ele os
+  dois caem no `Unknown file extension ".css"`, como a doc afirma.
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

@@ -45,10 +45,19 @@ describe("ScrollArea", () => {
     });
 
     it("forwards className and extra style", () => {
+        /**
+         * Reads the inline declaration, not the computed style. From jsdom 30.1 the
+         * computed value is resolved and serialized in full — `background: red`
+         * computes to `rgb(255, 0, 0) none repeat scroll 0% 0% / auto padding-box
+         * border-box`, `background-color` to `rgb(255, 0, 0)` — so
+         * `toHaveStyle({ background: "red" })` failed on a style that was forwarded
+         * correctly. What this case guards is the forwarding, and that is the
+         * inline style.
+         */
         render(<ScrollArea className="custom" style={{ background: "red" }} data-testid="sa" />);
         const el = screen.getByTestId("sa");
         expect(el).toHaveClass("custom");
-        expect(el).toHaveStyle({ background: "red" });
+        expect(el.style.background).toBe("red");
     });
 
     it("forwards the ref to the underlying div", () => {

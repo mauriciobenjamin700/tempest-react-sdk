@@ -180,7 +180,7 @@ describe("FilterPanel — the grid follows the panel", () => {
         );
         const grid = screen.getByLabelText("Busca").closest("div[style]") as HTMLElement;
 
-        expect(grid.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
+        expect(grid.style.gridTemplateColumns).toBe("repeat(3, minmax(0px, 1fr))");
     });
 
     it("keeps the consumer's style and className", () => {

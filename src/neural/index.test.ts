@@ -164,15 +164,20 @@ describe("prepareNeuralSuppressor", () => {
     });
 
     it("registers on every distinct context that asks", async () => {
+        /**
+         * Asserts on the two contexts this case creates, not on
+         * `FakeAudioContext.instances`: that list is static and keeps every
+         * context from earlier cases. It only passed because their `addModule`
+         * mocks still held one call each; Vitest 5 clears mocks before every test
+         * (`clearMocks` defaults to `true`), and the leftovers read 0.
+         */
         const mod = await importModule();
+        const contexts = [context(), context()];
 
-        await Promise.all([
-            mod.prepareNeuralSuppressor(context(), ASSETS),
-            mod.prepareNeuralSuppressor(context(), ASSETS),
-        ]);
+        await Promise.all(contexts.map((ctx) => mod.prepareNeuralSuppressor(ctx, ASSETS)));
 
         expect(suppressor.loadRnnoise).toHaveBeenCalledTimes(1);
-        for (const ctx of FakeAudioContext.instances as unknown as PreparedContext[]) {
+        for (const ctx of contexts) {
             expect(ctx.audioWorklet.addModule).toHaveBeenCalledTimes(1);
         }
     });

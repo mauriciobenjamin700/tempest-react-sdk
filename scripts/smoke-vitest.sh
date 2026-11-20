@@ -10,8 +10,8 @@
 # Uso:
 #   scripts/smoke-vitest.sh tempest-react-sdk-X.Y.Z.tgz
 #
-# Monta dois projetos descartáveis e, em cada um, importa o barril e renderiza
-# um `Button`:
+# Para cada major do Vitest do consumidor (4 e 5), monta dois projetos descartáveis
+# e, em cada um, importa o barril e renderiza um `Button`:
 #
 # 1. o `vite.config.ts` do scaffold (`createViteConfig`), com `@vitejs/plugin-react`;
 # 2. um `vitest.config.ts` só com `tempestVitest()` e **sem** `@vitejs/plugin-react`,
@@ -58,38 +58,6 @@ test("the barrel imports and a component renders", async () => {
 TEST
 }
 
-echo "→ cenário 1: createViteConfig, com @vitejs/plugin-react"
-mkdir "$WORK/scaffold" && cd "$WORK/scaffold"
-npm init -y >/dev/null
-npm pkg set type=module >/dev/null
-npx --yes npm@11 install --loglevel=error --no-audit --no-fund "$TARBALL" \
-    react@^19 react-dom@^19 react-router@^8 \
-    vite@^8 @vitejs/plugin-react vitest@^4 happy-dom
-
-cat > vite.config.ts <<'CONFIG'
-import { createViteConfig } from "tempest-react-sdk/vite";
-
-export default createViteConfig({
-    overrides: { test: { environment: "happy-dom" } },
-});
-CONFIG
-write_test
-npx vitest run
-
-echo "→ projeto sem @vitejs/plugin-react (cenários 2a, 2b e 2)"
-mkdir "$WORK/no-react-plugin" && cd "$WORK/no-react-plugin"
-npm init -y >/dev/null
-npm pkg set type=module >/dev/null
-npx --yes npm@11 install --loglevel=error --no-audit --no-fund "$TARBALL" \
-    react@^19 react-dom@^19 react-router@^8 \
-    vite@^8 vitest@^4 happy-dom
-if [ -d node_modules/@vitejs/plugin-react ]; then
-    echo "::error::@vitejs/plugin-react was installed anyway; this scenario would prove nothing"
-    exit 1
-fi
-
-write_test
-
 expect_css_failure() {
     local label="$1"
     local log="$WORK/no-plugin.log"
@@ -106,7 +74,49 @@ expect_css_failure() {
     echo "  falhou como esperado ($label): Unknown file extension \".css\""
 }
 
-echo "→ cenário 2a: vitest.config.ts sem o plugin cai em .css"
+# Roda os cenários contra uma major do Vitest do consumidor. O corpo fica sem
+# indentação por causa dos heredocs, cujo terminador precisa estar na coluna 0.
+#
+# O SDK não declara o Vitest como dependência nem como peer — quem roda os testes é
+# o app, na versão que ele escolheu —, então o `tempestVitest()` precisa valer nas
+# majors que um app real usa. Desde o Vitest 5 (11/2026) isso é a 4 e a 5.
+scenarios() {
+local major="$1"
+local base="$WORK/vitest-$major"
+echo "→ [vitest ^$major] cenário 1: createViteConfig, com @vitejs/plugin-react"
+mkdir -p "$base/scaffold" && cd "$base/scaffold"
+npm init -y >/dev/null
+npm pkg set type=module >/dev/null
+npx --yes npm@11 install --loglevel=error --no-audit --no-fund "$TARBALL" \
+    react@^19 react-dom@^19 react-router@^8 \
+    vite@^8 @vitejs/plugin-react "vitest@^$major" happy-dom
+
+cat > vite.config.ts <<'CONFIG'
+import { createViteConfig } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+    overrides: { test: { environment: "happy-dom" } },
+});
+CONFIG
+write_test
+npx vitest run
+
+echo "→ [vitest ^$major] projeto sem @vitejs/plugin-react (cenários 2a, 2b e 2)"
+mkdir -p "$base/no-react-plugin" && cd "$base/no-react-plugin"
+npm init -y >/dev/null
+npm pkg set type=module >/dev/null
+npx --yes npm@11 install --loglevel=error --no-audit --no-fund "$TARBALL" \
+    react@^19 react-dom@^19 react-router@^8 \
+    vite@^8 "vitest@^$major" happy-dom
+if [ -d node_modules/@vitejs/plugin-react ]; then
+    echo "::error::@vitejs/plugin-react was installed anyway; this scenario would prove nothing"
+    exit 1
+fi
+
+write_test
+
+
+echo "→ [vitest ^$major] cenário 2a: vitest.config.ts sem o plugin cai em .css"
 cat > vitest.config.ts <<'CONFIG'
 import { defineConfig } from "vitest/config";
 
@@ -116,12 +126,12 @@ export default defineConfig({
 CONFIG
 expect_css_failure "with its own vitest.config.ts"
 
-echo "→ cenário 2b: sem config nenhuma cai em .css"
+echo "→ [vitest ^$major] cenário 2b: sem config nenhuma cai em .css"
 rm vitest.config.ts
 write_test "// @vitest-environment happy-dom"
 expect_css_failure "with no config at all"
 
-echo "→ cenário 2: tempestVitest(), sem @vitejs/plugin-react"
+echo "→ [vitest ^$major] cenário 2: tempestVitest(), sem @vitejs/plugin-react"
 cat > vitest.config.ts <<'CONFIG'
 import { defineConfig } from "vitest/config";
 import { tempestVitest } from "tempest-react-sdk/vite";
@@ -133,3 +143,8 @@ export default defineConfig({
 CONFIG
 write_test
 npx vitest run
+}
+
+for major in 4 5; do
+    scenarios "$major"
+done

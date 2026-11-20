@@ -66,7 +66,7 @@ for item in "$@"; do
   fi
 
   make check >"$log" 2>&1 || { tail -30 "$log"; fail "$pr" "make check (log em $log)"; }
-  tail -1 "$log"
+  grep -E "make check verde" "$log" | tail -1 || tail -1 "$log"
 
   git fetch -q
   [[ -z "$(git log --oneline HEAD..origin/main)" ]] || fail "$pr" "a main andou durante o check"

@@ -309,6 +309,29 @@ formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
 !!! danger "`Math.trunc(valor * 10000)` erra 573 de 10001 frações"
     A multiplicação arredonda **antes** do corte: `0.57 * 10000` é `5699.999999999999`, então a versão ingênua mostra `"56,99%"` para 57%. Medido sobre toda fração `i / 10000` de 0 a 1, ela erra 573 dos 10001 valores com duas casas, e 3 de 101 com zero casas (`0.29 * 100` é `28.999999999999996`). O SDK desloca o expoente decimal da representação textual do número (`"0.57e4"`), que vira o inteiro exato: zero erros nas mesmas grades — fixado em `src/utils/format-percent-truncate.test.ts`.
 
+### Moeda a partir de centavos — `formatCents` {#format-cents}
+
+Dinheiro que anda em centavos inteiros (o que o `<MoneyInput>`, o `<Money>` e todo gateway de
+pagamento entregam) se formata direto dos centavos, sem dividir por 100 antes:
+
+```ts
+import { formatCents } from "tempest-react-sdk";
+
+formatCents(1234); // "R$ 12,34"
+formatCents(null); // "—"
+formatCents(null, { fallback: "" }); // "" — para alimentar um <input>
+formatCents(500, { currency: "USD", locale: "en-US" }); // "$5.00"
+```
+
+É o irmão em centavos do `formatCurrency`, que recebe reais e é fixo em BRL. Centavo fracionário
+é arredondado para o mais próximo.
+
+!!! info "Por que não `formatCurrency(cents / 100)`"
+    A divisão é um float, e no topo da faixa de inteiros seguros ela perde o último centavo:
+    `formatCurrency(9007199254740991 / 100)` dá `R$ 90.071.992.547.409,90`; os dígitos dizem
+    `,91`. O `formatCents` monta a string decimal a partir dos dígitos (`"90071992547409.91"`) e
+    entrega ao `Intl.NumberFormat`, que formata string decimal de forma exata.
+
 ---
 
 ## Rótulo de dia — `relativeDayLabel`

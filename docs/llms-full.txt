@@ -20226,7 +20226,7 @@ Algoritmo completo (dígitos verificadores), não só "11 dígitos". Aceita stri
 | `CEPInput`   | `00000-000`                       | numeric   |
 | `MoneyInput` | `R$ X.XXX,XX` (cents)             | numeric   |
 
-API uniforme — todos recebem `value: string` (ou `number` para `MoneyInput`) + `onChange`:
+API uniforme — todos recebem `value: string` (ou centavos `number` para `MoneyInput`) + `onChange`:
 
 ```tsx
 import { useState } from "react";
@@ -20243,7 +20243,9 @@ function CPFExample() {
     string já formatada — **não** com um `ChangeEvent`. Não tente `e.target.value`.
     Para guardar só os dígitos, use [`unmask`](#unmask-strip) na hora de enviar.
 
-`MoneyInput` trabalha em **centavos** (`number`) pra evitar erro de float:
+`MoneyInput` trabalha em **centavos** (`number`) pra evitar erro de float, no estilo dos apps de
+banco: os dígitos entram pela direita (`1` → `R$ 0,01`, `1234` → `R$ 12,34`), Backspace tira o
+último dígito, colar aproveita só os dígitos e o cursor fica sempre no fim.
 
 ```tsx
 import { useState } from "react";
@@ -20261,7 +20263,115 @@ Para outras moedas: `<MoneyInput currency="USD" locale="en-US" />`.
 !!! warning "MoneyInput é centavos inteiros — nunca float"
     `value` e `onChange` lidam com **centavos inteiros** (`12990`), não reais
     (`129.90`). Persistir o valor como inteiro evita o clássico `0.1 + 0.2 !== 0.3`.
-    Na hora de exibir/calcular em reais, divida por 100 só na borda.
+    Na hora de exibir/calcular em reais, divida por 100 só na borda — ou formate
+    direto dos centavos com [`formatCents`](./utilities.md#format-cents).
+
+### Campo opcional: `nullable` {#money-nullable}
+
+Com `value: number` o campo **nunca fica vazio**: apagar tudo volta para `R$ 0,00`, o placeholder
+some e "não informado" vira zero. Para campo opcional (preço do litro, taxa extra), passe
+`nullable`: `value` passa a aceitar `null`, o campo vazio mostra o placeholder, e apagar todos os
+dígitos (ou digitar só zeros) entrega `onChange(null)`.
+
+```tsx
+import { useState } from "react";
+import { MoneyInput } from "tempest-react-sdk";
+
+function OptionalPriceExample() {
+  const [cents, setCents] = useState<number | null>(null);
+  return (
+    <MoneyInput
+      nullable
+      value={cents}
+      onChange={setCents}
+      label="Preço do litro"
+      placeholder="R$ 0,00"
+      maxCents={99_999}
+    />
+  );
+}
+```
+
+`maxCents` é o teto em centavos: o dígito que passaria dele é **ignorado** (o valor fica onde
+estava), em vez de virar um número que ninguém digitou. O padrão é `Number.MAX_SAFE_INTEGER`.
+
+!!! info "Por que `nullable` é uma prop, e não só `value: number | null`"
+    O tipo do `onChange` é o que o seu `setState` precisa casar. Sem `nullable`, o contrato é o de
+    sempre — `onChange(cents: number)`, apagar entrega `0` — e um `useState(0)` continua compilando
+    sem nunca receber `null`. Com `nullable`, é `onChange(cents: number | null)`.
+
+### Formulário não controlado: `name` {#money-name}
+
+O texto visível é formatado (`R$ 12,34`), então um `FormData` lido dele não serve para o backend.
+Com `name`, o `MoneyInput` renderiza um `<input type="hidden">` com o valor cru; o campo visível
+fica sem `name`. `nameFormat` escolhe o formato: `"cents"` (padrão, `"1234"`) ou `"decimal"`
+(reais com ponto, `"12.34"`). Vazio vira `""`; campo `disabled` fica fora do `FormData`, como o
+visível.
+
+```tsx
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { MoneyInput } from "tempest-react-sdk";
+
+function StopForm() {
+  const [cents, setCents] = useState<number | null>(null);
+
+  function submit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    console.log(data.get("price")); // "12.34" — ou "" quando vazio
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <MoneyInput nullable value={cents} onChange={setCents} name="price" nameFormat="decimal" label="Preço" />
+      <button type="submit">Salvar</button>
+    </form>
+  );
+}
+```
+
+### Sem moldura: `useMoneyMask` {#use-money-mask}
+
+O `MoneyInput` é o `<Input>` do SDK (label, borda, erro). Quando o campo do app já tem a própria
+caixa com ícone, espalhe a máscara direto no seu `<input>`: `useMoneyMask({ value, onChange,
+maxCents })` devolve `{ type, inputMode, value, onChange, onFocus, onClick, onSelect }`, com
+`value: number | null` e `onChange(cents: number | null)`. É exatamente o que o `MoneyInput` usa
+por baixo.
+
+```tsx
+import { useState } from "react";
+import { useMoneyMask } from "tempest-react-sdk";
+
+function BankStyleField() {
+  const [cents, setCents] = useState<number | null>(null);
+  const mask = useMoneyMask({ value: cents, onChange: setCents, maxCents: 1_000_000 });
+  return (
+    <label className="my-field">
+      <span aria-hidden="true">💰</span>
+      <input {...mask} aria-label="Valor" placeholder="R$ 0,00" />
+      <input type="hidden" name="amount" value={cents ?? ""} />
+    </label>
+  );
+}
+```
+
+!!! tip "Cursor sempre no fim"
+    Clique, seta e foco devolvem o cursor ao fim do texto. Sem isso, medido no Chromium contra a
+    0.91.0: com `R$ 12,34` e o cursor depois do `1`, digitar `5` dava `R$ 152,34` (em vez de
+    `R$ 123,45`) e o Backspace apagava o `1`, dando `R$ 52,34`. Uma seleção (selecionar tudo e
+    colar, ou apagar) continua valendo — substitui o valor inteiro.
+
+A regra de leitura dos dígitos é pura e exportada, para validar no servidor ou no `zod` com o mesmo
+código: `centsFromDigits(texto, maxCents?)` → centavos ou `null`.
+
+```ts
+import { centsFromDigits } from "tempest-react-sdk";
+
+centsFromDigits("R$ 1.234,56 (à vista)"); // 123456
+centsFromDigits("R$ 0,00");               // null
+centsFromDigits("99999", 10_000);         // 9999
+```
 
 ### `unmask` — só os dígitos {#unmask-strip}
 
@@ -22934,7 +23044,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `baseURL` — prefixo de toda requisição. **Obrigatório.** Pode carregar caminho (`https://api.exemplo.com/api`) e pode ser relativo (`"/api"`, resolvido contra a origem atual). Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `prefix` — segmento sob o qual toda requisição fica aninhada, tipo `"/api"`. Ver [Base URL e prefixo](#base-url-e-prefixo).
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
-- `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro.
+- `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro. Com `getSessionEpoch`, um 401 que chega **depois** de a época em que a tentativa saiu ter mudado — com ou sem token — não chama nem `refresh` nem `onUnauthorized`: a request rejeita com `SessionSupersededError`. Esse 401 é da sessão que acabou, e deslogar por ele derrubaria a conta que entrou depois (auditoria run-17 — até a 0.90.0 um `createApiClient` próprio derrubava a sessão de B pelo 401 atrasado de A). A época é lida na chegada, antes dos hooks, então um `onUnauthorized` que desloga por causa **deste** 401 continua deixando o chamador com o 401 (#646).
 - `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura. Com `retry` ligado, também impede que uma repetição saia em outra sessão — veja [Retentativa embutida](#retentativa-embutida). A proteção segue o bearer: um cliente só com cookie (`withCredentials`, sem `getToken`) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.
 - `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`. Um `refresh` que **lança** depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com `SessionSupersededError`, sem chamar `onUnauthorized` — senão o envelope 401 da conta anterior chegaria ao `onError` da atual, e um `onUnauthorized` que chama `logout()` derrubaria a sessão nova (#657). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
@@ -30538,7 +30648,7 @@ const upload = createResumableUpload({
 
 - `onProgress` recebe **bytes do arquivo inteiro**, não do chunk. `resumedFrom` diz quantos já estavam no servidor quando esta execução começou — útil pra não anunciar "0%" num upload que retomou em 80%.
 - `pause()` derruba o chunk em voo; o offset persistido continua o do último chunk **confirmado**. O `resume()` faz `HEAD` primeiro, então bytes parciais que o servidor aceitou não se perdem.
-- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica. O `abort()` **sem** `discard` num handle assim também apaga o registro deste upload (com chunk em voo ou pausado): ninguém mais pode retomá-lo, e ele guardava a URL e a `Idempotency-Key` da conta anterior no storage da seguinte até um `clear()` (#657).
+- `abort({ discard: true })` manda `DELETE` e apaga o registro; sem `discard`, o ponto de retomada fica. Num handle de antes de uma troca de conta (o `getPrincipal`/sessão mudou, ou o storage foi limpo), o descarte **não** vai ao servidor — o `DELETE` sairia com a credencial da conta nova — e só apaga o registro se ele ainda for deste upload: o registro que a outra conta gravou sob a mesma chave (o fingerprint do arquivo) fica. O `abort()` **sem** `discard` num handle assim também apaga o registro deste upload (com chunk em voo ou pausado): ninguém mais pode retomá-lo, e ele guardava a URL e a `Idempotency-Key` da conta anterior no storage da seguinte até um `clear()` (#657). Vale também para o handle **sem vínculo** (sessão por cookie ou upload anônimo, sem `getToken` nem `getPrincipal`): guardado de antes de um `clear()`, o descarte dele não manda `DELETE` e deixa o registro da sessão seguinte — até a 0.90.0 ele saía com os cookies da conta nova e apagava o registro dela (auditoria run-17). Um `getPrincipal` que lança no `abort()` conta como dono mudado: nada vai ao servidor, e o `abort()` não rejeita.
 
 !!! warning "O token não segue o `Location` para fora da sua origem"
     O tus responde a criação com um `Location` que **o servidor escolhe**, e o spec permite que seja uma URL absoluta em outro host — entregar o upload a um storage é operação normal, não ataque. Até a 0.65.0 o bearer token seguia aquele header para onde ele apontasse, junto com os bytes do arquivo.
@@ -37720,6 +37830,29 @@ formatPercent(-0.12345, { decimals: 2, mode: "truncate" }); // "-12,34%"
 
 !!! danger "`Math.trunc(valor * 10000)` erra 573 de 10001 frações"
     A multiplicação arredonda **antes** do corte: `0.57 * 10000` é `5699.999999999999`, então a versão ingênua mostra `"56,99%"` para 57%. Medido sobre toda fração `i / 10000` de 0 a 1, ela erra 573 dos 10001 valores com duas casas, e 3 de 101 com zero casas (`0.29 * 100` é `28.999999999999996`). O SDK desloca o expoente decimal da representação textual do número (`"0.57e4"`), que vira o inteiro exato: zero erros nas mesmas grades — fixado em `src/utils/format-percent-truncate.test.ts`.
+
+### Moeda a partir de centavos — `formatCents` {#format-cents}
+
+Dinheiro que anda em centavos inteiros (o que o `<MoneyInput>`, o `<Money>` e todo gateway de
+pagamento entregam) se formata direto dos centavos, sem dividir por 100 antes:
+
+```ts
+import { formatCents } from "tempest-react-sdk";
+
+formatCents(1234); // "R$ 12,34"
+formatCents(null); // "—"
+formatCents(null, { fallback: "" }); // "" — para alimentar um <input>
+formatCents(500, { currency: "USD", locale: "en-US" }); // "$5.00"
+```
+
+É o irmão em centavos do `formatCurrency`, que recebe reais e é fixo em BRL. Centavo fracionário
+é arredondado para o mais próximo.
+
+!!! info "Por que não `formatCurrency(cents / 100)`"
+    A divisão é um float, e no topo da faixa de inteiros seguros ela perde o último centavo:
+    `formatCurrency(9007199254740991 / 100)` dá `R$ 90.071.992.547.409,90`; os dígitos dizem
+    `,91`. O `formatCents` monta a string decimal a partir dos dígitos (`"90071992547409.91"`) e
+    entrega ao `Intl.NumberFormat`, que formata string decimal de forma exata.
 
 ---
 

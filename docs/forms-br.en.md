@@ -71,7 +71,9 @@ function CPFExample() {
     `e.target.value`. To keep only the digits, use [`unmask`](#unmask-strip) at
     submit time.
 
-`MoneyInput` works in **cents** (`number`) to avoid float errors:
+`MoneyInput` works in **cents** (`number`) to avoid float errors, banking-app style: digits enter
+from the right (`1` → `R$ 0,01`, `1234` → `R$ 12,34`), Backspace removes the last digit, a paste
+keeps only its digits and the caret always stays at the end.
 
 ```tsx
 import { useState } from "react";
@@ -89,7 +91,115 @@ For other currencies: `<MoneyInput currency="USD" locale="en-US" />`.
 !!! warning "MoneyInput is integer cents — never float"
     `value` and `onChange` deal in **integer cents** (`12990`), not currency units
     (`129.90`). Persisting the value as an integer avoids the classic
-    `0.1 + 0.2 !== 0.3`. Divide by 100 only at the edge when displaying/computing.
+    `0.1 + 0.2 !== 0.3`. Divide by 100 only at the edge when displaying/computing — or
+    format straight from the cents with [`formatCents`](./utilities.md#format-cents).
+
+### Optional field: `nullable` {#money-nullable}
+
+With `value: number` the field is **never empty**: clearing it goes back to `R$ 0,00`, the
+placeholder disappears and "not informed" becomes zero. For an optional field (price per litre,
+extra fee), pass `nullable`: `value` then accepts `null`, an empty field shows the placeholder,
+and deleting every digit (or typing only zeros) calls `onChange(null)`.
+
+```tsx
+import { useState } from "react";
+import { MoneyInput } from "tempest-react-sdk";
+
+function OptionalPriceExample() {
+  const [cents, setCents] = useState<number | null>(null);
+  return (
+    <MoneyInput
+      nullable
+      value={cents}
+      onChange={setCents}
+      label="Price per litre"
+      placeholder="R$ 0,00"
+      maxCents={99_999}
+    />
+  );
+}
+```
+
+`maxCents` is the ceiling in cents: a digit that would pass it is **ignored** (the amount stays
+where it was) instead of becoming a number nobody typed. Default: `Number.MAX_SAFE_INTEGER`.
+
+!!! info "Why `nullable` is a prop, not just `value: number | null`"
+    The type of `onChange` is what your `setState` has to match. Without `nullable` the contract is
+    the old one — `onChange(cents: number)`, clearing reports `0` — and a `useState(0)` keeps
+    compiling without ever receiving `null`. With `nullable` it is `onChange(cents: number | null)`.
+
+### Uncontrolled forms: `name` {#money-name}
+
+The visible text is formatted (`R$ 12,34`), so `FormData` read from it is useless to a backend.
+With `name`, `MoneyInput` renders an `<input type="hidden">` holding the raw amount; the visible
+field carries no `name`. `nameFormat` picks the format: `"cents"` (default, `"1234"`) or
+`"decimal"` (major unit with a dot, `"12.34"`). Empty becomes `""`; a `disabled` field stays out of
+`FormData`, like the visible one.
+
+```tsx
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { MoneyInput } from "tempest-react-sdk";
+
+function StopForm() {
+  const [cents, setCents] = useState<number | null>(null);
+
+  function submit(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    console.log(data.get("price")); // "12.34" — or "" when empty
+  }
+
+  return (
+    <form onSubmit={submit}>
+      <MoneyInput nullable value={cents} onChange={setCents} name="price" nameFormat="decimal" label="Price" />
+      <button type="submit">Save</button>
+    </form>
+  );
+}
+```
+
+### Frameless: `useMoneyMask` {#use-money-mask}
+
+`MoneyInput` is the SDK's `<Input>` (label, border, error). When the app's field already has its
+own box with an icon, spread the mask straight on your `<input>`: `useMoneyMask({ value, onChange,
+maxCents })` returns `{ type, inputMode, value, onChange, onFocus, onClick, onSelect }`, with
+`value: number | null` and `onChange(cents: number | null)`. It is exactly what `MoneyInput` uses
+underneath.
+
+```tsx
+import { useState } from "react";
+import { useMoneyMask } from "tempest-react-sdk";
+
+function BankStyleField() {
+  const [cents, setCents] = useState<number | null>(null);
+  const mask = useMoneyMask({ value: cents, onChange: setCents, maxCents: 1_000_000 });
+  return (
+    <label className="my-field">
+      <span aria-hidden="true">💰</span>
+      <input {...mask} aria-label="Amount" placeholder="R$ 0,00" />
+      <input type="hidden" name="amount" value={cents ?? ""} />
+    </label>
+  );
+}
+```
+
+!!! tip "Caret always at the end"
+    Click, arrow keys and focus put the caret back at the end of the text. Without it, measured in
+    Chromium against 0.91.0: with `R$ 12,34` and the caret after the `1`, typing `5` gave
+    `R$ 152,34` (instead of `R$ 123,45`) and Backspace deleted the `1`, giving `R$ 52,34`. A
+    selection (select all and paste, or delete) still works — it replaces the whole amount.
+
+The digit-reading rule is pure and exported, so the server or a `zod` schema can run the same
+code: `centsFromDigits(text, maxCents?)` → cents or `null`.
+
+```ts
+import { centsFromDigits } from "tempest-react-sdk";
+
+centsFromDigits("R$ 1.234,56 (à vista)"); // 123456
+centsFromDigits("R$ 0,00");               // null
+centsFromDigits("99999", 10_000);         // 9999
+```
 
 ### `unmask` — digits only {#unmask-strip}
 

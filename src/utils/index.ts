@@ -3,6 +3,7 @@ export type { FormatFallbackOptions } from "./absent";
 export { cn } from "./cn";
 export { compareValues } from "./compare-values";
 export {
+    formatCents,
     formatCurrency,
     formatDate,
     formatDateForInput,
@@ -12,7 +13,7 @@ export {
     formatCPF,
     formatPercent,
 } from "./format";
-export type { FormatPercentOptions, FormatPhoneOptions } from "./format";
+export type { FormatCentsOptions, FormatPercentOptions, FormatPhoneOptions } from "./format";
 export { createJsonStorage, storage } from "./storage";
 export type { JsonStorage, StorageCodec } from "./storage";
 export {

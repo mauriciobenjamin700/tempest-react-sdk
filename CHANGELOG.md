@@ -4,6 +4,51 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`MoneyInput` estilo banco: `nullable`, `name`, `maxCents` e cursor no fim** (#687). Medido
+  contra a 0.91.0 no Chromium (gallery, Playwright headless): com `R$ 12,34` e o cursor depois do
+  `1`, digitar `5` dava **`R$ 152,34`** (em vez de `R$ 123,45`) e o Backspace apagava o `1`
+  (`R$ 52,34`); apagar tudo voltava a `R$ 0,00` sem placeholder; `name` ia para o campo visível,
+  então o `FormData` lia `"R$ 12,34"`; e 20 dígitos digitados apareciam como
+  `R$ 123.456.789.012.345.660,00` (passou de `Number.MAX_SAFE_INTEGER`). Colar já aproveitava só os
+  dígitos — esse item da issue estava certo. Agora: o cursor volta ao fim no foco, clique e seta
+  (seleção não colapsada continua valendo, para selecionar tudo e colar); `nullable` troca o
+  contrato para `value: number | null` / `onChange(cents: number | null)` — vazio ou só zeros
+  entrega `null` e mostra o placeholder; `name` renderiza um `<input type="hidden">` com o valor cru
+  (`nameFormat: "cents"` padrão, `"1234"`, ou `"decimal"`, `"12.34"`) e o campo visível fica sem
+  `name`; `maxCents` ignora o dígito que passaria do teto (padrão `Number.MAX_SAFE_INTEGER`).
+  `value`/`onChange` viram opcionais, como nos outros inputs mascarados, então
+  `<FormField><MoneyInput /></FormField>` passa a compilar.
+- **`useMoneyMask({ value, onChange, maxCents, currency, locale })`** (#687): a máscara sem moldura,
+  para espalhar em qualquer `<input>` (`{ type, inputMode, value, onChange, onFocus, onClick,
+onSelect }`). O `MoneyInput` é esse hook dentro do `<Input>`.
+- **`centsFromDigits(text, maxCents?)`** (#687): a regra pura de leitura — cada dígito é uma casa de
+  centavo, o resto é ignorado, nenhum dígito ou só zeros é `null`.
+- **`formatCents(cents, { currency, locale, fallback })`** (#687): formata centavos inteiros a
+  partir dos dígitos. A issue pedia um `formatCentsBRL`; não entrou com esse nome porque seria o
+  `formatCurrency(cents / 100)` de novo, e essa divisão perde o último centavo no topo da faixa
+  segura (`9007199254740991` → `…409,90`; os dígitos dizem `…409,91`, medido no Node 24 com
+  `Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`). `formatCents` monta a
+  string decimal e o `Intl` a formata exata; BRL/pt-BR é o padrão.
+
+### Alterado
+
+- **`MoneyInputProps` vira um `type` (união por `nullable`)**, não mais `interface`: quem fazia
+  `interface X extends MoneyInputProps` passa a usar `type X = MoneyInputProps & {...}`. Sem
+  `nullable`, o comportamento em tela é o de antes — `useState(0)` continua compilando e nunca
+  recebe `null`.
+
+### Budgets
+
+- **#687, medido com `npm run build && npx size-limit --json` sobre a `main` em `4108734` e sobre este
+  branch**, em bytes brotli: `slice: forms + BR masks` 2 229 → 2 846 (teto 3 kB, dentro);
+  `ceiling: full barrel ESM` 170 920 → 171 484 (teto 171 → 171,5 kB); `ceiling: full barrel CJS`
+  202 112 → 202 679 (teto 202,2 → 202,7 kB). O `MoneyInput` saiu de `masked-inputs.tsx` para
+  `money-input.tsx`: o `forwardRef` não é removido pelo tree-shaking, então o `AuthFieldControl`
+  (que importa `CPFInput`/`CNPJInput`/`PhoneInput` dali) carregava o `MoneyInput` junto —
+  `slice: auth screens` cai de 9 192 → 8 946.
+
 ## [0.91.0] — 2026-11-20
 
 ### Adicionado

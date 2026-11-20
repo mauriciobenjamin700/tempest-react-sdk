@@ -4,6 +4,28 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`persistQueryClientOffline`: o `setQueryData` feito deslogado depois de uma sessão não vai mais
+  para o snapshot** (#653, auditoria run-14 U7 / run-15). Uma promise do app iniciada na sessão de A
+  que gravava dados de A com `setQueryData` depois do `logout()` e do `clear({ resetClient: true })`
+  — quando nenhum handle observava o client — era gravada com a impressão de B pelo handle criado
+  no login de B (medido na 0.90.0: linha com o dono de B e `a-late: ["private-of-A"]`; com o handle
+  novo criado logo após o logout, também no snapshot anônimo do intervalo). Agora o client é
+  observado desde o primeiro handle com `auth` ou `getPrincipal`, e a query escrita por
+  `setQueryData` (`action.manual` do TanStack, fixado em teste) com ninguém logado, depois que
+  alguém esteve, fica fora de todo snapshot até um fetch substituir o dado. Só ela sai: B continua
+  persistindo, e query buscada no intervalo (catálogo público) também. A proposta da issue —
+  encerrar a anotação inteira — foi medida e rejeitada: B deixava de persistir em 4 de 4 cenários
+  com escrita no intervalo, inclusive o carrinho de visitante. Custo documentado: `setQueryData`
+  de visitante depois de um logout só persiste depois de buscado de novo.
+
+### Budgets
+
+- **Tetos do barrel sobem pelo observador do client** (`npm run build && npx size-limit --json` sobre
+  a `main` em `d272b88` e sobre este branch): `ceiling: full barrel ESM` 168 996 → 169 220 B (teto
+  169,1 → 169,3 kB); `ceiling: full barrel CJS` 200 182 → 200 738 B (teto 200,2 → 200,8 kB).
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

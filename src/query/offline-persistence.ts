@@ -1,6 +1,8 @@
 import {
+    defaultShouldDehydrateQuery,
     dehydrate,
     hydrate,
+    type Query,
     type QueryCacheNotifyEvent,
     type QueryClient,
 } from "@tanstack/react-query";
@@ -171,7 +173,14 @@ export interface OfflineQueryPersistenceOptions {
      *   A session that is not this preset (an object of your own) is only
      *   read on cache changes, writes and restores, so a session installed
      *   and ended between two of them goes unseen;
-     * - a `sessionKey()` that throws reads as not known, so nothing is written.
+     * - a `sessionKey()` that throws reads as not known, so nothing is written;
+     * - a `setQueryData` made while nobody is signed in, after someone was on
+     *   the client, is kept out of every snapshot until a fetch replaces its
+     *   data — the late promise of an app that writes the ended session's data
+     *   after the logout reset the client, when no handle watched it, used to
+     *   be stamped with the next account (#653). The same holds with
+     *   `getPrincipal` alone. Fetches, and writes before anyone signed in on
+     *   the tab, persist as before.
      *
      * It does not call `clear()` on session end by itself: `clear()` ends the
      * handle, and the row is already deleted on the next write. Keep calling
@@ -390,6 +399,88 @@ function clientIsEmpty(queryClient: QueryClient): boolean {
 }
 
 /**
+ * The queries of a client whose data no session can answer for, as the
+ * client-wide watcher of {@link watchSignedOutWrites} saw them written.
+ *
+ * Kept per client and never torn down with a handle, because the write it
+ * exists for lands when no handle watches: after the ended session's handle
+ * called `clear({ resetClient: true })`, which drops the client's lineage, and
+ * before the next account's handle exists (#653).
+ */
+interface SignedOutWrites {
+    /** Whether someone was seen signed in while the client lived. */
+    sessionSeen: boolean;
+    /** Queries written with `setQueryData` while nobody was, after that. */
+    unattributed: WeakSet<Query>;
+}
+
+const signedOutWrites = new WeakMap<QueryClient, SignedOutWrites>();
+
+/**
+ * Watch, for the whole life of `queryClient`, the writes no session answers
+ * for: a `setQueryData` (a `success` with `manual: true` in TanStack's
+ * `updated` event) made while nobody is signed in, once someone was. Installed
+ * by the first handle with `auth` or `getPrincipal` on the client; every other
+ * handle on it shares the record.
+ *
+ * Such a write is usually the promise of an app that started in the session
+ * that just ended — an `onSuccess` that awaits something of its own, then
+ * writes the account's data — and lands after the logout reset the client.
+ * Nothing tells it apart from a visitor's write, so the query is kept out of
+ * every snapshot until a fetch replaces its data; the rest of the cache, and
+ * the persistence of the next account, are untouched. Before #653 the next
+ * account's handle started a new lineage on that client and stamped the ended
+ * session's data with its own fingerprint (security audit run-14 U7, run-15).
+ *
+ * A fetch is not filtered: its response came through the app's request layer,
+ * and `auth.api` already refuses one of an ended session (#609). A write while
+ * nobody ever signed in on the tab is a visitor's and is persisted as before.
+ * A signed-in read that throws counts as nobody, so the write is kept out.
+ *
+ * @param queryClient - The client.
+ * @param signedIn - Whether someone is signed in now; may throw.
+ * @param subscribe - Notifies every session install or end, when the session
+ * is the preset's, so one installed and ended between two cache events counts.
+ * @returns The client's record.
+ */
+function watchSignedOutWrites(
+    queryClient: QueryClient,
+    signedIn: () => boolean,
+    subscribe: ((listener: () => void) => () => void) | undefined,
+): SignedOutWrites {
+    const existing = signedOutWrites.get(queryClient);
+    if (existing) return existing;
+    const record: SignedOutWrites = { sessionSeen: false, unattributed: new WeakSet() };
+    signedOutWrites.set(queryClient, record);
+    const someoneSignedIn = (): boolean => {
+        try {
+            return signedIn();
+        } catch {
+            return false;
+        }
+    };
+    const noteSession = (): boolean => {
+        const now = someoneSignedIn();
+        if (now) record.sessionSeen = true;
+        return now;
+    };
+    subscribe?.(() => {
+        noteSession();
+    });
+    noteSession();
+    queryClient.getQueryCache().subscribe((event: QueryCacheNotifyEvent) => {
+        const now = noteSession();
+        if (event.type !== "updated" || event.action.type !== "success") return;
+        if (event.action.manual !== true) {
+            record.unattributed.delete(event.query);
+        } else if (record.sessionSeen && !now) {
+            record.unattributed.add(event.query);
+        }
+    });
+    return record;
+}
+
+/**
  * Owner stamp of a snapshot written while nobody was signed in.
  *
  * Not a fingerprint (`ownerFingerprint` only yields `p:` + 16 hex characters),
@@ -514,6 +605,34 @@ export function persistQueryClientOffline(
 
     if (auth && clientIsEmpty(queryClient)) clientSessions.delete(queryClient);
 
+    const outOfSession = auth
+        ? watchSignedOutWrites(
+              queryClient,
+              () => auth.sessionKey() !== null,
+              sessionIdentityOf(auth.sessionKey)?.subscribe,
+          )
+        : getPrincipal
+          ? watchSignedOutWrites(queryClient, () => currentOwner(getPrincipal) !== null, undefined)
+          : null;
+
+    /**
+     * Dehydrate the client, leaving out the queries written while nobody was
+     * signed in after a session ended (see `watchSignedOutWrites`), on top of
+     * the client's own `dehydrate.shouldDehydrateQuery` or TanStack's default.
+     *
+     * @returns The state to persist.
+     */
+    function snapshotState(): ReturnType<typeof dehydrate> {
+        if (!outOfSession) return dehydrate(queryClient);
+        const shouldDehydrate =
+            queryClient.getDefaultOptions().dehydrate?.shouldDehydrateQuery ??
+            defaultShouldDehydrateQuery;
+        return dehydrate(queryClient, {
+            shouldDehydrateQuery: (query) =>
+                !outOfSession.unattributed.has(query) && shouldDehydrate(query),
+        });
+    }
+
     function lineage(): ClientSessions {
         let entry = clientSessions.get(queryClient);
         if (!entry) {
@@ -578,7 +697,7 @@ export function persistQueryClientOffline(
             schedule();
             return;
         }
-        const snapshot: Snapshot = { id: key, state: dehydrate(queryClient) };
+        const snapshot: Snapshot = { id: key, state: snapshotState() };
         let foreign = false;
         if (getPrincipal) {
             const owner = currentOwner(getPrincipal);

@@ -106,9 +106,15 @@ export interface CaptureFrameOptions extends ResizeOptions {
     /**
      * How long to wait for the seek and for the frame after it. Default `3000`.
      *
-     * Reached means {@link FrameSeekError}, never a frame from the wrong
-     * instant: a picture of the wrong moment is worse than an error, because
-     * nothing downstream can tell.
+     * Reached during a seek means {@link FrameSeekError}, never a frame from
+     * the wrong instant: a picture of the wrong moment is worse than an error,
+     * because nothing downstream can tell.
+     *
+     * Capturing from a **playing** video waits for the next presented frame
+     * under the same budget, and there reaching it is not an error: the frame on
+     * screen is captured with `confirmed: false`. That wait normally ends long
+     * before — on the frame, or the moment the video pauses, ends, stalls, or
+     * the page is hidden.
      */
     readonly timeoutMs?: number;
     /** Abort the capture. Rejects with an `AbortError` `DOMException`. */

@@ -4,6 +4,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`/imaging`: `captureFrame` de vídeo tocando não desiste mais da confirmação depois de 200 ms**
+  (#680). A espera pelo próximo frame apresentado (`requestVideoFrameCallback`) tinha uma janela
+  fixa de 200 ms, e com a CPU disputada o primeiro frame depois do `play()` chega mais tarde: medido
+  no Chromium em 20/11/2026, 43–272 ms em 12 execuções com a máquina carregada (4 acima de 200 ms),
+  e com `Emulation.setCPUThrottlingRate` a captura de um vídeo que **estava tocando** saía
+  `confirmed: false` em 7 de 20 execuções a 10× e 13 de 20 a 20×. Era a causa do e2e intermitente
+  `captureFrame › confirms the frame when the video is playing`. Agora a espera termina num evento:
+  no frame (`confirmed: true`), ou no instante em que o vídeo pausa, termina, trava (`waiting`),
+  perde a fonte (`emptied`) ou a aba fica oculta (`confirmed: false`, sem esperar nada se ela já
+  está oculta). O `timeoutMs` da captura (default 3000) é o último recurso, e alcançá-lo nesse
+  caminho continua não sendo erro. O `signal` passa a abortar também essa espera.
+
 ## [0.91.0] — 2026-11-20
 
 ### Adicionado

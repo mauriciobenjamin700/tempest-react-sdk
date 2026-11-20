@@ -129,7 +129,7 @@
     "docs:llms": "node scripts/gen-llms.mjs",
     "docs:shots": "node scripts/docs-shots.mjs",
     "docs:gallery": "node scripts/docs-gallery.mjs",
-    "gen:geodata": "node scripts/gen-br-geodata.mjs",
+    "gen:geodata": "node scripts/gen-br-geodata.mjs && node scripts/gen-br-seats.mjs",
     "gen:icons": "node scripts/gen-icons.mjs",
     "vendor:vision": "node scripts/vendor-vision.mjs",
     "prepare": "husky",

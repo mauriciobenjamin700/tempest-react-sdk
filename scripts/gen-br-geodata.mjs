@@ -9,6 +9,9 @@
 //   - mun/<UF>.json           — municipality boundaries per state (simplified)
 //   - br-uf-geo.json          — 27 UF boundaries (simplified) + centroids
 //
+// br-seats.json (municipal seats) is written by gen-br-seats.mjs from this
+// script's output; `npm run gen:geodata` runs both, in that order.
+//
 // Sources (IBGE, public):
 //   - roster:   /api/v1/localidades/municipios          (names + 7-digit codes)
 //   - DF RAs:   /api/v1/localidades/municipios/5300108/subdistritos

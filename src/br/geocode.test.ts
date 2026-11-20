@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { haversineKm } from "@/geo/distance";
 import {
     geocodeMunicipality,
     municipalityCentroid,
+    municipalitySeat,
     nearestMunicipality,
     reverseGeocode,
     searchMunicipalities,
@@ -149,5 +151,73 @@ describe("reverseGeocode — enclaves", () => {
             { uf: "RS" },
         );
         expect(arroio?.name).toBe("Arroio do Padre");
+    });
+});
+
+describe("seat vs centroid (#677)", () => {
+    /**
+     * The issue's three municipalities, measured in a live route map: the
+     * centroid put each marker 3.4–6 km off the city, outside the road route.
+     * The seat is the point the backend (`tempest-fastapi-sdk`) and OSRM use.
+     */
+    const ISSUE_CASES: [string, string, number, number][] = [
+        ["2208007", "Picos", -7.07721, -41.467],
+        ["2201804", "Bocaina", -6.94124, -41.3168],
+        ["2210938", "Sussuapara", -7.03687, -41.3767],
+    ];
+
+    it("answers the seat for the issue's municipalities, kilometers from the centroid", async () => {
+        for (const [id, name, latitude, longitude] of ISSUE_CASES) {
+            const seat = await municipalitySeat(id);
+            expect(seat).toEqual({ id, name, uf: "PI", latitude, longitude, point: "seat" });
+            const centroid = await municipalityCentroid(id);
+            expect(centroid?.point).toBe("centroid");
+            expect(haversineKm(seat!, centroid!)).toBeGreaterThan(3);
+        }
+    });
+
+    it("defaults the name lookups to the seat and keeps the centroid one option away", async () => {
+        const [bySeat] = await geocodeMunicipality("Picos", "PI");
+        expect(bySeat).toMatchObject({ latitude: -7.07721, longitude: -41.467, point: "seat" });
+        const [byCentroid] = await geocodeMunicipality("Picos", "PI", { point: "centroid" });
+        expect(byCentroid).toEqual(await municipalityCentroid("2208007"));
+
+        const [hit] = await searchMunicipalities("sussuap", { uf: "PI" });
+        expect(hit).toMatchObject({ id: "2210938", point: "seat" });
+        const [centroidHit] = await searchMunicipalities("sussuap", {
+            uf: "PI",
+            point: "centroid",
+        });
+        expect(centroidHit.point).toBe("centroid");
+    });
+
+    it("ranks nearestMunicipality by seat, so standing in a town answers that town", async () => {
+        const standingInPicos = { latitude: -7.0772, longitude: -41.467 };
+        const bySeat = await nearestMunicipality(standingInPicos);
+        expect(bySeat).toMatchObject({ id: "2208007", point: "seat" });
+        expect(bySeat!.distanceKm).toBeLessThan(0.1);
+        const byCentroid = await nearestMunicipality(standingInPicos, { point: "centroid" });
+        expect(byCentroid?.point).toBe("centroid");
+        expect(byCentroid!.distanceKm).toBeGreaterThan(3);
+    });
+
+    it("places the municipality the 2022 mesh has no boundary for", async () => {
+        expect(await municipalityCentroid("5101837")).toBeNull();
+        expect(await municipalitySeat("5101837")).toMatchObject({
+            name: "Boa Esperança do Norte",
+            uf: "MT",
+            point: "seat",
+        });
+    });
+
+    it("marks a seat the source misplaced as the centroid it falls back to", async () => {
+        const pauDArco = await municipalitySeat("1505551");
+        const centroid = await municipalityCentroid("1505551");
+        expect(pauDArco).toEqual(centroid);
+        expect(pauDArco?.point).toBe("centroid");
+    });
+
+    it("returns null for an unknown code", async () => {
+        expect(await municipalitySeat("0000000")).toBeNull();
     });
 });

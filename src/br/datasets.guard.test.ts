@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import centroidsData from "./data/br-centroids.json";
 import locationsData from "./data/br-locations.json";
+import seatsData from "./data/br-seats.json";
 import {
     administrativeRegionsByUf,
     datasetVintage,
@@ -39,8 +40,23 @@ interface RawCentroids {
     municipalities: [string, string, string, number, number][];
 }
 
+interface RawSeats {
+    source: {
+        name: string;
+        commit: string;
+        file: string;
+        sha256: string;
+        license: string;
+        licenseText: string;
+    };
+    vintage: { roster: string; mesh: string };
+    centroidFallback: string[];
+    municipalities: [string, string, string, number, number][];
+}
+
 const locations = locationsData as unknown as RawLocations;
 const centroids = centroidsData as unknown as RawCentroids;
+const seats = seatsData as unknown as RawSeats;
 
 const rosterNameById = new Map(
     locations.states.flatMap((s) => s.cities.map(([id, name]) => [id, name] as const)),
@@ -179,5 +195,60 @@ describe("former names keep resolving", () => {
         );
         expect(resolveMunicipality("XX", "São Paulo")).toBeNull();
         expect(resolveMunicipality("SP", "Cidade Inexistente")).toBeNull();
+    });
+});
+
+describe("the seat dataset (#677)", () => {
+    const seatById = new Map(seats.municipalities.map((row) => [row[0], row] as const));
+    const centroidById = new Map(centroids.municipalities.map((row) => [row[0], row] as const));
+
+    it("pins its source by commit and hash, and carries the MIT notice", () => {
+        expect(seats.source).toMatchObject({
+            name: "kelvins/municipios-brasileiros",
+            commit: "503e2f70bbf1b4b7ec0b1f68b09086ccc38fe861",
+            file: "csv/municipios.csv",
+            sha256: "22bd03d004361329f69ddfa3f6c99cd53012aa53972a172e10b141288ad0b1fe",
+            license: "MIT",
+        });
+        expect(seats.source.licenseText).toContain("MIT License");
+        expect(seats.source.licenseText).toContain("Copyright (c) 2016 Kelvin S. do Prado");
+        expect(seats.source.licenseText).toContain(
+            "The above copyright notice and this permission notice shall be included",
+        );
+    });
+
+    it("covers every municipality of the roster, under the roster's name and UF", () => {
+        expect(seats.vintage).toEqual(locations.vintage);
+        expect(seats.municipalities).toHaveLength(5571);
+        const disagreeing = [...rosterNameById].filter(([id, name]) => {
+            const row = seatById.get(id);
+            return row?.[1] !== name || row[2] !== rosterUfById.get(id);
+        });
+        expect(disagreeing).toEqual([]);
+    });
+
+    it("pins the seats the source misplaces, and ships their centroid", () => {
+        expect(seats.centroidFallback).toEqual([
+            "1505551",
+            "2613107",
+            "3164431",
+            "4105201",
+            "4128625",
+        ]);
+        for (const id of seats.centroidFallback) {
+            expect(seatById.get(id)).toEqual(centroidById.get(id));
+        }
+    });
+
+    it("places the issue's municipalities at the seat the backend uses", () => {
+        expect(seatById.get("2208007")).toEqual(["2208007", "Picos", "PI", -41.467, -7.07721]);
+        expect(seatById.get("2201804")).toEqual(["2201804", "Bocaina", "PI", -41.3168, -6.94124]);
+        expect(seatById.get("2210938")).toEqual([
+            "2210938",
+            "Sussuapara",
+            "PI",
+            -41.3767,
+            -7.03687,
+        ]);
     });
 });

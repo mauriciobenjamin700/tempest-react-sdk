@@ -66,6 +66,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   sessão por nenhum dos dois. Documentado em `docs/auth.md`/`.en.md` e fixado em
   `src/auth/create-tempest-auth.replay-rule.test.ts`.
 
+### Corrigido
+
+- **`deepEqual` (de `useDeepMemo` e `useDraftFilters`) compara buracos de array** (#657, run-16 §6).
+  O `every` pulava buracos: `deepEqual(new Array(1), ["x"])` dava `true` e o inverso `false`, e o
+  `useDeepMemo` devolvia a referência antiga quando um buraco era preenchido. Agora a comparação é
+  índice a índice, e um buraco só é igual a outro buraco — distinto de um índice com `undefined`,
+  como uma chave ausente já era distinta (#645). Só correção de UI.
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

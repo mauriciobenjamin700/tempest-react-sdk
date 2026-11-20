@@ -177,3 +177,42 @@ describe("deepEqual — key sets, not key counts", () => {
         expect(result.current).not.toBe(first);
     });
 });
+
+/**
+ * Security audit run-16 §6 (#657): arrays were compared with `every`, which
+ * skips holes, so `deepEqual(new Array(1), ["x"])` was `true` while the
+ * reverse was `false`. A hole is now an absent index, told apart from an
+ * index holding `undefined` the way an absent key is (#645).
+ */
+describe("deepEqual — array holes (#657)", () => {
+    function holed(length: number, values: Record<number, unknown>): unknown[] {
+        const array: unknown[] = new Array<unknown>(length);
+        for (const [index, value] of Object.entries(values)) array[Number(index)] = value;
+        return array;
+    }
+
+    it("is symmetric between a hole and a value", () => {
+        expect(deepEqual(new Array<unknown>(1), ["x"])).toBe(false);
+        expect(deepEqual(["x"], new Array<unknown>(1))).toBe(false);
+    });
+
+    it("tells a hole from an index holding undefined, both ways", () => {
+        expect(deepEqual(holed(2, { 1: 1 }), [undefined, 1])).toBe(false);
+        expect(deepEqual([undefined, 1], holed(2, { 1: 1 }))).toBe(false);
+    });
+
+    it("keeps arrays with holes in the same places equal", () => {
+        expect(deepEqual(new Array<unknown>(3), new Array<unknown>(3))).toBe(true);
+        expect(deepEqual(holed(3, { 0: 1, 2: 3 }), holed(3, { 0: 1, 2: 3 }))).toBe(true);
+    });
+
+    it("hands useDeepMemo a new reference when a hole is filled", () => {
+        const { result, rerender } = renderHook(
+            ({ value }: { value: unknown[] }) => useDeepMemo(value),
+            { initialProps: { value: new Array<unknown>(1) } },
+        );
+        const first = result.current;
+        rerender({ value: ["x"] });
+        expect(result.current).not.toBe(first);
+    });
+});

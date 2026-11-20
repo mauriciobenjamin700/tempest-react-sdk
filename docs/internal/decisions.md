@@ -180,6 +180,12 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
     (740 posições); Rio, 10 corridas. Quem sobe traço no OSM é mapeador, com aparelho bom e muitas
     vezes log a 10 Hz suavizado (reamostrado a 1 Hz pelo script): o perfil "aparelho de entrada" da
     frota **não** está coberto. A decisão reabre com rastro real da frota.
+- **`LiveRouteMap` encaixa com `roads`, e o matcher é import dinâmico** (19/11/2026). Uma prop
+  só (o grafo) em vez de o app chamar o matcher: o app passa a posição crua e recebe o encaixe por
+  `onMatch`. O matcher entra por `import()` porque estático custaria +3,7 kB brotli a todo
+  `LiveRouteMap` (4,67 → 8,42 kB); dinâmico, quem não passa `roads` paga +0,66 kB (5,33 kB). Sem
+  rua a até `radiusM`, o veículo fica na posição crua com anel tracejado — nunca some, e não há um
+  segundo limiar de distância inventado: o do modelo (200 m) é o que decide.
 
 ## Telemetria: `device_model` (#657)
 

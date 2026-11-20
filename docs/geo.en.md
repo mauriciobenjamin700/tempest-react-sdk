@@ -378,6 +378,95 @@ Piece by piece:
 | `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Accessible texts. |
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Spoken name of each kind. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | A marker panel opened (`id`) or closed (`null`). |
+| `roads` | `RoadGraph<E>` | — | Graph from `createRoadGraph`: draws the roads and snaps the vehicle and trail. |
+| `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Each new snapped position (your edge, point, distance), or `null` off every road. Only with `roads`. |
+
+### Roads on the map and the vehicle on the road — `roads`
+
+GPS is off by 3 to 30 m in a city. Drawn raw, the bus "drives" on the sidewalk, cuts across the block at a corner and, on an avenue with a parallel street next to it, jumps from one to the other. Pass the region's road graph in `roads` and the map handles it **with no code in the app**:
+
+- it draws the graph's **roads** as a vector layer under the route and the trail — no tiles, works offline;
+- it runs each `vehicle.position` through an internal [`createRoadMatcher`](#on-the-live-map-createroadmatcher) and draws the vehicle **at the point snapped to the road**;
+- when the position has no `heading`, the arrow follows the **direction of the road** the vehicle is on;
+- it draws the `trail` **along the matched roads**, turning the corner instead of cutting the block.
+
+```tsx
+import { useEffect, useState } from "react";
+import {
+  LiveRouteMap,
+  createRoadGraph,
+  type Coordinate,
+  type MatchedFix,
+  type RoadEdge,
+  type RoadGraph,
+} from "tempest-react-sdk";
+
+interface Street extends RoadEdge {
+  id: string;
+  name: string;
+}
+
+interface RoadTile {
+  nodes: Coordinate[];
+  edges: Street[];
+}
+
+export function BusOnTheStreet({ fixes }: { fixes: Coordinate[] }) {
+  const [roads, setRoads] = useState<RoadGraph<Street> | undefined>(undefined);
+  const [street, setStreet] = useState<string>("");
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/roads?bbox=-46.66,-23.57,-46.64,-23.55")
+      .then((response) => response.json() as Promise<RoadTile>)
+      .then((tile) => {
+        if (alive) setRoads(createRoadGraph({ ...tile, twoWay: true }));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const onMatch = (match: MatchedFix<Street> | null): void => {
+    setStreet(match ? match.edge.name : "off the road network");
+  };
+
+  return (
+    <>
+      <p aria-live="polite">{street}</p>
+      <LiveRouteMap
+        trail={fixes}
+        vehicle={{ position: fixes[fixes.length - 1], label: "Bus 7" }}
+        roads={roads}
+        onMatch={onMatch}
+        follow
+        height={400}
+      />
+    </>
+  );
+}
+```
+
+Piece by piece:
+
+- **`roads`** is the same `RoadGraph` from [`createRoadGraph`](#where-the-graph-comes-from). Build it once per region and pass **the same instance** on every render: snapping keeps its history while the object stays the same, and a new graph starts a new chain.
+- **`vehicle.position` is still the raw position.** You snap nothing: the map does. If your backend sends `heading`, it wins; without it, the arrow follows the road.
+- **`onMatch`** is called on each new position with the match — the edge (**your** object, with name, id, speed limit), the point on the road (`point`) and the distance (`distanceM`) — or with `null` when the position is far from every road.
+- **The graph does not enter the framing.** A whole city of streets does not zoom the map out: `route` and `markers` still decide the framing.
+
+!!! note "Off every road, the vehicle shows where it is"
+    With no road within 200 m (the matcher's `radiusM`) there is nothing to snap to: the vehicle is drawn at the raw position, with its halo replaced by a **dashed ring**, and `onMatch` gets `null`. The vehicle never disappears — in a bus yard or on a street the graph does not have yet, it stays visible.
+
+!!! info "Apps that never pass `roads` never download the matcher"
+    Snapping (`createRoadMatcher` + `matchToRoads`) comes in through a **dynamic import**, the first time a map with `roads` mounts. Without `roads` nothing changes: the map draws exactly what it drew, and the bundler leaves the matcher in a separate chunk nobody requests.
+
+The roads use two tokens of their own, which you override in the theme: `--tempest-live-route-road` (the road surface, default `--tempest-bg`) and `--tempest-live-route-road-casing` (the edge, default `--tempest-text-subtle`).
+
+??? info "Technical details: what the map does underneath"
+    - The vehicle runs through a `createRoadMatcher(roads)` with the measured defaults (`lag` 5). The drawn point is `current` — the best guess for the position that just arrived, which already weighs every earlier one. That is what holds the vehicle on the avenue when the noise puts it closer to the parallel street.
+    - The whole trail runs through `matchToRoads` on every change (~3 ms per thousand positions, measured on desktop), and each unbroken run becomes a line through the nodes of the roads driven. Positions with no road in reach are left out of that line.
+    - Only the roads that cross the screen go into the SVG.
+    - Weight, measured on the 0.90.0 `dist` with esbuild (`bundle` + `minify`, CSS out, the dynamic import kept external — the chunk the app's bundler splits off), in brotli: `{ LiveRouteMap }` comes to **5.33 kB brotli**, against 4.67 kB before `roads`; with the matcher in the same file it would be 8.42 kB.
 
 ## Snapping to the road (map-matching) — `createRoadGraph`, `matchToRoads`, `createRoadMatcher`
 
@@ -460,6 +549,9 @@ Piece by piece:
 
 `matchToRoads` needs the whole trace. To draw the vehicle **now**, `createRoadMatcher` runs the same model one position at a time, with fixed-lag Viterbi:
 
+!!! tip "On `LiveRouteMap`, just pass `roads`"
+    If your map is `LiveRouteMap`, you do not call the matcher: [`roads`](#roads-on-the-map-and-the-vehicle-on-the-road-roads) does it inside. Use `createRoadMatcher` directly when the drawing is yours.
+
 ```ts
 import { createRoadMatcher, type Coordinate, type RoadGraph } from "tempest-react-sdk";
 
@@ -517,7 +609,7 @@ The defaults live in `ROAD_MATCH_DEFAULTS` and `ROAD_MATCHER_DEFAULT_LAG`. The f
 - **Capture**: `usePositionTracker` / `createPositionTracker` record a trajectory via `navigator.geolocation`, filtering jitter — all in the browser.
 - **Math**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, mirroring `tempest-fastapi-sdk`.
 - **Map**: `TrajectoryMap` plots tile-free SVG by default; `tileUrl` enables Leaflet only with a server **you host**.
-- **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position.
+- **Live trip**: `LiveRouteMap` shows planned route + trail + vehicle with heading, and follows the vehicle without refitting on every position. With `roads`, it draws the streets and snaps the vehicle and trail to them, with no code in the app.
 - **Road snapping**: `createRoadGraph` + `matchToRoads` (whole trace) and `createRoadMatcher` (live) put each position on the right road — 98.5% measured outside the road-less areas.
 - **Real routing**: `createOSRMBackend` is opt-in and points at **your** OSRM — the only piece that touches the network.
 

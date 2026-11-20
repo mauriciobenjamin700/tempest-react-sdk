@@ -259,3 +259,29 @@
     white-space: nowrap;
     border: 0;
 }
+
+.roadCasing,
+.road {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+.roadCasing {
+    stroke: var(--tempest-live-route-road-casing, var(--tempest-text-subtle));
+    stroke-width: 8;
+}
+
+.road {
+    stroke: var(--tempest-live-route-road, var(--tempest-bg));
+    stroke-width: 6;
+}
+
+.offRoad .vehicleHalo {
+    fill: none;
+    stroke: var(--tempest-primary);
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+    opacity: 1;
+}

@@ -109,6 +109,10 @@ onSelect }`). O `MoneyInput` é esse hook dentro do `<Input>`.
   `money-input.tsx`: o `forwardRef` não é removido pelo tree-shaking, então o `AuthFieldControl`
   (que importa `CPFInput`/`CNPJInput`/`PhoneInput` dali) carregava o `MoneyInput` junto —
   `slice: auth screens` cai de 9 192 → 8 946.
+- **Soma de #684 + #687, remedida na fila de merge** (`npm run build && npx size-limit --json` sobre
+  `origin/main` em `e336619` + este branch, bytes brotli): `slice: createZip` 5 807 → 5 847 (teto
+  5,81 → 5,85 kB) — o #687 não toca o `zip.ts`, os 40 B só aparecem na soma dos dois;
+  `ceiling: full barrel CJS` 202 679 → 203 015 (teto 202,7 → 203,1 kB).
 
 ## [0.91.0] — 2026-11-20
 

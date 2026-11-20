@@ -21,6 +21,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   nome dobrado (NFKC + best-fit), então `．．．/x` e `..\u3000/x` caem junto. O `.` sozinho
   (`./leia-me.txt`) e ponto dentro de nome (`..config`, `a..b.txt`) seguem aceitos. Teste:
   `zip.test.ts` › "refuses a segment of only dots and spaces".
+- **Telemetria: `platformVersion` das Client Hints com o formato das versões reais** (#684,
+  auditoria run-17 §5). A allowlist do #657 aceitava até quatro grupos de até cinco dígitos — um
+  canal de 23 caracteres de dígitos arbitrários até o `os_version`. Toda versão que o
+  `applyDeviceHints` lê (Android `Build.VERSION.RELEASE`, Windows `UniversalApiContract`, macOS) cabe
+  em até três grupos de até três dígitos, sem zero à esquerda; agora é esse o formato. O que não
+  passa é ignorado, e fica a versão do user agent, como antes. Teste: `device-facts.test.ts` ›
+  "platformVersion shape (#684)".
 
 ## [0.91.0] — 2026-11-20
 

@@ -299,16 +299,45 @@ describe("applyDeviceHints — platformVersion allowlist (#657)", () => {
         ).toEqual({ os_version: "Windows" });
     });
 
-    it.each(["14.0.0", "13", "15.0.0", "10.0.0", "0.3.0", "14.2.1", "16.1"])(
-        "keeps the real platformVersion %s",
+    it.each([
+        "14.0.0",
+        "13",
+        "15.0.0",
+        "10.0.0",
+        "0.3.0",
+        "14.2.1",
+        "16.1",
+        "10.15.7",
+        "4.4.4",
+        "26.0.0",
+        "19.0.0",
+    ])("keeps the real platformVersion %s", (platformVersion) => {
+        const facts = applyDeviceHints(
+            { os_version: "Android" },
+            { platform: "Android", platformVersion },
+        );
+        expect(facts.os_version).toBe(
+            `Android ${platformVersion.replace(/(?:\.0)+$/, "")}`.trimEnd(),
+        );
+    });
+});
+
+/**
+ * Security audit run-17 §5 (#684): the allowlist took four groups of up to
+ * five digits, a 23-character channel of arbitrary digits into `os_version`.
+ * Every real `platformVersion` (Android `Build.VERSION.RELEASE`, Windows
+ * `UniversalApiContract`, macOS) is at most three groups of up to three
+ * digits, with no leading zero.
+ */
+describe("applyDeviceHints — platformVersion shape (#684)", () => {
+    it.each(["12345", "14.00001.0", "14.0.0.0", "1.2.3.4", "0014.0.0", "14.01.0", "1000.0.0"])(
+        "keeps the user agent's Android version over %j",
         (platformVersion) => {
             const facts = applyDeviceHints(
                 { os_version: "Android" },
                 { platform: "Android", platformVersion },
             );
-            expect(facts.os_version).toBe(
-                `Android ${platformVersion.replace(/(?:\.0)+$/, "")}`.trimEnd(),
-            );
+            expect(facts).toEqual({ os_version: "Android" });
         },
     );
 });

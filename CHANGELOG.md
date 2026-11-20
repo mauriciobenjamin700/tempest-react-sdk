@@ -203,6 +203,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `map-matching` em inicialização preguiçosa por ele ser alvo de import dinâmico (o arquivo
   `dist/geo/map-matching.js` é byte a byte o mesmo); os tetos não mudam.
 
+### Interno
+
+- **`size-limit` 13.0.3 → 14.3.0, medindo com `@size-limit/esbuild` + `@size-limit/file` 14.3.0 no
+  lugar do `@size-limit/preset-small-lib`** (só `devDependencies`). O preset 14 trocou o esbuild
+  pelo rolldown, e as 61 checagens remedidas com ele sobre o mesmo `dist` (`npm run build && npx
+size-limit --json`, `main` em `3576adc`) mudaram de método, não de código: o rolldown recusa CSS
+  (`UNSUPPORTED_FEATURE`), então as folhas passam a ser medidas cruas (`utilities.css` 1 360 → 3 451
+  B, `styles/inverse.css` 1 655 → 3 053), e o JS vai de −25 046 B (barrel CJS 202 195 → 177 149) a
+  +11 120 (`{ IconPicker }` 23 947 → 35 067) e +88 787 (`br entry` 544 536 → 633 323). Com o plugin
+  de esbuild, as 61 checagens dão o mesmo byte que no size-limit 13 — nenhum teto mudou. Decisão e o
+  que a reabre em `docs/internal/decisions.md`. O `esbuild` entra explícito no `devDependencies`
+  (^0.28.2): o `tempestPwaDevSw` o importa em `dev` e o `tsc -b` do build o resolvia só porque o
+  size-limit 13 o trazia — com o 14 sem ele, o build falhava em `Cannot find module 'esbuild'`.
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

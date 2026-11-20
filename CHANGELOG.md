@@ -41,6 +41,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   um major de texto livre). Agora só passa número com ponto (`^\d{1,5}(\.\d{1,5}){0,3}$`, o
   formato de `14.0.0`/`15.0.0`/`14.2.1`); o resto é ignorado e fica a versão do user agent, como já
   acontecia com o modelo (#644).
+- **`device_model`: teto de 40 caracteres mantido, por medição (decisão, sem mudança de
+  comportamento)** (#657, run-16 §6). Sobre os 44 809 modelos distintos da lista de aparelhos do
+  Google Play que passam a allowlist: teto 30 derrubaria 41 modelos reais, 24 derrubaria 251;
+  exigir dígito derrubaria 4 334, dígito ou hífen 4 108. Modelo real também é texto livre
+  (`HTC Sensation XE with Beats Audio Z715a`, 39), então nenhuma regra de forma separa um nome
+  curto com número de um modelo. Método em `docs/internal/decisions.md`; um teste fixa modelos
+  reais longos e sem dígito.
 - **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
   comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
   uma request anônima com o token do login que estava em voo (#496); o `retry` do

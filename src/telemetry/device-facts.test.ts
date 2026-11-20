@@ -110,6 +110,16 @@ describe("parseUserAgent", () => {
         });
     });
 
+    it.each([
+        "HTC Sensation XE with Beats Audio Z715a",
+        "Lenovo ThinkPad 11e 4th Gen Chromebook",
+        "Acer Chromebook 14 for Work (CP5-471)",
+        "ADMIRE SHINE",
+        "AI PONT PLUS",
+    ])("keeps the long or digitless real model %s, so the cap stays at 40 (#657)", (model) => {
+        expect(parseUserAgent(androidUa(model)).device_model).toBe(model);
+    });
+
     it("keeps a model up to 40 characters", () => {
         const model = "A".repeat(40);
         expect(parseUserAgent(androidUa(model)).device_model).toBe(model);

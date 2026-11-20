@@ -32,6 +32,19 @@ const LOCALE = /^[a-z]{2}(?:[-_][a-z]{2})?$/i;
  * Real models stay well under it — `SM-S918B` is 8, `Redmi Note 12 Pro+ 5G` is
  * 21 — so the cap only bounds how much free text a custom user agent could
  * smuggle through a value that passes the charset.
+ *
+ * Not lowered, by measurement (#657, security audit run-16 §6, which asked
+ * whether a shorter cap or a required digit/hyphen would keep a short name
+ * such as `Alice Souza CPF 12345678900` out). Over the 44 809 distinct models
+ * in Google Play's supported-devices list that pass {@link DEVICE_MODEL}
+ * (19/11/2026): a cap of 30 drops 41 real models, 24 drops 251, and 40 drops
+ * one; requiring a digit drops 4 334 (`ADMIRE SHINE`, `AI PONT PLUS`), a digit
+ * or a hyphen 4 108. Real models are free text too —
+ * `HTC Sensation XE with Beats Audio Z715a` is 39 characters — so no shape
+ * tells a 27-character name with a number from a model, and every rule that
+ * tries drops real devices from every report. The value needs the embedding
+ * browser or WebView to write it, and it only reaches the app's own error
+ * endpoint. Method in `docs/internal/decisions.md`.
  */
 const MAX_DEVICE_MODEL_LENGTH = 40;
 

@@ -143,6 +143,22 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
   ~1 MB; o maior do dataset (307 mil): 68 ms e 47 MB — por isso o grafo vem em tiles. Uma hora a
   1 Hz: 11 ms, ~30 MB transitórios; ao vivo, ~3 µs por posição.
 
+## Telemetria: `device_model` (#657)
+
+- **O teto de 40 caracteres e a allowlist de caracteres ficam como estão.** A auditoria run-16
+  perguntou se um teto menor, ou exigir dígito/hífen, barraria um nome curto
+  (`Alice Souza CPF 12345678900`, 27 caracteres). Medido em 19/11/2026 sobre a lista de aparelhos
+  suportados do Google Play (54 581 linhas, 44 809 modelos distintos que passam a allowlist):
+  teto 30 derruba 41 modelos reais, teto 24 derruba 251, teto 40 derruba 1
+  (`HP Engage One Essential All-in-One System`); exigir dígito derruba 4 334 (`ADMIRE SHINE`),
+  dígito ou hífen 4 108. Modelo real também é texto livre (`HTC Sensation XE with Beats Audio
+  Z715a`, 39), então nenhuma forma separa um nome com número de um modelo sem perder aparelho real
+  em todo relato. O valor depende de o navegador/WebView o escrever e só vai ao endpoint de erro
+  do próprio app. Reabre com um fato novo: um WebView real que escreve dado pessoal no modelo.
+  Como reproduzir: baixar `https://storage.googleapis.com/play_public/supported_devices.csv`
+  (UTF-16, coluna `Model`), filtrar pelo `DEVICE_MODEL` de `src/telemetry/device-facts.ts` e
+  contar por comprimento e por presença de `[0-9]` / `[0-9-]`.
+
 ## Fora de escopo, com a conta que decide
 
 - **Inverter um vídeo não é primitiva de SDK** (registrado no #278). Um frame

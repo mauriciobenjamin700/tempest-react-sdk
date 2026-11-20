@@ -269,6 +269,18 @@ validateIconName }` 9 255 → 10 750 (teto 9,5 → 10,8 kB, a lista tem 2409 slu
   próprios as majors `vitest`/`@vitest/coverage-v8` 5, `jsdom` 31, `@testing-library/jest-dom` 8
   e `size-limit` 14; o TypeScript 7 fica de fora (decisão registrada em
   `docs/internal/decisions.md`).
+- **`axe-core` 4.14 liga a regra `label-content-name-mismatch` (WCAG 2.5.3) por padrão, e o
+  baseline do sweep da gallery ganhou 41 `incomplete` dela em cada célula** (`e2e/axe-baseline.json`).
+  Os 41 nós são todos botões só com glifo e nome em `aria-label` — `‹`/`›` (mês do `DatePicker`,
+  página, slide), `×` (remover chip/filtro, fechar, descartar notificação), `−`/`+` do
+  `NumberInput`, `«`/`»`/`‹`/`›` do `Transfer`, `👁` do campo de senha, `+` do FAB. O axe não decide
+  se um símbolo é texto e devolve `incomplete` ("Unable to determine if the visible text is part of
+  the accessible name"); a regra **não** acusou nenhuma violação na gallery. Não é defeito do SDK:
+  o Understanding do SC 2.5.3 diz que texto "used in a symbolic manner" não é rótulo visível, e cita
+  justamente o `>` como seta de "Next". Medido numa página isolada com o axe 4.14.1: envolver o glifo
+  em `<span aria-hidden="true">` **não** muda o resultado (continua `incomplete`), enquanto
+  `aria-label="Enviar agora"` sobre o texto "Salvar" vira violação — a regra pega o caso real.
+
 - **`overrides.rolldown` continua em 1.2.14.** O `vite` 8.3.8 pede `rolldown ~1.2.18`; sem o
   override o lock resolve 1.2.19, e o `dist/styles/core.css` volta a ter o CSS de todo componente:
   269 102 B contra 17 864 B (`npm run build && stat -c %s dist/styles/core.css`, com e sem o

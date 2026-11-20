@@ -46,7 +46,12 @@ smoke_tarball() {
   scripts/smoke-scaffold-audit.sh "$tarball"
 }
 
+# O Chromium do e2e é amarrado à versão do @playwright/test: um bump do
+# Playwright (1.63 → 1.65 no #681) troca o build exigido e o e2e inteiro cai
+# com "Executable doesn't exist". `playwright install chromium` baixa só o que
+# falta e não faz nada quando o build da versão instalada já está no cache.
 gallery_e2e() {
+  npx playwright install chromium
   npm ci --prefix examples/gallery --no-audit --no-fund
   npm --prefix examples/gallery run build
   npm run e2e

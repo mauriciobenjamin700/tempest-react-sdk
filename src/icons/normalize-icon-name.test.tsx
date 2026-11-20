@@ -17,15 +17,15 @@ describe("normalizeIconName", () => {
     });
 
     it("resolves a deprecated slug to its canonical name", () => {
-        expect(normalizeIconName("alert-circle")).toBe("circle-alert");
+        expect(normalizeIconName("alert-circle")).toBe("circle-exclamation-point");
     });
 
     it("does all three at once, which is the case that motivated it", () => {
-        expect(normalizeIconName(" Alert_Circle ")).toBe("circle-alert");
+        expect(normalizeIconName(" Alert_Circle ")).toBe("circle-exclamation-point");
     });
 
     it("leaves a canonical slug untouched", () => {
-        expect(normalizeIconName("circle-alert")).toBe("circle-alert");
+        expect(normalizeIconName("circle-exclamation-point")).toBe("circle-exclamation-point");
     });
 
     it("returns the cleaned string even when no icon matches, so the caller decides", () => {

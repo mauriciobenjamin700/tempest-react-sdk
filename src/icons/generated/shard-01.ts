@@ -2,7 +2,6 @@
 // Run `npm run gen:icons` after bumping lucide-react.
 
 import {
-    Amphora,
     Anchor,
     Angle,
     Antenna,
@@ -12,9 +11,11 @@ import {
     AppWindowMac,
     Apple,
     Archive,
-    ArchiveRestore,
+    ArchiveArrowDown,
+    ArchiveArrowUp,
     ArchiveX,
     Armchair,
+    ArmenianDram,
     ArrowBigDown,
     ArrowBigDownDash,
     ArrowBigLeft,
@@ -41,13 +42,11 @@ import {
     ArrowLeftRight,
     ArrowLeftToLine,
     ArrowRight,
-    ArrowRightFromLine,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "amphora" through "arrow-right-from-line", inclusive. */
+/** The 40 lucide icons from "anchor" through "arrow-right", inclusive. */
 const shard: Record<string, LucideIcon> = {
-    amphora: Amphora,
     anchor: Anchor,
     angle: Angle,
     antenna: Antenna,
@@ -57,9 +56,11 @@ const shard: Record<string, LucideIcon> = {
     "app-window-mac": AppWindowMac,
     apple: Apple,
     archive: Archive,
-    "archive-restore": ArchiveRestore,
+    "archive-arrow-down": ArchiveArrowDown,
+    "archive-arrow-up": ArchiveArrowUp,
     "archive-x": ArchiveX,
     armchair: Armchair,
+    "armenian-dram": ArmenianDram,
     "arrow-big-down": ArrowBigDown,
     "arrow-big-down-dash": ArrowBigDownDash,
     "arrow-big-left": ArrowBigLeft,
@@ -86,7 +87,6 @@ const shard: Record<string, LucideIcon> = {
     "arrow-left-right": ArrowLeftRight,
     "arrow-left-to-line": ArrowLeftToLine,
     "arrow-right": ArrowRight,
-    "arrow-right-from-line": ArrowRightFromLine,
 };
 
 export default shard;

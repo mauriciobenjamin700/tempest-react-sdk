@@ -37,8 +37,8 @@ describe("renderRegistry", () => {
     });
     it("imports the canonical component for an alias but keeps the alias key", () => {
         const out = renderRegistry(["alert-circle"], iconAliases);
-        expect(out).toContain(`import { CircleAlert } from "lucide-react";`);
-        expect(out).toContain(`    "alert-circle": CircleAlert,`);
+        expect(out).toContain(`import { CircleExclamationPoint } from "lucide-react";`);
+        expect(out).toContain(`    "alert-circle": CircleExclamationPoint,`);
     });
     it("emits an empty registry rather than an empty import", () => {
         expect(renderRegistry([], iconAliases)).toContain("createIconRegistry({})");

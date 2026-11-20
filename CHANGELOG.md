@@ -22,6 +22,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`getPrincipal`/sessão do preset trocou, ou o storage foi limpo), o registro **deste** upload é
   apagado como numa supersessão; registro que B gravou sob a mesma chave fica, e nada vai ao
   servidor. Na mesma sessão, o `abort()` sem `discard` continua guardando o ponto de retomada.
+- **`ResumableUploadStorage.deleteIf` (opcional): esquecer o registro de uma conta que saiu numa
+  operação só** (#657, run-16 §6). O `forgetSupersededRecord` lia o registro, comparava dono e
+  `Idempotency-Key` e apagava a chave numa segunda chamada; com um storage assíncrono, um registro
+  que a conta seguinte gravou entre as duas era o apagado, e o upload dela recomeçava. Quando o
+  storage tem `deleteIf(key, matches)`, a comparação e a remoção vão numa chamada; o
+  `createLocalUploadStorage()` já o implementa. Storage sem `deleteIf` continua no `get` + `delete`.
 - **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
   comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
   uma request anônima com o token do login que estava em voo (#496); o `retry` do

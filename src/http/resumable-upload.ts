@@ -162,6 +162,27 @@ export interface ResumableUploadStorage {
     set(key: string, record: ResumableUploadRecord): Promise<void> | void;
     /** Forget the record for `key`. */
     delete(key: string): Promise<void> | void;
+    /**
+     * Forget the record for `key` only when `matches` accepts the record
+     * stored there now, reading and deleting in one step.
+     *
+     * Optional. The upload calls it to forget the record of a run whose account
+     * is gone, and the record must still be that run's: another account may
+     * have written its own under the same key (the file fingerprint). Without
+     * it, the upload falls back to `get` and then `delete`, and an
+     * asynchronous storage (IndexedDB, a network store) can take a write
+     * between the two — the next account's record is deleted and its upload
+     * starts over (security audit run-16 §6, #657). Implement it inside one
+     * transaction; the default `localStorage` storage has it, and being
+     * synchronous it needs nothing else.
+     *
+     * @param key - The record's key.
+     * @param matches - Whether the record stored now is the one to forget.
+     */
+    deleteIf?(
+        key: string,
+        matches: (record: ResumableUploadRecord) => boolean,
+    ): Promise<void> | void;
 }
 
 /**
@@ -436,6 +457,10 @@ export function createLocalUploadStorage(prefix = "tempest-upload:"): LocalUploa
         },
         delete(key) {
             backend()?.removeItem(prefix + key);
+        },
+        deleteIf(key, matches) {
+            const current = storage.get(key) as ResumableUploadRecord | null;
+            if (current && matches(current)) storage.delete(key);
         },
         clear() {
             clearGenerations.set(prefix, (clearGenerations.get(prefix) ?? 0) + 1);
@@ -990,7 +1015,10 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * stamp keeps it from being adopted (#479), and a session bound through
      * `createTempestAuth` never comes back under the same key. Keeping it only
      * served the previous account switching back in the same tab, at the price
-     * of leaving its capability where the next one can read it. The same
+     * of leaving its capability where the next one can read it. The
+     * comparison and the deletion go through `storage.deleteIf` when the
+     * storage has it, so a record written between them is never the one
+     * deleted; otherwise through `get` and `delete` (#657). The same
      * holds for an `abort()` without `discard` that lands after the switch,
      * with a chunk in flight or on a paused handle: up to 0.90.0 it returned
      * before this ran and left the record until a `clear()` (security audit
@@ -1001,10 +1029,15 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      */
     async function forgetSupersededRecord(): Promise<void> {
         if (!storage || !idempotencyKey) return;
-        const stored = await storage.get(key);
-        if (stored?.idempotencyKey === idempotencyKey && stored.owner === owner) {
-            await storage.delete(key);
+        const runKey = idempotencyKey;
+        const ours = (record: ResumableUploadRecord): boolean =>
+            record.idempotencyKey === runKey && record.owner === owner;
+        if (storage.deleteIf) {
+            await storage.deleteIf(key, ours);
+            return;
         }
+        const stored = await storage.get(key);
+        if (stored && ours(stored)) await storage.delete(key);
     }
 
     /**

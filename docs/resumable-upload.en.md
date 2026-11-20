@@ -121,6 +121,8 @@ createResumableUpload({
 });
 ```
 
+An asynchronous storage can also implement `deleteIf(key, matches)`: it deletes the record only when `matches` accepts what is stored **now**, reading and deleting in one transaction. The upload uses it to forget the record of a run whose account left, and without it falls back to `get` followed by `delete` — between the two, the next account may have written its own record under the same key, and that is the one that would be deleted (its upload would start over; #657). `createLocalUploadStorage()` already ships `deleteIf`, and being synchronous needs nothing else.
+
 `storage: null` turns persistence off: resuming then survives a network drop, but not a reload.
 
 ### One record per user — `getPrincipal` and `clear()`

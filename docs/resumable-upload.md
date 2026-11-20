@@ -121,6 +121,8 @@ createResumableUpload({
 });
 ```
 
+Um storage assíncrono pode implementar também `deleteIf(key, matches)`: apaga o registro só se `matches` aceitar o que está gravado **agora**, lendo e apagando numa transação só. O upload o usa para esquecer o registro de um run cuja conta saiu, e sem ele cai em `get` seguido de `delete` — entre os dois, a conta seguinte pode ter gravado o próprio registro sob a mesma chave, e é esse que seria apagado (o upload dela recomeçaria do zero; #657). O `createLocalUploadStorage()` já traz o `deleteIf`, e por ser síncrono não precisa de mais nada.
+
 `storage: null` desliga a persistência: aí a retomada sobrevive a uma queda de rede, mas não a um reload.
 
 ### Um registro por usuário — `getPrincipal` e `clear()`

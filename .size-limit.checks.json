@@ -624,7 +624,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ VideoPlayer }"
     },
-    "limit": "4.5 KB",
+    "limit": "4.8 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
@@ -720,7 +720,7 @@
     "import": {
       "./dist/icons.js": "{ validateIconName }"
     },
-    "limit": "9.5 KB",
+    "limit": "10.8 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime", "lucide-react"]
   },
   {
@@ -729,28 +729,28 @@
     "import": {
       "./dist/icons.js": "{ IconPicker }"
     },
-    "limit": "25 KB",
+    "limit": "27.4 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime", "lucide-react"]
   },
   {
     "name": "ceiling: largest icon shard — the real cost of ONE lazy fetch",
-    "path": "dist/icons/generated/shard-43.js",
-    "limit": "5.5 KB",
+    "path": "dist/icons/generated/shard-06.js",
+    "limit": "6.7 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — `{ Icon }` incl. ALL 46 lazy shards (lucide MEASURED)",
+    "name": "ceiling: icons — `{ Icon }` incl. ALL 53 lazy shards (lucide MEASURED)",
     "path": "dist/icons.js",
     "import": {
       "./dist/icons.js": "{ Icon }"
     },
-    "limit": "140 KB",
+    "limit": "162 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {
-    "name": "ceiling: icons — full surface incl. the 2065-slug list and every shard",
+    "name": "ceiling: icons — full surface incl. the 2409-slug list and every shard",
     "path": "dist/icons.js",
-    "limit": "148 KB",
+    "limit": "171 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

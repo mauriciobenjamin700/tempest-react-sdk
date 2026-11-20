@@ -91,10 +91,15 @@ function renderCropper(props: Partial<React.ComponentProps<typeof ImageCropper>>
     return { ...utils, image };
 }
 
-/** The pan offset currently applied, parsed out of the inline transform. */
+/**
+ * The pan offset currently applied, parsed out of the inline transform.
+ *
+ * The `y` is optional because jsdom 31 serializes `translate(40px, 0px)` the way
+ * CSSOM says to, as `translate(40px)`; a missing `y` is a zero, not a parse failure.
+ */
 function offsetOf(image: HTMLElement): { x: number; y: number } {
-    const match = /translate\((-?[\d.]+)px, (-?[\d.]+)px\)/.exec(image.style.transform);
-    return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: NaN, y: NaN };
+    const match = /translate\((-?[\d.]+)px(?:, (-?[\d.]+)px)?\)/.exec(image.style.transform);
+    return match ? { x: Number(match[1]), y: Number(match[2] ?? 0) } : { x: NaN, y: NaN };
 }
 
 const frame = () => screen.getByRole("group", { name: "Área de recorte" });

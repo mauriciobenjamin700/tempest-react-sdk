@@ -71,6 +71,28 @@ Propor o oposto sem isso é refazer uma conversa que já aconteceu.
   `@tanstack/react-query`, `zustand` e `react-hook-form` também carregam contexto
   e continuam como dep direta. A duplicação é rara na prática (ranges largos) e o
   onboarding pesa mais. Se um app real colidir, o caminho é o do router.
+- **TypeScript fica em `~6.0.3`; o 7 não entra enquanto a toolchain não o ler**
+  (auditoria de dependências de 20/11/2026). O `typescript@7.0.2` é o compilador
+  nativo, e o pacote npm não expõe mais a API JS que o build usa: o `exports` dele
+  tem só `.` → `lib/version.cjs` e `./unstable/*`
+  (`npm view typescript@7.0.2 exports`). Três peças do gate dependem dessa API:
+  o `typescript-eslint` 8.73.0 declara peer `typescript >=4.8.4 <6.1.0`
+  (`npm view typescript-eslint@8.73.0 peerDependencies`); o
+  `@microsoft/api-extractor` 7.60.1, que o `unplugin-dts` usa no rollup dos `.d.ts`,
+  fixa `typescript 6.0.3` exato nas próprias dependências; e o `vite-plugin-dts` /
+  `unplugin-dts` 1.1.2 cria `Program` pela API clássica. Forçar o 7 quebraria o
+  `npm run lint` e o `npm run build`, não só um aviso de peer. O `~6.0.3` do
+  `template/` e da gallery segue o mesmo: o scaffold traz `typescript-eslint`.
+  **Reabre quando** o `typescript-eslint` publicar estável com peer que inclua o 7
+  (hoje só o `rc-v8`/canary) **e** o `api-extractor` aceitar um TypeScript 7 —
+  confira os dois `npm view` acima antes de tentar.
+- **`lucide-react` tem piso igual à versão de onde o registro de ícones foi
+  gerado** (`^1.77.0` desde a auditoria de 20/11/2026). As tabelas de
+  `src/icons/generated/` e o módulo que o `tempestIcons()` emite importam ícones
+  **por nome** do `lucide-react` do app; um nome que só existe na versão nova
+  (`CircleExclamationPoint`, canônico desde o rename da 1.7x) quebra num app que
+  resolveu um lucide mais velho dentro do range antigo `^1.31.0`. O bump do
+  lucide sobe o piso no mesmo commit em que regenera o registro.
 
 ## Empacotamento
 

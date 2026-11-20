@@ -175,11 +175,12 @@ async function writeFreshPackageJson(destDir, name, sdkVersion) {
 /**
  * Merge Tempest scripts + deps into an existing package.json (non-destructive).
  *
- * The template's `overrides` are merged too: they carry dependency-tree fixes
- * (e.g. forcing a patched `minimatch` under `@typescript-eslint/typescript-estree`
- * until upstream ships it), and dropping them would leave a merged project with
- * the `npm audit` findings a fresh scaffold does not have. An override the
- * project already declares for the same package wins.
+ * The template's `overrides` are merged too, when it declares any: they carry
+ * dependency-tree fixes (0.86.0–0.90.0 forced a patched `minimatch` under
+ * `@typescript-eslint/typescript-estree` until `typescript-eslint` 8.73.0 shipped
+ * it), and dropping them would leave a merged project with the `npm audit`
+ * findings a fresh scaffold does not have. An override the project already
+ * declares for the same package wins.
  */
 async function mergePackageJson(destDir, sdkVersion) {
     const tpl = JSON.parse(await readFile(join(TEMPLATE_DIR, "package.json"), "utf8"));

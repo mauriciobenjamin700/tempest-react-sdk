@@ -38,7 +38,53 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 "centroid" })` — ou chama `municipalityCentroid(id)`, que não mudou, assim como `stateCentroid` e
   `reverseGeocode` (que segue usando o centróide para escolher a UF candidata e no fallback).
 
+- **`lucide-react` 1.41 → 1.77, com piso `^1.77.0` na dependência e o registro de ícones
+  regerado.** São **2409 slugs** (2098 canônicos + 311 aliases) em 53 shards, contra 2065 (1807 + 258) em 46. Nenhum slug some — os 2065 antigos continuam todos no registro (`comm` entre o
+  `docs/assets/icon-slugs.csv` da `main` e o novo) —, mas o lucide **renomeou 45 canônicos**, que
+  viraram alias: `circle-alert` → `circle-exclamation-point`, `triangle-alert` →
+  `triangle-exclamation-point`, `building-2` → `building-complex`, `music` → `eighth-notes`,
+  `bold` → `letter-b`, `heading` → `letter-h`, entre outros (lista inteira no CSV, coluna
+  `canonical`). O que o consumidor vê: `<Icon>` renderiza o mesmo desenho pelos dois nomes, mas
+  `normalizeIconName`, `resolveIconAlias`, o `onChange` do `IconPicker` e o `materialToLucide`
+  passam a devolver o **nome novo** — `normalizeIconName("alert-circle")` era `"circle-alert"` e
+  agora é `"circle-exclamation-point"`. Quem compara o slug devolvido com uma string fixa precisa
+  atualizar a string; o valor gravado no banco continua resolvendo. `materialToLucide` aponta
+  `business`, `error`, `error_outline`, `music_note`, `report_problem`, `warning` e
+  `warning_amber` para os canônicos novos (o guard "nenhum par mira alias depreciado" pegou os
+  sete). **Por que o piso subiu** (era `^1.31.0`, gerado da 1.41 sem subir): as tabelas e o módulo
+  do `tempestIcons()` importam o ícone **por nome** do `lucide-react` do app, e
+  `CircleExclamationPoint` não existe num lucide resolvido dentro do range antigo — o app que já
+  tinha um lucide mais velho travado no lock quebrava no import. O `scripts/gen-icons.mjs` passou a
+  ler o formato que o lucide 1.77 emite (`const __iconData = { name: "…" }` +
+  `createLucideIcon(__iconData)`), em vez de falhar com "2098 icon module(s) matched neither the
+  canonical nor the alias shape".
+- **`template/` sem o `overrides` de `minimatch`; piso do `typescript-eslint` em `^8.73.0`.** O
+  `typescript-eslint` 8.73.0 é o primeiro estável cujo `typescript-estree` declara
+  `minimatch ^11.0.1` (o 8.72.2 declara `^10.2.2`; `npm view
+@typescript-eslint/typescript-estree@<v> dependencies.minimatch`), então o piso faz o que o
+  override fazia desde a 0.86.0 (GHSA-g3hv-75wg-m249). O override saiu também do `package.json` da
+  raiz; o do `@microsoft/api-extractor` fica, porque o 7.60.1 ainda fixa `minimatch 10.2.3`. O
+  scaffold também sobe `react`/`react-dom` ^19.3.1, `react-router` ^8.5.2, `@types/react(-dom)`
+  ^19.3.0, `@vitejs/plugin-react` ^6.3.0, `eslint-plugin-react-refresh` ^0.5.8, `globals`
+  ^17.14.0, `prettier` ^3.10.1 e `vite` ^8.3.8; o `template-pwa/` pede `sharp` ^0.35.5. O
+  `typescript` do template continua `~6.0.3` — ver `docs/internal/decisions.md` (TypeScript 7).
+  O teste `test/scaffold-template.test.ts` que reprovava "quando o upstream corrigir" foi
+  reescrito: agora afirma que o override não existe e que o piso garante o `minimatch` corrigido.
+
 ### Budgets
+
+- **Ícones e `VideoPlayer` sobem com o `lucide-react` 1.77**, que emite cada ícone com o nome e o
+  tamanho junto do desenho (`__iconData`) — só as checagens que medem lucide mudaram. Antes/depois
+  com `npm run build && npx size-limit --json` sobre a `main` em `3576adc` e sobre este branch, em
+  bytes brotli: `slice: VideoPlayer` 4 017 → 4 767 (teto 4,5 → 4,8 kB); `slice: icons — {
+validateIconName }` 9 255 → 10 750 (teto 9,5 → 10,8 kB, a lista tem 2409 slugs em vez de 2065);
+  `ceiling: icons — { IconPicker }` 23 947 → 27 343 (teto 25 → 27,4 kB); `{ Icon }` com todos os
+  shards 137 166 → 161 319 (teto 140 → 162 kB, 53 shards); superfície inteira de `/icons` 145 501 →
+  170 666 (teto 148 → 171 kB). O maior shard passou a ser o `shard-06` (6 627 B; o `shard-43`, que
+  a checagem apontava, mede 4 069), e o teto dele foi de 5,5 para 6,7 kB — medido com cada um dos
+  53 shards como entrada própria do `size-limit`: menor 3 228 B (`shard-52`, 18 ícones), mediana
+  5 177 B. `slice: icons — the Material Symbols bridge` 2 027 → 2 043, dentro do teto. Nenhuma
+  outra das 61 checagens mudou um byte.
 
 - **`br entry` sobe com o índice de sedes**, um chunk lazy próprio (`br-seats`), carregado só por
   quem pede a sede — quem usa o centróide continua baixando só o `br-centroids`, e o barrel síncrono
@@ -204,6 +250,65 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `dist/geo/map-matching.js` é byte a byte o mesmo); os tetos não mudam.
 
 ### Interno
+
+- **Dependências de desenvolvimento na versão mais nova dentro da major** (auditoria de
+  20/11/2026; `npm outdated` e `npm audit` com 0 vulnerabilidades antes e depois, na raiz e na
+  gallery): `@microsoft/api-extractor` 7.59 → 7.60.1, `@playwright/test` 1.63 → 1.65.1,
+  `@tanstack/react-query` 5.102 → 5.108.1, `@testing-library/user-event` 14.6.7 → 14.6.13,
+  `@tiptap/*` 3.31 → 3.35.0, `@types/node` 26.4 → 26.6.6, `@types/react(-dom)` → 19.3.0,
+  `@vitejs/plugin-react` 6.1 → 6.3.0, `axe-core` 4.13 → 4.14.1, `dexie` 4.4.5 → 4.4.7,
+  `eslint-plugin-react-refresh` 0.5.6 → 0.5.8, `fake-indexeddb` 6.2.5 → 6.2.8, `globals` 17.12 →
+  17.14.0, `jsdom` 30.0.1 → 30.1.3, `lint-staged` 17.4 → 17.6.1, `onnxruntime-web` 1.29 → 1.31.1,
+  `prettier` 3.9.6 → 3.10.1, `react`/`react-dom` 19.2.8 → 19.3.1, `react-hook-form` 7.87 → 7.92.0,
+  `react-router` 8.3.1 → 8.5.2, `recharts` 3.10 → 3.11.0, `size-limit` 13.0.3 → 13.1.1,
+  `typescript-eslint` 8.69 → 8.73.0, `vite` 8.3.5 → 8.3.8, `vite-plugin-dts` 5.1.0 → 5.1.2,
+  `zustand` 5.0.15 → 5.1.0. Os pisos do `devDependencies` acompanham. Nenhum range de `peer` nem
+  de dependência de runtime mudou, fora o `lucide-react` (ver **Alterado**). O jsdom 30.1 passou a
+  devolver o `background` computado por extenso (`rgb(255, 0, 0) none repeat scroll …`): o teste
+  do `ScrollArea` que conferia o `style` repassado lê agora a declaração inline. Ficam para PRs
+  próprios as majors `vitest`/`@vitest/coverage-v8` 5, `jsdom` 31, `@testing-library/jest-dom` 8
+  e `size-limit` 14; o TypeScript 7 fica de fora (decisão registrada em
+  `docs/internal/decisions.md`).
+- **`axe-core` 4.14 liga a regra `label-content-name-mismatch` (WCAG 2.5.3) por padrão, e o
+  baseline do sweep da gallery ganhou 41 `incomplete` dela em cada célula** (`e2e/axe-baseline.json`).
+  Os 41 nós são todos botões só com glifo e nome em `aria-label` — `‹`/`›` (mês do `DatePicker`,
+  página, slide), `×` (remover chip/filtro, fechar, descartar notificação), `−`/`+` do
+  `NumberInput`, `«`/`»`/`‹`/`›` do `Transfer`, `👁` do campo de senha, `+` do FAB. O axe não decide
+  se um símbolo é texto e devolve `incomplete` ("Unable to determine if the visible text is part of
+  the accessible name"); a regra **não** acusou nenhuma violação na gallery. Não é defeito do SDK:
+  o Understanding do SC 2.5.3 diz que texto "used in a symbolic manner" não é rótulo visível, e cita
+  justamente o `>` como seta de "Next". Medido numa página isolada com o axe 4.14.1: envolver o glifo
+  em `<span aria-hidden="true">` **não** muda o resultado (continua `incomplete`), enquanto
+  `aria-label="Enviar agora"` sobre o texto "Salvar" vira violação — a regra pega o caso real.
+
+- **`overrides.rolldown` continua em 1.2.14.** O `vite` 8.3.8 pede `rolldown ~1.2.18`; sem o
+  override o lock resolve 1.2.19, e o `dist/styles/core.css` volta a ter o CSS de todo componente:
+  269 102 B contra 17 864 B (`npm run build && stat -c %s dist/styles/core.css`, com e sem o
+  override, em 20/11/2026). O build com o 1.2.14 sob o vite 8.3.8 passa com os guards de dist.
+- **Toolchain de teste nas majors novas: `vitest` e `@vitest/coverage-v8` 4.1.12 → 5.1.1, `jsdom`
+  30.0.1 → 31.0.1, `@testing-library/jest-dom` 7.0.1 → 8.0.0** (só `devDependencies`; o pacote
+  publicado não muda). Adaptações, cada uma pelo que a fonte primária diz (guia de migração do
+  Vitest 5 e release notes do jest-dom 8, que só suporta Vitest ≥ 5):
+  - o `tsconfig.json` passa a carregar `@testing-library/jest-dom/vitest` no `types`: o Vitest 5
+    não lê mais matcher declarado no `jest.Matchers` global, e com a raiz do jest-dom todo
+    `toBeInTheDocument` virava erro de tipo;
+  - o Vitest 5 limpa os mocks antes de cada teste (`clearMocks: true` por padrão). Um teste do
+    `/neural` conferia `addModule` em `FakeAudioContext.instances`, lista estática com os contextos
+    dos testes anteriores, e só passava porque os mocks deles ainda tinham uma chamada — agora
+    confere os dois contextos que ele cria;
+  - o jsdom 31 serializa estilo inline como o CSSOM manda: número com 6 dígitos significativos
+    (`aspect-ratio: 1.33333 / 1`, `width: 33.3333%`), `0` com unidade em `minmax(0px, 1fr)`,
+    `translateX(0%)` sem o `-0` e `translate(40px)` sem o `0px` do eixo y. As asserções de
+    `AspectRatio`, `BarList`, `Carousel`, `FilterPanel`, `Form`, `Grid`, `ImageCropper` e
+    `VideoPlayer` foram para a forma nova; nenhum componente mudou. O `ScrollArea` lê o `style`
+    inline em vez do `background` computado (por extenso desde o jsdom 30.1).
+
+  Cobertura com `npm run test:coverage` no branch: 99,12% linhas / 98,29% statements / 99,14%
+  funções / 95,55% branches, acima dos pisos 99/98/99/95; 9519 testes em 733 arquivos.
+  **Vitest do consumidor**: o SDK não declara faixa de Vitest (quem escolhe é o app), então o
+  `scripts/smoke-vitest.sh` passou a rodar todos os cenários no Vitest 4 **e** no 5 — o
+  `tempestVitest()` funciona nos dois (4.1.12 e 5.1.1, sobre o tarball da 0.90.0), e sem ele os
+  dois caem no `Unknown file extension ".css"`, como a doc afirma.
 
 - **`size-limit` 13.0.3 → 14.3.0, medindo com `@size-limit/esbuild` + `@size-limit/file` 14.3.0 no
   lugar do `@size-limit/preset-small-lib`** (só `devDependencies`). O preset 14 trocou o esbuild

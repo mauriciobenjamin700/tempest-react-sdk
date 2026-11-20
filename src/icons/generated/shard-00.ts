@@ -16,7 +16,6 @@ import {
     AlarmClockOff,
     AlarmClockPlus,
     AlarmSmoke,
-    Album,
     AlignCenterHorizontal,
     AlignCenterVertical,
     AlignEndHorizontal,
@@ -42,10 +41,11 @@ import {
     Ambulance,
     Ampersand,
     Ampersands,
+    Amphora,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-/** The 40 lucide icons from "a-arrow-down" through "ampersands", inclusive. */
+/** The 40 lucide icons from "a-arrow-down" through "amphora", inclusive. */
 const shard: Record<string, LucideIcon> = {
     "a-arrow-down": AArrowDown,
     "a-arrow-up": AArrowUp,
@@ -61,7 +61,6 @@ const shard: Record<string, LucideIcon> = {
     "alarm-clock-off": AlarmClockOff,
     "alarm-clock-plus": AlarmClockPlus,
     "alarm-smoke": AlarmSmoke,
-    album: Album,
     "align-center-horizontal": AlignCenterHorizontal,
     "align-center-vertical": AlignCenterVertical,
     "align-end-horizontal": AlignEndHorizontal,
@@ -87,6 +86,7 @@ const shard: Record<string, LucideIcon> = {
     ambulance: Ambulance,
     ampersand: Ampersand,
     ampersands: Ampersands,
+    amphora: Amphora,
 };
 
 export default shard;

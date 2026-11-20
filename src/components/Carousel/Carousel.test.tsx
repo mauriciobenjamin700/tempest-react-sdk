@@ -20,7 +20,7 @@ describe("Carousel", () => {
     it("next advances the index and translateX", async () => {
         const onIndexChange = vi.fn();
         const { container } = render(<Carousel onIndexChange={onIndexChange}>{slides}</Carousel>);
-        expect(track(container).style.transform).toBe("translateX(-0%)");
+        expect(track(container).style.transform).toBe("translateX(0%)");
         await userEvent.click(screen.getByLabelText("Next slide"));
         expect(onIndexChange).toHaveBeenCalledWith(1);
         expect(track(container).style.transform).toBe("translateX(-100%)");
@@ -48,7 +48,7 @@ describe("Carousel", () => {
         );
         await userEvent.click(screen.getByLabelText("Next slide"));
         expect(onIndexChange).toHaveBeenCalledWith(0);
-        expect(track(container).style.transform).toBe("translateX(-0%)");
+        expect(track(container).style.transform).toBe("translateX(0%)");
     });
 
     it("dots jump to the chosen slide", async () => {
@@ -63,7 +63,7 @@ describe("Carousel", () => {
         await userEvent.keyboard("{ArrowRight}");
         expect(track(container).style.transform).toBe("translateX(-100%)");
         await userEvent.keyboard("{ArrowLeft}");
-        expect(track(container).style.transform).toBe("translateX(-0%)");
+        expect(track(container).style.transform).toBe("translateX(0%)");
     });
 });
 

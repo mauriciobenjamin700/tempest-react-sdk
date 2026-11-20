@@ -311,9 +311,10 @@ describe("VideoPlayer · sound, captions and the frame", () => {
         render(<VideoPlayer src="/clipe.webm" aspectRatio={4 / 3} />);
 
         const frame = videoEl().parentElement;
-        expect(frame?.style.aspectRatio, "jsdom normalises the shorthand to `n / 1`").toBe(
-            `${4 / 3} / 1`,
-        );
+        expect(
+            frame?.style.aspectRatio,
+            "jsdom normalises the shorthand to `n / 1`, rounded to 6 significant digits",
+        ).toBe("1.33333 / 1");
     });
 
     it("hides the fullscreen button when the caller does not want it", () => {

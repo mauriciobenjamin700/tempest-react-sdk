@@ -45,7 +45,7 @@ export const MATERIAL_SYMBOL_FALLBACK: IconName = "circle-question-mark";
  *
  * **Where the two lots disagreed**, six keys, the tie went to whichever mapping
  * keeps two distinct Material Symbols names distinct in lucide: `error` →
- * `circle-alert` because `cancel` already owns `circle-x`; `payments` →
+ * `circle-exclamation-point` because `cancel` already owns `circle-x`; `payments` →
  * `banknote` because `account_balance_wallet` already owns `wallet`;
  * `receipt_long` → `receipt-text` because `receipt` already owns `receipt`;
  * `construction` → itself because `engineering` already owns `hard-hat`; and
@@ -114,7 +114,7 @@ export const materialToLucide: Readonly<Record<string, IconName>> = {
     bookmark: "bookmark",
     brush: "brush",
     build: "wrench",
-    business: "building-2",
+    business: "building-complex",
     cake: "cake",
     calculate: "calculator",
     calendar_month: "calendar",
@@ -167,8 +167,8 @@ export const materialToLucide: Readonly<Record<string, IconName>> = {
     email: "mail",
     emoji_events: "trophy",
     engineering: "hard-hat",
-    error: "circle-alert",
-    error_outline: "circle-alert",
+    error: "circle-exclamation-point",
+    error_outline: "circle-exclamation-point",
     event: "calendar-days",
     expand_less: "chevron-up",
     expand_more: "chevron-down",
@@ -242,7 +242,7 @@ export const materialToLucide: Readonly<Record<string, IconName>> = {
     monetization_on: "circle-dollar-sign",
     more_horiz: "ellipsis",
     more_vert: "ellipsis-vertical",
-    music_note: "music",
+    music_note: "eighth-notes",
     navigate_next: "chevron-right",
     note_add: "file-plus",
     notifications: "bell",
@@ -283,7 +283,7 @@ export const materialToLucide: Readonly<Record<string, IconName>> = {
     remove: "minus",
     remove_circle_outline: "circle-minus",
     reorder: "list",
-    report_problem: "triangle-alert",
+    report_problem: "triangle-exclamation-point",
     restart_alt: "rotate-ccw",
     restaurant: "utensils",
     roofing: "house",
@@ -332,8 +332,8 @@ export const materialToLucide: Readonly<Record<string, IconName>> = {
     visibility_off: "eye-off",
     vpn_key: "key-round",
     warehouse: "warehouse",
-    warning: "triangle-alert",
-    warning_amber: "triangle-alert",
+    warning: "triangle-exclamation-point",
+    warning_amber: "triangle-exclamation-point",
     watch_later: "clock",
     water_drop: "droplet",
     wifi: "wifi",

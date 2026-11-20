@@ -128,31 +128,55 @@ describe("scaffold session teardown (#531)", () => {
 
 /**
  * GHSA-g3hv-75wg-m249: `minimatch >=7.0.0 <11.0.1` (globparts amplification).
- * `@typescript-eslint/typescript-estree@8.72.2` still declares `minimatch ^10.2.2`,
- * so every fresh scaffold opened with 7 moderate `npm audit` findings, and the
- * `npm audit fix --force` npm suggested *downgraded* `typescript-eslint`. The fix
- * is upstream (the `8.72.3` canary declares `^11.0.1`); until it is stable, the
- * template forces the patched range on that one subtree.
+ * `@typescript-eslint/typescript-estree@8.72.2` declared `minimatch ^10.2.2`, so
+ * every fresh scaffold opened with 7 moderate `npm audit` findings, and the
+ * `npm audit fix --force` npm suggested *downgraded* `typescript-eslint`. From
+ * 0.86.0 to 0.90.0 the template forced the patched range on that one subtree with
+ * a scoped `overrides` entry (and the root `package.json` did the same for this
+ * repo's own tree).
  *
- * The override is scoped on purpose: a top-level `"minimatch"` would also drag
- * the `glob`/`minimatch@3` consumers elsewhere in the tree onto a major they were
- * never written for.
+ * `typescript-eslint` 8.73.0 is the first stable release whose
+ * `typescript-estree` declares `minimatch ^11.0.1` (8.72.2 declares `^10.2.2`;
+ * checked with `npm view @typescript-eslint/typescript-estree@<v>
+ * dependencies.minimatch` on 20/11/2026). So the fix moved from the override to
+ * the template's **floor**: `^8.73.0` cannot resolve to a vulnerable estree, and
+ * an override left behind would be a pin nobody re-reads that outlives its
+ * reason. This block used to assert the override was present and to fail the
+ * day upstream shipped the range; it now asserts the opposite, and the
+ * `scripts/smoke-scaffold-audit.sh` run in `make check` stays the end-to-end
+ * proof that the resolved scaffold is clean.
  */
-const PATCHED_MINIMATCH = "^11.0.1";
+const FIRST_PATCHED_TYPESCRIPT_ESLINT = [8, 73, 0] as const;
 
 describe("scaffold npm audit (GHSA-g3hv-75wg-m249)", () => {
-    const overrides = (manifest("template") as Record<string, unknown>).overrides as
-        Record<string, Record<string, string>> | undefined;
+    const template = manifest("template") as Record<string, unknown>;
+    const overrides = template.overrides as Record<string, Record<string, string>> | undefined;
 
-    it("template forces the patched minimatch under @typescript-eslint/typescript-estree", () => {
+    it("needs no minimatch override in the template or in this repo", () => {
+        const root = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+            overrides?: Record<string, unknown>;
+        };
         expect(
-            overrides?.["@typescript-eslint/typescript-estree"]?.minimatch,
-            "template/package.json lost the override: a fresh scaffold opens with 7 " +
-                "moderate npm audit findings again.",
-        ).toBe(PATCHED_MINIMATCH);
+            overrides?.["@typescript-eslint/typescript-estree"],
+            "the template's typescript-eslint floor already resolves the patched minimatch",
+        ).toBeUndefined();
+        expect(root.overrides?.["@typescript-eslint/typescript-estree"]).toBeUndefined();
     });
 
-    it("drops the override once typescript-eslint ships the patched range itself", () => {
+    it("pins the template's typescript-eslint floor at or above the first patched release", () => {
+        const range = (template.devDependencies as Record<string, string>)["typescript-eslint"];
+        const floor = /^\^(\d+)\.(\d+)\.(\d+)$/.exec(range)?.slice(1).map(Number);
+
+        expect(floor, `unexpected typescript-eslint range "${range}"`).toBeDefined();
+        const [major, minor, patch] = floor as number[];
+        const [okMajor, okMinor, okPatch] = FIRST_PATCHED_TYPESCRIPT_ESLINT;
+        expect(
+            major === okMajor && (minor > okMinor || (minor === okMinor && patch >= okPatch)),
+            `typescript-eslint ${range} can resolve an estree that declares minimatch <11.0.1`,
+        ).toBe(true);
+    });
+
+    it("installs a typescript-estree that declares the patched minimatch itself", () => {
         const estree = JSON.parse(
             readFileSync(
                 join(
@@ -169,12 +193,9 @@ describe("scaffold npm audit (GHSA-g3hv-75wg-m249)", () => {
 
         expect(
             major,
-            `@typescript-eslint/typescript-estree@${estree.version} already declares ` +
-                `minimatch ${estree.dependencies.minimatch}: raise the template's ` +
-                "typescript-eslint floor to it and delete the overrides from " +
-                "template/package.json and package.json, rewriting this test to assert " +
-                "they are gone.",
-        ).toBeLessThan(11);
+            `@typescript-eslint/typescript-estree@${estree.version} declares minimatch ` +
+                `${estree.dependencies.minimatch}`,
+        ).toBeGreaterThanOrEqual(11);
     });
 
     it("merge mode carries the template's overrides into an existing package.json", () => {

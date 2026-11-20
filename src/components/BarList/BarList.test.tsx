@@ -111,7 +111,7 @@ describe("BarList", () => {
             />,
         );
         expect(fillWidth(0)).toBe("100%");
-        expect(fillWidth(1)).toBe("33.33333333333333%");
+        expect(fillWidth(1)).toBe("33.3333%");
     });
 
     it("keeps the bars out of the accessibility tree", () => {

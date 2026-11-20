@@ -15,7 +15,7 @@ import { resolveIconAlias } from "./alias";
  * let `<Icon>` render its `fallback`.
  *
  * @example
- * normalizeIconName("  Alert_Circle ");  // "circle-alert"
+ * normalizeIconName("  Alert_Circle ");  // "circle-exclamation-point"
  * normalizeIconName("shopping_cart");    // "shopping-cart"
  *
  * @param code - Any stored icon code.

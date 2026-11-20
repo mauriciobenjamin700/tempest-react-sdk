@@ -136,6 +136,43 @@ describe("createZip", () => {
         await expect(createZip([{ path, data: "x" }])).rejects.toThrow(TypeError);
     });
 
+    /**
+     * Security audit run-16 §6 (#657): Unicode look-alikes of `.`, `/`, `\`
+     * and `:` passed the ASCII checks. An extractor that converts names to
+     * the Windows ANSI code page with best-fit mapping, or one that applies
+     * NFKC, turns them back into the separators the checks refuse.
+     */
+    it.each([
+        ["fullwidth full stops (best-fit and NFKC: ..)", "．．/evil.sh"],
+        ["fullwidth full stops and reverse solidus", "．．＼evil.sh"],
+        ["a division slash after ..", "..∕evil.sh"],
+        ["a fraction slash after ..", "..⁄evil.sh"],
+        ["one dot leaders (NFKC: ..)", "․․/evil.sh"],
+        ["a two dot leader (NFKC: ..)", "fotos/‥/‥/evil.sh"],
+        ["a leading fullwidth solidus", "／etc/passwd"],
+        ["a yen sign after .. (best-fit 932: \\)", "..¥evil.sh"],
+        ["a won sign after .. (best-fit 949: \\)", "..₩evil.sh"],
+        ["a set minus after .. (best-fit: \\)", "..∖evil.sh"],
+        ["a fullwidth colon drive", "C：evil.exe"],
+        ["a ratio sign drive (best-fit: :)", "C∶evil.exe"],
+        ["an Armenian full stop drive (best-fit: :)", "C։evil.exe"],
+        ["a leading acute accent (best-fit 1253: /)", "´etc/passwd"],
+    ])("refuses %s, which folds into zip-slip (#657)", async (_label, path) => {
+        await expect(createZip([{ path, data: "x" }])).rejects.toThrow(TypeError);
+    });
+
+    it("keeps names whose look-alikes do not fold into an escape (#657)", async () => {
+        const paths = [
+            "recibo ¥1000.pdf",
+            "fotos/a．b.jpg",
+            "nota 1⁄2.txt",
+            "․config",
+            "Don´t stop.txt",
+        ];
+        const files = await unzipBlob(await createZip(paths.map((path) => ({ path, data: path }))));
+        expect(Object.keys(files).sort()).toEqual([...paths].sort());
+    });
+
     it("refuses an unsafe path before reading any entry", async () => {
         const blob = new Blob(["x"]);
         const read = vi.spyOn(blob, "arrayBuffer");

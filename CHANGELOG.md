@@ -48,6 +48,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`HTC Sensation XE with Beats Audio Z715a`, 39), então nenhuma regra de forma separa um nome
   curto com número de um modelo. Método em `docs/internal/decisions.md`; um teste fixa modelos
   reais longos e sem dígito.
+- **`createZip` recusa sósias Unicode que formam zip-slip** (#657, run-16 §6). `．．/x` (U+FF0E),
+  `．．＼x` (U+FF3C), `..∕x` (U+2215), `‥/x` / `․․/x` (U+2025/U+2024), `..¥x` (U+00A5) passavam
+  pelas checagens ASCII; um extrator que aplica NFKC, ou que converte o nome para a página de
+  código ANSI do Windows com _best-fit_ (`WideCharToMultiByte`), devolve `.`, `/`, `\` ou `:` e o
+  nome escapa da pasta. Decidido recusar, não só documentar: o nome agora é dobrado (tabela
+  _best-fit_ portada de `WindowsBestFit` da Unicode, NFKC, `\` como separador) e recusado se virar
+  caminho absoluto, letra de drive ou segmento `..`. Sósia que não forma escape
+  (`recibo ¥1000.pdf`, `a．b.jpg`) passa como está, então nome legítimo em japonês ou com moeda
+  segue funcionando.
 - **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
   comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
   uma request anônima com o token do login que estava em voo (#496); o `retry` do

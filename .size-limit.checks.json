@@ -242,12 +242,12 @@
     ]
   },
   {
-    "name": "slice: LiveRouteMap (live trip — route + trail + vehicle glide + markers with content, no map library)",
+    "name": "slice: LiveRouteMap (live trip — route + trail + vehicle glide + markers with content, no map library; ceiling with the lazy road matcher inlined)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ LiveRouteMap }"
     },
-    "limit": "4.9 kB",
+    "limit": "8.4 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -559,7 +559,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "169.1 kB",
+    "limit": "170.3 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -578,7 +578,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "200.2 kB",
+    "limit": "201.4 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -888,7 +888,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "32.3 kB"
+    "limit": "32.4 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

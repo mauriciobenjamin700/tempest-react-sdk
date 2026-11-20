@@ -1,9 +1,10 @@
 /**
  * @tempest-limits file-lines, props-count, function-lines — a live trip map has
  * two line layers (route, trail), a vehicle, interactive markers with content,
- * follow and drag, optional self-hosted tiles and the screen-reader ETA. The
- * framing policy itself lives in `live-route-view.ts` as pure functions; what
- * stays here is wiring those to pointer, keyboard and animation frames.
+ * follow and drag, optional self-hosted tiles, an optional road graph and the
+ * screen-reader ETA. The framing policy itself lives in `live-route-view.ts` as
+ * pure functions, and the road snapping in `live-route-roads.ts`; what stays
+ * here is wiring those to pointer, keyboard and animation frames.
  */
 import {
     useEffect,
@@ -20,6 +21,7 @@ import {
 import { cn } from "@/utils/cn";
 import { boundingBox, expandBounds } from "./bounds";
 import { MarkerGlyph, VehicleGlyph } from "./live-route-glyphs";
+import { linesPath, roadsPath, useRoadSnap } from "./live-route-roads";
 import {
     INITIAL_LIVE_VIEW_STATE,
     detachLiveView,
@@ -35,6 +37,8 @@ import {
     type LiveMapViewport,
     type LiveViewState,
 } from "./live-route-view";
+import type { MatchedFix } from "./map-matching";
+import type { RoadEdge, RoadGraph } from "./road-graph";
 import { formatScale, pickScaleKm } from "./scale";
 import type { Coordinate } from "./types";
 import styles from "./LiveRouteMap.module.css";
@@ -69,7 +73,10 @@ export interface LiveVehicle {
     label?: string;
 }
 
-export interface LiveRouteMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+export interface LiveRouteMapProps<E extends RoadEdge = RoadEdge> extends Omit<
+    HTMLAttributes<HTMLDivElement>,
+    "children"
+> {
     /** Planned route (e.g. an OSRM geometry), drawn dashed. Decides the initial framing. */
     route?: readonly Coordinate[];
     /** Path already traveled, drawn solid on top of the route. */
@@ -117,6 +124,23 @@ export interface LiveRouteMapProps extends Omit<HTMLAttributes<HTMLDivElement>, 
     tileMaxZoom?: number;
     /** Fired when a marker panel opens (`id`) or closes (`null`). */
     onMarkerOpenChange?: (id: string | null) => void;
+    /**
+     * Road network from `createRoadGraph`. With it the map draws the roads as a
+     * vector layer under the route and trail (offline, no tiles), the vehicle is
+     * snapped to the road it is driving on by a `createRoadMatcher` (default
+     * lag) and points along that road when the position has no `heading`, and
+     * the trail is drawn along the matched roads. A position with no road
+     * within the matcher's radius is drawn where it is, with a dashed halo.
+     * The matcher is loaded on first use, so a map without `roads` does not
+     * download it. The graph does not enter the framing.
+     */
+    roads?: RoadGraph<E>;
+    /**
+     * Fired with each new vehicle position once it is matched: the edge (your
+     * own object, with its metadata), the snapped point and the distance — or
+     * `null` when the position is off every road. Only with `roads`.
+     */
+    onMatch?: (match: MatchedFix<E> | null) => void;
 }
 
 const DEFAULT_KIND_LABELS: Record<LiveRouteMarkerKind, string> = {
@@ -158,6 +182,10 @@ function toPoints(
  * and in tests. `tileUrl` adds tiles from a server **you host**, drawn under the
  * same projection, with no map library. There is no Google Maps path.
  *
+ * `roads` (a graph from `createRoadGraph`) draws the streets as vectors and
+ * snaps the vehicle and the trail to them with the HMM matcher, which is loaded
+ * only then. Without it the map behaves exactly as before.
+ *
  * Unlike `TrajectoryMap`, which plots a recorded path and refits to it on every
  * change, this component keeps its view across updates; use `TrajectoryMap` for
  * a finished trip and this one while it is happening.
@@ -172,7 +200,7 @@ function toPoints(
  *   etaLabel="Chegada estimada em 6 minutos"
  * />
  */
-export function LiveRouteMap({
+export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
     route,
     trail,
     vehicle,
@@ -191,10 +219,12 @@ export function LiveRouteMap({
     tileAttribution,
     tileMaxZoom = 19,
     onMarkerOpenChange,
+    roads,
+    onMatch,
     className,
     style,
     ...rest
-}: LiveRouteMapProps): ReactElement {
+}: LiveRouteMapProps<E>): ReactElement {
     const containerRef = useRef<HTMLDivElement>(null);
     const [width, setWidth] = useState<number>(600);
     const [openId, setOpenId] = useState<string | null>(null);
@@ -232,12 +262,22 @@ export function LiveRouteMap({
         setAnchor(vehicle?.position ?? trail?.[0] ?? null);
     }
 
+    const snap = useRoadSnap(roads, vehicle?.position, trail, onMatch);
+    const shownVehicle: LiveVehicle | null =
+        vehicle && snap.vehicle
+            ? {
+                  ...vehicle,
+                  position: snap.vehicle.position,
+                  heading: vehicle.heading ?? snap.vehicle.heading,
+              }
+            : (vehicle ?? null);
+
     const viewport: LiveMapViewport = useMemo(() => ({ width, height }), [width, height]);
     const planned: Coordinate[] = [...(route ?? []), ...(markers ?? [])];
     const frame = planned.length > 0 ? planned : anchor ? [anchor] : [];
     const box = boundingBox(frame);
     const fitted = fitLiveView(box ? expandBounds(box, 0.06) : null, viewport, padding);
-    const target = follow && vehicle ? vehicle.position : null;
+    const target = follow && shownVehicle ? shownVehicle.position : null;
     const resolved = resolveLiveView(viewState, { fitted, target, viewport });
     if (resolved !== viewState) setViewState(resolved);
     const view = resolved.view;
@@ -247,8 +287,16 @@ export function LiveRouteMap({
         [route, view, viewport],
     );
     const trailPoints = useMemo(
-        () => (view ? toPoints(trail, view, viewport) : ""),
-        [trail, view, viewport],
+        () => (view && !snap.trail ? toPoints(trail, view, viewport) : ""),
+        [trail, snap.trail, view, viewport],
+    );
+    const snappedTrailPath = useMemo(
+        () => (view && snap.trail ? linesPath(snap.trail, view, viewport) : ""),
+        [snap.trail, view, viewport],
+    );
+    const roadPath = useMemo(
+        () => (view && roads ? roadsPath(roads, view, viewport) : ""),
+        [roads, view, viewport],
     );
     const tiles = useMemo(
         () => (view && tileUrl ? tilesForView(view, viewport, tileUrl, tileMaxZoom) : []),
@@ -378,6 +426,12 @@ export function LiveRouteMap({
                             ))}
                         </g>
                     ) : null}
+                    {roadPath ? (
+                        <g aria-hidden="true" data-testid="live-route-roads">
+                            <path className={styles.roadCasing} d={roadPath} />
+                            <path className={styles.road} d={roadPath} />
+                        </g>
+                    ) : null}
                     {routePoints ? (
                         <g aria-hidden="true">
                             <polyline className={styles.routeCasing} points={routePoints} />
@@ -395,6 +449,17 @@ export function LiveRouteMap({
                                 className={styles.trail}
                                 points={trailPoints}
                                 data-testid="live-route-trail"
+                            />
+                        </g>
+                    ) : null}
+                    {snappedTrailPath ? (
+                        <g aria-hidden="true">
+                            <path className={styles.trailCasing} d={snappedTrailPath} />
+                            <path
+                                className={styles.trail}
+                                d={snappedTrailPath}
+                                data-testid="live-route-trail"
+                                data-road-match="snapped"
                             />
                         </g>
                     ) : null}
@@ -417,9 +482,12 @@ export function LiveRouteMap({
                             />
                         );
                     })}
-                    {vehicle ? (
+                    {shownVehicle ? (
                         <VehicleGlyph
-                            vehicle={vehicle}
+                            vehicle={shownVehicle}
+                            roadMatch={
+                                snap.vehicle ? (snap.vehicle.match ? "snapped" : "raw") : undefined
+                            }
                             view={view}
                             viewport={viewport}
                             animationMs={animationMs}

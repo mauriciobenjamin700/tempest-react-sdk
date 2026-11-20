@@ -6,12 +6,15 @@ import {
     LiveRouteMap,
     TrajectoryMap,
     bearingDeg,
+    createRoadGraph,
     estimateTravel,
     haversineKm,
     pathLengthKm,
     usePositionTracker,
     type Coordinate,
     type LiveRouteMarker,
+    type MatchedFix,
+    type RoadEdge,
     type TrackPoint,
     type TravelMode,
 } from "tempest-react-sdk";
@@ -201,6 +204,159 @@ function LiveTripDemo(): ReactElement {
                 etaLabel={minutes > 0 ? `Chegada estimada em ${minutes} minutos` : "Ônibus chegou"}
                 height={380}
                 data-testid="live-trip-map"
+            />
+        </div>
+    );
+}
+
+const TOWN: Coordinate = { latitude: -23.5614, longitude: -46.6559 };
+const METRE_LAT = 1 / 111_320;
+const METRE_LON = 1 / (111_320 * Math.cos((TOWN.latitude * Math.PI) / 180));
+
+/** A point `east` / `north` metres from the centre of the demo town. */
+function townPoint(east: number, north: number): Coordinate {
+    return {
+        latitude: TOWN.latitude + north * METRE_LAT,
+        longitude: TOWN.longitude + east * METRE_LON,
+    };
+}
+
+interface Street extends RoadEdge {
+    name: string;
+}
+
+/**
+ * A small street grid: the avenue the bus drives, a parallel street 22 m to
+ * the north (the trap for nearest-road snapping), the cross street it turns
+ * into and two side streets.
+ */
+const TOWN_ROADS = createRoadGraph<Street>({
+    nodes: [
+        townPoint(0, 0),
+        townPoint(150, 0),
+        townPoint(300, 0),
+        townPoint(450, 0),
+        townPoint(600, 0),
+        townPoint(0, 22),
+        townPoint(150, 22),
+        townPoint(300, 22),
+        townPoint(450, 22),
+        townPoint(600, 22),
+        townPoint(450, 150),
+        townPoint(450, 300),
+        townPoint(150, -150),
+    ],
+    edges: [
+        { from: 0, to: 1, name: "Avenida Central" },
+        { from: 1, to: 2, name: "Avenida Central" },
+        { from: 2, to: 3, name: "Avenida Central" },
+        { from: 3, to: 4, name: "Avenida Central" },
+        { from: 5, to: 6, name: "Rua Paralela" },
+        { from: 6, to: 7, name: "Rua Paralela" },
+        { from: 7, to: 8, name: "Rua Paralela" },
+        { from: 8, to: 9, name: "Rua Paralela" },
+        { from: 0, to: 5, name: "Travessa Oeste" },
+        { from: 4, to: 9, name: "Travessa Leste" },
+        { from: 3, to: 8, name: "Rua das Flores" },
+        { from: 8, to: 10, name: "Rua das Flores" },
+        { from: 10, to: 11, name: "Rua das Flores" },
+        { from: 1, to: 12, name: "Rua do Mercado" },
+    ],
+    twoWay: true,
+});
+
+/** Lateral GPS noise of the demo, in metres: up to ~12 m, mostly toward the parallel street. */
+const NOISE = [4, 9, -3, 12, 7, 11, -6, 10, 3, 12, 8, -4, 11, 9, 6, 12, -2, 10];
+
+/**
+ * The drive: east on the avenue every 25 m with the noise pushed north (often
+ * closer to Rua Paralela than to the avenue), a left turn into Rua das Flores
+ * with the noise now east–west, and a last fix far from every street.
+ */
+const NOISY_DRIVE: Coordinate[] = [
+    ...NOISE.map((noise, i) => townPoint(10 + i * 25, noise)),
+    ...[30, 60, 90, 120, 150, 180, 210, 240, 270].map((north, i) =>
+        townPoint(450 + (i % 2 === 0 ? 8 : -9), north),
+    ),
+    townPoint(700, 310),
+];
+
+const TOWN_ROUTE: Coordinate[] = [townPoint(0, 0), townPoint(450, 0), townPoint(450, 300)];
+
+const TOWN_STOPS: LiveRouteMarker[] = [
+    { id: "start", label: "Terminal", kind: "origin", ...TOWN_ROUTE[0] },
+    { id: "end", label: "Escola", kind: "destination", ...TOWN_ROUTE[2] },
+];
+
+/** Live trip on a road graph: the same noisy fixes, snapped or raw. */
+function RoadSnapDemo(): ReactElement {
+    const [step, setStep] = useState<number>(0);
+    const [playing, setPlaying] = useState<boolean>(false);
+    const [snap, setSnap] = useState<boolean>(true);
+    const [match, setMatch] = useState<MatchedFix<Street> | null>(null);
+
+    useEffect(() => {
+        if (!playing) return;
+        const timer = window.setInterval(() => {
+            setStep((prev) => (prev < NOISY_DRIVE.length - 1 ? prev + 1 : prev));
+        }, 1000);
+        return () => window.clearInterval(timer);
+    }, [playing]);
+
+    const trail = useMemo(() => NOISY_DRIVE.slice(0, step + 1), [step]);
+    const where = !snap
+        ? "Sem grafo: posição crua do GPS"
+        : match
+          ? `${match.edge.name} · ${match.distanceM.toFixed(0)} m da posição`
+          : "Fora de qualquer rua: posição crua";
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <Button
+                    size="sm"
+                    variant={playing ? "ghost" : "primary"}
+                    onClick={() => setPlaying((p) => !p)}
+                >
+                    {playing ? <Square size={14} /> : <Play size={14} />}
+                    {playing ? "Pausar" : "Rodar viagem"}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setStep((s) => Math.min(NOISY_DRIVE.length - 1, s + 1))}
+                    data-testid="road-snap-next"
+                >
+                    Próxima posição
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setStep(0)}>
+                    <RotateCcw size={14} /> Reiniciar
+                </Button>
+                <Button
+                    size="sm"
+                    variant={snap ? "primary" : "ghost"}
+                    aria-pressed={snap}
+                    onClick={() => setSnap((v) => !v)}
+                >
+                    Encaixar na rua
+                </Button>
+            </div>
+            <span
+                style={{ fontSize: 13, color: "var(--tempest-text-muted, #888)" }}
+                data-testid="road-snap-status"
+            >
+                Posição {step + 1}/{NOISY_DRIVE.length} · {where}
+            </span>
+            <LiveRouteMap
+                route={TOWN_ROUTE}
+                trail={trail}
+                vehicle={{ position: NOISY_DRIVE[step], label: "Ônibus 7" }}
+                markers={TOWN_STOPS}
+                roads={snap ? TOWN_ROADS : undefined}
+                onMatch={setMatch}
+                follow
+                height={380}
+                data-testid="road-snap-map"
             />
         </div>
     );
@@ -418,6 +574,50 @@ function LiveRun() {
                 ]}
             >
                 <LiveTripDemo />
+            </Example>
+
+            <Example
+                id="ex-live-route-roads"
+                title="LiveRouteMap + roads — veículo encaixado na rua"
+                note={
+                    <>
+                        As mesmas posições com ~10 m de ruído lateral, várias delas mais perto da{" "}
+                        <strong>Rua Paralela</strong> do que da avenida. Com o grafo, o ônibus fica
+                        na avenida, a seta segue a rua e a trilha dobra a esquina. Desligue
+                        &ldquo;Encaixar na rua&rdquo; para ver o GPS cru. A última posição fica fora
+                        de qualquer rua: o ônibus aparece onde está, com um anel tracejado.
+                    </>
+                }
+                code={`import { LiveRouteMap, createRoadGraph, type RoadEdge } from "tempest-react-sdk";
+
+interface Street extends RoadEdge {
+  name: string;
+}
+
+const roads = createRoadGraph<Street>({ nodes, edges, twoWay: true });
+
+<LiveRouteMap
+  route={plannedRoute}
+  trail={rawFixes}
+  vehicle={{ position: lastFix }}
+  roads={roads}
+  onMatch={(match) => setStreet(match?.edge.name ?? null)}
+/>`}
+                props={[
+                    {
+                        name: "roads",
+                        type: "RoadGraph<E>",
+                        description:
+                            "Desenha as ruas e encaixa veículo e trilha (matcher carregado sob demanda).",
+                    },
+                    {
+                        name: "onMatch",
+                        type: "(match: MatchedFix<E> | null) => void",
+                        description: "Cada posição nova encaixada: sua aresta, ponto e distância.",
+                    },
+                ]}
+            >
+                <RoadSnapDemo />
             </Example>
 
             <Example

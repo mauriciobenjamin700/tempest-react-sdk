@@ -373,6 +373,95 @@ Pedaço por pedaço:
 | `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Textos acessíveis. |
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Nome falado de cada tipo. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
+| `roads` | `RoadGraph<E>` | — | Grafo do `createRoadGraph`: desenha as ruas e encaixa veículo e trilha. |
+| `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Cada posição nova encaixada (sua aresta, ponto, distância), ou `null` fora de qualquer rua. Só com `roads`. |
+
+### Ruas no mapa e veículo na rua — `roads`
+
+O GPS erra de 3 a 30 m na cidade. Desenhado cru, o ônibus "anda" pela calçada, atravessa o quarteirão na curva e, numa avenida com uma rua paralela ao lado, pula de uma para a outra. Passe o grafo de ruas da região em `roads` e o mapa resolve isso **sem código no app**:
+
+- desenha as **ruas** do grafo como camada vetorial, por baixo da rota e da trilha — sem tiles, funciona offline;
+- passa cada `vehicle.position` por um [`createRoadMatcher`](#no-mapa-ao-vivo-createroadmatcher) interno e desenha o veículo **no ponto encaixado na rua**;
+- quando a posição não traz `heading`, a seta segue a **direção da rua** em que o veículo está;
+- desenha a `trail` **pelas ruas encaixadas**, dobrando a esquina em vez de cortar o quarteirão.
+
+```tsx
+import { useEffect, useState } from "react";
+import {
+  LiveRouteMap,
+  createRoadGraph,
+  type Coordinate,
+  type MatchedFix,
+  type RoadEdge,
+  type RoadGraph,
+} from "tempest-react-sdk";
+
+interface Street extends RoadEdge {
+  id: string;
+  name: string;
+}
+
+interface RoadTile {
+  nodes: Coordinate[];
+  edges: Street[];
+}
+
+export function BusOnTheStreet({ fixes }: { fixes: Coordinate[] }) {
+  const [roads, setRoads] = useState<RoadGraph<Street> | undefined>(undefined);
+  const [street, setStreet] = useState<string>("");
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/roads?bbox=-46.66,-23.57,-46.64,-23.55")
+      .then((response) => response.json() as Promise<RoadTile>)
+      .then((tile) => {
+        if (alive) setRoads(createRoadGraph({ ...tile, twoWay: true }));
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const onMatch = (match: MatchedFix<Street> | null): void => {
+    setStreet(match ? match.edge.name : "fora da malha viária");
+  };
+
+  return (
+    <>
+      <p aria-live="polite">{street}</p>
+      <LiveRouteMap
+        trail={fixes}
+        vehicle={{ position: fixes[fixes.length - 1], label: "Ônibus 7" }}
+        roads={roads}
+        onMatch={onMatch}
+        follow
+        height={400}
+      />
+    </>
+  );
+}
+```
+
+Pedaço por pedaço:
+
+- **`roads`** é o mesmo `RoadGraph` do [`createRoadGraph`](#de-onde-vem-o-grafo). Monte uma vez por região e passe **a mesma instância** a cada render: o encaixe guarda o histórico enquanto o objeto for o mesmo, e um grafo novo começa uma cadeia nova.
+- **`vehicle.position` continua sendo a posição crua.** Você não encaixa nada: o mapa encaixa. Se o seu backend manda `heading`, ele vale; sem ele, a seta segue a rua.
+- **`onMatch`** é chamado a cada posição nova com o encaixe — a aresta (o **seu** objeto, com nome, id, velocidade máxima), o ponto na rua (`point`) e a distância (`distanceM`) —, ou com `null` quando a posição está longe de qualquer rua.
+- **O grafo não entra no enquadramento.** Uma cidade inteira de ruas não dá zoom-out no mapa: quem enquadra continua sendo `route` e `markers`.
+
+!!! note "Fora de qualquer rua, o veículo aparece onde está"
+    Sem rua a até 200 m (o `radiusM` do matcher), não há o que encaixar: o veículo é desenhado na posição crua, com o halo trocado por um **anel tracejado**, e o `onMatch` recebe `null`. O veículo nunca some — num pátio de garagem ou numa rua que o grafo ainda não tem, ele continua visível.
+
+!!! info "Quem não passa `roads` não baixa o matcher"
+    O encaixe (`createRoadMatcher` + `matchToRoads`) entra por **import dinâmico**, na primeira vez que um mapa com `roads` monta. Sem `roads`, nada muda: o mapa desenha exatamente o que desenhava, e o bundler deixa o matcher num chunk separado que ninguém pede.
+
+As ruas usam dois tokens próprios, que você troca no tema: `--tempest-live-route-road` (o leito, padrão `--tempest-bg`) e `--tempest-live-route-road-casing` (a borda, padrão `--tempest-text-subtle`).
+
+??? info "Detalhes técnicos: o que o mapa faz por baixo"
+    - O veículo passa por um `createRoadMatcher(roads)` com os padrões medidos (`lag` 5). O ponto desenhado é o `current` — o melhor palpite para a posição que acabou de chegar, que já pesa todas as anteriores. É isso que segura o veículo na avenida quando o ruído o põe mais perto da rua paralela.
+    - A trilha passa inteira pelo `matchToRoads` a cada mudança (~3 ms por mil posições, medido em desktop), e cada trecho sem quebra vira uma linha que passa pelos nós das ruas percorridas. Posições sem rua ao alcance ficam fora dessa linha.
+    - Só as ruas que cruzam a tela entram no SVG.
+    - Peso, medido sobre o `dist` da 0.90.0 com esbuild (`bundle` + `minify`, CSS fora, o import dinâmico como externo — que é o chunk que o bundler do app separa), em brotli: `{ LiveRouteMap }` sai em **5,33 kB brotli**, contra 4,67 kB antes do `roads`; com o matcher no mesmo arquivo seriam 8,42 kB.
 
 ## Encaixe na rua (map-matching) — `createRoadGraph`, `matchToRoads`, `createRoadMatcher`
 
@@ -455,6 +544,9 @@ Pedaço por pedaço:
 
 O `matchToRoads` precisa do trajeto inteiro. Para desenhar o veículo **agora**, o `createRoadMatcher` roda o mesmo modelo posição a posição, com Viterbi de atraso fixo:
 
+!!! tip "No `LiveRouteMap`, é só passar `roads`"
+    Se o seu mapa é o `LiveRouteMap`, você não precisa chamar o matcher: [`roads`](#ruas-no-mapa-e-veiculo-na-rua-roads) faz isso por dentro. Use o `createRoadMatcher` direto quando o desenho é seu.
+
 ```ts
 import { createRoadMatcher, type Coordinate, type RoadGraph } from "tempest-react-sdk";
 
@@ -512,7 +604,7 @@ Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabe
 - **Coleta**: `usePositionTracker` / `createPositionTracker` gravam trajetória via `navigator.geolocation`, filtrando jitter — tudo no navegador.
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
 - **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
-- **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição.
+- **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app.
 - **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.
 

@@ -4,6 +4,44 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`LiveRouteMap` encaixa o veículo na rua: prop `roads`** (resto da fase 2 do #667). Com um grafo
+  do `createRoadGraph`, o mapa (1) desenha as ruas como camada vetorial por baixo de rota e trilha,
+  offline, sem tiles; (2) passa cada `vehicle.position` por um `createRoadMatcher` interno (padrões
+  medidos, `lag` 5) e desenha o veículo no ponto encaixado, com a seta na direção da aresta quando a
+  posição não traz `heading`; (3) desenha a `trail` pelas ruas encaixadas (`matchToRoads`), dobrando
+  a esquina. **Sem código no app**: `vehicle.position` continua sendo a posição crua. Callback
+  opcional **`onMatch`** recebe cada encaixe (a aresta do app com seus metadados, o ponto, a
+  distância) ou `null`. Sem rua a até 200 m, o veículo aparece na posição crua com um anel
+  tracejado no lugar do halo — nunca some. Sem `roads`, nada muda (teste fixa: camada ausente,
+  trilha `polyline` crua, matcher nunca carregado). `LiveRouteMap`/`LiveRouteMapProps` ficaram
+  genéricos na aresta (`<E extends RoadEdge>`), inferida do `roads`. Ruas com tokens próprios
+  sobrescrevíveis, `--tempest-live-route-road` (padrão `--tempest-bg`) e
+  `--tempest-live-route-road-casing` (padrão `--tempest-text-subtle`); contraste medido no
+  Chromium, sem `transition`: borda da rua × fundo do mapa **4,48:1** claro / **4,24:1** escuro;
+  trilha × leito 4,83 / 5,28; rota × leito 7,69 / 9,11; anel tracejado × fundo 4,35 / 4,31 (piso
+  não-textual 3:1). Na gallery (`#ex-live-route-roads`, posições com ruído lateral de até 12 m,
+  várias mais perto da rua paralela a 22 m), as 18 posições da avenida ficaram na avenida em
+  390×844 e 1280×800, claro e escuro, com e sem `prefers-reduced-motion`. Doc em `docs/geo.md`.
+
+### Budgets
+
+- **O matcher entra por import dinâmico** (`src/geo/live-route-snap.ts`), então quem não passa
+  `roads` não o baixa. Medido sobre o `dist` com esbuild (`bundle` + `minify`, CSS como módulo
+  vazio, import dinâmico `external` — o chunk que o bundler do app separa; a build da gallery, em
+  Vite, emite `live-route-snap-*.js` à parte), brotli: `{ LiveRouteMap }` **4 671 → 5 334 B** de
+  saída; com o matcher no mesmo arquivo seriam 8 416 B.
+- **`slice: LiveRouteMap` vira teto com o matcher embutido**, como a fatia `Chat`: o `size-limit`
+  não faz splitting e inlina o import dinâmico (`npm run build && npx size-limit --json` sobre a
+  `main` em `d272b88` e sobre este branch): 4 658 → 8 277 B, teto 4,9 → 8,4 kB.
+- **Barris e folha**: `ceiling: full barrel ESM` 168 996 → 170 147 B (teto 169,1 → 170,3 kB);
+  `ceiling: full barrel CJS` 200 182 → 201 334 B (teto 200,2 → 201,4 kB); `styles.css` 32 252 →
+  32 355 B (teto 32,3 → 32,4 kB). `slice: road map-matching` 3 495 → 3 585 B e `slice: geo`
+  3 800 → 3 806 B sem mudança de código nessas fatias: o esbuild passa a embrulhar o
+  `map-matching` em inicialização preguiçosa por ele ser alvo de import dinâmico (o arquivo
+  `dist/geo/map-matching.js` é byte a byte o mesmo); os tetos não mudam.
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

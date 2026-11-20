@@ -95,14 +95,25 @@ export interface VehicleGlyphProps {
     view: LiveMapView;
     viewport: LiveMapViewport;
     animationMs: number;
+    /**
+     * Whether the drawn position is on a road (`"snapped"`) or the raw fix
+     * because no road was in reach (`"raw"`, drawn with a dashed halo).
+     * `undefined` when the map has no road graph.
+     */
+    roadMatch?: "snapped" | "raw";
 }
 
-/** The vehicle: an arrow rotated to its heading, or a dot when the heading is unknown. */
+/**
+ * The vehicle: an arrow rotated to its heading, or a dot when the heading is
+ * unknown. Off every road of the graph, the halo turns into a dashed ring — the
+ * position is shown as reported, and the ring says it is not on the network.
+ */
 export function VehicleGlyph({
     vehicle,
     view,
     viewport,
     animationMs,
+    roadMatch,
 }: VehicleGlyphProps): ReactElement {
     const shown = useVehicleGlide(
         { position: vehicle.position, heading: vehicle.heading ?? null },
@@ -111,11 +122,12 @@ export function VehicleGlyph({
     const p = projectLive(view, viewport, shown.position);
     return (
         <g
-            className={styles.vehicle}
+            className={cn(styles.vehicle, roadMatch === "raw" && styles.offRoad)}
             transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}
             role="img"
             aria-label={vehicle.label ?? "Veículo"}
             data-testid="live-route-vehicle"
+            data-road-match={roadMatch}
             data-heading={shown.heading === null ? undefined : shown.heading.toFixed(0)}
         >
             <circle className={styles.vehicleHalo} r={18} />

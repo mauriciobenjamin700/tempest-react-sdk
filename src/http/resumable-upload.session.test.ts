@@ -575,3 +575,95 @@ describe("createResumableUpload — an answer of the session before the switch (
         expect(tus.seen.every((request) => request.authorization === undefined)).toBe(true);
     });
 });
+
+/**
+ * Security audit run-16 §6 (#657): `abort()` **without** `discard` returned
+ * before `forgetSupersededRecord`, so a handle stopped after the switch left
+ * A's upload URL and `Idempotency-Key` in B's storage until a `clear()`. A run
+ * stopped by the supersession itself already forgot them; an abort that comes
+ * after the switch now does the same.
+ */
+describe("createResumableUpload — abort() after the switch forgets the previous account's record (#657)", () => {
+    let auth: Auth;
+    let tus: TusDouble;
+    const recordKey = uploadFingerprint("/api/uploads", file);
+
+    beforeEach(async () => {
+        localStorage.clear();
+        auth = createTempestAuth({ baseURL: "https://api.example.com", fetcher: authBackend() });
+        await auth.login({ email: "a@x.test", password: "x" });
+        tus = new TusDouble();
+        installXhr(tus);
+    });
+
+    afterEach(() => {
+        auth.dispose();
+        vi.unstubAllGlobals();
+    });
+
+    function upload() {
+        return createResumableUpload({
+            endpoint: "/api/uploads",
+            file,
+            chunkSize: 4,
+            getToken: auth.getToken,
+            retry: { shouldRetry: () => false },
+        });
+    }
+
+    it("forgets A's record when abort() lands with a chunk in flight after login(B)", async () => {
+        const handle = upload();
+        let aborting: Promise<void> = Promise.resolve();
+        tus.beforePatch = async (n) => {
+            if (n !== 2) return;
+            await auth.login({ email: "b@x.test", password: "x" });
+            aborting = handle.abort();
+        };
+
+        await expect(handle.start()).resolves.toBeNull();
+        await aborting;
+
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+        expect(tus.seen.filter((request) => request.method === "DELETE")).toEqual([]);
+    });
+
+    it("forgets A's record when a paused handle is aborted after login(B)", async () => {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+        expect(await createLocalUploadStorage().get(recordKey)).not.toBeNull();
+        await auth.login({ email: "b@x.test", password: "x" });
+
+        await handle.abort();
+
+        expect(await createLocalUploadStorage().get(recordKey)).toBeNull();
+    });
+
+    it("keeps B's record under the same key", async () => {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+        await auth.login({ email: "b@x.test", password: "x" });
+        await createLocalUploadStorage().set(recordKey, {
+            url: "http://localhost:3000/api/uploads/of-B",
+            offset: 0,
+            size: file.size,
+            idempotencyKey: "key-of-B",
+            updatedAt: 1,
+        });
+
+        await handle.abort();
+
+        expect((await createLocalUploadStorage().get(recordKey))?.idempotencyKey).toBe("key-of-B");
+    });
+
+    it("still keeps the record for a later resume when the session did not change", async () => {
+        tus.failPatchAt = 2;
+        const handle = upload();
+        await handle.start().catch(() => undefined);
+
+        await handle.abort();
+
+        expect(await createLocalUploadStorage().get(recordKey)).not.toBeNull();
+    });
+});

@@ -15,6 +15,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   mudou **e** o token atual não é o da request nem vazio. Refresh que falha e desloga (sem token) e
   `onUnauthorized` que chama `logout()` continuam rejeitando com o 401 (regra do #646). O mesmo vale
   quando a troca acontece enquanto o `onUnauthorized` aguarda.
+- **`createResumableUpload`: `abort()` sem `discard` depois de uma troca de conta esquece o registro
+  da conta anterior** (#657, run-16 §6). Com chunk em voo ou com o handle pausado, o `abort()` sem
+  `discard` voltava antes de apagar o registro, e a URL de upload e a `Idempotency-Key` de A
+  ficavam no storage de B até um `clear()`. Agora, quando o dono que anexou o run mudou
+  (`getPrincipal`/sessão do preset trocou, ou o storage foi limpo), o registro **deste** upload é
+  apagado como numa supersessão; registro que B gravou sob a mesma chave fica, e nada vai ao
+  servidor. Na mesma sessão, o `abort()` sem `discard` continua guardando o ponto de retomada.
 - **Regra para a request deslogada repetida com o token de um `login()` (decisão, sem mudança de
   comportamento)** (#657, run-16 §6). O ciclo de 401 do `createTempestAuth` (`refreshFor`) repete
   uma request anônima com o token do login que estava em voo (#496); o `retry` do

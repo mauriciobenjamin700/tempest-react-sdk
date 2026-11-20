@@ -319,6 +319,13 @@ export interface ResumableUpload {
      * with whatever token was current — after an account switch, the next
      * account's (#561).
      *
+     * Without `discard` the persisted record stays for a later resume — unless
+     * the account that attached the run is gone (the principal changed or the
+     * storage was cleared): then the record this run wrote is forgotten, as a
+     * supersession does, since nobody can resume it and it holds the previous
+     * account's upload URL and `Idempotency-Key` (#657). A record another
+     * account wrote under the same key stays.
+     *
      * @param options - `discard: true` also sends `DELETE` (tus termination) and
      *   forgets the persisted record, so the next `start()` uploads from zero.
      */
@@ -983,7 +990,11 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
      * stamp keeps it from being adopted (#479), and a session bound through
      * `createTempestAuth` never comes back under the same key. Keeping it only
      * served the previous account switching back in the same tab, at the price
-     * of leaving its capability where the next one can read it. A record the
+     * of leaving its capability where the next one can read it. The same
+     * holds for an `abort()` without `discard` that lands after the switch,
+     * with a chunk in flight or on a paused handle: up to 0.90.0 it returned
+     * before this ran and left the record until a `clear()` (security audit
+     * run-16 §6, #657). A record the
      * new account wrote under the same key in the meantime is not this run's,
      * and stays. A storage that fails here does not replace the supersession
      * the caller is about to receive.
@@ -1315,7 +1326,10 @@ export function createResumableUpload(options: ResumableUploadOptions): Resumabl
             stop("abort");
             abandoned = true;
             setState("aborted");
-            if (!discard) return;
+            if (!discard) {
+                if (ownerMoved()) await forgetSupersededRecord().catch(() => undefined);
+                return;
+            }
             if (ownerMoved()) {
                 await forgetSupersededRecord();
                 return;

@@ -40,6 +40,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `resumable-upload.session.test.ts` › "discard of a token-bound handle keeps another run's
   record".
 
+### Budgets
+
+- **Sete checagens sobem pelos quatro reforços do #684** (`npm run build && npx size-limit --json`
+  sobre a `main` em `4108734` e sobre este branch, bytes brotli): `slice: typical app (shell + 5
+components + http + auth + hook)` 12 920 → 12 931 (teto 12,93 → 12,94 kB); `slice: http client`
+  5 933 → 5 942 (teto 5,94 → 5,95 kB); `slice: device facts` 1 249 → 1 255 (teto 1,25 → 1,26 kB);
+  `slice: resumable upload` 5 377 → 5 418 (teto 5,4 → 5,42 kB); `slice: createZip` 5 779 → 5 807
+  (teto 5,8 → 5,81 kB); `slice: createZip + writeXlsx` 6 892 → 6 938 (teto 6,9 → 6,94 kB);
+  `ceiling: full barrel ESM` 170 920 → 171 095 (teto 171 → 171,1 kB). `ceiling: full barrel CJS`
+  202 112 → 202 194, dentro do teto.
+
 ## [0.91.0] — 2026-11-20
 
 ### Adicionado

@@ -81,7 +81,7 @@ resolveMunicipality("DF", "Ceilândia")?.id;            // "5300108" — adminis
 ```
 
 !!! tip "Store the `id`, display the `name`"
-    `BrazilStateCitySelect` emits both (`municipalityId` and `city`). Persisting the name works until the next rename; persisting the code always works — and it is what `municipalityCentroid(id)` and `reverseGeocode` hand back.
+    `BrazilStateCitySelect` emits both (`municipalityId` and `city`). Persisting the name works until the next rename; persisting the code always works — and it is what `municipalitySeat(id)`, `municipalityCentroid(id)` and `reverseGeocode` hand back.
 
 ### The Federal District has one municipality and 35 administrative regions
 
@@ -362,7 +362,49 @@ sp?.features.length; // 644
 
 ## Part 5 — Offline geocoding
 
-Convert between name/coordinate and municipality, **offline**. Uses a compact centroid index (~97 KB gzip) loaded **lazily** — no network calls, no API key.
+Convert between name/coordinate and municipality, **offline**. Uses two compact indexes (~78 KB brotli each), loaded **lazily**, and only the one you asked for — no network call, no API key.
+
+### Two coordinates: the seat and the centroid
+
+A municipality has two points that serve different jobs:
+
+| Point | What it is | Use it to | Function |
+| --- | --- | --- | --- |
+| **Seat** (`"seat"`) | The city — where the town hall is, where people are | mark the city on a map, distance/ETA, "nearest to me", route start and end | `municipalitySeat(id)` · **default** of `geocodeMunicipality`, `searchMunicipalities`, `nearestMunicipality` and `MunicipalitySearch` |
+| **Centroid** (`"centroid"`) | The geometric middle of the **territory** | frame or label the municipality, choropleth | `municipalityCentroid(id)` · `{ point: "centroid" }` on the others |
+
+The two rarely coincide. Comparing both coordinates municipality by municipality (the 5,571 minus Boa Esperança do Norte, which has no boundary yet), the median gap is **5.6 km**, the p90 **20.9 km**, and more than half (3,067) are over 5 km apart. In Altamira (PA), the largest territory in the country, it is 410 km. A marker on the centroid lands in the bush, off the route line.
+
+```ts
+import {
+  geocodeMunicipality,
+  municipalityCentroid,
+  municipalitySeat,
+} from "tempest-react-sdk/br";
+
+const seat = await municipalitySeat("2208007");
+// { id: "2208007", name: "Picos", uf: "PI", latitude: -7.07721, longitude: -41.467, point: "seat" }
+
+const territory = await municipalityCentroid("2208007");
+// { id: "2208007", name: "Picos", uf: "PI", latitude: -7.0567, longitude: -41.5176, point: "centroid" }
+
+const [byName] = await geocodeMunicipality("Picos", "PI");
+// the seat, by default — the same point as municipalitySeat("2208007")
+
+const [byNameCentroid] = await geocodeMunicipality("Picos", "PI", { point: "centroid" });
+// the territory centroid
+
+console.log(seat, territory, byName, byNameCentroid);
+```
+
+Every result carries `point`, which says **which** coordinate it holds — so code never has to guess.
+
+!!! info "Where the seat comes from"
+    Seats come from [kelvins/municipios-brasileiros](https://github.com/kelvins/municipios-brasileiros) (MIT license, Copyright (c) 2016 Kelvin S. do Prado), pinned by commit and SHA-256 — the same source as the `tempest-fastapi-sdk` backend, so front and back give **the same point**. The license text ships inside the data (`br-seats.json` → `source.licenseText`). Name and UF still come from IBGE, joined on the 7-digit code.
+
+    For **5** municipalities the source puts the seat outside the municipality's own territory (Pau d'Arco/PA 750 km away, Cerro Azul/PR, Alto Paraíso/PR, São Sebastião da Vargem Alegre/MG, São Caetano/PE). For those, a seat lookup returns the centroid, with `point: "centroid"` — the field tells the truth. Boa Esperança do Norte (MT), with no boundary and so no centroid, **does** have a seat: `municipalitySeat("5101837")` answers.
+
+### Name, coordinate and neighborhood
 
 ```ts
 import {
@@ -377,22 +419,22 @@ import {
 await reverseGeocode({ latitude: -23.5505, longitude: -46.6333 });
 // { id: "3550308", name: "São Paulo", uf: "SP" }
 
-// Coordinate → nearest-centroid municipality (fast, approximate, no geometry):
+// Coordinate → nearest-seat municipality (fast, approximate, no geometry):
 await nearestMunicipality({ latitude: -23.55, longitude: -46.63 });
-// { id, name, uf: "SP", latitude, longitude, distanceKm }
+// { id, name, uf: "SP", latitude, longitude, point: "seat", distanceKm }
 
-// Name → coordinate (homonyms may exist across states):
+// Name → seat coordinate (homonyms may exist across states):
 await geocodeMunicipality("Bonito");          // several
 await geocodeMunicipality("São Paulo", "SP"); // filtered by UF
 
-// Centroids:
-await municipalityCentroid("3550308"); // { id, name, uf, latitude, longitude }
+// Territory centroids:
+await municipalityCentroid("3550308"); // { id, name, uf, latitude, longitude, point: "centroid" }
 await stateCentroid("SP");             // { latitude, longitude }
 ```
 
 !!! tip "`reverseGeocode` vs `nearestMunicipality`"
     - **`reverseGeocode`** does **point-in-polygon** → returns the municipality that actually contains the point. Loads **one** state's geometry (lazy per-UF chunk). Pass `{ uf }` if you know it, to skip candidate-state detection.
-    - **`nearestMunicipality`** compares **centroids** only → fast and geometry-free, but near borders / in large municipalities it can pick a neighbor.
+    - **`nearestMunicipality`** compares **seats** only (or centroids, with `{ point: "centroid" }`) → fast and geometry-free. It answers "which city is closest", not "which municipality am I in": near a border, the neighbor's seat can be closer than your own.
 
 ### Recipe: "where am I?" (GPS → municipality)
 
@@ -438,7 +480,7 @@ const capitals: GeoMarker[] = [
 ```
 
 !!! tip "Pins from geocoding"
-    Combine with geocoding (Part 5): `municipalityCentroid(id)` or `geocodeMunicipality(name)` give the coordinates to turn into `markers`.
+    Combine with geocoding (Part 5): `municipalitySeat(id)` or `geocodeMunicipality(name)` give the **seat** to turn into `markers` — the pin lands on the city. `municipalityCentroid(id)` is the middle of the territory: good for a label, not for a pin.
 
 ### Color scales + legend
 

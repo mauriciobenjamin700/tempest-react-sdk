@@ -4,6 +4,50 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`/br`: coordenada da sede do município — `municipalitySeat(id)`** (#677). Até aqui o `/br` só
+  tinha o centróide do **território**, e quem marcava a cidade no mapa caía longe dela: no mapa ao
+  vivo do BusCar o marcador de Picos ficava a ~6 km da cidade, fora da linha da rota. Medido sobre
+  5570 dos 5571 municípios, os que têm as duas coordenadas (`node` sobre `br-centroids.json` × CSV fixado,
+  haversine): centróide × sede tem mediana **5,6 km**, p90 **20,9 km**, p99 93 km, 3067 a mais de
+  5 km, e Altamira (PA) a 410 km. Fonte: `kelvins/municipios-brasileiros` (MIT), a mesma do
+  `tempest-fastapi-sdk`, fixada pelo commit `503e2f70` e pelo SHA-256 do CSV — conferido linha a
+  linha contra o `_br_municipalities_data.py` do backend: **0 de 5571** coordenadas diferentes.
+  Novo gerador `scripts/gen-br-seats.mjs` (rodado pelo `npm run gen:geodata`) baixa com teto de
+  tamanho, confere o hash, faz parse estrito do CSV e grava `src/br/data/br-seats.json` com a
+  licença MIT dentro (`source.licenseText`). Nome e UF continuam do IBGE, unidos pelo código.
+  **5 sedes da fonte caem fora do próprio município** (Pau d'Arco/PA a 750 km, Cerro Azul/PR a
+  360 km, Alto Paraíso/PR 288 km, São Sebastião da Vargem Alegre/MG 157 km, São Caetano/PE 6,8 km
+  fora da divisa): para essas o dado traz o centróide, listado em `centroidFallback` e fixado no
+  guard. Boa Esperança do Norte (MT), sem malha e portanto sem centróide, ganha coordenada pela
+  sede. Tipos novos: `MunicipalityPoint` (com o campo `point: "seat" | "centroid"` dizendo qual
+  coordenada a linha carrega), `MunicipalityPointKind` e `MunicipalityPointOptions`.
+  `MunicipalityCentroid` vira alias depreciado de `MunicipalityPoint`.
+
+### Alterado
+
+- **`geocodeMunicipality`, `searchMunicipalities`, `nearestMunicipality` e o `MunicipalitySearch`
+  respondem com a sede por padrão** (#677). Todo uso documentado delas é "marcar a cidade",
+  "distância até a cidade" ou "mais perto de mim", e para isso o centróide estava errado por
+  quilômetros — um aviso na doc não resolveria. Antes: `geocodeMunicipality("Picos", "PI")` →
+  `-7.0567, -41.5176` (centróide). Depois: `-7.07721, -41.467, point: "seat"`. Cada linha ganhou
+  `point`. **Migração**: quem precisa do centróide (enquadrar, rotular, choropleth) passa
+  `{ point: "centroid" }` — `geocodeMunicipality(nome, uf, { point: "centroid" })`,
+  `searchMunicipalities(q, { point: "centroid" })`, `nearestMunicipality(coord, { point:
+"centroid" })` — ou chama `municipalityCentroid(id)`, que não mudou, assim como `stateCentroid` e
+  `reverseGeocode` (que segue usando o centróide para escolher a UF candidata e no fallback).
+
+### Budgets
+
+- **`br entry` sobe com o índice de sedes**, um chunk lazy próprio (`br-seats`), carregado só por
+  quem pede a sede — quem usa o centróide continua baixando só o `br-centroids`, e o barrel síncrono
+  não muda (`npm run build && npx size-limit --json` sobre a `main` em `d205818` e sobre este
+  branch): 503 232 → 544 536 B, teto 515 → 545 kB. O chunk sozinho: 385 667 B de JS, 103 348 B
+  gzip, 80 184 B brotli (o de centróides: 101 579 / 79 122). Juntar a sede ao `br-centroids` foi
+  medido e rejeitado: 138 kB gzip para todo usuário de geocode, contra os 99 kB de hoje.
+  `slice: BR payment rails` 9 933 → 9 941 B, dentro do teto.
+
 ### Segurança
 
 - **`persistQueryClientOffline`: o `setQueryData` feito deslogado depois de uma sessão não vai mais

@@ -9,7 +9,7 @@ import {
 import { Input } from "@/components/Input";
 import { useDebounce } from "@/hooks";
 import { cn } from "@/utils/cn";
-import { searchMunicipalities, type MunicipalityCentroid } from "./geocode";
+import { searchMunicipalities, type MunicipalityPoint } from "./geocode";
 import type { UF } from "./locations";
 import styles from "./MunicipalitySearch.module.css";
 
@@ -17,7 +17,7 @@ export interface MunicipalitySearchProps {
     /** Restrict the search to a single UF. */
     uf?: UF;
     /** Fired when a municipality is picked from the results. */
-    onSelect: (municipality: MunicipalityCentroid) => void;
+    onSelect: (municipality: MunicipalityPoint) => void;
     /** Field label. */
     label?: string;
     /** Input placeholder. Default: `"Buscar município…"`. */
@@ -44,7 +44,9 @@ function keepInputFocus(event: MouseEvent<HTMLUListElement>): void {
 /**
  * Debounced municipality autocomplete backed by the offline
  * {@link searchMunicipalities} index — no network. Type a partial name, pick a
- * result, and `onSelect` fires with its `{ id, name, uf, latitude, longitude }`.
+ * result, and `onSelect` fires with its `{ id, name, uf, latitude, longitude, point }`
+ * — the coordinate is the municipality's **seat** (the city), ready to become a
+ * map marker; call `municipalityCentroid(m.id)` for the territory centroid.
  * Wire `onSelect` to a `BrazilStateMap` `selected` to highlight it on the map.
  *
  * Keyboard follows the SDK's `Combobox` (the WAI-ARIA combobox pattern): focus
@@ -75,7 +77,7 @@ export function MunicipalitySearch({
     disabled = false,
 }: MunicipalitySearchProps): ReactElement {
     const [query, setQuery] = useState<string>("");
-    const [results, setResults] = useState<MunicipalityCentroid[]>([]);
+    const [results, setResults] = useState<MunicipalityPoint[]>([]);
     const [open, setOpen] = useState<boolean>(false);
     const [activeIndex, setActiveIndex] = useState<number>(0);
     const debounced = useDebounce(query, debounceMs);
@@ -99,7 +101,7 @@ export function MunicipalitySearch({
         };
     }, [debounced, uf, limit]);
 
-    function choose(municipality: MunicipalityCentroid): void {
+    function choose(municipality: MunicipalityPoint): void {
         onSelect(municipality);
         setQuery(municipality.name);
         setOpen(false);

@@ -24,7 +24,7 @@
  * in `[Unreleased]`, with the command that measured it. Prints `bumped` when
  * it changed something.
  */
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 
 const CONFLICT = /<<<<<<< [^\n]*\n([\s\S]*?)=======\n([\s\S]*?)>>>>>>> [^\n]*\n/g;
@@ -156,6 +156,32 @@ function runResolve() {
 }
 
 /**
+ * Run `npx size-limit --json` and return its JSON.
+ *
+ * `size-limit` exits non-zero exactly when a budget overflows, which is the
+ * case this step exists for, so the exit code is not an error here: only
+ * missing JSON is. `execFileSync` threw on it, the queue read the throw as
+ * "nothing to raise", and `make check` then failed on the very ceilings this
+ * step should have re-measured (#674, 19/11/2026). esbuild's warnings go to
+ * stderr, which is discarded so they stop flooding the queue's output.
+ *
+ * @returns {string} The command's stdout.
+ * @throws {Error} When the output holds no JSON array.
+ */
+function measureSizes() {
+    const result = spawnSync("npx", ["size-limit", "--json"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 64 * 1024 * 1024,
+    });
+    const stdout = result.stdout ?? "";
+    if (!stdout.includes("[")) {
+        throw new Error(`size-limit printed no JSON (exit ${result.status})`);
+    }
+    return stdout;
+}
+
+/**
  * Re-measure the summed budgets in the current worktree.
  *
  * @param {string} pr - The PR number, for the changelog note.
@@ -168,9 +194,7 @@ function runRemeasure(pr, checksFile) {
         ? readFileSync(marker, "utf8").split("\n").filter(Boolean)
         : [];
     rmSync(marker, { force: true });
-    const output = checksFile
-        ? readFileSync(checksFile, "utf8")
-        : execFileSync("npx", ["size-limit", "--json"], { encoding: "utf8" });
+    const output = checksFile ? readFileSync(checksFile, "utf8") : measureSizes();
     const checks = JSON.parse(output.slice(output.indexOf("[")));
     const config = JSON.parse(readFileSync(SIZE_LIMIT_FILE, "utf8"));
     const { config: next, notes } = remeasure(config, checks, touched);

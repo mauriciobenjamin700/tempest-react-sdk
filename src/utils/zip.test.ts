@@ -173,6 +173,26 @@ describe("createZip", () => {
         expect(Object.keys(files).sort()).toEqual([...paths].sort());
     });
 
+    /**
+     * Security audit run-17 §5 (#684): a segment made only of dots and spaces
+     * (`...`, `.. `, ` `) passed every check. Win32 path normalization trims
+     * trailing dots and spaces, so `.. ` can come back as `..` and `... ` as
+     * an empty segment; whether a given extractor does it is not ours to rely
+     * on, and no real file is named like that.
+     */
+    it.each([
+        ["three dots", ".../evil.sh"],
+        ["dot dot space", "fotos/.. /evil.sh"],
+        ["a lone space", " /evil.sh"],
+        ["a trailing space-only segment", "fotos/ "],
+        ["dot space", ". /evil.sh"],
+        ["space dot dot", " ../evil.sh"],
+        ["fullwidth full stops (NFKC: ...)", "．．．/evil.sh"],
+        ["dot dot ideographic space (NFKC: .. )", "..\u3000/evil.sh"],
+    ])("refuses a segment of only dots and spaces: %s (#684)", async (_label, path) => {
+        await expect(createZip([{ path, data: "x" }])).rejects.toThrow(/only of dots and spaces/);
+    });
+
     it("refuses an unsafe path before reading any entry", async () => {
         const blob = new Blob(["x"]);
         const read = vi.spyOn(blob, "arrayBuffer");

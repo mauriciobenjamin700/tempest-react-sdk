@@ -14,6 +14,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   sai fora desse `try`: o erro de rede chega ao chamador como numa primeira tentativa, e
   `onUnauthorized` só roda quando o próprio `refresh` falha. Teste:
   `api-client.resilience.test.ts` › "rejects with the network error and does not sign out".
+- **`createZip` recusa segmento feito só de pontos e espaços** (#684, auditoria run-17 §5). `...`,
+  `.. ` e ` ` passavam por todas as checagens. O Win32 apara ponto e espaço no fim de um segmento,
+  então `.. ` pode voltar a ser `..` e `... `, um segmento vazio, conforme o extrator — o SDK não
+  deve depender disso, e nenhum arquivo de verdade tem esse nome. A checagem roda também sobre o
+  nome dobrado (NFKC + best-fit), então `．．．/x` e `..\u3000/x` caem junto. O `.` sozinho
+  (`./leia-me.txt`) e ponto dentro de nome (`..config`, `a..b.txt`) seguem aceitos. Teste:
+  `zip.test.ts` › "refuses a segment of only dots and spaces".
 
 ## [0.91.0] — 2026-11-20
 

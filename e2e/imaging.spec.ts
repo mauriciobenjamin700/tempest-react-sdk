@@ -569,6 +569,37 @@ test.describe("captureFrame", () => {
         expect(result.bytes).toBeGreaterThan(0);
     });
 
+    /**
+     * The same claim on a starved renderer — the condition #680 failed under,
+     * made reproducible. The wait for a presented frame used to give up after a
+     * fixed 200 ms; with `Emulation.setCPUThrottlingRate` at 20× that reported
+     * `confirmed: false` for a playing video in 13 of 20 runs (and 7 of 20 at
+     * 10×), measured 2026-11-20. The wait now ends on the frame or on an event
+     * that says no frame is coming, so the slowness alone no longer decides.
+     */
+    test("confirms the frame when the video is playing on a CPU-starved page", async ({ page }) => {
+        const cdp = await page.context().newCDPSession(page);
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
+
+        const result = await page.evaluate(async () => {
+            const api = window as never as {
+                makeBandedVideo: (bands: number) => Promise<{ url: string }>;
+                loadVideo: (url: string) => Promise<HTMLVideoElement>;
+            };
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const { url } = await api.makeBandedVideo(3);
+            const video = await api.loadVideo(url);
+            video.loop = true;
+            await video.play();
+
+            const shot = await captureFrame(video, { type: "image/png" });
+            return { confirmed: shot.confirmed, playing: !video.paused };
+        });
+
+        expect(result.confirmed).toBe(true);
+        expect(result.playing).toBe(true);
+    });
+
     test("refuses a live stream, which has no instant but now", async ({ page }) => {
         const failure = await page.evaluate(async () => {
             const { captureFrame } = await import("/imaging-dist/frame.js");

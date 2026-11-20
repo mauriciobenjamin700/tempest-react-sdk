@@ -74,6 +74,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   índice a índice, e um buraco só é igual a outro buraco — distinto de um índice com `undefined`,
   como uma chave ausente já era distinta (#645). Só correção de UI.
 
+### Budgets
+
+- **Hardening da run-16 (#657)**, medido com `npm run build && npx size-limit --json` sobre a `main`
+  em `d272b88` e sobre este branch: `slice: http client` 5 722 → 5 900 B (teto 5,8 → 5,9 kB; o
+  aviso de dev do `uploadWithProgress` e o `sessionReplacedSince`); `slice: resumable upload`
+  5 150 → 5 385 B (teto 5,2 → 5,4 kB; `deleteIf`, `abort()` e o aviso de dev); `slice: createZip`
+  5 619 → 5 779 B (teto 5,65 → 5,8 kB) e `createZip + writeXlsx` 6 723 → 6 892 B (teto 6,75 →
+  6,9 kB), pela tabela _best-fit_ e a dobra NFKC; `ceiling: full barrel ESM` 168 996 → 169 677 B
+  (teto 169,1 → 169,7 kB); `ceiling: full barrel CJS` 200 182 → 200 877 B (teto 200,2 → 200,9 kB).
+  `typical app` (12 877 → 12 898 B) e `device facts` (1 219 → 1 249 B) seguem nos tetos.
+
 ## [0.90.0] — 2026-11-19
 
 ### Adicionado

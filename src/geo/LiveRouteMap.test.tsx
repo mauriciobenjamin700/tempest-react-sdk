@@ -115,7 +115,20 @@ describe("LiveRouteMap — render", () => {
         ).toBeInTheDocument();
         const destination = screen.getByRole("button", { name: "Rodoviária, destino, 99+" });
         expect(destination.querySelector("rect")).not.toBeNull();
-        expect(destination.textContent).toBe("99+");
+        const badge = document.querySelector("[data-marker-badge='c']");
+        expect(badge?.textContent).toBe("99+");
+        expect(badge?.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("draws the badge outside the button, so its number never joins the glyph text as the visible label", () => {
+        const { container } = render(
+            <LiveRouteMap
+                markers={[{ ...MARKERS[1], label: "Parada 2 — Praça", glyphText: "2" }]}
+            />,
+        );
+        const button = screen.getByRole("button", { name: "Parada 2 — Praça, parada, 3" });
+        expect(button.textContent).toBe("2");
+        expect(button.contains(container.querySelector("[data-marker-badge='b']"))).toBe(false);
     });
 
     it("accepts translated kind names", () => {

@@ -4,6 +4,7 @@ import {
     Button,
     Input,
     LiveRouteMap,
+    LiveRouteMapLegend,
     TrajectoryMap,
     bearingDeg,
     createRoadGraph,
@@ -18,7 +19,7 @@ import {
     type TrackPoint,
     type TravelMode,
 } from "tempest-react-sdk";
-import { LocateFixed, MapPin, Play, RotateCcw, Ruler, Square } from "lucide-react";
+import { Flag, LocateFixed, MapPin, Play, RotateCcw, Ruler, Square } from "lucide-react";
 import { Example } from "../Example";
 
 /** Build a plausible synthetic walk around a center, for GPS-free demoing. */
@@ -204,6 +205,74 @@ function LiveTripDemo(): ReactElement {
                 etaLabel={minutes > 0 ? `Chegada estimada em ${minutes} minutos` : "Ônibus chegou"}
                 height={380}
                 data-testid="live-trip-map"
+            />
+        </div>
+    );
+}
+
+/** The same trip seen by one passenger: stops numbered, their pickup set apart, a finish flag. */
+const SYMBOL_STOPS: LiveRouteMarker[] = [
+    { id: "s1", label: "Parada 1 — Praça da Sé", kind: "origin", glyphText: "1", ...BUS_ROUTE[0] },
+    { id: "s2", label: "Parada 2 — Liberdade", glyphText: "2", badge: 3, ...BUS_ROUTE[3] },
+    {
+        id: "s3",
+        label: "Seu embarque — Parada 3, São Joaquim",
+        glyphText: "3",
+        emphasis: true,
+        ...BUS_ROUTE[5],
+        content: <p style={{ margin: 0 }}>Embarque previsto às 08:31.</p>,
+    },
+    { id: "s4", label: "Parada 4 — Vergueiro", glyphText: "4", ...BUS_ROUTE[7] },
+    {
+        id: "end",
+        label: "Chegada — Paraíso",
+        kind: "destination",
+        icon: <Flag />,
+        ...BUS_ROUTE[8],
+    },
+];
+
+/** Marker symbology: emphasis, glyph text, an icon, markerScale and the shared legend. */
+function LiveSymbolsDemo(): ReactElement {
+    const [large, setLarge] = useState<boolean>(false);
+    const scale = large ? 1.5 : 1;
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <Button
+                    size="sm"
+                    variant={large ? "primary" : "secondary"}
+                    aria-pressed={large}
+                    onClick={() => setLarge((v) => !v)}
+                >
+                    Glifos maiores (markerScale 1.5)
+                </Button>
+            </div>
+            <LiveRouteMap
+                route={BUS_ROUTE}
+                trail={BUS_ROUTE.slice(0, 3)}
+                vehicle={{
+                    position: BUS_ROUTE[2],
+                    heading: bearingDeg(BUS_ROUTE[1], BUS_ROUTE[2]),
+                    label: "Ônibus 42",
+                }}
+                markers={SYMBOL_STOPS}
+                markerScale={scale}
+                height={340}
+                label="Mapa da viagem com legenda"
+                data-testid="live-symbols-map"
+            />
+            <LiveRouteMapLegend
+                markerScale={scale}
+                items={[
+                    { symbol: "stop", label: "Seu embarque", emphasis: true },
+                    { symbol: "stop", label: "Parada (ordem)", glyphText: "1" },
+                    { symbol: "destination", label: "Chegada", icon: <Flag /> },
+                    { symbol: "vehicle", label: "Ônibus" },
+                    { symbol: "route", label: "Rota planejada" },
+                    { symbol: "trail", label: "Já percorrido" },
+                ]}
+                data-testid="live-symbols-legend"
             />
         </div>
     );
@@ -574,6 +643,57 @@ function LiveRun() {
                 ]}
             >
                 <LiveTripDemo />
+            </Example>
+
+            <Example
+                id="ex-live-route-symbols"
+                title="LiveRouteMap — simbologia e legenda"
+                note={
+                    <>
+                        Paradas numeradas (<code>glyphText</code>), o embarque do passageiro em
+                        destaque (<code>emphasis</code>), bandeira de chegada (<code>icon</code>) e
+                        a legenda exportada, que usa os mesmos glifos e cores do mapa.
+                    </>
+                }
+                code={`import { Flag } from "lucide-react";
+import { LiveRouteMap, LiveRouteMapLegend } from "tempest-react-sdk";
+
+<LiveRouteMap
+  route={route}
+  markers={[
+    { id: "s3", label: "Seu embarque — Parada 3", glyphText: "3", emphasis: true, ...p3 },
+    { id: "end", label: "Chegada", kind: "destination", icon: <Flag />, ...end },
+  ]}
+  markerScale={1.5}
+/>
+<LiveRouteMapLegend
+  markerScale={1.5}
+  items={[
+    { symbol: "stop", label: "Seu embarque", emphasis: true },
+    { symbol: "destination", label: "Chegada", icon: <Flag /> },
+  ]}
+/>`}
+                props={[
+                    {
+                        name: "markers[].emphasis",
+                        type: "boolean",
+                        description: "Glifo 1,4× maior com halo, mesma cor do tipo.",
+                    },
+                    {
+                        name: "markers[].glyphText / icon",
+                        type: "string / ReactNode",
+                        description: "Texto curto ou ícone SVG dentro do glifo.",
+                    },
+                    {
+                        name: "markerScale",
+                        type: "number",
+                        default: "1",
+                        description:
+                            "Tamanho dos glifos; o alvo de toque é 44 px em qualquer escala.",
+                    },
+                ]}
+            >
+                <LiveSymbolsDemo />
             </Example>
 
             <Example

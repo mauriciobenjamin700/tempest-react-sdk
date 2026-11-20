@@ -21,6 +21,7 @@ import {
 import { cn } from "@/utils/cn";
 import { boundingBox, expandBounds } from "./bounds";
 import { MarkerGlyph, VehicleGlyph } from "./live-route-glyphs";
+import { panelGapStyle, resolveMarkerScale } from "./live-route-symbols";
 import { linesPath, roadsPath, useRoadSnap } from "./live-route-roads";
 import {
     INITIAL_LIVE_VIEW_STATE,
@@ -56,6 +57,25 @@ export interface LiveRouteMarker extends Coordinate {
     kind?: LiveRouteMarkerKind;
     /** Small count drawn on the marker, e.g. passengers boarding there. Hidden when absent. */
     badge?: number;
+    /**
+     * Set this one marker apart — "your pickup" among the trip's stops. The shape
+     * grows 1.4× and gets a halo in its own color, so it stays the same kind.
+     * Visual only: say it in `label` too ("Seu embarque — Praça").
+     */
+    emphasis?: boolean;
+    /**
+     * Short text drawn inside the glyph, e.g. the stop order (`"1"`, `"2"`). One
+     * or two characters read best; the font shrinks to fit longer text. It is not
+     * spoken — put the same information in `label` when it matters. Wins over
+     * `icon` when both are set.
+     */
+    glyphText?: string;
+    /**
+     * SVG content drawn inside the glyph in a 24×24 box, e.g. a lucide icon
+     * (`<Flag />`) to turn the destination square into a finish flag. It is
+     * painted in the glyph's ink through `currentColor`, and is not spoken.
+     */
+    icon?: ReactNode;
     /** Opened in a panel by click, tap, `Enter` or `Space` on the marker. */
     content?: ReactNode;
 }
@@ -115,6 +135,13 @@ export interface LiveRouteMapProps<E extends RoadEdge = RoadEdge> extends Omit<
     closeLabel?: string;
     /** Spoken name of each marker kind. Default: PT-BR (`origem`, `parada`, `destino`). */
     kindLabels?: Partial<Record<LiveRouteMarkerKind, string>>;
+    /**
+     * Size of every marker glyph, as a factor of the default (stops are 16 px
+     * across at `1`). Scales the shape, the badge and the focus ring together.
+     * The pointer target is 44 px across at any scale. Values that are not a
+     * positive number fall back to `1`. Default: `1`.
+     */
+    markerScale?: number;
     /** Duration of the vehicle glide between two positions, in ms. `0` jumps. Default: `600`. */
     animationMs?: number;
     /** Draw a distance scale bar. Default: `true`. */
@@ -220,6 +247,7 @@ export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
     recenterLabel = "Recentralizar",
     closeLabel = "Fechar",
     kindLabels,
+    markerScale,
     animationMs = 600,
     showScale = true,
     tileUrl,
@@ -386,6 +414,7 @@ export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
             ? placePopover(projectLive(view, viewport, openMarker), viewport, PANEL_MAX_WIDTH)
             : null;
     const labels = { ...DEFAULT_KIND_LABELS, ...kindLabels };
+    const scaleFactor = resolveMarkerScale(markerScale);
 
     return (
         <div
@@ -481,6 +510,7 @@ export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
                                 open={openId === marker.id}
                                 panelId={panelId}
                                 kindLabel={labels[marker.kind ?? "stop"]}
+                                scale={scaleFactor}
                                 onToggle={toggle}
                                 markerRef={(id, node) => {
                                     if (node) markerNodes.current.set(id, node);
@@ -525,7 +555,11 @@ export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
                         styles.panel,
                         placement.side === "below" ? styles.below : styles.above,
                     )}
-                    style={{ left: placement.left, top: placement.top }}
+                    style={{
+                        left: placement.left,
+                        top: placement.top,
+                        ...panelGapStyle(openMarker, scaleFactor),
+                    }}
                     role="dialog"
                     aria-labelledby={titleId}
                     tabIndex={-1}

@@ -4,6 +4,55 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`LiveRouteMap`: destaque, texto e ícone no glifo, e `markerScale`** (#688). Quatro campos novos,
+  pedidos pelo mapa ao vivo do BusCar: `LiveRouteMarker.emphasis` (glifo 1,4× maior com halo na cor
+  do tipo — o "Seu embarque" entre as paradas), `glyphText` (texto curto dentro do glifo, como a
+  ordem da parada; o `badge` continua livre para a contagem), `icon` (SVG numa caixa 24×24, pintado
+  por `currentColor` — `<Flag />` do `lucide-react` vira a bandeira de chegada) e `markerScale` no
+  mapa (escala forma, badge e anel de foco num `<g>` interno, porque o `transform` do `<g>` externo
+  já posiciona). Com `glyphText`/`icon` a parada cresce de 16 para 20 px para o texto caber em 12 px.
+  O `badge` passou a ser desenhado fora do botão (o número já está no nome acessível): dentro dele,
+  `glyphText` "2" + badge "3" viravam o rótulo visível "23", e o axe reprovava label-in-name
+  (WCAG 2.5.3). As tintas do texto medem 8,65 / 5,17 / 4,83:1 (origem, parada, destino) no tema claro e 10,28 /
+  5,25 / 5,13:1 no escuro, no Chromium e num teste que lê o `colors.css`.
+- **`LiveRouteMapLegend`** (#688): legenda que desenha os **mesmos** glifos do mapa (`MarkerShape`
+  e `VehicleShape` compartilhados, mesmas classes e tokens), com `items` (`symbol`, `label`,
+  `emphasis?`, `glyphText?`, `icon?`), `markerScale` e `label`. Sem `items`, lista os seis símbolos
+  em PT-BR. Tipos novos: `LiveRouteLegendItem`, `LiveRouteLegendSymbol`, `LiveRouteMapLegendProps`.
+- **Doc: as variáveis CSS que o `LiveRouteMap` lê**, numa tabela, com quatro tokens novos de
+  componente: `--tempest-live-route-badge` / `-badge-text` e `--tempest-live-route-{origin,stop,
+destination}-ink`.
+
+### Corrigido
+
+- **Marcador do `LiveRouteMap` tinha alvo de toque de 16 px** (#688). Medido no Chromium sobre a
+  gallery da 0.91.0 (`elementFromPoint` em 16 direções, a cada 2 px): a parada só respondia dentro
+  do disco de 16 px e num anel de 3 px a 16 px do centro — o traço transparente do anel de foco —,
+  com zona morta entre os dois. Agora um círculo invisível de **44 px** (WCAG 2.2 SC 2.5.5) recebe
+  o toque em qualquer `markerScale`; medido depois: 42–44 px sólidos (amostragem de 1 px). Por isso o
+  `markerScale` padrão continua `1` — a issue pedia a escala para conseguir tocar, e o defeito era
+  o alvo, não o desenho.
+- **O número do `badge` sumia num tema parcial** (#688). O selo era `--tempest-text` de fundo com o
+  número em `--tempest-bg`: 17,75:1 no tema claro do SDK e 17,51:1 no escuro — o tema do próprio
+  SDK nunca falhou. Mas o contraste dependia de dois tokens que o app troca separados, e um tema
+  que clareou `--tempest-text` sem mexer em `--tempest-bg` deu **1,11:1** (o caso do BusCar,
+  reproduzido no Chromium). Documentar a dependência seria aviso no lugar de correção: o selo
+  passou ao par neutro fixo do `Badge` sólido (`--tempest-gray-700` + `--tempest-neutral-on-solid`),
+  **10,46:1** nos dois temas e com o tema parcial. No tema escuro o selo deixa de ser claro e passa
+  a cinza-escuro com número branco.
+
+### Budgets
+
+- **`slice: LiveRouteMap` sobe pela simbologia** (#688, `npm run build && npx size-limit --json`
+  sobre a `main` em `4108734` e sobre este branch, em bytes brotli): 8 395 → 9 118 B (teto 8,4 →
+  9,2 kB). A legenda fica fora dessa fatia. `ceiling: full barrel ESM` 170 920 → 171 942 B (teto 171
+  → 172,1 kB); `ceiling: full barrel CJS` 202 112 → 203 456 B (teto 202,2 → 203,5 kB); `styles.css`
+  32 355 → 32 526 B (teto 32,4 → 32,6 kB). `slice: AIChat` 11 253 → 11 334 B (teto 11,31 → 11,4 kB)
+  sem código novo: o bundle minificado tem os mesmos 32 279 B dos dois lados e só troca a atribuição
+  de identificadores, o que mexe no brotli.
+
 ## [0.91.0] — 2026-11-20
 
 ### Adicionado

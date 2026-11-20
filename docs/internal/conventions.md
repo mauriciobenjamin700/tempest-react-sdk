@@ -86,8 +86,10 @@ Armadilhas já pagas:
 - `vi.fn(() => obj)` **não** funciona como mock de construtor. Use
   `class Mock { … }` quando o código faz `new X(...)`.
 - jsdom não calcula layout: `offsetParent` é sempre `null`.
-- `tsc -b` checa os testes — `@types/vitest/globals` e `@testing-library/jest-dom`
-  ficam no `types` do tsconfig.
+- `tsc -b` checa os testes — `vitest/globals` e `@testing-library/jest-dom/vitest`
+  ficam no `types` do tsconfig. A entrada é a `/vitest`, não a raiz do jest-dom: o
+  Vitest 5 não lê mais matcher declarado no `jest.Matchers` global, e com a raiz
+  todo `toBeInTheDocument` vira erro de tipo.
 - Dexie funciona com `fake-indexeddb/auto`; `await db.delete()` no `afterEach`.
 - Handler de service worker chama `getSwScope()` (retorna `globalThis`); o teste
   precisa manter as props no `globalThis` durante toda a execução do listener.

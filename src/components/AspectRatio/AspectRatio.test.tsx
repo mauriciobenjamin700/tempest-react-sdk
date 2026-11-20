@@ -9,9 +9,7 @@ describe("AspectRatio", () => {
                 <img alt="" />
             </AspectRatio>,
         );
-        expect((container.firstElementChild as HTMLElement).style.aspectRatio).toContain(
-            String(4 / 3),
-        );
+        expect((container.firstElementChild as HTMLElement).style.aspectRatio).toBe("1.33333 / 1");
     });
 
     it("defaults to 16/9 when ratio is not provided", () => {
@@ -20,8 +18,6 @@ describe("AspectRatio", () => {
                 <img alt="" />
             </AspectRatio>,
         );
-        expect((container.firstElementChild as HTMLElement).style.aspectRatio).toContain(
-            String(16 / 9),
-        );
+        expect((container.firstElementChild as HTMLElement).style.aspectRatio).toBe("1.77778 / 1");
     });
 });

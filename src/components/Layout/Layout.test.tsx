@@ -205,7 +205,7 @@ describe("Stack — undefined responsive values", () => {
 describe("Grid — undefined values", () => {
     it("omits gridTemplateColumns when columns is undefined", () => {
         const el = firstChild(<Grid columns={undefined} />);
-        expect(el.style.gridTemplateColumns).toBe("repeat(2, minmax(0, 1fr))");
+        expect(el.style.gridTemplateColumns).toBe("repeat(2, minmax(0px, 1fr))");
     });
 
     it("resolves columns from the tablet entry on a tablet", () => {

@@ -27,7 +27,9 @@ interface VitestUserConfig {
  *
  * Measured with `tempest-react-sdk@0.70.0` and a one-line test importing `Button`:
  * Vitest 2.1.9, 3.2.7 and 4.1.11 all fail under the default config and pass with
- * this plugin.
+ * this plugin; so does 5.1.1 (measured on 20/11/2026 with the 0.90.0 tarball, and
+ * re-checked on every `make check` by `scripts/smoke-vitest.sh`, which runs on
+ * Vitest 4 and 5).
  *
  * The entry is contributed through the `config` hook, so Vite concatenates it onto
  * whatever `test.server.deps.inline` list the app declares. The one value it must

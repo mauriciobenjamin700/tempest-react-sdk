@@ -95,4 +95,15 @@ describe("the tarball smoke keeps the no-plugin failure pinned (#556)", () => {
         expect(SMOKE.match(/^expect_css_failure "/gm)).toHaveLength(2);
         expect(SMOKE).toMatch(/^rm vitest\.config\.ts$/m);
     });
+
+    it("runs every scenario on both Vitest majors a consumer app can be on", () => {
+        /**
+         * The SDK declares no Vitest range — the app picks it — so the smoke is
+         * the only place that says which majors `tempestVitest()` works on. The
+         * repo's own suite moved to Vitest 5 in 11/2026; dropping 4 here would
+         * stop checking every app that has not moved yet.
+         */
+        expect(SMOKE).toMatch(/^for major in 4 5; do$/m);
+        expect(SMOKE).not.toMatch(/^[^#\n]*vitest@\^\d/m);
+    });
 });

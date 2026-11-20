@@ -24,7 +24,7 @@ describe("Form", () => {
             </Form>,
         );
         const form = container.querySelector("form")!;
-        expect(form.style.gridTemplateColumns).toBe("repeat(3, minmax(0, 1fr))");
+        expect(form.style.gridTemplateColumns).toBe("repeat(3, minmax(0px, 1fr))");
     });
 
     it("accepts a custom grid-template-columns string", () => {
@@ -94,7 +94,7 @@ describe("FormSection", () => {
             </FormSection>,
         );
         const body = container.querySelector("section > div")!;
-        expect((body as HTMLElement).style.gridTemplateColumns).toBe("repeat(4, minmax(0, 1fr))");
+        expect((body as HTMLElement).style.gridTemplateColumns).toBe("repeat(4, minmax(0px, 1fr))");
     });
 });
 
@@ -149,7 +149,7 @@ describe("Form — default grid columns", () => {
             </Form>,
         );
         expect((container.firstChild as HTMLElement).style.gridTemplateColumns).toBe(
-            "repeat(2, minmax(0, 1fr))",
+            "repeat(2, minmax(0px, 1fr))",
         );
     });
 });

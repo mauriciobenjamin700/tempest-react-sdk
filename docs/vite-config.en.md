@@ -211,6 +211,10 @@ Measured with `tempest-react-sdk@0.70.0` and a one-line test importing `Button`
 | 2.1.9  | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
 | 3.2.7  | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
 | 4.1.11 | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
+| 5.1.1  | ❌ `Unknown file extension ".css"` | ✅ 1 passed            |
+
+The 5.1.1 row was measured on 20/11/2026 with the 0.90.0 tarball, by
+`scripts/smoke-vitest.sh`, which since then runs every scenario on Vitest 4 **and** 5.
 
 !!! info "What the plugin does underneath"
     It adds `"tempest-react-sdk"` to `test.server.deps.inline`, on top of whatever

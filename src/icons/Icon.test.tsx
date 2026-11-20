@@ -108,9 +108,17 @@ describe("Icon — lazy shard path", () => {
     });
 
     it("renders the fallback while the shard is in flight", async () => {
-        render(<Icon name="landmark" fallback={<span data-testid="ph" />} />);
+        /**
+         * The slug is the first one of a shard no earlier case in this file
+         * touches, read off the shard table. It used to be the hard-coded
+         * `landmark`, and the lucide 1.77 bump moved `landmark` into the shard the
+         * case above had just loaded: the fallback frame never happened and the
+         * test failed on a correct `Icon`.
+         */
+        const slug = iconShards[10].from;
+        render(<Icon name={slug} fallback={<span data-testid="ph" />} />);
         expect(screen.getByTestId("ph")).toBeInTheDocument();
-        await waitFor(() => expect(svg()).toHaveClass("lucide-landmark"));
+        await waitFor(() => expect(svg()).toHaveClass(`lucide-${slug}`));
     });
 
     it("preloadIcons removes the fallback frame entirely", async () => {

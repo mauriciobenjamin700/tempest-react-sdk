@@ -62,9 +62,9 @@ export const staticIcons = {
     });
     it("imports the canonical component but keys it by the alias too", () => {
         const out = buildIconsModule(["alert-circle", "circle-alert"], iconAliases);
-        expect(out).toContain(`import { CircleAlert } from "lucide-react";`);
-        expect(out).toContain(`"alert-circle": CircleAlert,`);
-        expect(out).toContain(`"circle-alert": CircleAlert,`);
+        expect(out).toContain(`import { CircleExclamationPoint } from "lucide-react";`);
+        expect(out).toContain(`"alert-circle": CircleExclamationPoint,`);
+        expect(out).toContain(`"circle-alert": CircleExclamationPoint,`);
     });
     it("PascalCases a leading single letter", () => {
         expect(buildIconsModule(["a-arrow-down"], iconAliases)).toContain(
@@ -84,13 +84,13 @@ export const staticIcons = {
             buildIconsModule(["save", "shopping-cart"], iconAliases),
         );
     });
-    it("derives only export names lucide really has, for all 2065 slugs", async () => {
+    it("derives only export names lucide really has, for all 2409 slugs", async () => {
         const lucide = (await import("lucide-react")) as unknown as Record<string, unknown>;
         const out = buildIconsModule([...iconNames], iconAliases);
         const named = /^import \{ (.+) \} from "lucide-react";$/m.exec(out)?.[1].split(", ") ?? [];
         const imported = named.map((entry) => entry.split(" as ")[0]);
 
-        expect(imported.length).toBe(1807);
+        expect(imported.length).toBe(2098);
         const missing = imported.filter((name) => lucide[name] === undefined);
         expect(missing).toEqual([]);
     });

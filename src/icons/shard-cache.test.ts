@@ -9,13 +9,13 @@ import { iconStatus, loadIcon, peekIcon, preloadIcons } from "./shard-cache";
 
 describe("generated tables", () => {
     it("covers every lucide slug, canonical plus alias", () => {
-        expect(iconNames.length).toBe(2065);
-        expect(Object.keys(iconAliases).length).toBe(258);
+        expect(iconNames.length).toBe(2409);
+        expect(Object.keys(iconAliases).length).toBe(311);
     });
     it("splits the icons into balanced shards instead of by initial letter", () => {
-        expect(iconShards.length).toBe(46);
+        expect(iconShards.length).toBe(53);
         for (const shard of iconShards) expect(shard.size).toBeLessThanOrEqual(40);
-        expect(iconShards.reduce((total, shard) => total + shard.size, 0)).toBe(1807);
+        expect(iconShards.reduce((total, shard) => total + shard.size, 0)).toBe(2098);
     });
 
     it("keeps the shard bounds ascending in the order the lookup compares them", () => {
@@ -53,15 +53,15 @@ describe("generated tables", () => {
             }
         }
 
-        expect(seen.size).toBe(1807);
+        expect(seen.size).toBe(2098);
         for (const slug of iconNames) expect(seen.has(resolveIconAlias(slug))).toBe(true);
     });
 });
 
 describe("resolveIconAlias", () => {
     it("maps a deprecated alias to its canonical slug", () => {
-        expect(resolveIconAlias("alert-circle")).toBe("circle-alert");
-        expect(resolveIconAlias("alert-triangle")).toBe("triangle-alert");
+        expect(resolveIconAlias("alert-circle")).toBe("circle-exclamation-point");
+        expect(resolveIconAlias("alert-triangle")).toBe("triangle-exclamation-point");
     });
     it("returns a canonical slug untouched", () => {
         expect(resolveIconAlias("save")).toBe("save");

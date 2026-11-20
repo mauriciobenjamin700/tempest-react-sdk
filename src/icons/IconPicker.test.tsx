@@ -20,7 +20,7 @@ function Host({ initial = "", ...rest }: { initial?: string; limit?: number; req
 
 describe("validateIconName", () => {
     it("accepts a canonical slug", () => {
-        expect(validateIconName("circle-alert")).toBeUndefined();
+        expect(validateIconName("circle-exclamation-point")).toBeUndefined();
     });
 
     it("accepts the legacy spellings the picker emits from", () => {
@@ -52,7 +52,7 @@ describe("IconPicker", () => {
     it("resolves a deprecated alias to the canonical slug", async () => {
         render(<Host />);
         await userEvent.type(screen.getByLabelText("Ícone"), "alert-circle");
-        expect(screen.getByText("circle-alert")).toBeInTheDocument();
+        expect(screen.getByText("circle-exclamation-point")).toBeInTheDocument();
     });
 
     it("previews the chosen icon", async () => {

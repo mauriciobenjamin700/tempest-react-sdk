@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.92.0] — 2026-11-21
+
 ### Corrigido
 
 - **`/imaging`: `captureFrame` de vídeo tocando não desiste mais da confirmação depois de 200 ms**

@@ -24,9 +24,11 @@ export interface TempestTokenResponse {
 export interface TempestSessionEnd<TUser> {
     /**
      * Why it ended: `"logout"` for an explicit `logout()`, `"expired"` when the
-     * client ended it on its own — the refresh failed, or the request replayed
-     * after a refresh still came back `401` — and `"switch"` when `login()`
-     * succeeded for another set of credentials while this session was live.
+     * client ended it on its own — the refresh failed, the request replayed
+     * after a refresh still came back `401`, or a sign-in's user failed to
+     * load from `mePath` and the sign-in was undone (#748) — and `"switch"`
+     * when `login()` succeeded for another set of credentials while this
+     * session was live.
      */
     reason: "logout" | "expired" | "switch";
     /** The user of the ended session, as the store held it. */
@@ -1392,10 +1394,20 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * reads the new key, and the user is loaded: embedded by `parseUser`, or
      * from `mePath`.
      *
+     * A sign-in whose user fails to load from `mePath` is undone before the
+     * error surfaces (#748): the refresh token it brought is revoked, the
+     * store is cleared and `onSessionEnd` runs `"expired"` for it, since its
+     * token already reached the store's listeners. Up to 0.92.0 the caller
+     * got the rejection while the new token stayed installed next to a `null`
+     * user — `isAuthenticated` was `true` for nobody, and a guard that checks
+     * only the token let the app in. A {@link SessionSupersededError} is left
+     * alone: whoever moved the session owns what is installed now.
+     *
      * @param accepted - The credentials and the response they came in.
      * @returns The user of the new session, or null.
      * @throws {SessionSupersededError} When the session moved during the
      *   teardown or while the user was loading.
+     * @throws The `mePath` error, once the sign-in was undone.
      */
     async function replaceSession(accepted: Redemption): Promise<TUser | null> {
         const { done } = finish("switch");
@@ -1410,7 +1422,27 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
             state().setUser(embedded);
             return embedded;
         }
-        return fetchUser();
+        try {
+            return await fetchUser();
+        } catch (error) {
+            if (!(error instanceof SessionSupersededError)) await undoSignIn();
+            throw error;
+        }
+    }
+
+    /**
+     * End a sign-in whose user could not be loaded, see `replaceSession`.
+     *
+     * Same steps as `logout()` — revoke, then clear and run `onSessionEnd` —
+     * with `"expired"`, because the client ends it on its own, and without
+     * `redirectTo`: the `login()` caller is the one handling the failure.
+     * Waits for the hook, so the store is clean and the teardown done when
+     * the sign-in rejects.
+     */
+    async function undoSignIn(): Promise<void> {
+        const revocation = revoke();
+        const { done } = finish("expired");
+        await Promise.all([revocation, done.catch(() => undefined)]);
     }
 
     /**

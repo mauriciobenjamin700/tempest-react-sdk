@@ -232,11 +232,6 @@ When the session goes away, the route re-renders and sends to `/login`. With
 can go back to it with `useReturnTo`. See
 [Going back to where you were](../routing.md#going-back-to-where-you-were-after-signing-in).
 
-!!! tip "The template reads the store with `getState()`"
-    The generated `src/routes.tsx` uses `guard: () => useAuth.getState().isAuthenticated`.
-    It works on navigation, but does not react to a logout in the middle of a screen.
-    The hook form, used above, re-renders the route right away.
-
 ### The screen has the four states
 
 - ⏳ **Loading**: `loading={isLoading}` draws skeleton rows.

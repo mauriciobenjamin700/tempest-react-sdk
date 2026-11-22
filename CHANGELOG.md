@@ -4,6 +4,202 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
+  React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
+  precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num
+  prefetch fazia `new QueryClient({ … })` e redigitava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`,
+  `shouldRetryQuery`, `refetchOnWindowFocus: false` e `mutations.retry: 0` — a receita
+  [app de gestão](docs/recipes/example-management-app.md) fazia exatamente isso. O `QueryProvider`
+  passa a criar o seu client por ela, então os dois não divergem. O `networkMode` continua o
+  `"online"` do TanStack, de propósito (abaixo).
+- **`useDeleteMany(resource, options?)` e `DataProvider.deleteMany` (opcional)** (#715). Excluir uma
+  seleção com um `useDelete().mutateAsync` por id custava uma invalidação por id, e cada uma refazia
+  o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`
+  (`npx vitest run src/data/use-resource.test.tsx -t "ten ids"` fixa o depois: 1 e 1). O hook
+  invalida a lista uma vez e resolve com `{ deleted, failed }`, cada id com o próprio resultado; só
+  rejeita quando a chamada do provider inteira falha. `createDataProvider` implementa `deleteMany`
+  como um `DELETE` por id em paralelo; provider escrito à mão sem ele continua compilando, e o hook
+  cai no mesmo `deleteOne` por id. A receita [Painel CRUD](docs/recipes/admin-crud.md) troca o
+  `Promise.allSettled` sobre `mutateAsync` pelo hook.
+- **Doc: query que lê só o IndexedDB leva `networkMode: "always"`** (#723), com a medição. Offline,
+  no `networkMode` padrão a `queryFn` rodou **0** vezes (`pending`/`paused`); com `"always"` ou
+  `"offlineFirst"`, 1 vez e `success` (`npx vitest run src/query/create-query-client.test.tsx`). A
+  issue estava certa sobre a causa; a proposta de expor a opção no `QueryProvider` já estava
+  atendida (`defaultOptions.queries.networkMode` sempre funcionou), e trocar o default do client
+  inteiro faria as queries que vão à rede dispararem offline e falharem em vez de pausar. O SDK não
+  tem hook de leitura do IndexedDB em que a opção pudesse morar; as receitas offline apontam para a
+  seção nova de [Query](docs/query.md).
+
+### Corrigido
+
+- **`useCreate`/`useUpdate`/`useDelete`: o `onSuccess` do app não anula mais a invalidação do
+  cache** (#699). Os hooks montavam o próprio `onSuccess` e espalhavam `...options` **por cima**:
+  com `onSuccess` do app, medido **0** chamadas a `invalidateQueries` nos três, e a lista ficava
+  velha depois de criar, editar ou excluir — contra a doc, que prometia o callback "depois da
+  invalidação". Agora o `onSuccess` do app é separado das opções e roda depois de o SDK disparar a
+  invalidação; o valor que ele devolve volta ao TanStack, então um `onSuccess` assíncrono ainda
+  segura o `isPending`. A receita [Painel CRUD](docs/recipes/admin-crud.md) deixa de apresentar o
+  `mutate(vars, callbacks)` como contorno.
+- **`listQueryKey(resource)` sem `params` invalida todas as listas do recurso** (#700). Devolvia
+  `["data", resource, "list", undefined]`, e o quarto elemento `undefined` não casa por prefixo:
+  `invalidateQueries({ queryKey: listQueryKey("posts") })` — o exemplo da doc — alcançava **0** das
+  listas montadas com paginação. Agora devolve `["data", resource, "list"]`; com `params`, a chave
+  não muda. Os hooks passam a invalidar por `listQueryKey(resource)` em vez do literal. Efeito
+  colateral: a chave do `useList(resource)` **sem** params muda de hash, então essa entrada de um
+  cache persistido pela versão anterior não é reaproveitada (um fetch, uma vez).
+
+### Corrigido
+
+- **`<SyncStatusBadge sync={...}>` aceita o motor tipado** (#718). A prop era
+  `OfflineSync<unknown>`, e o motor é invariante no payload (o `enqueue` o recebe como parâmetro):
+  com `strict`, todo `OfflineSync<Visit>` reprovava com TS2322 em `sync={...}` — reproduzido com
+  `npx tsc --noEmit -p tsconfig.json` sobre um arquivo com `createOfflineSync<Visit>`. A prop passa a
+  ser `SyncStatusSource` (`Pick<OfflineSync<unknown>, "getState" | "subscribe">`, exportado da
+  raiz), só o que o badge lê. `useSyncStatus` recebe o mesmo tipo e **perde o parâmetro de tipo**
+  `TPayload`, que nada lia: quem escrevia `useSyncStatus<Visit>(sync)` tira o `<Visit>`. A receita
+  **App de campo offline** troca o contorno (`useSyncStatus` + `tone`/`pending`) por
+  `sync={visitSync}`. O exemplo de `docs/components/feedback.md` com `OfflineSync<Nota>` passava no
+  guard só porque o `@/` não resolve lá (#691); agora ele compila de verdade.
+- **Doc: `store.save(...)` não existe** (#719). Os exemplos de conflito em `docs/offline-sync.md`
+  e `docs/pwa.md` (PT e EN) e o JSDoc de `lastWriteWins`/`higherVersionWins`/`createOfflineSync`
+  chamavam `save`/`remove`, que o `OfflineStore` não tem — é `put`/`delete`. A issue dizia que os
+  blocos não tinham `import`; tinham. O guard os compilava, mas `store`/`analyses` não estavam
+  declarados, e o "Cannot find name" (TS2552) e o `dto` implícito (TS7006) caem no filtro de
+  fragmento — o `.save` nunca era checado. Os blocos agora criam o store com `createOfflineStore`, e
+  o guard reprova `save` (TS2339) se ele voltar.
+- **JSDoc do `useOfflineSync` passava `syncing`/`phase` ao `<SyncStatusBadge>`** (#720), props que
+  ele não tem (TS2322); em JS puro o badge ficava em `idle` com pendências na fila. O `@example`
+  agora usa `sync={notesSync}` e o `flush` do hook.
+- **`createOfflineSync({ coalesce })`: edições do mesmo registro saem num `deliver` só** (#725).
+  Medido antes da mudança: um `create` seguido de nove `update` do mesmo registro chamava o
+  `deliver` **10 vezes** (`npx vitest run src/offline/create-offline-sync.coalesce.test.ts`, caso
+  "still delivers one request per entry when coalesce is off"). Com `coalesce: true`, cada
+  sequência de `create`/`update` de um registro (mesmo dono) vira **uma** entrega com o `op`, o
+  `id` e o `attempts` da entrada mais antiga e o `payload` da mais nova; com uma função
+  `(acumulado, proximo) => payload` o app junta patches parciais. `delete` nunca entra no fold e
+  fecha a sequência, entradas de donos diferentes não se juntam, e o fold acontece na entrega — o
+  que foi enfileirado com o registro no ar fica para o próximo flush em vez de ser apagado junto.
+  `SyncRunSummary.coalesced` conta as entradas absorvidas; na falha só a mais antiga ganha
+  `attempts` e as outras contam em `deferred`. Tipo novo `OutboxCoalesce`. Default `false`: sem a
+  opção, nada muda. A receita **App de campo offline** liga a opção.
+
+### Budgets
+
+- **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **#725, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `slice: offline + PWA surface` 5 061 → 5 298 (teto 6 kB, dentro);
+  `ceiling: full barrel ESM` 172 596 → 172 765 (teto 172,7 → 172,8 kB); `ceiling: full barrel CJS`
+  203 908 → 204 290 (teto 204 → 204,3 kB). Os bytes são o agrupamento e o fold do `coalesce`.
+- **`createOfflineSync`: `foreignEntries: "hold"` para aparelho compartilhado** (#724). Com
+  `getPrincipal`, a entrada de outro dono era sempre apagada sem envio (`summary.dropped`):
+  reproduzido em 22/11/2026 (`npx vitest run src/offline/create-offline-sync.owner.test.ts`), o
+  técnico A enfileira 3 vistorias e sai (`held: 3`), B entra e sincroniza (`dropped: 3`), A volta e
+  nada é entregue — fila zerada. Com `foreignEntries: "hold"` a entrada de outro dono fica na fila
+  (`summary.held`) e sai quando ele entrar de novo, com a sessão dele; o padrão continua `"drop"`.
+  Em nenhuma das duas ela sai com a sessão de outra pessoa. `pendingCount()`/`SyncState.pending`
+  contam as seguradas. A receita **App de campo offline** liga a opção e troca o `ConfirmDialog` do
+  logout por um botão simples.
+- **`OfflineStore.listBy(índice, valor, owner?, options?)`** (#728). Lista por outro campo indexado
+  pelo índice do IndexedDB, ainda presa ao dono, com as mesmas `ListOptions` do `list`. A issue dizia
+  que o store "não lista por outro índice"; listava, por `list(owner, { filter })`, mas lendo todo
+  registro do dono — medido em 22/11/2026 com 2000 fotos de 2 donos, o predicado rodou 1000 vezes
+  para achar 20. E o contorno da receita, `photos.raw.where("visit_id")`, usava o índice mas **não**
+  o dono: devolvia as fotos de outro técnico com a mesma visita. Índice não declarado rejeita com o
+  `SchemaError` do Dexie. Disponível também nos stores do `createOfflineDatabase`.
+
+### Corrigido
+
+- **`createOfflineSync`: uma entrada segurada segura as seguintes do mesmo registro.** Com
+  `getPrincipal`, a entrada do dono segurada enquanto ninguém está logado não bloqueava as
+  seguintes do mesmo registro: uma edição feita deslogado era entregue **antes** da do dono, e a
+  dele, mais velha, a sobrescrevia no servidor quando ele voltasse — a mesma perda silenciosa que a
+  ordem por registro existe para evitar. Agora a entrada segurada bloqueia o registro como uma
+  falha, e as seguintes contam em `summary.deferred`. Fixado em
+  `create-offline-sync.owner.test.ts` ("does not deliver a signed-out edit ahead of the owner's held
+  edit of the same record"), que falha sem a correção.
+
+### Budgets
+
+- **#724 + #728, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e
+  sobre este branch**, bytes brotli: `ceiling: full barrel CJS` 203 908 → 204 155 (teto 204 →
+  204,2 kB); `ceiling: full barrel ESM` 172 596 → 172 695 (teto 172,7 kB, dentro); `slice: offline +
+PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a política
+  `foreignEntries`.
+
+### Segurança
+
+- **`createApiClient`: 401 de request sem token cujo `refresh` falha depois de `login(B)` não
+  desloga mais B** (#696, auditoria run-18 §3.1). O `catch` em volta do `refresh()` só recusava o
+  401 quando outra sessão tinha sido instalada desde a tentativa, e essa checagem começava por
+  `sessionEndedSince`, que devolve `false` para toda tentativa sem token. Num `ApiClient` próprio
+  (sem `createTempestAuth`), uma request deslogada que levava 401 disparava o `refresh`; se o
+  `login(B)` terminava durante ele e o refresh falhava, o cliente chamava `onUnauthorized` — e o
+  `() => logout()` da doc encerrava a sessão de B por uma request anterior a ela. A checagem agora
+  usa `epochMovedSince`, que conta tentativas com e sem token: a request rejeita com
+  `SessionSupersededError` e `onUnauthorized` não roda. O refresh que falha sem ninguém entrar
+  continua deixando o 401 e chamando `onUnauthorized` (#646). O preset `createTempestAuth` não era
+  afetado.
+
+### Corrigido
+
+- **`createTempestAuth`: `login()` cujo `mePath` falha não deixa mais token instalado com usuário
+  `null`** (#748). O `login()` instalava o token e o refresh token e só então buscava o usuário; se
+  o `GET` do `mePath` falhava, ele rejeitava com o erro, mas a sessão ficava — medido na 71727a7
+  com um `/me` respondendo 500: `token: "tok-B"`, `user: null`, `isAuthenticated: true` e
+  `tempest-auth-refresh` guardado. Um guard que olha só o token (ou o `isAuthenticated`) deixava
+  entrar uma sessão sem usuário. Agora a entrada é desfeita antes de o `login()` rejeitar: o refresh
+  token novo é revogado (`logoutPath`, modo body), store e refresh token são limpos e o
+  `onSessionEnd` roda com `"expired"` para ela. Vale para `restore()` e para a troca de conta que um
+  `refresh()` detecta, que passam pelo mesmo caminho. Um `SessionSupersededError` no `/me` continua
+  sem mexer na sessão instalada por quem a moveu. A receita "Exemplo integrado: app de gestão" (PT
+  e EN) explica que o guard de token e usuário cobre só o instante antes do `/me` responder.
+
+### Corrigido
+
+- **Scaffold: o guard do `/dashboard` reage ao logout** (#738). O `src/routes.tsx` do
+  `create-tempest-app` lia a sessão com `guard: () => useAuth.getState().isAuthenticated`, que não
+  assina a store. O layout re-renderiza no logout, mas o React Router devolve ao `<Outlet />` o
+  mesmo elemento da última troca de rota, então o React pula a subárvore guardada e o guard não
+  roda de novo. Medido num app gerado da 0.92.0 (`vite` + Chromium headless, script
+  `@playwright/test`: login de demonstração → `/dashboard` → Logout): a URL continuava
+  `/dashboard` e a tela mostrava `Signed in as ().`; com o guard por hook, a mesma sequência termina
+  em `/login`. O template agora usa `guard: function useSignedIn() { return
+useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/rules-of-hooks`), e
+  vale também para o `401` que chega no `onUnauthorized`. A causa não estava só no template: o
+  tutorial (`routing`, `state`, `auth-flow`), `routing.md`, `state.md`, o README e a docstring do
+  `defineRoutes` ensinavam `getState()` no guard, e o tutorial afirmava que o guard roda fora do
+  ciclo de hooks e que o logout manual mandava de volta ao login — as duas frases eram falsas. As
+  páginas passam a ensinar o hook; `src/router/guard-reactivity.test.tsx` fixa os dois
+  comportamentos (hook redireciona, `getState()` deixa a tela aberta) e
+  `test/scaffold-template.test.ts` impede o template de voltar ao `getState()`.
+
+### Corrigido
+
+- **Scaffold: o `package.json` gerado declara `@tanstack/react-query`, `react-hook-form` e `zod`**
+  (#747). A documentação importa os três direto do código do app, e o template não os declarava.
+  No npm e no yarn o import resolvia por acaso, pela cópia que o SDK deixa na raiz do
+  `node_modules`; no pnpm, que só expõe o que o app declara, um scaffold da 0.92.0 reprovava o `tsc`
+  com `TS2307: Cannot find module` em `@tanstack/react-query`, `react-hook-form`, `zod` e
+  `lucide-react` (medido em 22/11/2026: `create-tempest-app .` sobre o tarball, `npx pnpm@9 install`,
+  `npx tsc --noEmit` num arquivo que importa os quatro). A issue citava dois pacotes; a varredura
+  das docs (`grep -rlE 'from "<pacote>"' docs`) acha 18 páginas importando `zod`, 18
+  `@tanstack/react-query`, 3 `react-hook-form` e 14 `lucide-react`. Os três primeiros passam a ser
+  declarados **na faixa do próprio SDK**, então o npm instala uma cópia só de cada (`npm ls`
+  mostra os do SDK como `deduped`) — o que importa para os dois que carregam contexto React. O
+  `lucide-react` fica de fora, como o `docs/icons.md` já prescreve. Com o template novo, o mesmo
+  scaffold instala, passa no `tsc`, no `eslint` e no `npm run build` em npm e em pnpm.
+  `test/scaffold-template.test.ts` varre as docs e reprova dependência do SDK importada por elas e
+  não declarada, e faixa do template diferente da do SDK.
+- **`create-tempest-app .` mantém a dependência que o projeto já declara.** O merge num
+  `package.json` existente deixava o template vencer, ao contrário do que o `docs/scaffold.md`
+  promete; com o `zod` no template, um projeto em `zod ^3` seria reescrito para `^4` sem aviso.
+  Agora a versão do projeto vence; o `tempest-react-sdk` continua fixado na versão do SDK que roda
+  o scaffold. A receita do app de gestão deixa de mandar instalar `zod` e `@tanstack/react-query`.
+
 ### Corrigido
 
 - **Scaffold `--pwa`: o background sync do worker não enfileira mais o que a página já reenvia**
@@ -31,6 +227,37 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   com `allowed_actions=selected` só para as actions da GitHub, e mostra o comando que corrige cada
   item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
   Actions") pela exceção do Pages. Sem mudança no pacote publicado.
+- **`offline-persistence.lifetime.test.ts` deixa de estourar 5 s sob carga (#692).** Não era
+  lentidão: o teste passa em ~150–350 ms ou trava em 5 000 ms, nada entre os dois. A replay que os
+  casos run-12 C1 fixam exige que o `401` do pedido sem token chegue **enquanto** o `login()`/
+  `refresh()` está pendente, e o backend falso garantia isso só pelo relógio (`401` em 15 ms,
+  sign-in em 30 ms; ~20 ms de folga medidos em máquina ociosa). Sob carga a ordem invertia, o
+  client recusava a replay como deve (run-17) e o `vi.waitFor` esperava até o timeout do teste. O
+  backend agora ordena os dois — o `401` espera um sign-in ter chegado e o sign-in só responde
+  depois do `401` — e o `waitFor` desce para 2 s, então uma replay que não sai reprova com
+  `expected [ 'none' ] to have a length of 2` em vez de `TestTimeoutError`. Medido com 12 cópias
+  do arquivo da `main` e 12 do branch em paralelo (`npx vitest run <arquivo>`), por rodada, quatro
+  rodadas: na `main`, 32 de 48 execuções falharam (em três casos); no branch, 0 de 48. Forçando a ordem (`401`
+  em 0 ms ou em 60 ms), a `main` reprova 2 e 5 casos; o branch passa os 17. Sem mudança no pacote
+  publicado.
+
+### Budgets
+
+- **`ceiling: full barrel CJS` sobe de 204 kB para 204,3 kB** pelo `useDeleteMany`, o
+  `DataProvider.deleteMany` e o `createQueryClient` (`npm run build && npx size-limit --json`):
+  204 232 B neste branch, contra 203 908 B medidos na `main` ao mergear o #693 (+324 B). O barrel
+  ESM mede 172 671 B, dentro do teto de 172,7 kB; nenhuma fatia mudou de teto.
+
+### Budgets
+
+- **#696, medido com `npm run build && npx size-limit --json` sobre `origin/main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `slice: typical app (shell + 5 components + http + auth + hook)`
+  12 842 → 12 945 (teto 12,94 → 12,95 kB); `ceiling: full barrel ESM` 172 596 → 172 788 (teto
+  172,7 → 172,8 kB); `ceiling: full barrel CJS` 203 908 → 204 026 (teto 204 → 204,1 kB);
+  `slice: http client` 5 922 → 5 926, dentro do teto. O `dist` difere em **um** identificador
+  minificado (`D(e)` → `O(e)` em `dist/http/api-client.js`); trocar só esse arquivo no `dist` da
+  `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
+  não código novo.
 
 ## [0.92.0] — 2026-11-21
 

@@ -92,6 +92,12 @@ O `package.json` gerado vem com estes scripts:
 | `npm run lint`      | `eslint .` — ESLint 9 flat config (react-hooks + refresh) |
 | `npm run lint:fix`  | `eslint . --fix` — autocorrige o que dá                   |
 
+### Dependências que o app importa direto
+
+Além dos peers (`react`, `react-dom`, `react-router`), o `package.json` gerado declara `@tanstack/react-query`, `react-hook-form` e `zod`. Os três já vêm com o SDK, mas a documentação importa deles no código do app (`useQuery`, `useForm`, `z.object`), e importar o que não se declara só funciona por acaso: no npm e no yarn resolve pela cópia que o SDK deixa na raiz do `node_modules`; no **pnpm**, que só expõe o que o app declara, o `tsc` reprova com `Cannot find module`. A faixa declarada é **a mesma do SDK**, então qualquer gerenciador instala uma cópia só — o que importa para `@tanstack/react-query` e `react-hook-form`, que carregam contexto React. Ao atualizar o SDK, rode `npx tempest doctor`: ele avisa quando uma faixa do app ficou para trás e o npm aninhou uma segunda cópia.
+
+O `lucide-react` fica de fora de propósito — veja [Ícones](icons.md#nao-instale-lucide-react-voce-mesmo).
+
 ## Tour pelo que foi gerado
 
 O projeto gerado é enxuto de propósito: cada arquivo existe pra **demonstrar um recurso do SDK** que você vai reaproveitar. Esta é a estrutura completa:

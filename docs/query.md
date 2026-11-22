@@ -47,11 +47,10 @@ Defaults aplicados quando você **não** passa um `client`:
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
-Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto (ignora os defaults do SDK):
+Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto. Um `client` feito com `new QueryClient()` ignora os defaults do SDK; feito com `createQueryClient()`, ele os mantém:
 
 ```tsx
-import { QueryClient } from "@tanstack/react-query";
-import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
+import { createQueryClient, QueryProvider, STALE_TIME } from "tempest-react-sdk";
 
 // Opção A — só ajustar alguns defaults
 <QueryProvider defaultOptions={{ queries: { staleTime: STALE_TIME.LONG } }}>
@@ -59,7 +58,7 @@ import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
 </QueryProvider>;
 
 // Opção B — trazer seu próprio client (compartilhar entre roots, plugar devtools, etc.)
-const client = new QueryClient();
+const client = createQueryClient();
 <QueryProvider client={client}>
   <App />
 </QueryProvider>;
@@ -78,6 +77,59 @@ const client = new QueryClient();
     Com o provider visivelmente montado três linhas acima. Nada nessa mensagem aponta pra duplicata, e é por isso que ela custa uma tarde.
 
     A partir da v0.52.1 o SDK detecta e avisa em desenvolvimento: um client de outra cópia faz duck-type perfeito mas falha o `instanceof`, que é a discriminação exata. O conserto é `npm dedupe`, e `npx tempest doctor` lista toda dependência duplicada.
+
+### `createQueryClient`: o client fora do React
+
+O `QueryProvider` cria o client por dentro, e ali ele fica preso. Quando o app precisa dele **fora** do React — o `queryClient.clear()` no `onSessionEnd` da sessão, o `persistQueryClientOffline({ queryClient })`, um prefetch no loader da rota —, crie-o com `createQueryClient()` e entregue-o ao provider. É o mesmo client que o provider criaria, com os mesmos defaults:
+
+```tsx
+import { createQueryClient, createTempestAuth, QueryProvider } from "tempest-react-sdk";
+import type { ReactNode } from "react";
+
+export const queryClient = createQueryClient();
+
+export const auth = createTempestAuth({
+  baseURL: "https://api.example.com",
+  onSessionEnd: () => {
+    queryClient.clear();
+  },
+});
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <QueryProvider client={queryClient}>{children}</QueryProvider>;
+}
+```
+
+- **Aceita os mesmos overrides do provider**: `createQueryClient({ queries: { staleTime: STALE_TIME.LONG } })` mescla por chave, dentro de `queries` e de `mutations`, e mantém os defaults que você não nomeou.
+- **Um client novo por chamada.** Crie uma vez, no nível do módulo, e importe onde precisar.
+- **Sem redigitar os defaults.** Antes dele, o app que precisava do client copiava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT` e `shouldRetryQuery` num `new QueryClient({ … })`, e a cópia divergia no dia em que um deles mudasse (#741). E o client sai da mesma cópia do `@tanstack/react-query` que o SDK usa, então não cai no "No QueryClient set" de cópia duplicada descrito acima.
+
+### Query que lê só o IndexedDB: `networkMode: "always"`
+
+O TanStack Query **pausa** a query quando o navegador está offline: com o `networkMode` padrão (`"online"`), a `queryFn` nem roda. Para uma query que vai à rede, é o certo — ela espera o sinal voltar em vez de queimar uma requisição que vai falhar. Para uma query cuja `queryFn` lê **só** o IndexedDB, é um skeleton eterno. Medido offline (`src/query/create-query-client.test.tsx`):
+
+| `networkMode`    | Chamadas da `queryFn` | Estado                  |
+| ---------------- | --------------------- | ----------------------- |
+| `"online"`       | 0                     | `pending` / `paused`    |
+| `"offlineFirst"` | 1                     | `success`               |
+| `"always"`       | 1                     | `success`               |
+
+Marque a query local, não o client inteiro:
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+
+export function useDrafts(readDrafts: () => Promise<string[]>) {
+  return useQuery({
+    queryKey: ["drafts"],
+    queryFn: readDrafts,
+    networkMode: "always",
+  });
+}
+```
+
+!!! note "Por que não é o default do SDK"
+    `defaultOptions={{ queries: { networkMode: "always" } }}` funciona no `QueryProvider` e no `createQueryClient` desde sempre, mas vale para **toda** query: as que vão à rede passam a disparar offline e falhar, em vez de pausar até o sinal voltar. O SDK mantém o `"online"` e a query local diz que não depende de rede.
 
 ## Presets de tempo
 
@@ -345,6 +397,8 @@ Dexie é peer dependency do store offline — instale (`npm i dexie`).
 ## Recap
 
 - `<QueryProvider>` na raiz — um por app — entrega defaults calibrados; sobrescreva via `defaultOptions` ou `client`.
+- `createQueryClient()` dá o mesmo client com os mesmos defaults, para usar fora do React (`clear()` no fim da sessão, persistência, prefetch).
+- Query que lê só o IndexedDB leva `networkMode: "always"`; as que vão à rede continuam pausando offline.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` substituem números mágicos por presets nomeados.
 - `createQueryKeys(scope, builders)` gera keys tipadas e consistentes, com um `all` automático pra invalidação ampla.
 - Combine `setQueryData` (resposta imediata) com `invalidateQueries` (revalidação) usando a mesma key factory.

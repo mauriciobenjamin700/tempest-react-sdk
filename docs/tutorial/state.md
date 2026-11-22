@@ -1,6 +1,6 @@
 # Tutorial — Estado
 
-Na página anterior, o guard do dashboard leu `useAuth.getState().isAuthenticated`
+Na página anterior, o guard do dashboard leu `useAuth.use.isAuthenticated()`
 — mas a store `useAuth` ainda não existe. Vamos criá-la agora. De passagem, você
 aprende as duas peças de estado do SDK: `createStore` (uma store genérica) e
 `createAuthStore` (a store de autenticação pronta), ambas em cima do
@@ -194,21 +194,24 @@ export function RootLayout() {
 
 ## Lendo a store fora do React — `getState()`
 
-Nem todo código que precisa do estado é um componente. O guard de rota da página
-anterior roda **fora** da árvore React e não pode chamar hooks. Para esses casos,
-use `getState()` no hook ligado — um snapshot pontual, sem assinatura:
+Nem todo código que precisa do estado é um componente. O cliente HTTP, que você
+monta mais adiante, roda **fora** da árvore React e não pode chamar hooks. Para
+esses casos, use `getState()` no hook ligado — um snapshot pontual, sem assinatura:
 
 ```ts
-// trecho do guard, da página de roteamento
-guard: () => useAuth.getState().isAuthenticated,
+// trecho do cliente HTTP, da página de dados
+onUnauthorized: () => useAuth.getState().logout(),
 ```
+
+O guard da página anterior **não** é esse caso: ele roda durante a renderização da
+rota e precisa reagir ao logout, por isso lê pelo hook `useAuth.use.isAuthenticated()`.
 
 !!! warning "`getState()` não assina — use só fora do React"
 
     `getState()` lê uma vez e **não** re-renderiza nada quando o estado muda
     depois. Dentro de componentes, prefira sempre o hook (`useAuth.use.campo()`)
-    para a UI ficar em sincronia. Reserve `getState()` para guards de rota,
-    interceptors de HTTP e outros códigos fora da árvore React.
+    para a UI ficar em sincronia. Reserve `getState()` para interceptors de
+    HTTP e outros códigos fora da árvore React.
 
 ## Recap
 

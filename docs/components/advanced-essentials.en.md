@@ -257,8 +257,9 @@ const [open, setOpen] = useState(false);
 | `open`         | `boolean`                 | —                   | Whether the palette is visible                      |
 | `onOpenChange` | `(open: boolean) => void` | —                   | Next open state (Escape, selection, backdrop click) |
 | `items`        | `CommandItem[]`           | —                   | Candidate items to filter and display               |
-| `placeholder`  | `string`                  | `"Type a command…"` | Placeholder for the search input                    |
-| `emptyMessage` | `ReactNode`               | `"No results"`      | Rendered when no item matches the query             |
+| `placeholder`  | `string`                  | `"Digite um comando…"` | Placeholder for the search input                 |
+| `emptyMessage` | `ReactNode`               | `"Nenhum resultado"`   | Rendered when no item matches the query          |
+| `label`        | `string`                  | `"Paleta de comandos"` | Accessible name of the dialog and its search box |
 | `className`    | `string`                  | —                   | Forwarded to the dialog element                     |
 
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
@@ -290,6 +291,9 @@ const [open, setOpen] = useState(false);
     ```
 
     The hook already calls `preventDefault` and fires with the focus in a field, because the shortcut carries Ctrl/Cmd. `formatShortcut` shows `⌘K` or `Ctrl+K` depending on the system. See [`useKeyboardShortcut`](../hooks.md#global-shortcut-usekeyboardshortcut).
+
+!!! note "PT-BR default copy"
+    Until the previous version `placeholder`, `emptyMessage` and the accessible name were fixed in English (`"Type a command…"`, `"No results"`, `"Command palette"`), so a PT-BR screen reader announced the dialog in another language. All three now default to PT-BR and take a prop. Matching ignores case and accents: "usuarios" finds "Usuários".
 
 ## Recap
 

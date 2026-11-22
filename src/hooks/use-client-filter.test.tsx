@@ -26,4 +26,12 @@ describe("useClientFilter", () => {
         );
         expect(result.current).toHaveLength(2);
     });
+
+    it("finds accented values from an unaccented term, so 'joao' finds 'João'", () => {
+        const people = [{ name: "João" }, { name: "Usuários" }, { name: "Ana" }];
+        const { result } = renderHook(() => useClientFilter(people, "joao", ["name"]));
+        expect(result.current).toEqual([people[0]]);
+        const back = renderHook(() => useClientFilter(people, "USUÁRIOS", ["name"]));
+        expect(back.result.current).toEqual([people[1]]);
+    });
 });

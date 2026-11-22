@@ -29,6 +29,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
   Actions") pela exceção do Pages. Sem mudança no pacote publicado.
 
+### Budgets
+
+- **#696, medido com `npm run build && npx size-limit --json` sobre `origin/main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `slice: typical app (shell + 5 components + http + auth + hook)`
+  12 842 → 12 945 (teto 12,94 → 12,95 kB); `ceiling: full barrel ESM` 172 596 → 172 788 (teto
+  172,7 → 172,8 kB); `ceiling: full barrel CJS` 203 908 → 204 026 (teto 204 → 204,1 kB);
+  `slice: http client` 5 922 → 5 926, dentro do teto. O `dist` difere em **um** identificador
+  minificado (`D(e)` → `O(e)` em `dist/http/api-client.js`); trocar só esse arquivo no `dist` da
+  `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
+  não código novo.
+
 ## [0.92.0] — 2026-11-21
 
 ### Corrigido

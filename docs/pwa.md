@@ -350,12 +350,33 @@ Para mutações **otimistas** que gravam no outbox e atualizam o cache do TanSta
 O pull sobrescreve o registro local pela versão do servidor. Quando precisar de uma política explícita dentro do `applyRemote`, os helpers cobrem os dois casos comuns (empate → remoto vence):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
-  const local = await store.get(dto.id);
-  await store.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-};
+interface Note {
+  id: string;
+  updatedAt: string;
+  version: number;
+}
+
+// o store local que o motor alimenta
+const notes = createOfflineStore<Note, string>({
+  databaseName: "NotesOffline",
+  version: 1,
+  tableName: "notes",
+  indexes: "&id, updatedAt",
+});
+
+// passe como `applyRemote` no `createOfflineSync`
+export async function applyRemote(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(lastWriteWins(local, dto, (r) => r.updatedAt));
+}
+
+// ou, com contador de versão no registro
+export async function applyRemoteByVersion(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap

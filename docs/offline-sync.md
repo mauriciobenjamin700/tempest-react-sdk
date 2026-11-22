@@ -435,13 +435,35 @@ O backend resolve por `updated_at` (a escrita mais recente vence). No cliente, o
 Para os dois casos comuns, o SDK exporta resolvedores prontos pra usar dentro do `applyRemote` (empate → remoto vence):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
+interface Analysis {
+  id: string;
+  user_id: string;
+  updated_at: string;
+  version: number;
+}
+
+// o mesmo store da seção 2
+const analyses = createOfflineStore<Analysis, string>({
+  databaseName: "FamachaOffline",
+  version: 1,
+  tableName: "analyses",
+  indexes: "&id, user_id, updated_at",
+  ownerField: "user_id",
+});
+
+// passe como `applyRemote` no `createOfflineSync`
+export async function applyRemote(dto: Analysis): Promise<void> {
   const local = await analyses.get(dto.id);
-  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-  // ou: higherVersionWins(local, dto, (r) => r.version)
-};
+  await analyses.put(lastWriteWins(local, dto, (r) => r.updated_at));
+}
+
+// ou, com contador de versão no registro
+export async function applyRemoteByVersion(dto: Analysis): Promise<void> {
+  const local = await analyses.get(dto.id);
+  await analyses.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap

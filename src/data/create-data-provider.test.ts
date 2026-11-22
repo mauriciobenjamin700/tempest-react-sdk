@@ -188,6 +188,25 @@ describe("createDataProvider", () => {
         expect(client.delete).toHaveBeenCalledWith("/users/9");
     });
 
+    it("deleteMany sends one DELETE per id and reports each outcome without rejecting", async () => {
+        const client = mockClient();
+        const refused = new Error("open orders");
+        vi.mocked(client.delete).mockImplementation(async (path: string) => {
+            if (path === "/users/2") throw refused;
+            return { path } as never;
+        });
+        const provider = createDataProvider(client);
+
+        const result = await provider.deleteMany!<{ path: string }>("users", [1, 2, "a/b"]);
+
+        expect(client.delete).toHaveBeenCalledTimes(3);
+        expect(result.deleted).toEqual([
+            { id: 1, data: { path: "/users/1" } },
+            { id: "a/b", data: { path: "/users/a%2Fb" } },
+        ]);
+        expect(result.failed).toEqual([{ id: 2, error: refused }]);
+    });
+
     it("buildPath override controls the request path", async () => {
         const client = mockClient();
         const provider = createDataProvider(client, {

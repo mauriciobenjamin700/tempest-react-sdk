@@ -5,6 +5,8 @@ Como o `tempest-react-sdk` é publicado no npm e como o site de docs vai ao ar �
 !!! info "Por que não tem mais workflow"
     Desde 13/11/2026 a regra do dono é: GitHub Actions só em repositório da org `7rc`. Este repositório está fora dela, então o custo no GitHub é zero — nenhum workflow, nenhum `gh run rerun`, nenhum `gh workflow run`. O `release-npm.yml` e o `docs.yml` foram **apagados**, não só desligados: workflow desligado volta com um clique, e os testes que fixavam o hardening deles continuariam atestando código que nunca roda. A última versão dos dois está no commit `2df6e4b`. O que eles faziam virou dois alvos do `Makefile`: `make release-tag` e `make docs-deploy`.
 
+    A regra tem **uma** exceção, de 22/11/2026: repositório público de pacote ou ferramenta open source pode ter o Actions ligado **só para o GitHub Pages**. O Pages publica a branch `gh-pages` rodando o workflow embutido `pages-build-deployment`, que é do GitHub mas roda no Actions — com o Actions desligado, o push entra e o site não muda. Aqui o Actions fica ligado com as actions restritas às da GitHub, e `.github/workflows/` continua vazio.
+
 ## Visão geral
 
 ```text
@@ -113,7 +115,10 @@ Publica o site MkDocs no GitHub Pages, da máquina local (`scripts/docs-deploy.s
 3. `node scripts/gen-llms.mjs` e `mkdocs build --strict`;
 4. confere que as duas línguas saíram (`index.html` e `en/index.html`);
 5. empurra **esse** diretório para a branch `gh-pages` com o `ghp-import` do mesmo venv. Não é `mkdocs gh-deploy`, que buildaria uma segunda vez;
-6. lê a configuração do Pages (`gh api`, só leitura) e avisa se ela ainda não serve a `gh-pages`.
+6. **antes do push**, `scripts/pages-check.sh` confere (só leitura, `gh api`) que o Pages vai de fato publicar: repositório público, fonte na `gh-pages` e Actions ligado só com as actions da GitHub. Se faltar alguma coisa, o deploy para sem empurrar e mostra o comando que corrige; com `DRY_RUN=1`, só mostra.
+
+!!! warning "`✓ site na gh-pages` sem o Actions era mentira"
+    De 13 a 22/11/2026 o Actions ficou desligado (item 5 do checklist abaixo, na versão antiga), todo `make docs-deploy` terminou com ✓ e o site seguiu no último deploy do `docs.yml`, de 02/11/2026. O `pages-check.sh` existe para isso não voltar.
 
 `DRY_RUN=1 make docs-deploy` para depois do passo 4. Medido em 13/11/2026: o build com dry-run leva ~13 s com o cache do `uv` quente e gera as páginas das duas línguas (`time DRY_RUN=1 make docs-deploy`).
 
@@ -195,7 +200,7 @@ Estado lido em 13/11/2026, só leitura (`gh api repos/mauriciobenjamin700/tempes
 | 2 | npmjs.com → conta | 2FA no modo _Authorization and writes_: o `npm publish` pede o código, e um token de sessão vazado sozinho não publica | não observável daqui |
 | 3 | npmjs.com → `tempest-react-sdk` → _Settings → Trusted Publisher_ | **remover** a entrada que aponta para `release-npm.yml`: nenhum workflow publica mais, e ela só serve para reabrir um caminho de publish via Actions | configurada desde a 0.7.0 |
 | 4 | _Settings → Secrets and variables → Actions_ e _Environments_ | apagar o secret `NPM_TOKEN`, os environments `NPM_TOKEN`, `npm-release` e `github-pages`, a variável `RELEASE_BACKPORT_LINES` se existir, e revogar o token no npmjs.com | **existem** o secret `NPM_TOKEN` e os três environments |
-| 5 | _Settings → Actions → General_ | **Disable actions**: a regra passa a valer no GitHub, não só por convenção | `enabled: true`, `allowed_actions: all` |
+| 5 | _Settings → Actions → General_ | **Allow select actions → só as da GitHub** (sem verificadas, sem padrões): é o que o Pages precisa, e nada além. Ou: `gh api -X PUT repos/mauriciobenjamin700/tempest-react-sdk/actions/permissions -F enabled=true -f allowed_actions=selected` e `gh api -X PUT …/actions/permissions/selected-actions -F github_owned_allowed=true -F verified_allowed=false`. Desligar o Actions (a instrução de 13/11) para o site sem aviso; o `scripts/pages-check.sh` confere este item | `enabled: true`, `allowed_actions: all`; em 22/11/2026, `selected` só com as da GitHub |
 | 6 | _Settings → Rules → Rulesets_, alvo `main` e `release-*` | PR obrigatório, bloquear _force push_ e _deletion_ — é o que faz "está na `main`" significar "foi revisado" | `main` sem proteção |
 
 !!! warning "A máquina do mantenedor agora é o perímetro"

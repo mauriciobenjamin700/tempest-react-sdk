@@ -1,5 +1,13 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import {
+    chmodSync,
+    existsSync,
+    mkdtempSync,
+    readdirSync,
+    readFileSync,
+    writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -97,6 +105,125 @@ describe("make docs-deploy builds from reviewed bytes (#532)", () => {
         expect(read("Makefile")).toMatch(
             /^docs-deploy:.*\n\t@DRY_RUN=\$\(DRY_RUN\) \.\/scripts\/docs-deploy\.sh$/m,
         );
+    });
+
+    it("checks that Pages will publish before pushing, and only reports it in a dry run", () => {
+        const check = DEPLOY.indexOf('"$SCRIPTS/pages-check.sh" || fail');
+        expect(check).toBeGreaterThan(DEPLOY.indexOf('if [[ "$DRY_RUN" == "1" ]]'));
+        expect(check).toBeLessThan(DEPLOY.indexOf("ghp-import"));
+        expect(DEPLOY).toMatch(/"\$SCRIPTS\/pages-check\.sh" \|\| echo/);
+    });
+});
+
+/**
+ * A healthy repository for `scripts/pages-check.sh`: public, Pages on `gh-pages`,
+ * Actions on with GitHub-owned actions only.
+ */
+const HEALTHY: Record<string, unknown> = {
+    repo: { private: false },
+    pages: { build_type: "legacy", source: { branch: "gh-pages", path: "/" } },
+    actions: { enabled: true, allowed_actions: "selected" },
+    selected: { github_owned_allowed: true, verified_allowed: false, patterns_allowed: [] },
+};
+
+/**
+ * Run `scripts/pages-check.sh` against a fake `gh` that answers each endpoint
+ * with the given JSON, or fails it when the value is `null`.
+ *
+ * @param answers - `repo`, `pages`, `actions` and `selected` responses.
+ * @returns The child result.
+ */
+function pagesCheck(answers: Record<string, unknown>) {
+    const bin = mkdtempSync(join(tmpdir(), "pages-check-"));
+    const endpoints: Record<string, string> = {
+        "repos/{owner}/{repo}": "repo",
+        "repos/{owner}/{repo}/pages": "pages",
+        "repos/{owner}/{repo}/actions/permissions": "actions",
+        "repos/{owner}/{repo}/actions/permissions/selected-actions": "selected",
+    };
+    const cases = Object.entries(endpoints)
+        .map(([endpoint, key]) => {
+            const value = answers[key];
+            const body =
+                value === null
+                    ? "echo 'gh: Not Found (HTTP 404)' >&2; exit 1"
+                    : `echo '${JSON.stringify(value)}'`;
+            return `  "${endpoint}") ${body} ;;`;
+        })
+        .join("\n");
+    const gh = join(bin, "gh");
+    writeFileSync(gh, `#!/bin/sh\ncase "$2" in\n${cases}\n  *) exit 2 ;;\nesac\n`);
+    chmodSync(gh, 0o755);
+    return spawnSync(join(ROOT, "scripts", "pages-check.sh"), [], {
+        cwd: ROOT,
+        encoding: "utf8",
+        env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ""}` },
+    });
+}
+
+/**
+ * The deploy said `✓ site na gh-pages` from 13 to 22/11/2026 while the site stayed
+ * on the 02/11 build: Pages publishes a branch through the built-in
+ * `pages-build-deployment` workflow, and Actions was off. The owner's rule allows
+ * Actions for Pages only, only on a public repository, and only with GitHub-owned
+ * actions; each way of breaking that must stop the deploy before the push.
+ */
+describe("scripts/pages-check.sh refuses every setup where Pages would not publish", () => {
+    it("passes a public repository with Pages on gh-pages and Actions limited to GitHub", () => {
+        const result = pagesCheck(HEALTHY);
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain("✓ Pages publica a gh-pages");
+    });
+
+    it.each([
+        [
+            "Actions is off",
+            { actions: { enabled: false } },
+            "o Actions está desligado",
+            "-F enabled=true -f allowed_actions=selected",
+        ],
+        [
+            "Actions allows every action",
+            { actions: { enabled: true, allowed_actions: "all" } },
+            "o Actions permite 'all'",
+            "allowed_actions=selected",
+        ],
+        [
+            "verified marketplace actions are allowed",
+            { selected: { ...(HEALTHY.selected as object), verified_allowed: true } },
+            "não são só as da GitHub",
+            "-F verified_allowed=false",
+        ],
+        [
+            "an extra action pattern is allowed",
+            { selected: { ...(HEALTHY.selected as object), patterns_allowed: ["foo/bar@*"] } },
+            "não são só as da GitHub",
+            "-F github_owned_allowed=true",
+        ],
+        [
+            "Pages serves main",
+            { pages: { build_type: "legacy", source: { branch: "main", path: "/" } } },
+            "o Pages está em 'legacy main'",
+            "source[branch]=gh-pages",
+        ],
+        ["Pages is not configured", { pages: null }, "o Pages não está configurado", "-X POST"],
+        ["the repository is private", { repo: { private: true } }, "o repositório é privado", null],
+    ])("fails when %s, naming the fix", (_, override, problem, fix) => {
+        const result = pagesCheck({ ...HEALTHY, ...override });
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(problem);
+        if (fix) expect(result.stderr).toContain(fix);
+    });
+
+    /**
+     * The fix commands are printed, never run: the shell half of the script (before
+     * the `node` heredoc that only formats them) calls `gh` once, for a read.
+     */
+    it("only reads the repository configuration", () => {
+        const script = code(read("scripts", "pages-check.sh"));
+        const shell = script.slice(0, script.indexOf("<<'NODE'"));
+        const calls = shell.match(/\bgh api[^\n]*/g) ?? [];
+        expect(calls).toEqual(['gh api "repos/{owner}/{repo}$1" 2>/dev/null || echo "null"']);
     });
 });
 

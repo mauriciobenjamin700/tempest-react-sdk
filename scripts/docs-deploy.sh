@@ -21,9 +21,12 @@
 #     venv (a lib que o `mkdocs gh-deploy` usa por baixo, já no requirements com
 #     hash). `mkdocs gh-deploy` buildaria de novo — o que chegaria à branch seria
 #     um segundo build que ninguém conferiu;
-#  6. lê a configuração do Pages (`gh api`, só leitura) e avisa quando ela ainda
-#     não serve a `gh-pages`: trocar a fonte do Pages é ação do dono, e a branch
-#     precisa existir antes de poder ser escolhida.
+#  6. antes do push, `scripts/pages-check.sh` confere (só lendo, com `gh api`) que
+#     o Pages vai de fato publicar a `gh-pages`: fonte na branch **e** Actions
+#     ligado só para as actions da GitHub. Sem o Actions o push entra e nenhum
+#     build acontece — o site ficou parado de 13 a 22/11/2026 com o script
+#     dizendo ✓. Configuração errada para o deploy antes do push; no `DRY_RUN` o
+#     resultado só é mostrado. Corrigir a configuração é ação do dono.
 #
 # Variáveis de ambiente:
 #   DRY_RUN=1          para depois do passo 4, sem push
@@ -40,7 +43,9 @@ fail() {
   exit 1
 }
 
-for tool in git node uv; do
+SCRIPTS="$(cd "$(dirname "$0")" && pwd)"
+
+for tool in git node uv gh; do
   command -v "$tool" >/dev/null 2>&1 || fail "$tool não encontrado no PATH"
 done
 
@@ -73,23 +78,18 @@ for page in index.html en/index.html; do
 done
 echo "  ✓ $(find "$SITE" -name '*.html' | wc -l) páginas HTML, PT-BR e EN-US"
 
+echo "→ Configuração do Pages"
 if [[ "$DRY_RUN" == "1" ]]; then
+  "$SCRIPTS/pages-check.sh" || echo "  (DRY_RUN: o deploy real pararia aqui)"
   echo ""
   echo "✓ DRY_RUN — site de ${SHA:0:12} buildado e conferido; nada foi empurrado."
   exit 0
 fi
+"$SCRIPTS/pages-check.sh" || fail "o Pages não publicaria a $PAGES_BRANCH; nada foi empurrado"
 
 echo "→ Push do site para a $PAGES_BRANCH"
 (cd "$TREE" && "$VENV/bin/ghp-import" --no-jekyll --push --force --remote origin \
   --branch "$PAGES_BRANCH" --message "docs: deploy ${SHA:0:12}" "$SITE")
 
-PAGES=$(gh api "repos/{owner}/{repo}/pages" --jq '.build_type + " " + (.source.branch // "")' 2>/dev/null || echo "desconhecido")
-if [[ "$PAGES" != "legacy $PAGES_BRANCH" ]]; then
-  echo ""
-  echo "AVISO: o Pages está em '$PAGES', não serve a $PAGES_BRANCH. Ação do dono, uma vez:"
-  echo "  Settings → Pages → Source: Deploy from a branch → $PAGES_BRANCH / (root)"
-  echo "  ou: gh api -X PUT repos/{owner}/{repo}/pages -f build_type=legacy -f 'source[branch]=$PAGES_BRANCH' -f 'source[path]=/'"
-fi
-
 echo ""
-echo "✓ site de ${SHA:0:12} na $PAGES_BRANCH"
+echo "✓ site de ${SHA:0:12} na $PAGES_BRANCH; o Pages publica em ~1 min (gh run list --limit 1)"

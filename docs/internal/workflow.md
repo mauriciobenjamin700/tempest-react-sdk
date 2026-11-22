@@ -89,6 +89,12 @@ atestariam código que não roda). A última versão dos dois está em `2df6e4b`
 reprova `.github/workflows/` com qualquer arquivo e script que chame
 `gh run rerun`/`gh workflow run|enable`.
 
+**A única exceção é o Pages** (regra global de 22/11/2026): repo público de pacote ou
+ferramenta open source mantém o Actions ligado só para o `pages-build-deployment`
+embutido, com `allowed_actions=selected` e só as actions da GitHub. Sem isso o push
+na `gh-pages` entra e o site não muda — ficou parado de 13 a 22/11/2026 com o
+`make docs-deploy` dizendo ✓. `scripts/pages-check.sh` confere antes do push.
+
 Os testes já tinham saído da CI em 26/10/2026 (`ci.yml`, `size-limit.yml`,
 `e2e.yml`: cada PR esperava 8–12 min por checks que nenhuma branch protection
 exigia). O que eles rodavam é o `make check` (`scripts/check.sh`) — ~6 min medido em
@@ -133,9 +139,10 @@ sem runner, o `npm ci` roda ao lado do token. O checklist do dono (Pages para a
 `origin/main`, venv descartável com `uv` + `docs/requirements.txt`
 `--require-hashes` (gerado com hash, cooldown de 14 dias; o comando está no
 cabeçalho), `gen-llms` + `mkdocs build --strict`, confere as duas línguas e empurra
-esse build para a `gh-pages` com `ghp-import`. `DRY_RUN=1` só builda. O Pages ainda
-estava em `build_type: workflow` em 13/11/2026: trocar a fonte para a `gh-pages` é
-ação do dono, depois do primeiro deploy.
+esse build para a `gh-pages` com `ghp-import` — depois de o `scripts/pages-check.sh`
+confirmar que o Pages vai publicar (fonte na `gh-pages` **e** Actions ligado só com as
+actions da GitHub); senão para sem empurrar. `DRY_RUN=1` só builda e mostra a
+conferência. Corrigir a configuração é ação do dono.
 
 O `make publish` recusa: `npm publish` solto pula guard, smokes, read-back e Release.
 

@@ -23,6 +23,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   receita montava à mão nem servia para esse campo) e data sem hora, que responde `""` em vez de
   inventar `"00:00"`. Ausente responde `"—"`, como os irmãos. A receita **Viagem ao vivo** (PT e
   EN) troca o `Intl.DateTimeFormat` próprio (`formatClock`) por ele.
+- **`Select` ganha `clearable`** (#743): a entrada do `placeholder` fica habilitada e visível no
+  topo da lista, e um campo opcional volta a `""` depois de escolhido. Sem `clearable` a entrada
+  continua `disabled hidden`, o certo para campo obrigatório. Medição: a issue pedia "não precisar
+  declarar uma opção com valor vazio", mas essa opção já existe (`withEmptyOption`) e é a certa
+  quando o vazio tem nome — o "Particular" da receita **Exemplo integrado: app de gestão**, que
+  passa a usá-la (PT e EN). O que faltava era o vazio que só quer dizer "não escolhido". Validado
+  no Chromium headless (Playwright, gallery em `:5183`, 390 e 1280 px): escolher a entrada do
+  placeholder devolve `""` e o controle volta a mostrar o placeholder. Gallery ganhou o exemplo
+  "Select — placeholder que volta ao vazio".
 
 ### Mudado
 
@@ -43,6 +52,12 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **`Select` não controlado com `placeholder` abria na primeira opção** (#743, achado ao medir). O
+  algoritmo de seleção do HTML pula a entrada `disabled` do placeholder e seleciona a primeira
+  opção habilitada: medido no Chromium (Playwright headless, a marcação antiga) e no jsdom,
+  `select.value === "a"`. `<Select placeholder="Selecione" options={…} />` sem `value` nem
+  `defaultValue` mostrava a primeira opção, e o submit mandava um valor que ninguém escolheu.
+  Agora começa em `""`; `value`/`defaultValue` explícitos continuam valendo.
 - **`formatDate`, `formatDateTime` e o `formatDate` do `createI18n`/`useI18n` mostravam o dia
   anterior para data sem hora no Brasil** (#701). `"2026-11-16"` passava por `new Date`, que lê
   meia-noite **UTC**; medido com `TZ=America/Sao_Paulo`: `formatDate` → `15/11/2026`,
@@ -56,6 +71,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   continua no fuso pedido. Dia que o mês não tem (`"2026-02-30"`) passa a responder `""` em vez
   de virar `01/03/2026`. A receita **Exemplo integrado: app de gestão** (PT e EN) perde o
   `timeZone: "UTC"` que contornava o defeito.
+
+### Budgets
+
+- **#701, #742 e #743, medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `71727a7` e sobre este branch**, em bytes brotli: `slice: typical app (shell + 5 components +
+http + auth + hook)` 12 842 → 13 097 (teto 12,94 → 13,1 kB) — o `AppProviders` alcança o
+  `createI18n`, e o `formatDate` dele agora carrega `utils/calendar-date.js` (401 B minificados,
+  medido com o metafile do esbuild: é o único módulo que muda na fatia); `ceiling: full barrel
+ESM` 172 596 → 173 069 (teto 172,7 → 173,1 kB); `ceiling: full barrel CJS` 203 908 → 204 687
+  (teto 204 → 204,7 kB). `slice: auth screens` 8 947 → 9 030, dentro do teto.
 
 ### Interno
 

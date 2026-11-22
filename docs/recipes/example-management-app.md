@@ -1149,6 +1149,7 @@ import {
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -1241,10 +1242,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -1265,7 +1266,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **Um schema zod** é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo `validateCPF` de [Forms BR](../forms-br.md); o telefone precisa de pelo menos 10 dígitos.
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
-- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
+- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio (`withEmptyOption`): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", `placeholder` com `clearable` deixa voltar ao vazio — veja [Select](../components/inputs.md#select-placeholder).
 - **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.

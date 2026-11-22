@@ -11911,6 +11911,43 @@ export function Estado() {
 | `variant`   | `"field" \| "chip" \| "bare"` | `"field"` |
 | `caretIcon` | `ReactNode`           | chevron do SDK |
 | `wrapperClassName` | `string`       | —         |
+| `placeholder` | `string`             | —         |
+| `clearable` | `boolean`             | `false`   |
+
+### Placeholder e campo opcional — `placeholder`, `clearable` {#select-placeholder}
+
+O `placeholder` é o texto do estado vazio (`""`). Por padrão a entrada dele é `disabled hidden`: lê como "nada escolhido ainda" e não volta a ser escolhida — certo para campo obrigatório. Num campo **opcional**, `clearable` deixa a entrada selecionável, e a pessoa volta ao vazio depois de ter escolhido:
+
+```tsx
+import { useState } from "react";
+import { Select, toOptions } from "tempest-react-sdk";
+
+const SALAS = { a: "Sala A", b: "Sala B" };
+
+export function Consulta() {
+    const [sala, setSala] = useState("a");
+    return (
+        <>
+            <Select
+                label="Sala (opcional)"
+                placeholder="Nenhuma"
+                clearable
+                value={sala}
+                onChange={(e) => setSala(e.target.value)}
+                options={toOptions(SALAS)}
+            />
+            <Select label="Sala" placeholder="Selecione a sala" options={toOptions(SALAS)} required />
+        </>
+    );
+}
+```
+
+- **`clearable`** põe uma entrada `""` com o texto do `placeholder` no topo da lista, habilitada e visível.
+- **Sem `value` nem `defaultValue`**, um `Select` com `placeholder` começa vazio, mostrando o placeholder.
+- Quando o vazio **tem nome** no domínio — "Particular", "Nenhum convênio" —, ele é um valor, não um aviso: use uma opção de verdade com `withEmptyOption(options, "Particular")`.
+
+!!! danger "Até a 0.92.0, `placeholder` sem `value` mostrava a primeira opção"
+    O algoritmo de seleção do HTML pula a entrada `disabled` e seleciona **a primeira opção** habilitada. Medido no Chromium (Playwright headless, `<select><option value="" disabled hidden>Selecione</option><option value="a">A</option>…`): `select.value === "a"` — e no jsdom, o mesmo. Um `<Select label="UF" placeholder="Selecione" options={ufs} />` não controlado abria em "São Paulo", e o submit mandava um valor que ninguém escolheu. Agora ele começa em `""`.
 
 ### Variante `chip` — linha de configurações
 
@@ -11994,7 +12031,7 @@ export function Filtros() {
 - Nenhuma das duas muta a lista recebida.
 
 !!! danger "Sem entrada vazia, salvar o formulário grava um valor que ninguém escolheu"
-    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. O `placeholder` do `Select` não resolve: a entrada dele é `disabled hidden`, então depois de escolher algo o campo **nunca mais volta a vazio**. Campo anulável usa `withEmptyOption`.
+    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. Campo anulável usa `withEmptyOption` — ou, quando o vazio é só "não escolhido", `placeholder` com [`clearable`](#select-placeholder).
 
 !!! warning "Objeto reordena chave numérica — use `Map` para escala"
     `toOptions` preserva a ordem de um `Map` sempre, e a de um objeto **exceto nas chaves inteiras**, que o JavaScript enumera primeiro e em ordem crescente (`OrdinaryOwnPropertyKeys`). Medido no Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` é `["1", "3", "5"]`. Uma escala de humor não é crescente por acaso — passe um `Map`.
@@ -34464,6 +34501,7 @@ import {
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -34556,10 +34594,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -34580,7 +34618,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **Um schema zod** é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo `validateCPF` de [Forms BR](../forms-br.md); o telefone precisa de pelo menos 10 dígitos.
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
-- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
+- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio (`withEmptyOption`): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", `placeholder` com `clearable` deixa voltar ao vazio — veja [Select](../components/inputs.md#select-placeholder).
 - **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.

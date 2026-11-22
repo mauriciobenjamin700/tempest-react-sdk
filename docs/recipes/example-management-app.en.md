@@ -1149,6 +1149,7 @@ import {
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -1241,10 +1242,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -1265,7 +1266,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **One zod schema** is the source of truth: type, validation and messages. CPF goes through `validateCPF` from [Forms BR](../forms-br.md); the phone needs at least 10 digits.
 - **`CPFInput` and `PhoneInput`** mask while the person types. Before sending, `unmask` strips the punctuation: the backend stores digits only.
 - **An optional field becomes `null`.** Empty email and health plan go out as `null`, which is what the backend expects for "not provided".
-- **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value. A `placeholder` would be disabled, and the receptionist could not move a patient back to self-pay.
+- **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value (`withEmptyOption`): it is a value with a name, not a "nothing chosen" prompt. When empty just means "not chosen", `placeholder` with `clearable` lets the field go back to empty — see [Select](../components/inputs.md#select-placeholder).
 - **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `applyApiFieldErrors` in `onError` puts each message on the field of the same name and focuses the first, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
 - **`key` on the modal.** The page mounts the modal with `key={patient.id}`. Opening another patient creates a new form, with the right values — no manual `reset()`.
 - **`fullscreenOnMobile`**: on phones, the form takes the whole screen instead of a cramped dialog.

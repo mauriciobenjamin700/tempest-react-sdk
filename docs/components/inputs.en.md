@@ -102,6 +102,43 @@ export function Estado() {
 | `variant`    | `"field" \| "chip" \| "bare"` | `"field"` |
 | `caretIcon`  | `ReactNode`          | SDK chevron |
 | `wrapperClassName` | `string`       | —         |
+| `placeholder` | `string`            | —         |
+| `clearable` | `boolean`             | `false`   |
+
+### Placeholder and optional fields — `placeholder`, `clearable` {#select-placeholder}
+
+`placeholder` is the text of the empty state (`""`). By default its entry is `disabled hidden`: it reads as "nothing chosen yet" and cannot be picked again — right for a required field. On an **optional** field, `clearable` keeps the entry selectable, so the person can go back to empty after picking something:
+
+```tsx
+import { useState } from "react";
+import { Select, toOptions } from "tempest-react-sdk";
+
+const ROOMS = { a: "Room A", b: "Room B" };
+
+export function Appointment() {
+    const [room, setRoom] = useState("a");
+    return (
+        <>
+            <Select
+                label="Room (optional)"
+                placeholder="None"
+                clearable
+                value={room}
+                onChange={(e) => setRoom(e.target.value)}
+                options={toOptions(ROOMS)}
+            />
+            <Select label="Room" placeholder="Select a room" options={toOptions(ROOMS)} required />
+        </>
+    );
+}
+```
+
+- **`clearable`** puts a `""` entry with the `placeholder` text at the top of the list, enabled and visible.
+- **Without `value` or `defaultValue`**, a `Select` with a `placeholder` starts empty, showing the placeholder.
+- When the empty choice **has a name** in the domain — "Private pay", "No insurance" — it is a value, not a prompt: use a real option with `withEmptyOption(options, "Private pay")`.
+
+!!! danger "Up to 0.92.0, `placeholder` without `value` showed the first option"
+    HTML's selectedness algorithm skips the `disabled` entry and selects **the first enabled option**. Measured in Chromium (headless Playwright, `<select><option value="" disabled hidden>Selecione</option><option value="a">A</option>…`): `select.value === "a"` — and the same in jsdom. An uncontrolled `<Select label="UF" placeholder="Selecione" options={ufs} />` opened on "São Paulo", and the submit sent a value nobody chose. It now starts on `""`.
 
 ### The `chip` variant — settings rows
 
@@ -185,7 +222,7 @@ export function Filters() {
 - Neither mutates the list it receives.
 
 !!! danger "Without an empty entry, saving the form writes a value nobody chose"
-    Measured in jsdom (which implements HTML's selectedness algorithm): a controlled `<select>` with `value=""` and no empty option reads back as **the first option** (`select.value === "a"`). Opening an edit form and saving it writes that value. `Select`'s `placeholder` does not solve it: its entry is `disabled hidden`, so once something is picked the field **can never go back to empty**. A nullable field uses `withEmptyOption`.
+    Measured in jsdom (which implements HTML's selectedness algorithm): a controlled `<select>` with `value=""` and no empty option reads back as **the first option** (`select.value === "a"`). Opening an edit form and saving it writes that value. A nullable field uses `withEmptyOption` — or, when empty just means "not chosen", `placeholder` with [`clearable`](#select-placeholder).
 
 !!! warning "An object reorders numeric keys — use a `Map` for a scale"
     `toOptions` always keeps a `Map`'s order, and an object's **except for integer keys**, which JavaScript enumerates first and ascending (`OrdinaryOwnPropertyKeys`). Measured in Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` is `["1", "3", "5"]`. A mood scale is not ascending by accident — pass a `Map`.

@@ -299,6 +299,30 @@ describe("createOfflineSync attachments", () => {
         expect(await sync.pendingCount()).toBe(1);
     });
 
+    it("sends no byte when the session ends while the app builds the upload options", async () => {
+        const app = appStore(server);
+        app.photos.set("p1", { id: "p1", blob: new Blob(["abcd"]), url: null });
+        let ending: (() => void) | null = null;
+        const sync = makeSync({
+            deliver: app.deliver,
+            attachments: {
+                ...app.attachments,
+                upload: async () => {
+                    ending?.();
+                    return { endpoint: "/api/uploads" };
+                },
+            },
+        });
+        ending = () => sync.resetWatermark();
+        await sync.enqueue("create", "v1", { id: "v1", photoIds: ["p1"] });
+
+        const summary = await sync.flush();
+
+        expect(summary.interrupted).toBe(true);
+        expect(server.log).toEqual([]);
+        expect(app.deliver).not.toHaveBeenCalled();
+    });
+
     it("uploads once for edits folded by coalesce, listing the newest payload", async () => {
         const app = appStore(server);
         app.photos.set("p1", { id: "p1", blob: new Blob(["abcd"]), url: null });

@@ -324,6 +324,11 @@ Todas as opções são opcionais.
     O `tempestCsp()` mora no mesmo subpath e deriva o `connect-src` das variáveis
     `VITE_*` que o app lê em runtime. Veja [Content-Security-Policy](csp.md).
 
+!!! tip "Tema sem flash"
+    O `tempestThemeInit()` também mora aqui: injeta o `themeInitScript()` no topo do
+    `<head>`, e o `tempestCsp()` o libera pelo hash. Veja
+    [No-flash](theme.md#no-flash-evitar-o-flash-do-tema-errado).
+
 ## Recap
 
 - Importe `createViteConfig` de **`tempest-react-sdk/vite`** — subpath dedicado de

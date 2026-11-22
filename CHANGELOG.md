@@ -4,6 +4,58 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`/vite`: `tempestThemeInit()` injeta o script anti-flash do tema no `index.html`** (#734). O
+  `themeInitScript()` precisava ser colado à mão no `<head>`, e nem o template do
+  `create-tempest-app` o tinha: medido no app gerado pela 0.92.0 (`vite build` + `vite preview`,
+  Chromium, `localStorage["tempest-theme"] = "dark"`, 5 cargas), no primeiro
+  `requestAnimationFrame` o `data-tempest-theme` não existia e o `body` pintava
+  `rgb(255, 255, 255)` nas 5. O plugin põe o script no topo do `<head>` (antes de qualquer folha),
+  no `vite dev` e no build; o `tempestCsp()`, que roda como transform `post`, o libera pelo SHA-256,
+  sem `'unsafe-inline'` (teste com `vite build` real). Página que já tem o mesmo trecho não ganha
+  segundo. Os dois templates (`template/` e `template-pwa/`) passam a ligar
+  `plugins: [tempestThemeInit(), tempestCsp()]`; com o plugin, o primeiro quadro do app gerado já
+  sai com o atributo `dark` e o `body` em `rgb(11, 13, 18)` nas 5 cargas, sem erro de CSP no console. `themeInitScript` mudou de arquivo
+  (`theme/theme-init-script.ts`) para o `/vite` não arrastar o `storage` do navegador; o export é o
+  mesmo.
+- **`formatShortcut` e `isApplePlatform`** (#733): o rótulo do atalho na convenção do sistema
+  (`⌘K` / `⇧⌘P` no Mac, iPhone e iPad; `Ctrl+K` / `Ctrl+Shift+P` no resto), a partir do mesmo
+  objeto `KeyboardShortcut` que o `useKeyboardShortcut` escuta. A receita da paleta ⌘K testava
+  `navigator.userAgent` à mão.
+
+### Mudado
+
+- **`useKeyboardShortcut`: atalho com Ctrl/Cmd dispara com o foco num campo e cancela a ação do
+  navegador** (#729). Medido no jsdom sobre a 0.92.0: `{ key: "k", mod: true }` com o foco num
+  `<input>` não chamava o handler, e o `keydown` casado saía com `defaultPrevented: false` (Ctrl+K
+  foca a busca do Chrome e do Firefox). Toda paleta repetia `event.preventDefault()` e
+  `{ ignoreInput: false }`. Agora os defaults seguem o modificador: com `ctrl`/`meta`/`mod`,
+  `ignoreInput: false` e `preventDefault: true`; com `alt`, só `preventDefault: true`; tecla sem
+  modificador fica como era (ignorada em campo, sem `preventDefault`). Opção nova
+  `preventDefault`. **Quem liga uma combinação de edição** (`mod+z`, `mod+a`, `mod+c`) e quer
+  manter a do campo passa `{ ignoreInput: true }`.
+- **`ThemeProvider`: `themeColor` cria a `<meta name="theme-color">` quando ela falta** (#735).
+  Antes a prop não fazia nada, em silêncio, numa página sem a tag — o `index.html` do template
+  base é uma delas.
+
+### Budgets
+
+- Medidos com `npm run build && npx size-limit --json`, `main` (71727a7) → este branch:
+  `slice: typical app` 12 842 → 12 959 B (teto 12.94 → 13 kB; o `AppProviders` monta o
+  `ThemeProvider`, que agora cria a meta `theme-color`); `ceiling: full barrel ESM` 172 596 →
+  173 096 B (teto 172.7 → 173.2 kB); `ceiling: full barrel CJS` 203 908 → 204 597 B (teto 204 →
+  204.7 kB). O resto do barrel cresce com `formatShortcut`/`isApplePlatform` e as opções do
+  `useKeyboardShortcut`.
+
+### Documentação
+
+- `components/advanced-essentials.md`: o tip da paleta usava `useKeyboardShortcut("mod+k", …)`, mas o
+  hook recebe objeto (#736); virou exemplo completo, que o guard compila.
+- Receitas `command-palette.md` e `dark-mode.md` (PT e EN) sem os contornos: nem
+  `preventDefault`/`ignoreInput` à mão, nem detecção de plataforma, nem script colado no
+  `index.html`, nem meta `theme-color` obrigatória.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

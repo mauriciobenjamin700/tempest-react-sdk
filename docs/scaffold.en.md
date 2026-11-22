@@ -101,7 +101,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # @ -> ./src alias in "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -131,14 +131,14 @@ Let's look at the three most important ones.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestCsp()],
+    plugins: [tempestThemeInit(), tempestCsp()],
 });
 ```
 
-One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md).
+One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md). `tempestThemeInit()` puts the theme's anti-flash script in the `<head>`, so whoever picked dark never sees a light frame on load. See [No-flash](./theme.md#no-flash-avoiding-the-wrong-theme-flash).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 

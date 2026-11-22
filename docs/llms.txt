@@ -24,7 +24,7 @@
 - [Mapa do Brasil & localidades](https://mauriciobenjamin700.github.io/tempest-react-sdk/br/): Mapa nacional clicável das 27 unidades federativas + dataset de estados e cidades — sem nenhuma API paga ou externa.
 - [Charts (recharts)](https://mauriciobenjamin700.github.io/tempest-react-sdk/charts/): Gráficos transformam números em forma: uma tendência que sobe, uma fatia que
 - [CLI `tempest`](https://mauriciobenjamin700.github.io/tempest-react-sdk/cli/): Além da CLI de scaffolding create-tempest-app, o pacote
-- [Cookbook — Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): Esta página é um livro de receitas: cada seção responde a um "eu quero fazer X"
+- [Cookbook — as receitas mudaram de lugar](https://mauriciobenjamin700.github.io/tempest-react-sdk/cookbook/): As receitas que moravam nesta página ganharam uma página cada na seção
 - [Content-Security-Policy (`tempestCsp`)](https://mauriciobenjamin700.github.io/tempest-react-sdk/csp/): Uma Content-Security-Policy diz ao navegador de onde a página pode carregar
 - [Data Provider (CRUD)](https://mauriciobenjamin700.github.io/tempest-react-sdk/data-provider/): Camada de CRUD no estilo Refine fiada nas convenções de paginação e endpoints do tempest-fastapi-sdk.
 - [Anti-padrões](https://mauriciobenjamin700.github.io/tempest-react-sdk/design/anti-patterns/): As páginas anteriores dizem o que fazer. Esta diz o que você vai encontrar —
@@ -64,6 +64,20 @@
 - [Web Push + Service Worker](https://mauriciobenjamin700.github.io/tempest-react-sdk/push/): Notificações push no navegador têm duas metades que conversam: a main thread (sua UI pede permissão e cria a inscrição) e a worker thread (o service worker recebe o push e desenha a notificação, mesmo com a aba fechada).
 - [PWA & Offline-First](https://mauriciobenjamin700.github.io/tempest-react-sdk/pwa/): O tempest-react-sdk traz tudo que um app Tempest precisa pra virar um PWA offline-first — sem depender de Workbox nem de vite-plugin-pwa.
 - [Query (TanStack Query)](https://mauriciobenjamin700.github.io/tempest-react-sdk/query/): Wrappers finos pra padronizar tempos de cache, chaves de query e o QueryClient.
+- [Painel CRUD (admin)](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/admin-crud/): Você trabalha no back-office da Mercadinho Ipê, uma rede de mercados de bairro.
+- [App do zero em 1 minuto](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/app-from-scratch/): O time de estoque da Loja Aurora pediu um app para conferir produtos e preços.
+- [Fluxo de autenticação completo](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/auth-flow/): A Loja Aurora vende pela internet e tem um painel interno para a equipe: a
+- [Cadastro BR + checkout](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/br-signup-checkout/): A Feira Fresca entrega cestas de orgânicos em São Paulo.
+- [Paleta de comandos ⌘K](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/command-palette/): O painel da Loja Aurora cresceu: Pedidos, Clientes, Produtos, Relatórios, Equipe,
+- [Dark mode sem flash](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/dark-mode/): A equipe da Loja Aurora fecha o caixa às dez da noite, e o painel branco cansa a vista.
+- [Exemplo integrado: app de gestão](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/example-management-app/): As outras receitas resolvem uma tela por vez.
+- [App de campo offline](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/field-app-offline/): O técnico da cooperativa sai às 6h da cidade, roda 80 km de estrada de chão e passa o dia
+- [Receitas](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/index/): Cada receita aqui parte de uma situação real: uma tela que um app de produção
+- [Viagem ao vivo (mapa + WebSocket)](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/live-trip/): São 6h40 e a Juliana está no ponto da Av. Frei Serafim. A van do fretado da fábrica deveria passar às 6h50 — mas ela já passou? Está presa no trânsito? Ela abre o app da transportadora e quer ver onde a van está agora, quanto falta para chegar no ponto dela e, se o sinal sumir, saber que o mapa parou de andar em vez de confiar numa posição velha.
+- [Mensageiro em tempo real](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/messenger/): A Marina trabalha na central de atendimento de uma loja online.
+- [Offline-first](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/offline-first/): Os vendedores externos da Loja Aurora atendem lojistas no interior, onde o 4G some
+- [Lista paginada com busca e ordenação](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/search-list/): No painel da Loja Aurora, duas telas parecem iguais e não são.
+- [Formulário com validação zod](https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/zod-form/): A Loja Aurora quer que o cliente crie conta antes da primeira compra.
 - [Upload resumível (tus)](https://mauriciobenjamin700.github.io/tempest-react-sdk/resumable-upload/): uploadWithProgress faz uma request. Isso funciona até o arquivo ficar grande: um áudio de 40 minutos gravado com useAudioRecorder, um vídeo, um dump. Aí um 4G que oscila por três segundos joga fora 300 MB já enviados, e recarregar a página joga fora tudo de novo.
 - [Routing](https://mauriciobenjamin700.github.io/tempest-react-sdk/routing/): O módulo routing do tempest-react-sdk embrulha o React Router em modo declarativo (^7 || ^8) e devolve uma superfície única de import: você declara sua árvore de rotas com defineRoutes, monta tudo com um único <AppRouter> e importa cada primitivo (Link, Outlet, useNavigate, …) direto do SDK.
 - [Scaffold — `create-tempest-app`](https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/): create-tempest-app é a CLI oficial de scaffolding da Tempest.

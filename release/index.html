@@ -4391,6 +4391,7 @@
 <div class="admonition info">
 <p class="admonition-title">Por que não tem mais workflow</p>
 <p>Desde 13/11/2026 a regra do dono é: GitHub Actions só em repositório da org <code>7rc</code>. Este repositório está fora dela, então o custo no GitHub é zero — nenhum workflow, nenhum <code>gh run rerun</code>, nenhum <code>gh workflow run</code>. O <code>release-npm.yml</code> e o <code>docs.yml</code> foram <strong>apagados</strong>, não só desligados: workflow desligado volta com um clique, e os testes que fixavam o hardening deles continuariam atestando código que nunca roda. A última versão dos dois está no commit <code>2df6e4b</code>. O que eles faziam virou dois alvos do <code>Makefile</code>: <code>make release-tag</code> e <code>make docs-deploy</code>.</p>
+<p>A regra tem <strong>uma</strong> exceção, de 22/11/2026: repositório público de pacote ou ferramenta open source pode ter o Actions ligado <strong>só para o GitHub Pages</strong>. O Pages publica a branch <code>gh-pages</code> rodando o workflow embutido <code>pages-build-deployment</code>, que é do GitHub mas roda no Actions — com o Actions desligado, o push entra e o site não muda. Aqui o Actions fica ligado com as actions restritas às da GitHub, e <code>.github/workflows/</code> continua vazio.</p>
 </div>
 <h2 id="visao-geral">Visão geral</h2>
 <div class="highlight"><pre><span></span><code>  make release TAG=X.Y.Z
@@ -4479,8 +4480,12 @@ make<span class="w"> </span>release-tag<span class="w"> </span><span class="nv">
 <li><code>node scripts/gen-llms.mjs</code> e <code>mkdocs build --strict</code>;</li>
 <li>confere que as duas línguas saíram (<code>index.html</code> e <code>en/index.html</code>);</li>
 <li>empurra <strong>esse</strong> diretório para a branch <code>gh-pages</code> com o <code>ghp-import</code> do mesmo venv. Não é <code>mkdocs gh-deploy</code>, que buildaria uma segunda vez;</li>
-<li>lê a configuração do Pages (<code>gh api</code>, só leitura) e avisa se ela ainda não serve a <code>gh-pages</code>.</li>
+<li><strong>antes do push</strong>, <code>scripts/pages-check.sh</code> confere (só leitura, <code>gh api</code>) que o Pages vai de fato publicar: repositório público, fonte na <code>gh-pages</code> e Actions ligado só com as actions da GitHub. Se faltar alguma coisa, o deploy para sem empurrar e mostra o comando que corrige; com <code>DRY_RUN=1</code>, só mostra.</li>
 </ol>
+<div class="admonition warning">
+<p class="admonition-title"><code>✓ site na gh-pages</code> sem o Actions era mentira</p>
+<p>De 13 a 22/11/2026 o Actions ficou desligado (item 5 do checklist abaixo, na versão antiga), todo <code>make docs-deploy</code> terminou com ✓ e o site seguiu no último deploy do <code>docs.yml</code>, de 02/11/2026. O <code>pages-check.sh</code> existe para isso não voltar.</p>
+</div>
 <p><code>DRY_RUN=1 make docs-deploy</code> para depois do passo 4. Medido em 13/11/2026: o build com dry-run leva ~13 s com o cache do <code>uv</code> quente e gera as páginas das duas línguas (<code>time DRY_RUN=1 make docs-deploy</code>).</p>
 <p>Mudança docs-only continua sendo commit <code>docs:</code> direto na <code>main</code>; o site muda quando alguém roda <code>make docs-deploy</code>, não no push.</p>
 <h3 id="make-releases"><code>make releases</code></h3>
@@ -4594,8 +4599,8 @@ make<span class="w"> </span>releases-sync<span class="w">       </span><span cla
 <tr>
 <td>5</td>
 <td><em>Settings → Actions → General</em></td>
-<td><strong>Disable actions</strong>: a regra passa a valer no GitHub, não só por convenção</td>
-<td><code>enabled: true</code>, <code>allowed_actions: all</code></td>
+<td><strong>Allow select actions → só as da GitHub</strong> (sem verificadas, sem padrões): é o que o Pages precisa, e nada além. Ou: <code>gh api -X PUT repos/mauriciobenjamin700/tempest-react-sdk/actions/permissions -F enabled=true -f allowed_actions=selected</code> e <code>gh api -X PUT …/actions/permissions/selected-actions -F github_owned_allowed=true -F verified_allowed=false</code>. Desligar o Actions (a instrução de 13/11) para o site sem aviso; o <code>scripts/pages-check.sh</code> confere este item</td>
+<td><code>enabled: true</code>, <code>allowed_actions: all</code>; em 22/11/2026, <code>selected</code> só com as da GitHub</td>
 </tr>
 <tr>
 <td>6</td>

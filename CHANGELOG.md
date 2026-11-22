@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`FileUpload` e `Dropzone`: prop `capture` para abrir a câmera do celular (#722).** Vai direto
+  para o `<input type="file">` (`"environment"`, `"user"` ou `true`, o tipo do próprio React): no
+  celular pula o seletor e abre o app de câmera do sistema, com foco, flash e resolução total e sem
+  pedido de permissão; no desktop o navegador ignora e abre o seletor de sempre. Antes nenhum dos
+  dois repassava atributo nenhum além de `accept`/`multiple`/`disabled` ao input (não há
+  `...rest`), então o único caminho era um `<input capture>` cru — o que a receita
+  [App de campo offline](docs/recipes/field-app-offline.md) fazia, com um `Button` e um `ref` para
+  abri-lo. A receita agora usa `<Dropzone capture="environment">`. Sem mudança de pixel: o input
+  continua escondido.
+
+### Budgets
+
+- **#722, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `ceiling: full barrel CJS` 203 908 → 204 221 (teto 204 →
+  204,3 kB) pelos dois props e seus JSDoc no `.cjs` sem tree-shaking; `ceiling: full barrel ESM`
+  172 596 → 172 439 (teto 172,7 kB, dentro).
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

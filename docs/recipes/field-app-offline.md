@@ -728,8 +728,7 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -759,15 +758,12 @@ function PhotoThumb({ photo }: { photo: VisitPhoto }) {
 }
 
 export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
   const toast = useToast();
   const list = useVisitPhotos(visitId);
   const { compress, isWorking } = useImageProcessing();
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  async function handleFiles(files: File[]): Promise<void> {
     const type = await bestSupportedType(["image/webp", "image/jpeg"]);
 
     for (const file of files) {
@@ -790,25 +786,14 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 
   return (
     <section>
-      <input
-        ref={input}
-        type="file"
+      <Dropzone
         accept="image/*"
         capture="environment"
-        multiple
-        hidden
-        onChange={(event) => void handleFiles(event)}
-      />
-      <Button
-        variant="soft"
-        fullWidth
-        leftIcon={<Camera size={18} />}
-        loading={isWorking}
-        disabled={disabled}
-        onClick={() => input.current?.click()}
+        disabled={disabled || isWorking}
+        onDrop={(files) => void handleFiles(files)}
       >
-        Tirar foto
-      </Button>
+        <Camera size={18} aria-hidden /> {isWorking ? "Processando a foto…" : "Tirar foto"}
+      </Dropzone>
 
       {list.isPending ? (
         <Skeleton height={96} style={{ marginTop: 12 }} />
@@ -838,9 +823,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 }
 ```
 
-O `<input type="file" capture="environment">` abre **o app de câmera do próprio celular**,
-na câmera traseira. Você ganha foco, flash e resolução total sem pedir permissão nenhuma —
-e funciona no iPhone, onde nem todo navegador abre câmera dentro da página.
+O [`capture="environment"`](../components/inputs.md#abrir-a-camera-do-celular-capture) do
+`Dropzone` abre **o app de câmera do próprio celular**, na câmera traseira. Você ganha foco,
+flash e resolução total sem pedir permissão nenhuma — e funciona no iPhone, onde nem todo
+navegador abre câmera dentro da página. No desktop o mesmo toque abre o seletor de arquivos,
+e arrastar uma foto para a área também vale.
 
 A foto de um celular atual tem vários MB. Guardar isso cru encheria o aparelho em poucos
 dias. Então ela passa pelo [`useImageProcessing`](../imaging.md#no-react) antes:

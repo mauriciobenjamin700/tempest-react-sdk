@@ -24012,6 +24012,7 @@ const i18n = createI18n({ locale: "pt-BR", fallbackLocale: "en", messages });
 
 i18n.t("greet", { name: "Mau" }); // "Olá, Mau"
 i18n.formatDate(new Date(), { dateStyle: "long" });
+i18n.formatDate("2026-11-16", { weekday: "short", day: "2-digit" }); // "seg., 16" — data sem hora mantém o dia em qualquer fuso
 
 const en = i18n.withLocale("en"); // novo I18n, mesmo catálogo
 en.t("greet", { name: "Mau" }); // "Hi, Mau"
@@ -33931,7 +33932,7 @@ function RevenueChart(): ReactNode {
 
     const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         [series]: point.total,
     }));
 
@@ -33968,7 +33969,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const patients = t("dashboard.series.patients");
 
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         [done]: day.done,
         [noShow]: day.no_show,
     }));
@@ -34090,8 +34091,8 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 !!! warning "O nome da série é a chave do objeto"
     O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a **frase traduzida** como chave: `[done]: day.done`, onde `done` vale `"Realizadas"` ou `"Attended"`. Trocar o idioma refaz os dados e a legenda acompanha.
 
-!!! warning "`timeZone: \"UTC\"` em data sem hora"
-    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. Formatada no fuso local, a segunda-feira vira domingo. Como a data veio sem hora, formate em UTC — ela volta a ser o dia 16 que o backend mandou.
+!!! info "Data sem hora fica no dia que o backend mandou"
+    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
 !!! tip "Eixo com dinheiro: notação compacta"
     No gráfico de faturamento, o `valueFormatter` usa `notation: "compact"`. `R$ 186.430` vira `R$ 186 mil`, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.
@@ -36733,16 +36734,10 @@ Pedaço por pedaço:
 // src/trips/trip-markers.tsx
 import type { ReactElement } from "react";
 import { Flag } from "lucide-react";
-import type { LiveRouteMarker } from "tempest-react-sdk";
+import { formatTime, type LiveRouteMarker } from "tempest-react-sdk";
 import type { Trip, TripStop } from "@/trips/contract";
 
 export type TripViewer = "passenger" | "driver";
-
-const clock = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-export function formatClock(value: string | Date): string {
-  return clock.format(typeof value === "string" ? new Date(value) : value);
-}
 
 function stopLabel(stop: TripStop, isMine: boolean): string {
   const served = stop.status === "departed" ? " (já atendida)" : "";
@@ -36757,7 +36752,7 @@ function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): 
         {stop.order}. {stop.name}
       </strong>
       <p>{stop.address}</p>
-      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatClock(stop.eta_at)}</p>}
+      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatTime(stop.eta_at)}</p>}
       {viewer === "driver" && stop.passengers.length > 0 && (
         <ul>
           {stop.passengers.map((passenger) => (
@@ -36982,12 +36977,13 @@ import {
   Stat,
   Timeline,
   estimateTravel,
+  formatTime,
   type TimelineItem,
   type TimelineMarker,
   type TrackPoint,
 } from "tempest-react-sdk";
 import type { StopStatus, Trip, TripStop } from "@/trips/contract";
-import { formatClock, type TripViewer } from "@/trips/trip-markers";
+import type { TripViewer } from "@/trips/trip-markers";
 
 export interface StopEta {
   stop: TripStop;
@@ -37049,7 +37045,7 @@ function timelineItems(trip: Trip): TimelineItem[] {
       description: stop.address,
       meta:
         stop.status === "pending" && stop.eta_at
-          ? formatClock(stop.eta_at)
+          ? formatTime(stop.eta_at)
           : STATUS_TEXT[stop.status],
       marker: stop.id === trip.my_stop_id ? "primary" : MARKER[stop.status],
     }));
@@ -37079,7 +37075,7 @@ export function NextStopPanel({ trip, viewer, eta }: NextStopPanelProps): ReactE
   const value = !eta ? "—" : eta.minutes <= 1 ? "Chegando" : `${eta.minutes} min`;
   const hint = !eta
     ? "Aguardando a posição da van"
-    : `Previsão ${formatClock(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
+    : `Previsão ${formatTime(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
 
   return (
     <Card title={title}>
@@ -37111,6 +37107,7 @@ import {
   OfflineIndicator,
   Skeleton,
   describeApiError,
+  formatTime,
   useMediaQuery,
 } from "tempest-react-sdk";
 import { useTrip } from "@/trips/api";
@@ -37118,7 +37115,6 @@ import type { Trip } from "@/trips/contract";
 import { NextStopPanel, etaAnnouncement, nextStop, stopEta } from "@/trips/NextStopPanel";
 import { SignalStatus } from "@/trips/SignalStatus";
 import { TripMap } from "@/trips/TripMap";
-import { formatClock } from "@/trips/trip-markers";
 import { useLiveVehicle } from "@/trips/use-live-vehicle";
 
 function LiveTrip({ trip }: { trip: Trip }): ReactElement {
@@ -37188,7 +37184,7 @@ export function PassengerTripPage(): ReactElement {
       <EmptyState
         icon={<BusFront />}
         title="A viagem ainda não começou"
-        description={`Saída prevista às ${formatClock(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
+        description={`Saída prevista às ${formatTime(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
       />
     );
   }
@@ -47689,7 +47685,7 @@ formatDate(pedido.entregueEm, { fallback: "pendente" }); // o texto é seu
 ABSENT_TEXT; // "—", para quando a sua própria célula precisa combinar
 ```
 
-Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate` e `formatDateTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
+Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate`, `formatDateTime` e `formatTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
 
 !!! danger "Antes da 0.66.0, ausente virava número plausível"
     Medido na 0.65.0, com o que chegava à tela para uma coluna que o backend deixou nula:
@@ -47705,6 +47701,29 @@ Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent
 
 !!! tip "Ausente e inválido não são a mesma coisa"
     Valor presente que não dá para interpretar — um ISO corrompido — continua respondendo **`""`**, e isso é de propósito. Lendo um log, "ninguém preencheu" e "o que preencheram está quebrado" são achados diferentes, e o segundo é o que vale investigar. Uma célula vazia e uma com `—` param de significar a mesma coisa.
+
+---
+
+## Data sem hora e hora do dia — `formatDate`, `formatDateTime`, `formatTime` {#data-sem-hora}
+
+O backend manda três formas diferentes, e cada formatador lê as três pelo que elas são:
+
+```ts
+import { formatDate, formatDateTime, formatTime } from "tempest-react-sdk";
+
+formatDate("2026-11-16"); // "16/11/2026" — coluna `date`, em qualquer fuso
+formatDateTime("2026-11-16T20:30:00Z"); // "16/11/2026, 17:30" em America/Sao_Paulo
+formatTime("2026-11-16T20:30:00Z"); // "17:30" em America/Sao_Paulo
+formatTime("08:05:00"); // "08:05" — coluna `time`, sem conversão de fuso
+formatTime("2026-11-16"); // "" — data sem hora não tem hora para mostrar
+```
+
+- **Data sem hora** (`yyyy-MM-dd`) é um dia do calendário, não um instante: sai como o dia que ela nomeia, em qualquer fuso. Um dia que o mês não tem (`"2026-02-30"`) responde `""`.
+- **Instante** (`Date`, ou string com data **e** hora) é convertido para o fuso de quem está vendo.
+- **Hora do dia** (`HH:mm`, `HH:mm:ss`) só existe no `formatTime`, e sai como veio.
+
+!!! danger "Até a 0.92.0, toda coluna `date` aparecia um dia antes no Brasil"
+    `new Date("2026-11-16")` é meia-noite **UTC**, que em UTC-3 é dia 15 às 21:00. Medido com `TZ=America/Sao_Paulo node -e 'console.log(new Intl.DateTimeFormat("pt-BR").format(new Date("2026-11-16")))'`: `15/11/2026`. O `formatDate` mostrava `15/11/2026`, o `formatDateTime` mostrava `15/11/2026, 21:00`, e o `formatDate` do `createI18n`/`useI18n` errava igual. Agora a data sem hora é formatada em UTC — o mesmo dia em todo fuso —, e um `timeZone` passado ao `formatDate` do i18n não a move.
 
 ---
 
@@ -48086,7 +48105,7 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 - **ZIP**: `createZip(entries, { onProgress })` monta planilha + fotos em fatias de ~8 ms, sem travar a tela, e guarda sem recomprimir o que já é comprimido.
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
 - **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
+- **Datas e percentuais**: `formatDate("2026-11-16")` mostra o dia 16 em qualquer fuso e `formatTime` dá `HH:mm` de um instante ou de uma coluna `time`; `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.

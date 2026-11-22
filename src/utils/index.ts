@@ -9,6 +9,7 @@ export {
     formatDateForInput,
     formatDateTime,
     formatDateTimeForInput,
+    formatTime,
     formatPhone,
     formatCPF,
     formatPercent,

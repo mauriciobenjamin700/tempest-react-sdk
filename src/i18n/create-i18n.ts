@@ -1,3 +1,4 @@
+import { displayDateOptions, readDisplayDate } from "@/utils/calendar-date";
 import { dateTimeFormat, numberFormat } from "@/utils/intl-cache";
 export type Messages = Record<string, string>;
 export type Catalog = Record<string, Messages>;
@@ -53,7 +54,15 @@ export interface I18n {
     ) => string;
     /** Format a number using `Intl.NumberFormat` on the active locale. */
     formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;
-    /** Format a Date using `Intl.DateTimeFormat` on the active locale. */
+    /**
+     * Format a Date or ISO string using `Intl.DateTimeFormat` on the active locale.
+     *
+     * A bare `yyyy-MM-dd` (a `date` column) is a calendar day, not an instant: it
+     * is printed as the day it names, in every time zone, and any `timeZone` in
+     * `options` is ignored for it. Read as `new Date("2026-11-16")` it would be
+     * UTC midnight, which every zone west of Greenwich — all of Brazil — shows as
+     * the 15th. A string with a time and a `Date` are formatted as instants.
+     */
     formatDate: (value: Date | string, options?: Intl.DateTimeFormatOptions) => string;
     /** Build a new `I18n` instance pointing at a different locale. */
     withLocale: (locale: string) => I18n;
@@ -138,9 +147,9 @@ export function createI18n(options: CreateI18nOptions): I18n {
     }
 
     function formatDate(value: Date | string, opts?: Intl.DateTimeFormatOptions): string {
-        const date = typeof value === "string" ? new Date(value) : value;
-        if (Number.isNaN(date.getTime())) return "";
-        return dateTimeFormat(locale, opts).format(date);
+        const display = readDisplayDate(value);
+        if (Number.isNaN(display.date.getTime())) return "";
+        return dateTimeFormat(locale, displayDateOptions(display, opts)).format(display.date);
     }
 
     return {

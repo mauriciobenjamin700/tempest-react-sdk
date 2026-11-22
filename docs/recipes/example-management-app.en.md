@@ -711,7 +711,7 @@ function RevenueChart(): ReactNode {
 
     const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         [series]: point.total,
     }));
 
@@ -748,7 +748,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const patients = t("dashboard.series.patients");
 
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         [done]: day.done,
         [noShow]: day.no_show,
     }));
@@ -870,8 +870,8 @@ Both use the same `useRevenue()`, with the same query key. React Query makes **o
 !!! warning "The series name is the object key"
     The chart uses each series' key as the text of the legend and the tooltip. That is why the data is rebuilt with the **translated sentence** as the key: `[done]: day.done`, where `done` is `"Realizadas"` or `"Attended"`. Switching the language rebuilds the data and the legend follows.
 
-!!! warning "`timeZone: \"UTC\"` on a date without a time"
-    JavaScript reads `"2026-11-16"` as **UTC** midnight, which in Brasília is still the 15th at 9 p.m. Formatted in the local time zone, Monday becomes Sunday. Since the date came without a time, format it in UTC — it goes back to being the 16th the backend sent.
+!!! info "A date without a time stays on the day the backend sent"
+    JavaScript reads `"2026-11-16"` as **UTC** midnight, which in Brasília is still the 15th at 9 p.m. The `formatDate` from `useI18n` treats a date without a time as a calendar day and formats it in UTC, so Monday stays Monday in every time zone — no `timeZone` in your code.
 
 !!! tip "Money on an axis: compact notation"
     On the revenue chart, `valueFormatter` uses `notation: "compact"`. `R$ 186,430` becomes `R$186K`, which fits the Y axis width on a phone. The month card still shows the full value.

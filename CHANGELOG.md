@@ -4,6 +4,32 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`formatTime(value, options?)`** — `HH:mm` em pt-BR, ao lado de `formatDate` e
+  `formatDateTime`, no mesmo cache de `Intl` (#709). Lê três formas: instante (`Date` ou ISO com
+  hora, convertido para o fuso local), hora do dia de uma coluna `time` (`"14:30:00"` →
+  `"14:30"`, sem conversão — `new Date("14:30:00")` é `Invalid Date`, então o formatador que a
+  receita montava à mão nem servia para esse campo) e data sem hora, que responde `""` em vez de
+  inventar `"00:00"`. Ausente responde `"—"`, como os irmãos. A receita **Viagem ao vivo** (PT e
+  EN) troca o `Intl.DateTimeFormat` próprio (`formatClock`) por ele.
+
+### Corrigido
+
+- **`formatDate`, `formatDateTime` e o `formatDate` do `createI18n`/`useI18n` mostravam o dia
+  anterior para data sem hora no Brasil** (#701). `"2026-11-16"` passava por `new Date`, que lê
+  meia-noite **UTC**; medido com `TZ=America/Sao_Paulo`: `formatDate` → `15/11/2026`,
+  `formatDateTime` → `15/11/2026, 21:00`, `i18n.formatDate` → `15/11/2026`. A issue citava só os
+  dois `formatDate`; o `formatDateTime` errava igual, e ainda mostrava uma hora que não existia.
+  Agora `yyyy-MM-dd` é dia do calendário: é montado em UTC e formatado com `timeZone: "UTC"`, o
+  mesmo dia em qualquer fuso (testado em `America/Sao_Paulo` e `Asia/Tokyo`). A correção proposta
+  na issue (`new Date(ano, mês - 1, dia)`, meia-noite local) foi descartada porque o
+  `formatDate` do i18n aceita `timeZone`: com um fuso a leste de UTC, a meia-noite local voltaria
+  um dia de novo. Por isso o `timeZone` do chamador é ignorado só para data sem hora; instante
+  continua no fuso pedido. Dia que o mês não tem (`"2026-02-30"`) passa a responder `""` em vez
+  de virar `01/03/2026`. A receita **Exemplo integrado: app de gestão** (PT e EN) perde o
+  `timeZone: "UTC"` que contornava o defeito.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

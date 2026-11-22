@@ -22,13 +22,13 @@ They open the app on the front-desk computer and on their phones, between appoin
 Every screen covers the five states of a real screen: **loading**, **empty**, **error**, **success** and **mobile**.
 
 !!! info "What you need"
-    A project created with [`create-tempest-app`](../scaffold.md). The files on this page **replace** the ones the scaffold generated and add the missing ones. Also install `recharts` (the optional dependency of [`/charts`](../charts.md)) and `zod`:
+    A project created with [`create-tempest-app`](../scaffold.md). The files on this page **replace** the ones the scaffold generated and add the missing ones. Also install `recharts` (the optional dependency of [`/charts`](../charts.md)):
 
     ```bash
-    npm install recharts zod @tanstack/react-query
+    npm install recharts
     ```
 
-    `@tanstack/react-query` already comes with the SDK; declaring it in your `package.json` makes it explicit that the app imports from it. Run `npx tempest doctor` afterwards: it warns when npm nested a second copy.
+    The `zod` and `@tanstack/react-query` this page imports are already declared in the scaffold's `package.json`, with the SDK's own range — see [Dependencies the app imports directly](../scaffold.md#dependencies-the-app-imports-directly).
 
 ## The backend contract
 
@@ -436,7 +436,7 @@ The app's two doors live here. 🚪
 
 **The session door** is on the `/` route, which wraps all the others. The `useSessionGuard` guard is a hook — hence the `use` prefix — and subscribes to the store: when the session ends, by sign-out or by expiry, it re-renders on its own and sends the person to `/login`. `preserveFrom: true` carries along the address they came from.
 
-The guard asks for **token and user**. Between the token arriving and `/auth/me` answering there is a moment where only the token exists; without the user there is no role, and without a role the permissions say "no" to everything.
+The guard asks for **token and user**. Between the token arriving and `/auth/me` answering there is a moment where only the token exists; without the user there is no role, and without a role the permissions say "no" to everything. It is only that moment: when `/auth/me` fails, `login()` undoes the sign-in before rejecting, and the token is not left alone in the store (#748).
 
 **The role door** is on `pacientes`. `useCan` answers in an effect pass, so on the first render it does not know yet. The guard returns `"pending"` meanwhile: the app shows the spinner instead of bouncing the receptionist out in a blink. Details in [Routing → `"pending"`](../routing.md#the-async-function-form-the-third-state-pending).
 
@@ -679,7 +679,7 @@ function RevenueChart(): ReactNode {
     }
 
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         total: point.total,
     }));
 
@@ -714,7 +714,7 @@ function DashboardSkeleton(): ReactNode {
 function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         done: day.done,
         noShow: day.no_show,
     }));
@@ -838,8 +838,8 @@ Both use the same `useRevenue()`, with the same query key. React Query makes **o
 !!! tip "The series name comes from `labels`"
     The data keeps the API's keys (`done`, `noShow`) and `labels` gives the legend and tooltip text: `labels={{ done: t("dashboard.series.done") }}`. Switching the language changes only the label. See [`labels`](../charts.md#series-label-apart-from-the-data-key-labels).
 
-!!! warning "`timeZone: \"UTC\"` on a date without a time"
-    JavaScript reads `"2026-11-16"` as **UTC** midnight, which in Brasília is still the 15th at 9 p.m. Formatted in the local time zone, Monday becomes Sunday. Since the date came without a time, format it in UTC — it goes back to being the 16th the backend sent.
+!!! info "A date without a time stays on the day the backend sent"
+    JavaScript reads `"2026-11-16"` as **UTC** midnight, which in Brasília is still the 15th at 9 p.m. The `formatDate` from `useI18n` treats a date without a time as a calendar day and formats it in UTC, so Monday stays Monday in every time zone — no `timeZone` in your code.
 
 !!! tip "Money on an axis: compact on the axis, full in the tooltip"
     The Y axis fits its widest label by itself. On a phone, the full `R$ 186,430` would take room from the plot, so the axis uses `yAxisFormatter` with `notation: "compact"` (`R$186K`) and the tooltip keeps the full value from `valueFormatter`. See [value axis](../charts.md#value-axis-width-and-format).
@@ -1110,13 +1110,14 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -1134,14 +1135,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -1181,11 +1174,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -1221,10 +1210,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -1245,8 +1234,8 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **One zod schema** is the source of truth: type, validation and messages. CPF goes through `validateCPF` from [Forms BR](../forms-br.md); the phone needs at least 10 digits.
 - **`CPFInput` and `PhoneInput`** mask while the person types. Before sending, `unmask` strips the punctuation: the backend stores digits only.
 - **An optional field becomes `null`.** Empty email and health plan go out as `null`, which is what the backend expects for "not provided".
-- **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value. A `placeholder` would be disabled, and the receptionist could not move a patient back to self-pay.
-- **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `onError` copies each message to the field of the same name with `form.setError`, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
+- **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value (`withEmptyOption`): it is a value with a name, not a "nothing chosen" prompt. When empty just means "not chosen", `placeholder` with `clearable` lets the field go back to empty — see [Select](../components/inputs.md#select-placeholder).
+- **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `applyApiFieldErrors` in `onError` puts each message on the field of the same name and focuses the first, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
 - **`key` on the modal.** The page mounts the modal with `key={patient.id}`. Opening another patient creates a new form, with the right values — no manual `reset()`.
 - **`fullscreenOnMobile`**: on phones, the form takes the whole screen instead of a cramped dialog.
 

@@ -293,6 +293,7 @@ import {
 } from "tempest-react-sdk";
 import { auth, currentTechnicianId } from "@/lib/auth";
 import { photos, visits } from "@/visits/db";
+import { listPhotos } from "@/visits/photos";
 import {
   fromDto,
   toPayload,
@@ -300,16 +301,12 @@ import {
   type Visit,
   type VisitChangesPage,
   type VisitDto,
-  type VisitPhoto,
 } from "@/visits/types";
 
 const PHOTO_CHUNK_SIZE = 256 * 1024;
 
 async function uploadPendingPhotos(visitId: string): Promise<PhotoRef[]> {
-  const list: VisitPhoto[] = await photos.raw
-    .where("visit_id")
-    .equals(visitId)
-    .sortBy("taken_at");
+  const list = await listPhotos(visitId);
   const refs: PhotoRef[] = [];
 
   for (const photo of list) {
@@ -336,6 +333,8 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   databaseName: "CampoVisitasOutbox",
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
+  foreignEntries: "hold",
+  coalesce: true,
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -431,6 +430,13 @@ None of those three things needs a network. Without signal, the `flush` skips it
 `create`/`update` is just a label: since the route is an upsert, both become the same
 `PUT`.
 
+And `coalesce: true` folds the edits: a technician who saves the same visit ten times
+without signal sends **one** `PUT` when the network returns, with the newest version — not
+ten. The photos go up once either way (one that already has an `upload_url` is not sent
+again), but without the option every intermediate `PUT` still spent a round-trip on a
+signal that barely holds. Details, and what is not folded, in
+[Ten edits, one request](../offline-sync.md#the-fast-path-createofflinesync).
+
 #### `deliver`: the photos go up before the visit
 
 [`createOfflineSync`](../offline-sync.md#the-fast-path-createofflinesync) calls `deliver`
@@ -476,11 +482,17 @@ delivery the engine checks again:
 | --- | --- |
 | the same technician | delivered |
 | nobody | stays queued until they come back |
-| another technician | **dropped unsent** |
+| another technician | **stays queued**, unsent, until its owner is back |
 
-The third row keeps the server from receiving Carlos's inspection with Ana's token. But it
-also means: if Carlos signs out with pending visits and Ana signs in and syncs, Carlos's
-visits are lost. That is why the sign-out button (further down) **warns** first. 👇
+The third row is `foreignEntries: "hold"`. It keeps the server from receiving Carlos's
+inspection with Ana's token **and** keeps Carlos's work: if he signs out with pending
+visits and Ana signs in and syncs, his visits stay on the tablet and go out when he signs
+back in. The engine default (`"drop"`) would delete them — it suits a personal device, not
+the cooperative's tablet. Details in
+[Offline Sync › Shared device](../offline-sync.md#the-fast-path-createofflinesync).
+
+A visit **of Carlos's** that Ana edits waits for his edit to go out first: per-record order
+holds for held entries too.
 
 #### `pullPage` and `applyRemote`: what comes from the office
 
@@ -570,9 +582,17 @@ export async function addPhoto(visitId: string, image: CompressedImage): Promise
 }
 
 export function listPhotos(visitId: string): Promise<VisitPhoto[]> {
-  return photos.raw.where("visit_id").equals(visitId).sortBy("taken_at");
+  const owner = currentTechnicianId();
+  if (owner === null) throw new Error("Your session expired. Sign in again to see the photos.");
+  return photos.listBy("visit_id", visitId, owner, { orderBy: "taken_at" });
 }
 ```
+
+[`listBy`](../offline.md#listing-by-another-index-listby) goes through the `visit_id` index
+and stays bound to the owner: calling `photos.raw.where("visit_id")` on Dexie directly also
+used the index, but returned another technician's photo for the same visit. With nobody
+signed in, the function throws instead of calling `listBy` without an owner — which would
+list everyone's photos.
 
 The photo enters the database with `upload_url: null`. Whoever sends it to the server is
 `deliver`, the next time the visit syncs.
@@ -673,58 +693,39 @@ export function SyncPanel() {
 ```tsx
 // src/components/LogoutButton.tsx
 import { LogOut } from "lucide-react";
-import { useState } from "react";
-import { Button, ConfirmDialog, useOfflineSync } from "tempest-react-sdk";
+import { Button } from "tempest-react-sdk";
 import { auth } from "@/lib/auth";
 import { visitSync } from "@/visits/sync";
 
 export function LogoutButton() {
-  const { pending } = useOfflineSync(visitSync, { flushOnOnline: false });
-  const [asking, setAsking] = useState(false);
-
   async function signOut(): Promise<void> {
     visitSync.resetWatermark();
     await auth.logout();
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        iconOnly
-        aria-label="Sair"
-        onClick={() => (pending > 0 ? setAsking(true) : void signOut())}
-      >
-        <LogOut size={18} />
-      </Button>
-      <ConfirmDialog
-        open={asking}
-        variant="danger"
-        title={`${pending} alterações ainda não foram enviadas`}
-        description="Elas ficam guardadas neste aparelho e saem quando você entrar de novo. Se outro técnico entrar aqui antes disso, elas são descartadas."
-        confirmLabel="Sair mesmo assim"
-        cancelLabel="Ficar e esperar o sinal"
-        onConfirm={signOut}
-        onCancel={() => setAsking(false)}
-      />
-    </>
+    <Button variant="ghost" iconOnly aria-label="Sair" onClick={() => void signOut()}>
+      <LogOut size={18} />
+    </Button>
   );
 }
 ```
 
 [`useOfflineSync`](../offline-sync.md#reactive-ui-and-auto-flush) subscribes the component
 to the engine: `pending`, `syncing`, `lastSyncedAt` and `lastError` change on their own on
-every run. Both components pass `flushOnOnline: false` because only one thing triggers the
-upload — the `SyncRunner`, in `App`.
+every run. The panel passes `flushOnOnline: false` because only one thing triggers the
+upload — the `SyncRunner`, in `App`. `pending` also counts another technician's held
+entries: Ana sees that Carlos's work is waiting on the tablet.
 
 `lastError` shows why the last run failed. "Failed to fetch" in the pasture is routine;
 what you want to see is a `401` or a `413` that will not go away on its own.
 
 !!! warning "Signing out does not clear the outbox — on purpose"
     Logout calls `resetWatermark()`, not `clearOutbox()`. Clearing the queue would lose
-    the day's work of someone who signed out without signal. With `getPrincipal`, the
-    technician's entries stay **safe** until they come back — the `ConfirmDialog` only
-    makes the one case where they are lost explicit.
+    the day's work of someone who signed out without signal. With `getPrincipal` +
+    `foreignEntries: "hold"`, the technician's entries stay **safe** until they come back,
+    even if another technician signs in and syncs first — so the sign-out button has
+    nothing to ask.
 
 ### 8. The camera
 
@@ -732,8 +733,7 @@ what you want to see is a `401` or a `413` that will not go away on its own.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -763,15 +763,12 @@ function PhotoThumb({ photo }: { photo: VisitPhoto }) {
 }
 
 export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
   const toast = useToast();
   const list = useVisitPhotos(visitId);
   const { compress, isWorking } = useImageProcessing();
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  async function handleFiles(files: File[]): Promise<void> {
     const type = await bestSupportedType(["image/webp", "image/jpeg"]);
 
     for (const file of files) {
@@ -794,25 +791,14 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 
   return (
     <section>
-      <input
-        ref={input}
-        type="file"
+      <Dropzone
         accept="image/*"
         capture="environment"
-        multiple
-        hidden
-        onChange={(event) => void handleFiles(event)}
-      />
-      <Button
-        variant="soft"
-        fullWidth
-        leftIcon={<Camera size={18} />}
-        loading={isWorking}
-        disabled={disabled}
-        onClick={() => input.current?.click()}
+        disabled={disabled || isWorking}
+        onDrop={(files) => void handleFiles(files)}
       >
-        Tirar foto
-      </Button>
+        <Camera size={18} aria-hidden /> {isWorking ? "Processando a foto…" : "Tirar foto"}
+      </Dropzone>
 
       {list.isPending ? (
         <Skeleton height={96} style={{ marginTop: 12 }} />
@@ -842,9 +828,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 }
 ```
 
-`<input type="file" capture="environment">` opens **the phone's own camera app**, on the
-rear camera. You get focus, flash and full resolution without asking for any permission —
-and it works on the iPhone, where not every browser opens the camera inside the page.
+The `Dropzone`'s [`capture="environment"`](../components/inputs.en.md#opening-the-phone-camera-capture)
+opens **the phone's own camera app**, on the rear camera. You get focus, flash and full
+resolution without asking for any permission — and it works on the iPhone, where not every
+browser opens the camera inside the page. On desktop the same tap opens the file picker, and
+dragging a photo onto the area works too.
 
 A photo from a current phone is several MB. Storing that raw would fill the device in a few
 days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
@@ -869,9 +857,8 @@ days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
 
     ```tsx
     // src/components/InlineCamera.tsx
-    import { Button } from "tempest-react-sdk";
+    import { Button, useCameraStream } from "tempest-react-sdk";
     import { captureFrame, type CapturedFrame } from "tempest-react-sdk/imaging";
-    import { useCameraStream } from "tempest-react-sdk/vision";
 
     export function InlineCamera({ onShot }: { onShot: (frame: CapturedFrame) => void }) {
       const camera = useCameraStream({
@@ -904,11 +891,10 @@ days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
     }
     ```
 
-    The price: `useCameraStream` lives in the `/vision` subpath, which requires
-    `onnxruntime-web` to be installed even without any model (see
-    [Vision](../vision.md#onnxruntime-web-is-an-optional-peer-dependency)). And the frame
-    comes out at the video stream's resolution, usually lower than the native camera's.
-    For an inspection photo, `<input capture>` is usually the better choice.
+    `useCameraStream` comes from the root entry, which does not require `onnxruntime-web`.
+    The price is a different one: the frame comes out at the video stream's resolution,
+    usually lower than the native camera's. For an inspection photo, `<input capture>` is
+    usually the better choice.
 
 ### 9. The visit screen
 
@@ -1567,12 +1553,12 @@ installPrecache({
 - **`sw.ts`** only precaches the app shell, so the app opens without a network. See
   [PWA](../pwa.md#2-precache-runtime-cache-navigation-preload).
 
-!!! warning "Do not turn on `installBackgroundSync` for the routes the outbox already handles"
-    The `--pwa` template ships `installBackgroundSync` matching **all** of `/api/`. In this
-    app, the outbox is what resends. With both on, a `PUT /api/visits/…` that failed
-    offline goes out twice — and a tus `PATCH` held by the worker is replayed later, with a
-    stale `Upload-Offset`, and gets a `409`. Remove `installBackgroundSync` (as above) or
-    take `/api/visits` and `/api/uploads` out of its `match`.
+!!! info "Why this `sw.ts` has no `installBackgroundSync`"
+    In this app, the outbox is what resends, and the tus upload resumes by itself. The
+    `--pwa` template already keeps tus out of background sync; if you keep the scaffold's
+    `installBackgroundSync`, add `"/api/visits/"` to `RETRIED_BY_THE_PAGE` in
+    `src/sw-sync-scope.ts`, or a `PUT /api/visits/…` that failed offline goes out of both
+    queues. See [One queue per mutation](../scaffold.md#background-sync-offline-mutations-that-resend-themselves).
 
 ## Testing in the field (without going to the field)
 
@@ -1598,7 +1584,8 @@ installPrecache({
 - 🗄️ **`createOfflineDatabase`** keeps visits and photos (as `Blob`s) in the same database,
   owned per technician.
 - 📤 **`createOfflineSync`** is the outbox: `saveVisit` writes locally and enqueues; the
-  upload happens whenever it can.
+  upload happens whenever it can, and `coalesce: true` folds the edits of one visit into a
+  single `PUT`.
 - 📸 Photos go up **inside `deliver`** with **`createResumableUpload`** and a per-photo
   `key` — a failure retries, a drop resumes from the offset, a sent photo does not go up
   again.
@@ -1608,7 +1595,8 @@ installPrecache({
 - 🗜️ **`useImageProcessing` + `bestSupportedType`** shrink the photo on the device; GPS
   goes in the record, because the re-encode drops EXIF.
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** and **`OfflineIndicator`** tell the
-  technician what is going on; sign-out warns before risking the queue.
+  technician what is going on; with `foreignEntries: "hold"`, signing out never risks the
+  queue.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** deliver the report without a
   network.
 - 🔒 **`useStorageEstimate`** asks for persistent storage; `UpdatePrompt` does not swap

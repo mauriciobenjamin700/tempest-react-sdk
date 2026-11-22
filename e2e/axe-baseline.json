@@ -3,7 +3,7 @@
     "incomplete": {
       "aria-prohibited-attr": 28,
       "aria-valid-attr-value": 4,
-      "color-contrast": 117,
+      "color-contrast": 120,
       "label-content-name-mismatch": 41,
       "video-caption": 4
     },
@@ -47,7 +47,7 @@
     "incomplete": {
       "aria-prohibited-attr": 28,
       "aria-valid-attr-value": 4,
-      "color-contrast": 117,
+      "color-contrast": 120,
       "label-content-name-mismatch": 41,
       "video-caption": 4
     },

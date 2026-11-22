@@ -8,9 +8,13 @@
  * separate from `./index` so `npm run vendor:vision` can regenerate that file
  * from upstream without clobbering the hook exports (the hook modules are not
  * present upstream, so the vendor copy leaves them untouched).
+ *
+ * `useCameraStream` is owned by `capture` and re-exported here for the apps that
+ * already import it from this subpath; the root entry is the import that does not
+ * make a bundler resolve `onnxruntime-web` (#721).
  */
 
 export * from "./index";
-export * from "./use-camera-stream";
+export * from "../capture/use-camera-stream";
 export * from "./luminance";
 export * from "./use-live-luminance";

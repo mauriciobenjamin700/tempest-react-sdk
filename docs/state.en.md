@@ -173,7 +173,7 @@ Each field of the auth state (`user`, `token`, `isAuthenticated`, `logout`, ...)
 
 ## Reading state outside React — `getState()`
 
-Not all code that needs state is a component. An HTTP interceptor, a route guard, a utility — these run outside the React tree and can't call hooks. For them, use `getState()` on the bound hook:
+Not all code that needs state is a component. An HTTP interceptor, an `onUnauthorized` callback, a utility — these run outside the React tree and can't call hooks. For them, use `getState()` on the bound hook:
 
 ```ts
 import { useAuth } from "./auth-store";
@@ -184,7 +184,9 @@ function requireAuth(): boolean {
 }
 ```
 
-This is exactly how a route guard reads the auth session: it needs the value _now_, once, without subscribing for re-renders. `getState()` gives you a snapshot. (To _react_ to changes outside React, use `useStore.subscribe()`.)
+This is how the HTTP client reads the token on every request: it needs the value _now_, once, without subscribing for re-renders. `getState()` gives you a snapshot. (To _react_ to changes outside React, use `useStore.subscribe()`.)
+
+A route guard is **not** that case: it runs during the route's render and has to react to logout, so it reads the store through a hook — see [Routing](routing.md#the-async-function-form-the-third-state-pending).
 
 !!! warning "`getState()` does not subscribe"
     `getState()` reads once and won't re-render anything when state changes later. Inside components, always prefer the hook (`useStore(...)` or `useStore.use.field()`) so the UI stays in sync. Reserve `getState()` for non-React code.

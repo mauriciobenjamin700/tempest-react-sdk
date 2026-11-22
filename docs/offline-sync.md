@@ -110,7 +110,7 @@ sync.clearOutbox();
     | --- | --- |
     | o mesmo dono | entregue |
     | ninguém | fica na fila (`summary.held`) e sai quando o dono voltar |
-    | outra pessoa | apagada sem envio (`summary.dropped`) |
+    | outra pessoa | apagada sem envio (`summary.dropped`) — ou, com `foreignEntries: "hold"`, fica na fila (`summary.held`) |
 
     ```ts
     import { createOfflineSync } from "tempest-react-sdk";
@@ -139,6 +139,42 @@ sync.clearOutbox();
 
     Entrada enfileirada antes de você ligar a opção não tem carimbo e é entregue como antes: são edições do próprio usuário, e segurá-las travaria toda fila no upgrade.
 
+!!! tip "Aparelho compartilhado: `foreignEntries: \"hold\"`"
+    O padrão `"drop"` serve ao aparelho pessoal: a fila da conta anterior só acumularia. No **tablet compartilhado** ele apaga trabalho — o Carlos sai sem sinal com três vistorias na fila, a Ana entra, sincroniza, e as três somem sem envio (#724). Com `foreignEntries: "hold"`, a entrada de outra pessoa **fica na fila** e sai quando o dono entrar de novo, com a sessão dele:
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let technicianId: string | null = "carlos";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "VisitsOutbox",
+        watermark: { storageKey: "visits.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/visits/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => technicianId,
+        foreignEntries: "hold",
+    });
+
+    await sync.enqueue("update", "v1", { text: "vistoria do Carlos" });
+    technicianId = "ana";
+    console.log((await sync.flush()).held); // 1 — fica na fila, não sai com a sessão da Ana
+    technicianId = "carlos";
+    console.log((await sync.flush()).succeeded); // 1 — sai quando o Carlos volta
+    ```
+
+    Em nenhuma das duas políticas a entrada sai com a sessão de outra pessoa. O que muda:
+
+    - **A ordem por registro continua valendo.** Uma entrada segurada segura também as seguintes **do mesmo registro** (`summary.deferred`), como uma falha: se a edição mais nova da Ana saísse antes, a do Carlos, mais velha, a sobrescreveria quando ele voltasse. Vale também no padrão: uma edição feita deslogado não passa mais na frente da edição segurada do dono.
+    - **`pendingCount()` e o `pending` do `useOfflineSync` contam as entradas seguradas** — o badge da Ana mostra que há trabalho do Carlos no aparelho. `clearOutbox()` continua sendo o que esvazia a fila.
+    - Com `"hold"`, entrada enfileirada **deslogado** também fica segurada (no padrão, é apagada), e só sai de novo com ninguém logado.
+
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
     sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas
@@ -153,6 +189,73 @@ sync.clearOutbox();
 
     O bloqueio é **por registro, não por passada**: um registro que o servidor está
     recusando não segura as mutações de nenhum outro.
+
+!!! tip "Dez edições, um request: `coalesce`"
+    Sem rede, o técnico edita a mesma visita dez vezes. Por padrão isso vira **dez**
+    `deliver` quando o sinal volta — nove deles mandando um snapshot que o décimo
+    sobrescreve. Com `coalesce: true`, cada sequência de `create`/`update` do mesmo
+    registro vira **um** `deliver`:
+
+    | O que vai para o `deliver` | De onde vem |
+    | --- | --- |
+    | `op` | da entrada **mais antiga** — `create` seguido de `update`s continua `create` |
+    | `payload` | da **mais nova** (`true`) ou o fold de todas, da mais antiga para a mais nova (função) |
+    | `id`, `attempts`, `lastError` | da mais antiga — uma chave de idempotência tirada de `entry.id` não muda entre tentativas |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    interface Note {
+        id: string;
+        text?: string;
+        pinned?: boolean;
+    }
+
+    const sync = createOfflineSync<Note, never>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: entry.op === "delete" ? "DELETE" : "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        coalesce: true,
+    });
+
+    await sync.enqueue("create", "n1", { id: "n1", text: "a" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "b" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "c" });
+    const summary = await sync.flush();
+    console.log(summary.succeeded, summary.coalesced); // 1 2 — um PUT com o texto "c"
+    ```
+
+    Se a fila guarda **patch** em vez de snapshot, passe uma função de merge:
+    `coalesce: (acumulado, proximo) => ({ ...acumulado, ...proximo })`.
+
+    O que **não** se junta, de propósito:
+
+    - **`delete` nunca entra no fold** e fecha a sequência: `create`, `update`,
+      `delete` vira `create` (payload mais novo) e depois `delete`, dois requests em
+      ordem. Descartar o par deixaria o registro órfão no servidor sempre que o
+      `create` tivesse chegado e só a resposta tivesse se perdido.
+    - **Entradas de donos diferentes** (`getPrincipal`) não se juntam.
+    - **O que foi enfileirado durante o envio** fica para o próximo flush. O fold
+      acontece quando o run entrega, não quando o `enqueue` grava — por isso
+      `pendingCount()` ainda conta cada entrada até o flush. Reescrever a entrada no
+      `enqueue` arriscaria apagar, junto com as outras, uma edição que chegou
+      enquanto aquele registro estava no ar.
+
+    Na falha, as entradas juntadas continuam na fila: só a mais antiga ganha
+    `attempts`, e as outras contam em `summary.deferred`. No sucesso, todas saem e
+    as absorvidas contam em `summary.coalesced`.
+
+    O envio juntado sai **na posição da entrada mais antiga**, levando o estado mais
+    novo. Se uma edição recente do registro A aponta para um registro B criado
+    **depois** que A entrou na fila, A pode chegar ao servidor antes de B. Deixe a
+    opção desligada quando o servidor valida esse tipo de referência na escrita.
 
 As seções abaixo mostram **o que o motor faz por baixo** (e como montar à mão quando você precisa de controle fino — múltiplos stores, merge por campo, etc.).
 

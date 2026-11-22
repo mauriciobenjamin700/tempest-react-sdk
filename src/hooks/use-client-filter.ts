@@ -1,10 +1,12 @@
 import { useMemo } from "react";
+import { foldText } from "@/utils/fold-text";
 
 export type FilterPredicate<T> = (item: T, search: string) => boolean;
 
 /**
- * Client-side filter helper. Performs a case-insensitive match on the listed
- * keys when no custom predicate is provided.
+ * Client-side filter helper. Matches the listed keys ignoring case **and
+ * accents** ("joao" finds "João") when no custom predicate is provided. A
+ * custom predicate receives the trimmed, lowercased term, as before.
  *
  * @param items - Source list.
  * @param search - Search string.
@@ -22,10 +24,11 @@ export function useClientFilter<T extends Record<string, unknown>>(
         if (typeof keysOrPredicate === "function") {
             return items.filter((item) => keysOrPredicate(item, term));
         }
+        const folded = foldText(term);
         return items.filter((item) =>
             keysOrPredicate.some((key) => {
                 const value = item[key];
-                return value != null && String(value).toLowerCase().includes(term);
+                return value != null && foldText(String(value)).includes(folded);
             }),
         );
     }, [items, search, keysOrPredicate]);

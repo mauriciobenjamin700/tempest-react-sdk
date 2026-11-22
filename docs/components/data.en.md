@@ -106,6 +106,7 @@ export function Orders({
 | `render`    | `(row: T, index: number) => ReactNode` | Default = `row[key]`                              |
 | `align`     | `"left" \| "right" \| "center"`        | Default `"left"`                                  |
 | `priority`  | `"always" \| "tablet" \| "desktop"`    | `tablet`: hidden < md. `desktop`: hidden < lg.    |
+| `label`     | `string`                               | Label of the stacked mobile card; default = `header` when it is text. |
 | `width`     | `string \| number`                     | CSS width (`120px`, `20%`, `auto`)                |
 | `className` | `string`                               | Extra class applied to that column's cells        |
 
@@ -460,7 +461,7 @@ export function People() {
 | `manualSort` | `boolean` | Delegates sorting. Implied by `totalItems`. |
 | `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
 | `manualSearch` | `boolean` | Delegates searching. Implied by `totalItems`. |
-| `onSearchChange` | `(term: string) => void` | The typed term; debouncing is yours. |
+| `onSearchChange` | `(term: string) => void` | The typed term, after `searchDebounceMs` when set. |
 | `loading` | `boolean` | A request is in flight. |
 | `pageSize` | `number` | Rows per page; required with `onPageSizeChange`. |
 | `onPageSizeChange` | `(size: number) => void` | Turns on the items-per-page selector ([below](#items-per-page)). |

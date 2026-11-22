@@ -12,6 +12,7 @@ export { createOfflineSync } from "./create-offline-sync";
 export type {
     OfflineSync,
     OfflineSyncConfig,
+    OutboxCoalesce,
     OutboxEntry,
     OutboxOp,
     PullPage,

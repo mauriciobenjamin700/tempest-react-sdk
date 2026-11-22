@@ -5,7 +5,7 @@
  * they resolve to the same file list.
  */
 import { useRef, useState } from "react";
-import type { DragEvent, KeyboardEvent, ReactNode } from "react";
+import type { DragEvent, InputHTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Dropzone.module.css";
 
@@ -17,6 +17,14 @@ export interface DropzoneProps {
     accept?: string;
     /** Allow selecting/dropping multiple files. Default `true`. */
     multiple?: boolean;
+    /**
+     * `capture` attribute forwarded to the file `<input>`: on a phone it skips the picker
+     * and opens the camera (`"environment"` the rear one, `"user"` the front one; `true`
+     * leaves the choice to the browser). Desktop browsers ignore it and open the file
+     * dialog. Pair it with `accept="image/*"` (or `video/*`) — the attribute only means
+     * something for media — and expect one shot per opening even with `multiple`.
+     */
+    capture?: InputHTMLAttributes<HTMLInputElement>["capture"];
     /** Disable interaction. */
     disabled?: boolean;
     /** Maximum file size in bytes; larger files are filtered out. */
@@ -42,6 +50,7 @@ export function Dropzone({
     onDrop,
     accept,
     multiple = true,
+    capture,
     disabled = false,
     maxSize,
     onReject,
@@ -129,6 +138,7 @@ export function Dropzone({
                 className={styles.input}
                 accept={accept}
                 multiple={multiple}
+                capture={capture}
                 disabled={disabled}
                 onChange={(event) => {
                     handleFiles(event.target.files);

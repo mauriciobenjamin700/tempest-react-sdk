@@ -420,4 +420,22 @@ export interface ApiClient {
      * @returns The absolute URL.
      */
     url(path: string, params?: RequestOptions["params"]): string;
+    /**
+     * The WebSocket URL of `path` on the same server: {@link ApiClient.url} with
+     * `http:` swapped for `ws:` and `https:` for `wss:`.
+     *
+     * For `createWebSocket`/`useWebSocket`, which take a URL and not a client.
+     * A socket served next to the REST API sits under the same `baseURL` and
+     * `prefix`, and a second environment variable for it is one more place for
+     * staging to point at production. A relative `baseURL` resolves against the
+     * page, so `"/api"` on `https://app.example.com` gives
+     * `wss://app.example.com/api/...`. No credential is attached, for the same
+     * reason as `url`; the browser sends the site's cookies on the handshake.
+     *
+     * @param path - Path joined onto the client's base URL and prefix.
+     * @param params - Query params to append; `undefined` and `null` are skipped.
+     * @returns The absolute `ws:`/`wss:` URL.
+     * @throws When the resolved URL is not `http:`/`https:` (or already `ws:`/`wss:`).
+     */
+    wsUrl(path: string, params?: RequestOptions["params"]): string;
 }

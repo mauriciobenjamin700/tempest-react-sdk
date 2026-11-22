@@ -88,7 +88,7 @@ export interface SyncRunSummary {
     failed: number;
     /**
      * Entries left untried because an earlier entry for the **same record**
-     * failed this run.
+     * failed this run, or was held (see {@link SyncRunSummary.held}).
      *
      * They stay queued and are attempted next run, in order. Counted apart from
      * `failed` because they were never sent: reporting them as failures would
@@ -113,17 +113,43 @@ export interface SyncRunSummary {
      */
     interrupted?: true;
     /**
-     * Entries left queued because nobody is signed in and they belong to
-     * somebody (see {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
+     * Entries left queued unsent because they belong to somebody other than who
+     * is signed in: to anybody while nobody is, or — with
+     * {@link OfflineSyncConfig.foreignEntries} `"hold"` — to another principal
+     * (see {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
      */
     held?: number;
     /**
      * Entries deleted unsent because they were queued under another principal —
-     * or while signed out — and somebody else is signed in now (see
+     * or while signed out — and somebody else is signed in now, under the default
+     * {@link OfflineSyncConfig.foreignEntries} `"drop"` (see
      * {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
      */
     dropped?: number;
+    /**
+     * Entries removed without a request of their own because a delivery of the
+     * same record already carried them (see {@link OfflineSyncConfig.coalesce}).
+     * Absent when zero.
+     *
+     * With it, `succeeded + failed + deferred + held + dropped + coalesced` still
+     * accounts for every entry the run found queued: `succeeded` counts requests,
+     * and the entries those requests absorbed are counted here.
+     */
+    coalesced?: number;
 }
+
+/**
+ * How queued edits of the same record are folded into one delivery; see
+ * {@link OfflineSyncConfig.coalesce}.
+ *
+ * `true` keeps the newest payload (the record snapshot model). A function
+ * receives the payload folded so far and the next one, oldest first, and
+ * returns the merged payload — for apps that queue partial patches instead of
+ * whole snapshots.
+ *
+ * @typeParam TPayload - Record snapshot carried by outbox entries.
+ */
+export type OutboxCoalesce<TPayload> = boolean | ((folded: TPayload, next: TPayload) => TPayload);
 
 /**
  * Coarse lifecycle phase of the sync engine, surfaced through
@@ -249,8 +275,71 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
      *
      * A non-string, non-number value (the `Promise` of an `async` getter) or a
      * getter that throws reads as nobody. Default: no owner binding.
+     *
+     * What happens to another principal's entry is {@link OfflineSyncConfig.foreignEntries}.
      */
     getPrincipal?: () => string | number | null | undefined;
+    /**
+     * What a flush does with an entry stamped by somebody other than who is
+     * signed in now. Only read with {@link OfflineSyncConfig.getPrincipal}.
+     *
+     * - `"drop"` (default) — delete it unsent and count it in `summary.dropped`.
+     *   Right for a personal device, where the other account's queue would only
+     *   pile up.
+     * - `"hold"` — leave it queued, counted in `summary.held`, until its owner
+     *   signs back in and a flush delivers it with their session. Right for a
+     *   shared device (one tablet, several technicians): under `"drop"`, the next
+     *   person to sign in and sync erased the previous one's unsent work (#724).
+     *   An entry queued while signed out is held too, and goes out only while
+     *   nobody is signed in again.
+     *
+     * Either way the entry never goes out under another session. A held entry —
+     * for nobody or for another principal — also holds back the later entries of
+     * the **same record**, counted in `summary.deferred`: delivering the next
+     * person's edit first would let the held, older snapshot overwrite it on the
+     * server when its owner returns. `pendingCount()` and `SyncState.pending`
+     * count held entries too; `clearOutbox()` is still what empties the queue.
+     */
+    foreignEntries?: "drop" | "hold";
+    /**
+     * Fold queued edits of the same record into one delivery. Default `false`:
+     * one `deliver` per entry.
+     *
+     * Without it, ten offline edits of a record are ten requests when the device
+     * reconnects, nine of them carrying a snapshot the tenth overwrites. With it,
+     * each run of consecutive `create`/`update` entries of a record (same owner
+     * stamp) becomes **one** `deliver`:
+     *
+     * - `op` is the oldest entry's, so `create` followed by `update`s is still a
+     *   `create` — a `deliver` that tells them apart keeps working;
+     * - `payload` is the newest one with `true`, or the fold of every payload,
+     *   oldest first, with a function (see {@link OutboxCoalesce});
+     * - `id`, `enqueuedAt`, `attempts` and `lastError` are the oldest entry's, so
+     *   an idempotency key derived from `entry.id` stays the same across retries;
+     * - on success every folded entry leaves the outbox and is counted in
+     *   `summary.coalesced`; on failure only the oldest one has `attempts` bumped
+     *   and the rest count as `deferred`.
+     *
+     * A `delete` is never folded and ends the run: `create`, `update`, `delete`
+     * becomes `create` (newest payload) then `delete`, two requests in order.
+     * Dropping the pair instead would orphan the record on the server whenever
+     * the `create` had landed and only its response was lost.
+     *
+     * Folding happens when a run delivers, not when `enqueue` writes. An entry
+     * queued while its record is being delivered is outside that run's snapshot,
+     * so it is delivered next run instead of being deleted with the folded ones —
+     * which is what rewriting a queued entry in `enqueue` would risk, against a
+     * delivery in flight in this tab or another. `pendingCount()` therefore still
+     * counts every entry until the run.
+     *
+     * The folded delivery goes out at the oldest entry's position, carrying the
+     * newest state. Across records the outbox is ordered only as far as each
+     * record's own entries (a failing record never holds up the others), so a
+     * newer edit of record A that points at record B, created after A was first
+     * queued, may reach the server before B. Leave this off when the server
+     * enforces that kind of reference on write.
+     */
+    coalesce?: OutboxCoalesce<TPayload>;
 }
 
 /**
@@ -390,7 +479,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     const isOnline =
         config.isOnline ?? (() => (typeof navigator !== "undefined" ? navigator.onLine : true));
 
-    const { getPrincipal } = config;
+    const { getPrincipal, foreignEntries = "drop" } = config;
 
     /**
      * Fingerprint whoever `getPrincipal` says is signed in.
@@ -411,13 +500,14 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * What the current session may do with an entry, by its owner stamp.
      *
      * @param entry - The queued entry.
-     * @returns `"deliver"`, `"hold"` (nobody signed in) or `"drop"` (someone else).
+     * @returns `"deliver"`, `"hold"` (nobody signed in, or someone else under
+     *   `foreignEntries: "hold"`) or `"drop"` (someone else, by default).
      */
     function ownership(entry: OutboxEntry<TPayload>): "deliver" | "hold" | "drop" {
         if (!getPrincipal || entry.owner === undefined) return "deliver";
         const owner = currentOwner(getPrincipal);
         if (owner === entry.owner) return "deliver";
-        return owner === null ? "hold" : "drop";
+        return owner === null || foreignEntries === "hold" ? "hold" : "drop";
     }
 
     let inflight: Promise<SyncRunSummary> | null = null;
@@ -505,13 +595,19 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * its session is still current (see `endSession`) and that the entry is still
      * in the outbox — another tab sharing the IndexedDB may have cleared it on
      * logout. With `getPrincipal`, the entry's owner stamp is checked at the same
-     * point (see `ownership`): another principal's entry is deleted unsent, and
-     * one owned by somebody while nobody is signed in stays queued; neither blocks
-     * later entries of the same record. A delivery already in progress when the
+     * point (see `ownership`): an entry that is not the current principal's is
+     * deleted unsent or stays queued, per `foreignEntries`. A dropped entry blocks
+     * nothing, since it will never be delivered; a held one blocks the later
+     * entries of its record, exactly like a failure, because it will be delivered
+     * later and must not land after them. A delivery already in progress when the
      * session ended still has its
      * row deleted or its attempt bumped, because that outcome is true for the
      * server; its `onEntryDelivered`/`onEntryFailed` callback is not fired, since
      * it would act on the next user's local state.
+     *
+     * With {@link OfflineSyncConfig.coalesce} the loop walks delivery groups
+     * instead of single entries (see `groupForDelivery`); every rule above applies
+     * to the group as one entry, and the counts still cover each queued entry.
      *
      * @param summary - Mutated with the per-entry outcome counts.
      * @param runGeneration - The session the run started under.
@@ -520,28 +616,37 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     async function push(summary: SyncRunSummary, runGeneration: number): Promise<boolean> {
         const entries = await outbox.list(undefined, { orderBy: "enqueuedAt" });
         const blocked = new Set<string>();
-        for (const entry of entries) {
-            if (blocked.has(entry.recordId)) {
-                summary.deferred += 1;
+        for (const group of groupForDelivery(entries)) {
+            if (blocked.has(group[0].recordId)) {
+                summary.deferred += group.length;
                 continue;
             }
-            const stillQueued = await outbox.get(entry.id);
+            const queued: OutboxEntry<TPayload>[] = [];
+            for (const member of group) {
+                if (await outbox.get(member.id)) queued.push(member);
+            }
             if (generation !== runGeneration) return false;
-            if (!stillQueued) continue;
+            if (queued.length === 0) continue;
+            const entry = foldEntries(queued);
+            const ids = queued.map((member) => member.id);
             const verdict = ownership(entry);
             if (verdict === "hold") {
-                summary.held = (summary.held ?? 0) + 1;
+                summary.held = (summary.held ?? 0) + queued.length;
+                blocked.add(entry.recordId);
                 continue;
             }
             if (verdict === "drop") {
-                await outbox.delete(entry.id);
-                summary.dropped = (summary.dropped ?? 0) + 1;
+                await outbox.raw.bulkDelete(ids);
+                summary.dropped = (summary.dropped ?? 0) + queued.length;
                 continue;
             }
             try {
                 await config.deliver(entry);
-                await outbox.delete(entry.id);
+                await outbox.raw.bulkDelete(ids);
                 summary.succeeded += 1;
+                if (queued.length > 1) {
+                    summary.coalesced = (summary.coalesced ?? 0) + queued.length - 1;
+                }
                 if (generation !== runGeneration) return false;
                 await config.onEntryDelivered?.(entry);
             } catch (cause) {
@@ -552,12 +657,66 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 } as Partial<OutboxEntry<TPayload>>);
                 blocked.add(entry.recordId);
                 summary.failed += 1;
+                summary.deferred += queued.length - 1;
                 summary.lastError = message;
                 if (generation !== runGeneration) return false;
                 await config.onEntryFailed?.(entry, cause);
             }
         }
         return generation === runGeneration;
+    }
+
+    /**
+     * Split the queue snapshot into delivery groups, in queue order.
+     *
+     * Without {@link OfflineSyncConfig.coalesce} every entry is its own group.
+     * With it, a `create`/`update` joins the open group of its record when that
+     * group has the same owner stamp; a `delete` always starts a group of its own
+     * and closes the record's open group, so nothing queued after it is folded
+     * into anything queued before it. A group is delivered at its oldest entry's
+     * position.
+     *
+     * @param entries - The outbox snapshot in `enqueuedAt` order.
+     * @returns The groups, each non-empty and ordered oldest first.
+     */
+    function groupForDelivery(entries: OutboxEntry<TPayload>[]): OutboxEntry<TPayload>[][] {
+        if (!config.coalesce) return entries.map((entry) => [entry]);
+        const groups: OutboxEntry<TPayload>[][] = [];
+        const open = new Map<string, OutboxEntry<TPayload>[]>();
+        for (const entry of entries) {
+            const group = open.get(entry.recordId);
+            if (entry.op !== "delete" && group && group[0].owner === entry.owner) {
+                group.push(entry);
+                continue;
+            }
+            const fresh = [entry];
+            groups.push(fresh);
+            if (entry.op === "delete") open.delete(entry.recordId);
+            else open.set(entry.recordId, fresh);
+        }
+        return groups;
+    }
+
+    /**
+     * The single entry a delivery group is sent as: the oldest entry, carrying
+     * the folded payload (see {@link OfflineSyncConfig.coalesce}). Entries
+     * without a payload are skipped by the fold.
+     *
+     * @param group - Entries still queued, oldest first.
+     * @returns The entry handed to `deliver`.
+     */
+    function foldEntries(group: OutboxEntry<TPayload>[]): OutboxEntry<TPayload> {
+        if (group.length === 1) return group[0];
+        const merge =
+            typeof config.coalesce === "function"
+                ? config.coalesce
+                : (_folded: TPayload, next: TPayload): TPayload => next;
+        let payload: TPayload | undefined;
+        for (const member of group) {
+            if (member.payload === undefined) continue;
+            payload = payload === undefined ? member.payload : merge(payload, member.payload);
+        }
+        return { ...group[0], payload };
     }
 
     /**

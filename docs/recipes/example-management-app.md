@@ -22,13 +22,13 @@ Elas abrem o app no computador da recepção e no celular, entre um atendimento 
 Cada tela cobre os cinco estados de uma tela real: **carregando**, **vazio**, **erro**, **sucesso** e **celular**.
 
 !!! info "O que você precisa"
-    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)) e o `zod`:
+    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)):
 
     ```bash
-    npm install recharts zod @tanstack/react-query
+    npm install recharts
     ```
 
-    O `@tanstack/react-query` já vem com o SDK; declarar no seu `package.json` deixa explícito que o app importa dele. Rode `npx tempest doctor` depois: ele avisa se o npm aninhou uma segunda cópia.
+    O `zod` e o `@tanstack/react-query` que esta página importa já vêm declarados no `package.json` do scaffold, na mesma faixa do SDK — veja [Dependências que o app importa direto](../scaffold.md#dependencias-que-o-app-importa-direto).
 
 ## O contrato com o backend
 
@@ -436,7 +436,7 @@ Aqui moram as duas portas do app. 🚪
 
 **A porta da sessão** está na rota `/`, que envolve todas as outras. O guard `useSessionGuard` é um hook — por isso o nome começa com `use` — e assina o store: quando a sessão termina, por Sair ou por expiração, ele re-renderiza sozinho e manda para `/login`. O `preserveFrom: true` leva junto o endereço de onde a pessoa veio.
 
-O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo.
+O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo. É só esse instante: se o `/auth/me` falha, o `login()` desfaz a entrada antes de rejeitar, e o token não fica sozinho no store (#748).
 
 **A porta do papel** está em `pacientes`. O `useCan` responde numa passada de efeito, então no primeiro render ele ainda não sabe. O guard devolve `"pending"` nesse meio-tempo: o app mostra o spinner, em vez de mandar a recepcionista embora num piscar de olhos. Detalhes em [Roteamento → `"pending"`](../routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
@@ -679,7 +679,7 @@ function RevenueChart(): ReactNode {
     }
 
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         total: point.total,
     }));
 
@@ -714,7 +714,7 @@ function DashboardSkeleton(): ReactNode {
 function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         done: day.done,
         noShow: day.no_show,
     }));
@@ -838,8 +838,8 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 !!! tip "O nome da série vem de `labels`"
     Os dados ficam com as chaves da API (`done`, `noShow`) e `labels` dá o texto da legenda e do tooltip: `labels={{ done: t("dashboard.series.done") }}`. Trocar o idioma muda só o rótulo. Veja [`labels`](../charts.md#rotulo-da-serie-separado-da-chave-do-dado-labels).
 
-!!! warning "`timeZone: \"UTC\"` em data sem hora"
-    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. Formatada no fuso local, a segunda-feira vira domingo. Como a data veio sem hora, formate em UTC — ela volta a ser o dia 16 que o backend mandou.
+!!! info "Data sem hora fica no dia que o backend mandou"
+    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
 !!! tip "Eixo com dinheiro: compacto no eixo, inteiro no tooltip"
     O eixo Y se ajusta ao maior rótulo sozinho. No celular, `R$ 186.430` inteiro tomaria espaço do gráfico, então o eixo usa `yAxisFormatter` com `notation: "compact"` (`R$ 186 mil`) e o tooltip continua com o valor inteiro do `valueFormatter`. Veja [eixo de valor](../charts.md#eixo-de-valor-largura-e-formato).
@@ -1110,13 +1110,14 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -1134,14 +1135,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -1181,11 +1174,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -1221,10 +1210,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -1245,8 +1234,8 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **Um schema zod** é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo `validateCPF` de [Forms BR](../forms-br.md); o telefone precisa de pelo menos 10 dígitos.
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
-- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
-- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `onError` copia cada mensagem para o campo do mesmo nome com `form.setError`, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
+- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio (`withEmptyOption`): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", `placeholder` com `clearable` deixa voltar ao vazio — veja [Select](../components/inputs.md#select-placeholder).
+- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.
 

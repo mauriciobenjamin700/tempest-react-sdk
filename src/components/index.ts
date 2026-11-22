@@ -464,7 +464,9 @@ export type {
     DataTablePagingProps,
     DataTableProps,
     DataTableSort,
+    DataTableRowKey,
     DataTableSearchProps,
+    DataTableSelectionProps,
     DataTableSortProps,
     SortDirection,
 } from "./DataTable";

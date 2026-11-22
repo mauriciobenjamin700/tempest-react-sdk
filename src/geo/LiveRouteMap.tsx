@@ -78,6 +78,14 @@ export interface LiveRouteMarker extends Coordinate {
     icon?: ReactNode;
     /** Opened in a panel by click, tap, `Enter` or `Space` on the marker. */
     content?: ReactNode;
+    /**
+     * The vehicle already went through this point — a stop served, the origin
+     * left behind. The shape keeps its kind but is painted in the neutral
+     * `--tempest-live-route-visited` (default `--tempest-text-muted`), so what is
+     * behind stops reading like what is ahead, and the map's `visitedLabel` is
+     * appended to the accessible name. Default: `false`.
+     */
+    visited?: boolean;
 }
 
 /** The live vehicle position. */
@@ -95,6 +103,17 @@ export interface LiveVehicle {
     heading?: number | null;
     /** Accessible name of the vehicle glyph. Default: `"Veículo"`. */
     label?: string;
+    /**
+     * The position is too old to trust — the app decides when, from the fix's
+     * `timestamp` and its own clock. The vehicle stays where it was last seen,
+     * drawn in the neutral `--tempest-live-route-stale` (default
+     * `--tempest-text-muted`) with no halo, and `staleLabel` is appended to its
+     * accessible name. The map keeps no clock of its own: a timer inside it would
+     * re-render a map that has nothing new to draw. Default: `false`.
+     */
+    stale?: boolean;
+    /** Appended to `label` while `stale`. Default: `"posição desatualizada"`. */
+    staleLabel?: string;
 }
 
 export interface LiveRouteMapProps<E extends RoadEdge = RoadEdge> extends Omit<
@@ -135,6 +154,8 @@ export interface LiveRouteMapProps<E extends RoadEdge = RoadEdge> extends Omit<
     closeLabel?: string;
     /** Spoken name of each marker kind. Default: PT-BR (`origem`, `parada`, `destino`). */
     kindLabels?: Partial<Record<LiveRouteMarkerKind, string>>;
+    /** Appended to the accessible name of a `visited` marker. Default: `"visita concluída"`. */
+    visitedLabel?: string;
     /**
      * Size of every marker glyph, as a factor of the default (stops are 16 px
      * across at `1`). Scales the shape, the badge and the focus ring together.
@@ -247,6 +268,7 @@ export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
     recenterLabel = "Recentralizar",
     closeLabel = "Fechar",
     kindLabels,
+    visitedLabel = "visita concluída",
     markerScale,
     animationMs = 600,
     showScale = true,
@@ -510,6 +532,7 @@ export function LiveRouteMap<E extends RoadEdge = RoadEdge>({
                                 open={openId === marker.id}
                                 panelId={panelId}
                                 kindLabel={labels[marker.kind ?? "stop"]}
+                                visitedLabel={visitedLabel}
                                 scale={scaleFactor}
                                 onToggle={toggle}
                                 markerRef={(id, node) => {

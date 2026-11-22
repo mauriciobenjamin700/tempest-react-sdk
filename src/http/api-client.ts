@@ -5,7 +5,7 @@
  * parsing that turns a failure into a typed error.
  */
 import { randomId } from "../utils";
-import { buildApiUrl } from "./build-url";
+import { buildApiUrl, toWebSocketUrl } from "./build-url";
 import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
 import { csrfHeaders } from "./csrf";
 import { decodeByContentType } from "./decode-response";
@@ -442,8 +442,8 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     }
 
     /**
-     * Whether another session was installed since the attempt left: its epoch
-     * ended and a bearer token that is not the attempt's own is current now.
+     * Whether another session was installed since the attempt left: the epoch
+     * moved and a bearer token that is not the attempt's own is current now.
      *
      * The epoch alone cannot tell the two ways a `401`'s handling can end:
      * `refresh()` failing and signing out, or `onUnauthorized` calling
@@ -455,12 +455,19 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
      * none, a rotation that failed leaves the attempt's own, and only a new
      * session leaves another one.
      *
+     * The gate is {@link epochMovedSince}, not {@link sessionEndedSince}: an
+     * attempt sent without a token has no session to end, but a `login(B)`
+     * during its failing refresh still installs another one, and up to 0.92.0
+     * that tokenless `401` reached `onUnauthorized` and a `() => logout()`
+     * signed B out (security audit run-18 §3.1, #696).
+     *
      * @param context - The credential and epoch the attempt left with.
-     * @returns `true` when the attempt's session ended and another token is
-     * installed; `false` without `getSessionEpoch`.
+     * @returns `true` when the epoch moved since the attempt left and a token
+     * other than the attempt's own is installed; `false` without
+     * `getSessionEpoch`.
      */
     function sessionReplacedSince(context: RequestAuthContext): boolean {
-        if (!sessionEndedSince(context)) return false;
+        if (!epochMovedSince(context)) return false;
         const current = config.getToken?.() ?? null;
         return current !== null && current !== context.token;
     }
@@ -737,5 +744,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         upload,
         url: (path: string, params?: RequestOptions["params"]) =>
             buildApiUrl(config.baseURL, path, { prefix: config.prefix, params }),
+        wsUrl: (path: string, params?: RequestOptions["params"]) =>
+            toWebSocketUrl(buildApiUrl(config.baseURL, path, { prefix: config.prefix, params })),
     };
 }

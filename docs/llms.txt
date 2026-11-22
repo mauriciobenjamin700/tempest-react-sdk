@@ -94,7 +94,7 @@
 - [Tutorial — Formulários](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/forms/): Antes do usuário entrar no app, ele precisa se cadastrar — e o cadastro precisa
 - [Tutorial — Comece aqui](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/index/): Bem-vindo! Este é o Tutorial — Guia do Usuário do tempest-react-sdk.
 - [Tutorial — Roteamento](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/routing/): Nosso app vai ter mais de uma tela: a lista de tarefas, uma página de login e um
-- [Tutorial — Estado](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/state/): Na página anterior, o guard do dashboard leu useAuth.getState().isAuthenticated
+- [Tutorial — Estado](https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/state/): Na página anterior, o guard do dashboard leu useAuth.use.isAuthenticated()
 - [Utilitários](https://mauriciobenjamin700.github.io/tempest-react-sdk/utilities/): Coleção de funções puras, sem dependência de React, pra resolver as tarefas chatas do dia a dia — agrupar listas, mesclar objetos, debouncar callbacks, formatar bytes.
 - [Vision (ONNX Runtime Web)](https://mauriciobenjamin700.github.io/tempest-react-sdk/vision/): Visão computacional no dispositivo — direto no navegador, sem servidor de
 - [Vite Config](https://mauriciobenjamin700.github.io/tempest-react-sdk/vite-config/): Todo app frontend Tempest começa com o mesmo vite.config.ts: o plugin React, o

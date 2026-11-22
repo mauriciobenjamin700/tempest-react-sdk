@@ -8,6 +8,11 @@ import {
 } from "./create-position-tracker";
 import type { TrackPoint } from "./types";
 
+/**
+ * Options of {@link usePositionTracker}: the tracker's, minus the two callbacks
+ * the hook turns into state. `onPoint` and `onError` are read from the latest
+ * render, so an inline arrow sees the current props and state.
+ */
 export interface UsePositionTrackerOptions extends Omit<
     CreatePositionTrackerOptions,
     "onUpdate" | "onStatusChange"
@@ -49,6 +54,10 @@ export interface UsePositionTrackerResult {
  * `status` recovers from `"error"` to `"tracking"` on the next reading after a
  * lost signal; `lastError` tells that case apart from a refusal.
  *
+ * To forward every position (to a socket, say), pass `onPoint` rather than
+ * watching `lastPoint` in an effect: two readings that arrive before one render
+ * become one `lastPoint`, and the effect never sees the first.
+ *
  * @example
  * const { points, distanceKm, isTracking, start, stop } = usePositionTracker({
  *   minDistanceKm: 0.01,
@@ -64,7 +73,7 @@ export interface UsePositionTrackerResult {
 export function usePositionTracker(
     options: UsePositionTrackerOptions = {},
 ): UsePositionTrackerResult {
-    const { autoStart = false, onError, ...trackerOptions } = options;
+    const { autoStart = false, onError, onPoint, ...trackerOptions } = options;
 
     const [points, setPoints] = useState<readonly TrackPoint[]>([]);
     const [distanceKm, setDistanceKm] = useState<number>(0);
@@ -73,6 +82,7 @@ export function usePositionTracker(
 
     const trackerRef = useRef<PositionTracker | null>(null);
     const onErrorRef = useLatestRef(onError);
+    const onPointRef = useLatestRef(onPoint);
 
     useEffect(() => {
         const tracker = createPositionTracker({
@@ -81,6 +91,7 @@ export function usePositionTracker(
                 setPoints([...next]);
                 setDistanceKm(tracker.distanceKm);
             },
+            onPoint: (point) => onPointRef.current?.(point),
             onStatusChange: (next) => {
                 setStatus(next);
                 setLastError(tracker.lastError);

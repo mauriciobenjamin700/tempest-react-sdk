@@ -230,7 +230,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -238,8 +240,8 @@ export const routes = defineRoutes([
 ]);
 ```
 
-!!! warning "The guard runs on render — read your store via `getState()` or a hook"
-    The `guard` function is evaluated **during the route's render**. So it must read the state _at that moment_: use `useAuth.getState().isAuthenticated` (an imperative read, outside React) or call a hook straight in the guard function, which runs inside the render cycle — see the next section. Don't capture the value once outside the function: you'd freeze the auth state at initial load.
+!!! warning "The guard runs on render — read your store through a hook"
+    The `guard` function is evaluated **during the route's render**, so it can call hooks. Read the store through a hook (`useAuth.use.isAuthenticated()`): that is what **subscribes** the route, so a `logout()` — the sign-out button or a `401` in the HTTP client — redirects whatever protected screen is open. `useAuth.getState().isAuthenticated` reads the value once and does not subscribe: after logout the screen stays up until the next navigation. Name the function `use…`, as in the example, for the reason in the next section.
 
 When `guard` is falsy, the user is redirected to `redirectTo` (default `"/"`). In the example above, anyone not authenticated who tries to open `/dashboard` lands on `/login`.
 
@@ -301,7 +303,7 @@ export const routes = defineRoutes([
     guard: () => { … useCan() … }             // ❌ lint error
     ```
 
-    A guard with **no** hook (`() => useAuth.getState().isAuthenticated`) can stay an anonymous arrow — `getState()` is not a hook.
+    `getState()` is not a hook, so `() => useAuth.getState().isAuthenticated` passes lint — but it does not work as a session guard: with no subscription, a logout mid-screen does not redirect.
 
 !!! tip "One spinner covers `lazy` and `pending`"
     When the route defines no `guardFallback`, the SDK uses the `fallback` you already handed `<AppRouter>` — the same one covering the `lazy` chunk load. Both are "not ready yet", and in most apps they deserve the same spinner.
@@ -342,7 +344,7 @@ export function ProtectedDashboard() {
 | `children`   | `ReactNode`        | —       | What to protect.                               |
 
 !!! tip "Same state-reading rule"
-    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes. The tree's `guard` runs **inside** the render too, so it has both options: `getState()` for a simple imperative read, or hooks — as long as the function is named `use…`, as in the `"pending"` section above.
+    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes. The tree's `guard` runs **inside** the render too, and the same rule applies: a hook, with the function named `use…`, as in the `"pending"` section above.
 
 ## Going back to where you were after signing in
 
@@ -365,7 +367,9 @@ export const routes = defineRoutes([
   {
     path: "dashboard",
     element: <Dashboard />,
-    guard: () => useAuth.getState().isAuthenticated,
+    guard: function useSignedIn() {
+      return useAuth.use.isAuthenticated();
+    },
     redirectTo: "/login",
     preserveFrom: true,
   },
@@ -401,6 +405,58 @@ On `<RouteGuard>` it is the same prop: `<RouteGuard when={isAuthenticated} redir
 
 !!! tip "Use the value with `navigate`, not `window.location`"
     The path is relative to the router's `basename`, exactly like `useLocation()`. `navigate()` puts the `basename` back; `window.location` does not.
+
+## Screen state in the URL with `useUrlState`
+
+A list's page, page size, search, filters and sort belong in the URL: it is what makes the back button work and a pasted link open the same screen. `useUrlState` reads those parameters already typed and writes to them without one write erasing another.
+
+```tsx
+// MembersPage.tsx
+import { DataTable, useUrlState } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+}
+
+export function MembersPage({ members, total }: { members: Member[]; total: number }) {
+  const { state, set, reset } = useUrlState({ q: "", page: 1, size: 20 });
+
+  return (
+    <>
+      <button type="button" onClick={() => reset()}>
+        Clear filters
+      </button>
+      <DataTable<Member>
+        data={members}
+        columns={[{ key: "name", header: "Name" }]}
+        rowKey={(member) => member.id}
+        totalItems={total}
+        page={state.page}
+        onPageChange={(page) => set({ page })}
+        pageSize={state.size}
+        pageSizeOptions={[20, 50]}
+        onPageSizeChange={(size) => set({ size })}
+        searchable
+        search={state.q}
+        searchDebounceMs={300}
+        onSearchChange={(q) => set({ q }, { replace: true })}
+      />
+    </>
+  );
+}
+```
+
+- **The type comes from the default.** `page: 1` turns `?page=3` into the number `3`; `?page=abc` falls back to `1` instead of breaking the screen. Booleans read `"true"`/`"false"`.
+- **Defaults leave the URL.** `set({ page: 1 })` or `set({ page: null })` removes `page`, so the unfiltered screen is the bare URL.
+- **Writes in the same tick become one navigation.** One history entry per gesture, and no write lost.
+- **`{ replace: true }`** replaces the current entry instead of pushing — right for typed search. In a batch, one write without `replace` makes the batch push.
+- Parameters the hook does not know are left untouched.
+
+!!! info "Why not `setSearchParams` directly"
+    React Router's `setSearchParams` builds the next URL from the parameters **of the last render** — even in its function form. When `DataTable` changes the page size it calls `onPageSizeChange(50)` and `onPageChange(1)` in the same click; starting from `?page=3`, the final URL was `?page=1` and the size was gone (measured with `react-router` 8.5.2, test in `src/router/use-url-state.test.tsx`). `useUrlState` accumulates the writes on a pending copy and navigates once.
+
+The controlled page also exists in [`usePaginatedQuery`](./integration-fastapi.md#offset-usepaginatedquery): pass `page` and `onPageChange` and it stops keeping the page itself.
 
 ## Choosing the router kind
 
@@ -487,3 +543,4 @@ The most used types come along too: `Location`, `NavigateFunction`, `NavigateOpt
 - A permission that resolves asynchronously answers `"pending"`: the decision is held and `guardFallback` (or the `<AppRouter>` `fallback`) shows, instead of redirecting someone who has access or leaking the screen to someone who does not.
 - Pick the router with the `router` prop: `"browser"` in production, `"memory"` + `initialEntries` in tests.
 - Need `matchPath`, `generatePath`, `useOutletContext` or any other client-side React Router name? It also comes from `"tempest-react-sdk"`; its `Form` ships as `RouterForm`.
+- List state (page, search, filters, sort) lives in the URL with `useUrlState`: typed by its defaults, and writes from one click become a single navigation.

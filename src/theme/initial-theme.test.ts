@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { getInitialTheme, themeInitScript } from "./initial-theme";
+import { getInitialTheme } from "./initial-theme";
+import { themeInitScript } from "./theme-init-script";
 
 beforeAll(() => {
     Object.defineProperty(window, "matchMedia", {

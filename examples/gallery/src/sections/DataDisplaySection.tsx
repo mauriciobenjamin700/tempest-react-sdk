@@ -14,6 +14,17 @@ import {
 } from "tempest-react-sdk";
 import { Example } from "../Example";
 
+/** A timestamp taken on mount that keeps counting through `updateEvery`. */
+function LiveRelativeTime() {
+    const [openedAt] = useState<number>(() => Date.now() - 50_000);
+    return (
+        <span style={{ fontSize: 14 }}>
+            Aberto{" "}
+            <RelativeTime date={openedAt} updateEvery={1_000} data-testid="relative-time-live" />
+        </span>
+    );
+}
+
 interface Member {
     id: number;
     name: string;
@@ -193,12 +204,14 @@ export function DataDisplaySection() {
                 code={`<Money cents={1990} />
 <Money cents={500} currency="USD" locale="en-US" />
 <RelativeTime date={new Date(Date.now() - 3600_000)} />
+<RelativeTime date={openedAt} updateEvery={1_000} />
 <CopyButton value="npm i tempest-react-sdk" />`}
             >
                 <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
                     <Money cents={1990} />
                     <Money cents={500} currency="USD" locale="en-US" />
                     <RelativeTime date={new Date(Date.now() - 3600_000)} />
+                    <LiveRelativeTime />
                     <CopyButton value="npm i tempest-react-sdk" />
                 </div>
             </Example>

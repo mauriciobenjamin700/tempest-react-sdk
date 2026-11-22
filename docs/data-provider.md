@@ -67,6 +67,7 @@ export const dataProvider = createDataProvider(apiClient, {
 | `create("posts", data)`            | `POST /posts`                                                 |
 | `update("posts", id, data)`        | `PATCH /posts/{id}` (ou `PUT` com `updateMethod: "put"`)      |
 | `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                          |
+| `deleteMany("posts", ids)`         | um `DELETE /posts/{id}` por id, em paralelo, cada um com o próprio resultado |
 
 ### O `id` nunca sai do próprio segmento
 
@@ -146,17 +147,51 @@ Todos resolvem o provider via contexto — você só informa o nome do recurso e
 - `useCreate<T>(resource, options?)` → mutation; `mutate(data)`
 - `useUpdate<T>(resource, options?)` → mutation; `mutate({ id, data })`
 - `useDelete<T>(resource, options?)` → mutation; `mutate(id)`
+- `useDeleteMany<T>(resource, options?)` → mutation; `mutate(ids)` resolve com `{ deleted, failed }`
 
 As mutations já invalidam o cache certo no sucesso:
 
-| Hook        | Invalida no `onSuccess`                          |
-| ----------- | ----------------------------------------------- |
-| `useCreate` | a lista do recurso                              |
-| `useUpdate` | a lista **e** o registro `useOne` daquele `id`  |
-| `useDelete` | a lista do recurso                              |
+| Hook            | Invalida no `onSuccess`                          |
+| --------------- | ----------------------------------------------- |
+| `useCreate`     | a lista do recurso                              |
+| `useUpdate`     | a lista **e** o registro `useOne` daquele `id`  |
+| `useDelete`     | a lista do recurso                              |
+| `useDeleteMany` | a lista do recurso, **uma vez** para o lote todo |
 
 !!! tip "Você ainda passa opções do TanStack Query"
-    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
+    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError` e `onSuccess` funcionam normalmente. O `onSuccess` do app roda **depois** de o SDK disparar a invalidação, nunca no lugar dela: até a 0.92.0 ele substituía o do SDK, e a lista ficava velha depois de criar, editar ou excluir (#699).
+
+### Excluir uma seleção: `useDeleteMany`
+
+Excluir uma seleção chamando `useDelete().mutateAsync` para cada id invalida a lista uma vez por id, e cada invalidação refaz o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`. O `useDeleteMany` exclui o lote e invalida **uma** vez:
+
+```tsx
+import { useDeleteMany } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+}
+
+export function DeleteSelection({ ids }: { ids: string[] }) {
+  const deleteMany = useDeleteMany<Product>("products");
+
+  async function confirm(): Promise<void> {
+    const { deleted, failed } = await deleteMany.mutateAsync(ids);
+    console.log(`${deleted.length} excluídos, ${failed.length} recusados`);
+  }
+
+  return (
+    <button disabled={deleteMany.isPending} onClick={() => void confirm()}>
+      Excluir {ids.length}
+    </button>
+  );
+}
+```
+
+- **Cada id tem o próprio resultado.** Um produto que o backend recusa (pedido em aberto) vai para `failed` com o erro, e não esconde os nove que saíram. A mutation só rejeita quando a chamada do provider inteira falha — e aí nada é invalidado.
+- **A lista é invalidada mesmo quando todos falharam**: um `404` pode significar que outra sessão já excluiu o registro.
+- **Backend com rota de exclusão em lote?** Implemente `deleteMany(resource, ids)` no seu `DataProvider` e devolva o mesmo `{ deleted, failed }`. É opcional: sem ele, o hook faz um `deleteOne` por id, em paralelo.
 
 ### As chaves de cache, quando você precisa delas
 
@@ -174,9 +209,15 @@ queryClient.invalidateQueries({ queryKey: listQueryKey("posts") });
 queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
 ```
 
-`listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
-e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
+`listQueryKey(resource)` devolve `["data", <recurso>, "list"]`, o prefixo de
+**toda** lista do recurso, então invalida todas as páginas, ordenações e
+filtros de uma vez. Com `params`, `listQueryKey(resource, params)` devolve
+`["data", <recurso>, "list", params]`, a chave exata de uma lista. E
+`oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.
+
+!!! note "Até a 0.92.0, `listQueryKey(\"posts\")` não invalidava nada"
+    Sem `params`, a chave terminava num `undefined` literal (`["data", "posts", "list", undefined]`), e o filtro do `invalidateQueries` compara esse quarto elemento como qualquer outro: casava com **0** das listas que o `useList` monta com paginação (#700). Hoje a chave para em `"list"`.
 
 !!! warning "Paginação e ordenação ganham do filtro com o mesmo nome"
     Os `filters` entram na query **antes** de `pagination` e `sort`. Um filtro com a chave de um desses parâmetros (`page`, `size`, `order_by`, `ascending` no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: `filters: { page: 1 }` vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem `pagination`, o filtro continua indo como veio.
@@ -321,7 +362,9 @@ export function EditPost({ id }: { id: string }) {
 - `createDataProvider(client, options?)` transforma um `apiClient` num provider CRUD no estilo Refine, com defaults alinhados ao `tempest-fastapi-sdk` (`page`/`size`/`order_by`/`ascending`, `ascending` booleano, PATCH no update).
 - Envolva a árvore com `<TempestDataProvider provider={…}>` **abaixo** de um `<QueryProvider>`.
 - `useList` resolve um `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` busca um registro e se desabilita sem `id`.
-- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).
+- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update). O `onSuccess` do app roda depois da invalidação, não no lugar dela.
+- `useDeleteMany` exclui uma seleção e invalida a lista uma vez; cada id volta em `deleted` ou `failed`.
+- `listQueryKey(resource)` invalida todas as listas do recurso; com `params`, é a chave de uma lista só.
 - Backends fora da convenção? Ajuste `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
 - Todo `id` passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` são rejeitados antes da requisição.
 

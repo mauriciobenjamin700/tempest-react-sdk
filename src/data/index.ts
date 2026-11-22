@@ -1,6 +1,7 @@
 export { createDataProvider, encodeIdSegment } from "./create-data-provider";
 export type {
     DataProvider,
+    DeleteManyResult,
     DataProviderOptions,
     GetListParams,
     DataFilters,
@@ -15,6 +16,7 @@ export {
     useCreate,
     useUpdate,
     useDelete,
+    useDeleteMany,
     listQueryKey,
     oneQueryKey,
 } from "./use-resource";
@@ -24,5 +26,6 @@ export type {
     UseCreateOptions,
     UseUpdateOptions,
     UseDeleteOptions,
+    UseDeleteManyOptions,
     UpdateVariables,
 } from "./use-resource";

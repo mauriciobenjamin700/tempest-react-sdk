@@ -7,6 +7,8 @@ import {
     type CameraStreamErrorKind,
     type UseCameraStreamApi,
 } from "./use-camera-stream";
+import * as root from "@/index";
+import * as vision from "@/vision/public";
 
 interface Observed {
     status: CameraStreamStatus;
@@ -374,5 +376,22 @@ describe("useCameraStream — lifecycle races", () => {
             rerender(<Localized messages={{ ...PT }} />);
             expect(observed.error).toBe(first);
         });
+    });
+});
+
+describe("useCameraStream — entry points (#721)", () => {
+    /**
+     * `/vision` statically imports `onnxruntime-web`, so a consumer that only wanted the
+     * camera had to install the ONNX Runtime: esbuild failed with `Could not resolve
+     * "onnxruntime-web"`, plain Node and a consumer's Vitest with `ERR_MODULE_NOT_FOUND`.
+     * The root entry reaches no ONNX module (`scripts/check-dist-guards.mjs` checks the
+     * dist graph), and `/vision` keeps the same function for the apps already on it.
+     */
+    it("is exported from the root entry, which reaches no ONNX module", () => {
+        expect(root.useCameraStream).toBe(useCameraStream);
+    });
+
+    it("keeps the /vision export as the very same function", () => {
+        expect(vision.useCameraStream).toBe(root.useCameraStream);
     });
 });

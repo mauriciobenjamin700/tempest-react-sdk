@@ -132,6 +132,7 @@ export function CommandPalette() {
         open={open}
         onOpenChange={setOpen}
         placeholder="Ir para tela ou ação…"
+        label="Ir para tela ou ação"
         emptyMessage="Nada encontrado. Tente outro termo."
         items={items}
       />
@@ -179,7 +180,7 @@ You hand over a list of `CommandItem`s and control `open` / `onOpenChange`. The 
 its job:
 
 - it filters the items by a piece of the text in `label` **and** in `keywords`,
-  case-insensitive;
+  ignoring case **and accents** — "usuarios" finds "Usuários";
 - it groups the results by `group`, in the order the groups appear in the list;
 - it navigates with ↑ / ↓, runs with Enter and closes on Escape, click outside or
   selection;
@@ -189,8 +190,8 @@ Each `onSelect` is the item's action: `navigate(...)`, `toggle()` or `logout()`.
 
 !!! tip "`keywords` is where usability lives"
     Nobody remembers whether the screen is called "Clientes" or "Compradores". Put the
-    synonyms in `keywords`, including words without accents ("usuarios") if your team
-    types like that: the search compares the text as it is, accents included.
+    synonyms in `keywords`. No unaccented copy is needed: the search already ignores
+    accents on both sides.
 
 ### The shortcut works on any system
 

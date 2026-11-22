@@ -232,7 +232,7 @@ import { HoverCard } from "tempest-react-sdk";
 
 ## `Command` (paleta ⌘K)
 
-Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por substring (label + keywords), agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.
+Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por trecho do texto (label + keywords), sem diferenciar maiúscula nem acento — "usuarios" acha "Usuários" —, agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.
 
 ```tsx
 import { Command } from "tempest-react-sdk";
@@ -263,14 +263,18 @@ const [open, setOpen] = useState(false);
 | `open`         | `boolean`                 | —                   | Se a paleta está visível                             |
 | `onOpenChange` | `(open: boolean) => void` | —                   | Próximo estado (Escape, seleção, clique no backdrop) |
 | `items`        | `CommandItem[]`           | —                   | Candidatos a filtrar e exibir                        |
-| `placeholder`  | `string`                  | `"Type a command…"` | Placeholder do input de busca                        |
-| `emptyMessage` | `ReactNode`               | `"No results"`      | Exibido quando nada combina com a busca              |
+| `placeholder`  | `string`                  | `"Digite um comando…"` | Placeholder do input de busca                     |
+| `emptyMessage` | `ReactNode`               | `"Nenhum resultado"`   | Exibido quando nada combina com a busca           |
+| `label`        | `string`                  | `"Paleta de comandos"` | Nome acessível do diálogo e do input de busca     |
 | `className`    | `string`                  | —                   | Repassado ao elemento de diálogo                     |
 
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Gatilho global"
     Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
+
+!!! note "Textos padrão em PT-BR"
+    Até a versão anterior, `placeholder`, `emptyMessage` e o nome acessível vinham fixos em inglês (`"Type a command…"`, `"No results"`, `"Command palette"`). Um leitor de tela em PT-BR anunciava o diálogo em outra língua. Os três agora têm default em PT-BR e aceitam prop.
 
 ## Recap
 

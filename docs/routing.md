@@ -402,6 +402,58 @@ O `useReturnTo` cai no `fallback` (padrão `"/"`) quando a página de login é a
 !!! tip "Use o valor com `navigate`, não com `window.location`"
     O caminho vem relativo ao `basename` do router, igual ao `useLocation()`. O `navigate()` recoloca o `basename`; o `window.location` não.
 
+## Estado da tela na URL com `useUrlState`
+
+Página, tamanho da página, busca, filtros e ordenação de uma lista pertencem à URL: é o que deixa o botão voltar funcionar e um link colado abrir a mesma tela. `useUrlState` lê esses parâmetros já tipados e escreve neles sem que uma escrita apague a outra.
+
+```tsx
+// MembersPage.tsx
+import { DataTable, useUrlState } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+}
+
+export function MembersPage({ members, total }: { members: Member[]; total: number }) {
+  const { state, set, reset } = useUrlState({ busca: "", pagina: 1, por_pagina: 20 });
+
+  return (
+    <>
+      <button type="button" onClick={() => reset()}>
+        Limpar filtros
+      </button>
+      <DataTable<Member>
+        data={members}
+        columns={[{ key: "name", header: "Nome" }]}
+        rowKey={(member) => member.id}
+        totalItems={total}
+        page={state.pagina}
+        onPageChange={(pagina) => set({ pagina })}
+        pageSize={state.por_pagina}
+        pageSizeOptions={[20, 50]}
+        onPageSizeChange={(por_pagina) => set({ por_pagina })}
+        searchable
+        search={state.busca}
+        searchDebounceMs={300}
+        onSearchChange={(busca) => set({ busca }, { replace: true })}
+      />
+    </>
+  );
+}
+```
+
+- **O tipo vem do default.** `pagina: 1` faz `?pagina=3` virar o número `3`; `?pagina=abc` volta para `1` em vez de quebrar a tela. Booleano lê `"true"`/`"false"`.
+- **Default sai da URL.** `set({ pagina: 1 })` ou `set({ pagina: null })` apaga `pagina`, então a tela sem filtro é a URL limpa.
+- **Escritas do mesmo tique viram uma navegação só.** Uma entrada no histórico por gesto, e nenhuma escrita perdida.
+- **`{ replace: true }`** troca a entrada atual em vez de empilhar — o certo para busca digitada. Num lote, basta uma escrita sem `replace` para o lote empilhar.
+- Parâmetros que o hook não conhece ficam intactos.
+
+!!! info "Por que não o `setSearchParams` direto"
+    O `setSearchParams` do React Router monta a URL nova a partir dos parâmetros **do último render** — inclusive na forma de função. Quando o `DataTable` troca o tamanho da página, ele chama `onPageSizeChange(50)` e `onPageChange(1)` no mesmo clique; partindo de `?pagina=3`, a URL final era `?pagina=1` e o `por_pagina=50` sumia (medido com `react-router` 8.5.2, teste em `src/router/use-url-state.test.tsx`). `useUrlState` acumula as escritas numa cópia pendente e navega uma vez.
+
+A página controlada também existe no [`usePaginatedQuery`](./integration-fastapi.md#offset-usepaginatedquery): passe `page` e `onPageChange` e ele deixa de guardar a página sozinho.
+
 ## Escolhendo o tipo de router
 
 O `<AppRouter>` aceita três tipos via a prop `router`:
@@ -487,3 +539,4 @@ Os tipos mais usados também vêm junto: `Location`, `NavigateFunction`, `Naviga
 - Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.
 - Precisa de `matchPath`, `generatePath`, `useOutletContext` ou qualquer outro nome client-side do React Router? Também vem de `"tempest-react-sdk"`; o `Form` dele sai como `RouterForm`.
+- Estado de lista (página, busca, filtros, ordenação) mora na URL com `useUrlState`: tipado pelo default, e escritas do mesmo clique viram uma navegação só.

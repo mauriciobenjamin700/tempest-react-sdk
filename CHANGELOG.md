@@ -4,6 +4,64 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`DataTable`: seleção de linhas e coluna de ações** (#711). `selectable` + `selectedKeys` +
+  `onSelectionChange` (controlados, os três juntos ou o `tsc` reprova) põem uma coluna de checkbox;
+  o do cabeçalho age na página visível, fica `indeterminate` quando só parte está marcada e preserva
+  as chaves de outras páginas. `rowActions` põe uma coluna final de ações. Nenhuma das duas usa um
+  campo de `T` como `key`: a receita do admin emprestava `sku` e `id`, e emprestar a mesma chave
+  duas vezes gera 4 avisos `Encountered two children with the same key` do React num render de 3
+  linhas (medido no jsdom). Clique no checkbox ou na coluna de ações não chega a `onRowClick`, nem
+  vindo de um menu em portal. Labels em PT-BR: `selectionLabel`, `selectAllLabel`, `rowActionsLabel`.
+- **`DataTable`: busca e ordenação controladas** (#712). `search` (com `onSearchChange`) e `sort`
+  (com `onSortChange`). A caixa abre com o termo e acompanha quando ele muda por fora; a seta segue
+  `sort` a cada render. Medido antes: trocar `initialSort` de `asc` para `desc` depois da montagem
+  deixava a primeira linha em "Ana" — `initialSort` continua lido só na montagem, e um teste fixa
+  isso. `searchDebounceMs` mostra cada tecla e publica o termo depois da pausa (uma requisição por
+  busca no modo servidor).
+- **`DataTable` repassa `stackOnMobile`, `onRowClick` e `scrollLabel` ao `Table`** (#713), e a coluna
+  ganha `className`. Eram as quatro props do `Table`/`TableColumn` que o `DataTable` descartava.
+  Validando os cartões no Chromium a 390 px apareceu o defeito maior: coluna `sortable` tem o
+  cabeçalho dentro de um botão, o `Table` só escrevia `data-label` para cabeçalho string, e o cartão
+  mostrava o valor sem o nome ao lado. `TableColumn` ganha `label` (default: o `header` quando é
+  texto), e o `DataTable` o preenche.
+- **`DataTable`: `searchPlaceholder` e `searchLabel`** (#732). A caixa não tinha nome acessível
+  (`aria-label` nulo, só o placeholder `"Buscar..."`); o default agora é `"Buscar na tabela"`.
+- **`useUrlState`** (#714): estado de tela na URL, tipado pelos defaults, com as escritas do mesmo
+  tique acumuladas numa navegação só. Medido com `react-router` 8.5.2: duas chamadas de
+  `setSearchParams` no mesmo clique, mesmo na forma de função, partindo de `?pagina=3`, terminam em
+  `?pagina=1` — a primeira escrita some. É o que o `DataTable` faz ao trocar o tamanho da página
+  (`onPageSizeChange` e depois `onPageChange(1)`). Com `useUrlState` a URL fica `?por_pagina=50`
+  (teste em `src/router/use-url-state.test.tsx`).
+- **`usePaginatedQuery`: página controlada** (#714). `page` + `onPageChange`; nesse modo `setPage`,
+  `next` e `prev` reportam, e uma `queryKey` nova não volta a página (quem é dono a volta).
+- **`Command`: prop `label`** (#731) para o nome acessível do diálogo, agora também aplicado ao
+  input de busca.
+
+### Mudado
+
+- **Busca sem acento em `Command`, `DataTable` e `useClientFilter`** (#730). Os três só usavam
+  `toLowerCase`: "joao" não achava "João" e "usuarios" não achava "Usuários" (reproduzido no jsdom:
+  0 opções no `Command`, 0 linhas no `DataTable`). Agora comparam sem diacríticos (`NFD` + remoção
+  das marcas). O predicado customizado do `useClientFilter` continua recebendo o termo só em
+  minúsculas. `Combobox` e `MultiSelect` têm o mesmo `toLowerCase` e ficam para outro PR.
+- **`Command`: textos padrão em PT-BR** (#731). `placeholder` `"Digite um comando…"`,
+  `emptyMessage` `"Nenhum resultado"` e nome acessível `"Paleta de comandos"`, no lugar de
+  `"Type a command…"`, `"No results"` e `"Command palette"`.
+
+### Corrigido
+
+- **Cabeçalho ordenável do `DataTable` em caixa alta, como o resto** (#716). O texto do cabeçalho
+  ordenável fica dentro de um `<button>`, e o user-agent zera `text-transform` em botão: medido no
+  Chromium da gallery, os cabeçalhos ordenáveis saíam com `text-transform: none` ("Nome") ao lado
+  de "CATEGORIA". O `.sortButton` herda `text-transform` e `letter-spacing`.
+- **`Drawer`, `Modal` e `Command` declaram a fonte do SDK** (#716). Eles vão para o `body` em
+  portal e herdavam a fonte dele; o SDK não aplica fonte no `body` (decisão do app). Num app que
+  também não aplica, o título do `Drawer` saía em `"Times New Roman"` (medido no Chromium, com a
+  fonte do `body` da gallery removida). O `BottomSheet` já declarava; os três agora também, e
+  `test/portal-inheritance.test.ts` guarda os quatro.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O
@@ -14,6 +72,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   com `allowed_actions=selected` só para as actions da GitHub, e mostra o comando que corrige cada
   item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
   Actions") pela exceção do Pages. Sem mudança no pacote publicado.
+
+### Budgets
+
+- **Quatro tetos sobem pela seleção, ações e busca controlada do `DataTable` e pelo `useUrlState`**
+  (`npm run build && npx size-limit --json`, bytes brotli): `slice: DataTable with inline editing +
+server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 B são o `Checkbox`
+  que a coluna de seleção monta e 328 B o `VisuallyHidden` do cabeçalho de ações, medidos isolados
+  com esbuild + brotli sobre o mesmo `dist/`); `ceiling: full barrel ESM` 173 686 (teto 172,7 →
+  173,9 kB); `ceiling: full barrel CJS` 205 381 (teto 204 → 205,6 kB); `styles.css` 32 610 (teto
+  32,6 → 32,7 kB, a fonte declarada em `Drawer`/`Modal`/`Command` e as regras das colunas novas).
 
 ## [0.92.0] — 2026-11-21
 

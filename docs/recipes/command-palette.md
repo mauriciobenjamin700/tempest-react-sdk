@@ -131,6 +131,7 @@ export function CommandPalette() {
         open={open}
         onOpenChange={setOpen}
         placeholder="Ir para tela ou ação…"
+        label="Ir para tela ou ação"
         emptyMessage="Nada encontrado. Tente outro termo."
         items={items}
       />
@@ -178,7 +179,7 @@ Você entrega uma lista de `CommandItem` e controla `open` / `onOpenChange`. O r
 dele:
 
 - filtra os itens por trecho do texto em `label` **e** em `keywords`, sem diferenciar
-  maiúscula de minúscula;
+  maiúscula de minúscula **nem acento** — "usuarios" acha "Usuários";
 - agrupa os resultados por `group`, na ordem em que os grupos aparecem na lista;
 - navega com ↑ / ↓, executa com Enter e fecha com Escape, clique fora ou seleção;
 - prende o foco dentro da paleta enquanto ela está aberta.
@@ -187,8 +188,8 @@ Cada `onSelect` é a ação do item: `navigate(...)`, `toggle()` ou `logout()`.
 
 !!! tip "`keywords` é onde mora a usabilidade"
     Ninguém lembra se a tela se chama "Clientes" ou "Compradores". Ponha os sinônimos
-    em `keywords`, inclusive palavras sem acento ("usuarios") se a sua equipe digita
-    assim: a busca compara o texto como ele é, com acento.
+    em `keywords`. Versão sem acento não precisa: a busca já ignora acento nos dois
+    lados.
 
 ### O atalho funciona em qualquer sistema
 

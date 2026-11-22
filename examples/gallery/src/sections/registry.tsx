@@ -248,7 +248,7 @@ export const SECTIONS: SectionEntry[] = [
         id: "data-table",
         label: "DataTable",
         keywords:
-            "datatable sort editable edicao inline oncellchange validate otimista rollback useannounce",
+            "datatable sort editable edicao inline oncellchange validate otimista rollback useannounce selectable selecao rowactions stackonmobile",
         group: "Componentes",
         Component: DataTableSection,
     },

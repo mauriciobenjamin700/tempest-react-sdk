@@ -1,0 +1,5259 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/webrtc/">
+      
+      
+        <link rel="prev" href="../websocket/">
+      
+      
+        <link rel="next" href="../geo/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>WebRTC (Opus audio) - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#webrtc" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              WebRTC (Opus audio)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../webrtc/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-in-one-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      The problem, in one line
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tuneopus-a-profile-per-audio-m-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      tuneOpus — a profile per audio m-line
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="tuneOpus — a profile per audio m-line">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-traps-this-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      The traps this handles
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settunedlocaldescription-the-fallback-that-saves-the-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      setTunedLocalDescription — the fallback that saves the call
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setsenderbitrate-the-other-half-of-the-pair" class="md-nav__link">
+    <span class="md-ellipsis">
+      setSenderBitrate — the other half of the pair
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#measuring-the-link-createlinkstatssampler-and-uselinkstats" class="md-nav__link">
+    <span class="md-ellipsis">
+      Measuring the link: createLinkStatsSampler and useLinkStats
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Measuring the link: createLinkStatsSampler and useLinkStats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-react" class="md-nav__link">
+    <span class="md-ellipsis">
+      In React
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outside-react" class="md-nav__link">
+    <span class="md-ellipsis">
+      Outside React
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-badge-to-control-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      From badge to control signal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-selected-pair-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      The selected-pair chain
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-mistakes-this-avoids" class="md-nav__link">
+    <span class="md-ellipsis">
+      The two mistakes this avoids
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-sampler-sums-and-why" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the sampler sums, and why
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pausing-resuming-and-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pausing, resuming and reset()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-does-not-measure" class="md-nav__link">
+    <span class="md-ellipsis">
+      What this does not measure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-the-browser-does-not-cooperate" class="md-nav__link">
+    <span class="md-ellipsis">
+      When the browser does not cooperate
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createpeermesh-the-whole-room-nn" class="md-nav__link">
+    <span class="md-ellipsis">
+      createPeerMesh — the whole room, N↔N
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="createPeerMesh — the whole room, N↔N">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-six-traps-and-why-each-one-is-mute" class="md-nav__link">
+    <span class="md-ellipsis">
+      The six traps, and why each one is mute
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#who-offers-is-decided-by-arrival-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      Who offers is decided by arrival order
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#turning-media-on-and-off-does-not-renegotiate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Turning media on and off does not renegotiate
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hanging-up-is-final" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hanging up is final
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#who-may-receive-your-microphone-acceptpeer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Who may receive your microphone: acceptPeer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measuring-the-room-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      Measuring the room: stats
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-connection-the-mesh-does-not-model-getconnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      The connection the mesh does not model: getConnection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-opus-profile-stays-yours-setlocaldescription" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Opus profile stays yours: setLocalDescription
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-room-divides-the-uplink-and-the-division-has-a-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      The room divides the uplink, and the division has a floor
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-problem-in-one-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      The problem, in one line
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tuneopus-a-profile-per-audio-m-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      tuneOpus — a profile per audio m-line
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="tuneOpus — a profile per audio m-line">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-traps-this-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      The traps this handles
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settunedlocaldescription-the-fallback-that-saves-the-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      setTunedLocalDescription — the fallback that saves the call
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#setsenderbitrate-the-other-half-of-the-pair" class="md-nav__link">
+    <span class="md-ellipsis">
+      setSenderBitrate — the other half of the pair
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#measuring-the-link-createlinkstatssampler-and-uselinkstats" class="md-nav__link">
+    <span class="md-ellipsis">
+      Measuring the link: createLinkStatsSampler and useLinkStats
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Measuring the link: createLinkStatsSampler and useLinkStats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#in-react" class="md-nav__link">
+    <span class="md-ellipsis">
+      In React
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#outside-react" class="md-nav__link">
+    <span class="md-ellipsis">
+      Outside React
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#from-badge-to-control-signal" class="md-nav__link">
+    <span class="md-ellipsis">
+      From badge to control signal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-selected-pair-chain" class="md-nav__link">
+    <span class="md-ellipsis">
+      The selected-pair chain
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-two-mistakes-this-avoids" class="md-nav__link">
+    <span class="md-ellipsis">
+      The two mistakes this avoids
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-the-sampler-sums-and-why" class="md-nav__link">
+    <span class="md-ellipsis">
+      What the sampler sums, and why
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pausing-resuming-and-reset" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pausing, resuming and reset()
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-this-does-not-measure" class="md-nav__link">
+    <span class="md-ellipsis">
+      What this does not measure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-the-browser-does-not-cooperate" class="md-nav__link">
+    <span class="md-ellipsis">
+      When the browser does not cooperate
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createpeermesh-the-whole-room-nn" class="md-nav__link">
+    <span class="md-ellipsis">
+      createPeerMesh — the whole room, N↔N
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="createPeerMesh — the whole room, N↔N">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-six-traps-and-why-each-one-is-mute" class="md-nav__link">
+    <span class="md-ellipsis">
+      The six traps, and why each one is mute
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#who-offers-is-decided-by-arrival-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      Who offers is decided by arrival order
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#turning-media-on-and-off-does-not-renegotiate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Turning media on and off does not renegotiate
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hanging-up-is-final" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hanging up is final
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#who-may-receive-your-microphone-acceptpeer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Who may receive your microphone: acceptPeer
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measuring-the-room-stats" class="md-nav__link">
+    <span class="md-ellipsis">
+      Measuring the room: stats
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-connection-the-mesh-does-not-model-getconnection" class="md-nav__link">
+    <span class="md-ellipsis">
+      The connection the mesh does not model: getConnection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-opus-profile-stays-yours-setlocaldescription" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Opus profile stays yours: setLocalDescription
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-room-divides-the-uplink-and-the-division-has-a-floor" class="md-nav__link">
+    <span class="md-ellipsis">
+      The room divides the uplink, and the division has a floor
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/webrtc.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/webrtc.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="webrtc">WebRTC</h1>
+<p>Audio over WebRTC is <strong>mono and narrow by default</strong>, and the only place that gets corrected is the SDP. This module brings the machinery for editing it — parsing, merging and fallback — plus the send-side cap, which is the other half of a pair people routinely mix up.</p>
+<div class="admonition info">
+<p class="admonition-title">When do you need this?</p>
+<p>If the call is voice only and the browser default is fine, you do not. Where it becomes necessary is <strong>shared-screen</strong> audio: music and video inherit the speech profile — mono, ~32 kbps, FEC on, DTX gating the quiet passages — which is exactly why system audio in a call sounds like a telephone. No high-level API lets you change it.</p>
+</div>
+<!-- gallery:peer-mesh -->
+<p><a href="../gallery/"><img alt="Mesh WebRTC (createPeerMesh) in the gallery" src="../../assets/gallery/peer-mesh.webp" /></a></p>
+<p><em>Section <code>peer-mesh</code> of the <a href="../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<h2 id="the-problem-in-one-line">The problem, in one line</h2>
+<p><code>RTCPeerConnection</code> exposes no codec knob. The Opus profile lives in an <code>a=fmtp:</code> line of the SDP, and changing it means editing text — with a long tail of protocol traps (RFC 7587), not taste ones.</p>
+<h2 id="tuneopus-a-profile-per-audio-m-line"><code>tuneOpus</code> — a profile per audio m-line</h2>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tuneOpus</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">offer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">createOffer</span><span class="p">();</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">tuned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tuneOpus</span><span class="p">(</span><span class="nx">offer</span><span class="p">.</span><span class="nx">sdp</span><span class="o">!</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// by audio m-line index (0 is the first), or by mid</span>
+<span class="w">  </span><span class="mf">0</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">maxAverageBitrate</span><span class="o">:</span><span class="w"> </span><span class="kt">48_000</span><span class="p">,</span><span class="w"> </span><span class="nx">stereo</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span><span class="w"> </span><span class="nx">fec</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">dtx</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="mf">1</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">maxAverageBitrate</span><span class="o">:</span><span class="w"> </span><span class="kt">192_000</span><span class="p">,</span><span class="w"> </span><span class="nx">stereo</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">fec</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span><span class="w"> </span><span class="nx">dtx</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">},</span>
+<span class="p">});</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">setLocalDescription</span><span class="p">({</span><span class="w"> </span><span class="p">...</span><span class="nx">offer</span><span class="p">,</span><span class="w"> </span><span class="nx">sdp</span><span class="o">:</span><span class="w"> </span><span class="kt">tuned</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+<p>One profile for every audio m-line is the short form:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">tuned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">tuneOpus</span><span class="p">(</span><span class="nx">offer</span><span class="p">.</span><span class="nx">sdp</span><span class="o">!</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">stereo</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">dtx</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Becomes</th>
+<th>What for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>maxAverageBitrate</code></td>
+<td><code>maxaveragebitrate</code></td>
+<td>ceiling we ask the <strong>remote</strong> encoder for</td>
+</tr>
+<tr>
+<td><code>maxPlaybackRate</code></td>
+<td><code>maxplaybackrate</code></td>
+<td>highest rate worth decoding</td>
+</tr>
+<tr>
+<td><code>stereo</code></td>
+<td><code>stereo</code> <strong>and</strong> <code>sprop-stereo</code></td>
+<td>two channels in both directions</td>
+</tr>
+<tr>
+<td><code>fec</code></td>
+<td><code>useinbandfec</code></td>
+<td>rebuilds a lost packet — saves speech, smears music</td>
+</tr>
+<tr>
+<td><code>dtx</code></td>
+<td><code>usedtx</code></td>
+<td>stops sending during silence — wrong for music</td>
+</tr>
+<tr>
+<td><code>cbr</code></td>
+<td><code>cbr</code></td>
+<td>constant bitrate</td>
+</tr>
+<tr>
+<td><code>extra</code></td>
+<td>whatever you write</td>
+<td>escape hatch for an unmodelled key</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition danger">
+<p class="admonition-title">No preset table, on purpose</p>
+<p>Which values to use is your call: voice in a mesh does not want what system audio wants. A preset table is precisely the kind of thing that has no business inside a dependency — what lives here is the parsing, the merging and the fallback, which is where the long tail is.</p>
+</div>
+<h3 id="the-traps-this-handles">The traps this handles</h3>
+<p>Getting any of them wrong degrades <strong>silently</strong>: nobody sees an exception, the audio is just worse.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>stereo</code> and <code>sprop-stereo</code> point in opposite directions</p>
+<p><code>stereo=1</code> asks the <strong>remote</strong> to send two channels; <code>sprop-stereo=1</code> announces that <strong>we</strong> will. Setting only one leaves the link asymmetric — the recurring reason for "I asked for stereo and got mono". The <code>stereo</code> field writes both.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">The <code>fmtp</code> already exists and must not be overwritten</p>
+<p>The browser emits <code>a=fmtp:111 minptime=10;useinbandfec=1</code>. Replacing the whole line drops the <code>minptime</code> — a packetization decision nobody meant to change. The merge is per key: whatever you do not name stays.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">The payload type varies, and there may be more than one</p>
+<p>The number comes from <code>a=rtpmap:(\d+) opus/48000</code>, never from a hard-coded <code>111</code>. Every Opus payload in the block is tuned.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">There may be no <code>fmtp</code> at all</p>
+<p>Then the line is <strong>inserted</strong> right after the <code>rtpmap</code>. "The parameter is missing" and "the parameter is empty" are the same request from the caller's side.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Audio m-lines only</p>
+<p>With several slots (mic plus system audio on separate transceivers) each wants a different profile — and the index counts audio blocks only, so a video m-line in between shifts nothing.</p>
+</div>
+<h2 id="settunedlocaldescription-the-fallback-that-saves-the-call"><code>setTunedLocalDescription</code> — the fallback that saves the call</h2>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">setTunedLocalDescription</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">applied</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">setTunedLocalDescription</span><span class="p">(</span><span class="nx">pc</span><span class="p">,</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">createOffer</span><span class="p">(),</span><span class="w"> </span><span class="nx">profiles</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">applied</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"original"</span><span class="p">)</span><span class="w"> </span><span class="nx">logger</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="s2">"the browser refused the Opus profile"</span><span class="p">);</span>
+</code></pre></div>
+<p>Chrome has been tightening what <code>setLocalDescription</code> accepts from edited SDP, and there is no way to know in advance. Without a fallback to the original SDP, <strong>the call dies instead of merely losing the profile</strong> — the wrong trade by a wide margin: worse audio beats no audio.</p>
+<p>The return value says which one landed, because <code>"original"</code> means the profile silently did not apply — worth reporting.</p>
+<h2 id="setsenderbitrate-the-other-half-of-the-pair"><code>setSenderBitrate</code> — the other half of the pair</h2>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">setSenderBitrate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sender</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">getSenders</span><span class="p">().</span><span class="nx">find</span><span class="p">((</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">track</span><span class="o">?</span><span class="p">.</span><span class="nx">kind</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"audio"</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">sender</span><span class="p">)</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">setSenderBitrate</span><span class="p">(</span><span class="nx">sender</span><span class="p">,</span><span class="w"> </span><span class="mf">48</span><span class="nx">_000</span><span class="p">);</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title"><code>fmtp</code> is what we want <strong>to receive</strong>; <code>setParameters</code> limits what we <strong>send</strong></p>
+<p>Both are needed, and in a <strong>mesh</strong> topology the second one matters more: the uplink carries one copy of the stream per participant, so that is what saturates first.</p>
+</div>
+<p>Two things make this a function instead of two lines in your code: <code>setParameters</code> only accepts <strong>the very object</strong> <code>getParameters</code> returned (a freshly built one is refused), and a sender that has not negotiated yet reports <strong>no</strong> encodings — writing to <code>encodings[0]</code> without checking throws on exactly the call that sets the cap before the first offer. <code>null</code> lifts the cap; the return is <code>false</code> when the browser refuses, and the call then runs uncapped rather than breaking.</p>
+<h2 id="measuring-the-link-createlinkstatssampler-and-uselinkstats">Measuring the link: <code>createLinkStatsSampler</code> and <code>useLinkStats</code></h2>
+<p>The badge every call shows — <code>1.2 Mbps · 42 ms · 1080p60</code> — comes ready-made from nowhere. <code>getStats()</code> returns dozens of entries holding <strong>cumulative</strong> counters, and turning that into three numbers is where every app rewrites the same two mistakes.</p>
+<h3 id="in-react">In React</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useLinkStats</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">LinkBadge</span><span class="p">({</span><span class="w"> </span><span class="nx">pc</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pc</span><span class="o">:</span><span class="w"> </span><span class="kt">RTCPeerConnection</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">stats</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLinkStats</span><span class="p">(</span><span class="nx">pc</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">stats</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">span</span><span class="o">&gt;</span><span class="nx">measuring</span><span class="err">…</span><span class="o">&lt;</span><span class="err">/span&gt;;</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="o">&lt;</span><span class="nx">span</span><span class="o">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">stats</span><span class="p">.</span><span class="nx">kbps</span><span class="p">}</span><span class="w"> </span><span class="nx">kbps</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="p">{</span><span class="nx">stats</span><span class="p">.</span><span class="nx">rttMs</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"—"</span><span class="p">}</span><span class="w"> </span><span class="nx">ms</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="p">{</span><span class="nx">stats</span><span class="p">.</span><span class="nx">width</span><span class="p">}</span><span class="err">×</span><span class="p">{</span><span class="nx">stats</span><span class="p">.</span><span class="nx">height</span><span class="p">}</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">stats</span><span class="p">.</span><span class="nx">fps</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="sb">`@</span><span class="si">${</span><span class="nx">stats</span><span class="p">.</span><span class="nx">fps</span><span class="si">}</span><span class="sb">`</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">}</span>
+<span class="w">    </span><span class="o">&lt;</span><span class="err">/span&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Samples every 2 s, <strong>only</strong> while <code>connectionState === "connected"</code>, and stops sampling when the tab goes to the background.</p>
+<h3 id="outside-react">Outside React</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createLinkStatsSampler</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sampler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createLinkStatsSampler</span><span class="p">();</span>
+
+<span class="nx">setInterval</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">stats</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sampler</span><span class="p">.</span><span class="nx">sample</span><span class="p">(</span><span class="nx">pc</span><span class="p">);</span>
+<span class="w">  </span><span class="nx">badge</span><span class="p">.</span><span class="nx">textContent</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">stats</span><span class="p">.</span><span class="nx">kbps</span><span class="si">}</span><span class="sb"> kbps`</span><span class="p">;</span>
+<span class="p">},</span><span class="w"> </span><span class="mf">2000</span><span class="p">);</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">One sampler per connection</p>
+<p>The rate is a <strong>delta</strong>, so the sampler keeps the previous reading. Sharing one across peers subtracts one connection's counter from another's and reports nonsense. A five-person mesh has four samplers.</p>
+</div>
+<p>Already holding the report? <code>sampler.read(report)</code> runs the reduction without fetching again — useful when the same <code>getStats()</code> feeds more than one thing.</p>
+<h3 id="from-badge-to-control-signal">From badge to control signal</h3>
+<p>The three fields above describe <strong>what was sent</strong>. To <em>decide</em> quality rather than only display it, two more are needed, and they describe <strong>what the path can take</strong> — the only class of information that answers before the picture breaks:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it answers</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>availableKbps</code></td>
+<td>uplink the transport estimates, in kbps, or <code>null</code></td>
+</tr>
+<tr>
+<td><code>limitedBy</code></td>
+<td>what the encoder says is holding the picture back, or <code>null</code></td>
+</tr>
+<tr>
+<td><code>relayed</code></td>
+<td>whether the link travels through a TURN relay</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">stats</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLinkStats</span><span class="p">(</span><span class="nx">pc</span><span class="p">);</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">stats</span><span class="o">?</span><span class="p">.</span><span class="nx">limitedBy</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"bandwidth"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">stats</span><span class="p">.</span><span class="nx">availableKbps</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">applyCap</span><span class="p">(</span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">(</span><span class="nx">stats</span><span class="p">.</span><span class="nx">availableKbps</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.8</span><span class="p">));</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title"><code>kbps</code> does not tell a cap being honoured from a cap drowning</p>
+<p>A two-person call on a ~1 Mbps domestic uplink, handed the full 2500 kbps screen cap: <code>kbps</code> reports <strong>2500</strong> — the cap being obeyed while the queue behind it grows and the picture freezes. Nothing in <code>kbps</code>, <code>width</code>, <code>height</code> or <code>fps</code> separates "healthy at 2.5 Mbps" from "capped at 2.5 Mbps and drowning". <code>availableKbps</code> does.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title"><code>null</code> is not <code>0</code>, and reading it as zero ruins every call</p>
+<p><code>availableKbps</code> is <code>null</code> while there is no estimate — which is most of the first seconds of <strong>every</strong> call, and permanent on an engine that publishes none. <code>0</code> is indistinguishable from a path that died. A consumer that reads absence as zero drops the quality at the start of every call.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Reacting to bandwidth on a CPU-bound machine buys a worse picture and no relief</p>
+<p><code>limitedBy</code> is the encoder's verdict, and it is what separates <code>"bandwidth"</code> from <code>"cpu"</code>. When senders disagree, <code>"bandwidth"</code> wins, because it is the only reason a lower cap answers. The spec's <code>"none"</code> comes back as <code>null</code>: no consumer should have to know that one of the truthy strings means "nothing".</p>
+</div>
+<p><code>relayed</code> is the hosting bill on a self-hosted mesh: a relayed stream goes up and down through the machine somebody pays for, and the person who picked 4K is not that somebody. It is resolved <strong>only</strong> from the pair the browser names, never from a merely <code>succeeded</code> one — guessing the route from a pair that carries nothing would report a cost nobody is paying.</p>
+<p>All three are exported on their own too, in the same shape as <code>readRoundTripMs</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">readAvailableOutgoingKbps</span><span class="p">,</span><span class="w"> </span><span class="nx">readQualityLimitation</span><span class="p">,</span><span class="w"> </span><span class="nx">readRelayed</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">report</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">getStats</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">headroom</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readAvailableOutgoingKbps</span><span class="p">(</span><span class="nx">report</span><span class="p">);</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">limit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readQualityLimitation</span><span class="p">(</span><span class="nx">report</span><span class="p">);</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">viaTurn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readRelayed</span><span class="p">(</span><span class="nx">report</span><span class="p">);</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">One walk, not four</p>
+<p>If you are going to read more than one, use the sampler: <code>sampler.read(report)</code> walks the report <strong>once</strong> and resolves the selected pair <strong>once</strong>. Calling the four standalone readers on the same report walks it four times, per link, on every tick — on a mesh of eight at one sample every two seconds that is the most expensive recurring work in the call, on the device least able to pay it.</p>
+</div>
+<h3 id="the-selected-pair-chain">The selected-pair chain</h3>
+<p><code>readRoundTripMs</code>, <code>availableKbps</code> and <code>relayed</code> all depend on the same question: <strong>which pair is carrying the link?</strong> The answer has three steps, in this order:</p>
+<ol>
+<li><code>transport.selectedCandidatePairId</code> — what the spec defines;</li>
+<li>the <code>candidate-pair</code> flagged <code>selected: true</code> — not in the spec, and it exists because an engine that fills neither of the two does not appear to exist, while one that fills only the flag does;</li>
+<li>the first <code>succeeded</code> pair — a guess.</li>
+</ol>
+<p>Step 3 is accepted for round trip and for headroom, because losing the reading is worse than an occasionally optimistic one. It is <strong>not</strong> accepted for <code>relayed</code>, for the reason above.</p>
+<div class="admonition info">
+<p class="admonition-title">Step 2 was not measured in Firefox</p>
+<p>The conclusion that Firefox marks the chosen pair with <code>selected: true</code> instead of filling <code>transport.selectedCandidatePairId</code> comes from reading third-party code, <strong>not from a measurement of ours</strong>. The chain is right by spec either way — step 1 is still tried first — but if you depend on that specific behaviour, measure it on your target before treating it as fact.</p>
+</div>
+<h3 id="the-two-mistakes-this-avoids">The two mistakes this avoids</h3>
+<p><strong>1. Round trip read from the wrong pair.</strong> A connection keeps several candidate pairs alive at once — host, server-reflexive, relayed — and only <strong>one</strong> carries traffic. Taking the first <code>candidate-pair</code> with <code>state: "succeeded"</code> makes the number jump between paths nobody is travelling: 8 ms from an idle host pair alternating with 180 ms from the TURN pair doing the work.</p>
+<p>The right one is the pair the <code>transport</code> names in <code>selectedCandidatePairId</code>. <code>readRoundTripMs</code> does that, and it is exported on its own because it is useful outside the sampler:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">readRoundTripMs</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">rttMs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readRoundTripMs</span><span class="p">(</span><span class="k">await</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">getStats</span><span class="p">());</span>
+</code></pre></div>
+<p><strong>2. Throughput derived without a delta.</strong> <code>bytesSent</code> is cumulative since the connection opened. Dividing it by the session length gives the historical average — a number that only falls and never shows what is happening now. The rate is <code>(bytes − previousBytes) × 8 ÷ 1000 ÷ seconds</code>, and keeping the "previous" is exactly the part every copy rewrites.</p>
+<h3 id="what-the-sampler-sums-and-why">What the sampler sums, and why</h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Comes from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>kbps</code></td>
+<td>the sum of <strong>every</strong> sender matching <code>kind</code></td>
+</tr>
+<tr>
+<td><code>width</code> / <code>height</code> / <code>fps</code></td>
+<td>the stream with the <strong>largest area</strong>, not the last one reported</td>
+</tr>
+<tr>
+<td><code>rttMs</code></td>
+<td>the candidate pair the transport selected</td>
+</tr>
+</tbody>
+</table>
+<p>A peer publishing a camera and a screen at the same time occupies <strong>one</strong> uplink with both — and the uplink is what runs out. Hence the sum. Resolution comes from the largest because that is the stream dominating that bandwidth, and the one a viewer is looking at.</p>
+<p>The default counts video only. <code>kind: "all"</code> folds audio in when the figure is meant to be the connection's real cost:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">sampler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createLinkStatsSampler</span><span class="p">({</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"all"</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+<h3 id="pausing-resuming-and-reset">Pausing, resuming and <code>reset()</code></h3>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">stats</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLinkStats</span><span class="p">(</span><span class="nx">pc</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">intervalMs</span><span class="o">:</span><span class="w"> </span><span class="kt">2000</span><span class="p">,</span><span class="w">       </span><span class="c1">// getStats walks the whole report; 2 s is not laziness</span>
+<span class="w">  </span><span class="nx">pauseWhenHidden</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w">  </span><span class="c1">// default</span>
+<span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"video"</span><span class="p">,</span><span class="w">          </span><span class="c1">// default</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Coming back from the background calls <code>reset()</code> before the next sample. Without it, the first sample after five minutes hidden divides five minutes of bytes by five minutes and reports the average of a period nobody asked about. Call <code>sampler.reset()</code> by hand for the same reason after an <strong>ICE restart</strong> or a reconnect.</p>
+<p><code>reset()</code> clears the baseline, not the screen: the next reading comes back at <code>kbps: 0</code> and keeps the resolution and round trip already on show, so the badge does not blink.</p>
+<div class="admonition tip">
+<p class="admonition-title">The last reading survives the pause</p>
+<p><code>useLinkStats</code> keeps the previous value while paused instead of dropping back to <code>null</code>. A badge that blanks every time the tab loses focus reads as a dropped connection.</p>
+</div>
+<h3 id="what-this-does-not-measure">What this does <strong>not</strong> measure</h3>
+<p>Written down on purpose: each item is a question the report answers and this module does not, so you know where to look instead of finding out the number was lying.</p>
+<ul>
+<li><strong>What you receive.</strong> There is only <code>outbound-rtp</code> here. "Their video is stuttering" is <code>inbound-rtp</code> (<code>bytesReceived</code>, <code>framesDecoded</code>, <code>packetsLost</code>), and that reading has a different enough shape not to fit the same reduction — it answers about <strong>their encoder</strong>, not your uplink.</li>
+<li><strong>Why the rate dropped.</strong> <code>qualityLimitationReason</code> (<code>"bandwidth"</code>, <code>"cpu"</code>, <code>"none"</code>) lives in the same <code>outbound-rtp</code> and tells "the network tightened" apart from "this machine cannot keep up" — which call for opposite actions. Read it straight off the report when you need it.</li>
+<li><strong>Loss and jitter.</strong> <code>packetsLost</code> and <code>jitter</code> are there, but they are read against what was sent in the same interval; a raw lost-packet counter is a number without a denominator.</li>
+<li><strong>The cadence while the tab is hidden.</strong> With <code>pauseWhenHidden: false</code> the timer keeps going, but browsers throttle background timers (Chrome drops to ≥ 1 min). No API works around that — sampling simply spaces out, and the delta stays correct because it is derived from measured time, not from the interval you asked for.</li>
+<li><strong>Real browser behaviour.</strong> This module's tests run in jsdom, which ships no WebRTC at all: they prove the <strong>reduction</strong> against synthetic reports, not the connection. The report's shape was checked separately, in Chromium, with two loopback <code>RTCPeerConnection</code>s carrying a 640×360@30 canvas — the same report carries <code>kind</code> <strong>and</strong> <code>mediaType</code>, <code>frameWidth</code>/<code>frameHeight</code>/<code>framesPerSecond</code> come filled in, <code>transport.selectedCandidatePairId</code> is there, and the first sample lands at <code>0</code> kbps before settling around 350 kbps. Still, confirm on your own topology before trusting a production dashboard: TURN relaying, simulcast and mobile all change what shows up.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title"><code>rttMs: 0</code> is not <code>rttMs: null</code></p>
+<p>Zero is a reading — it is what the local loopback measured. <code>null</code> means <strong>no</strong> pair has reported a timing yet, which is the normal state while the connection settles. A UI treating the two alike shows "0 ms" for a call that has not connected.</p>
+</div>
+<h3 id="when-the-browser-does-not-cooperate">When the browser does not cooperate</h3>
+<p>The module already covers what varies between engines, and it is worth knowing that it varies:</p>
+<table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Browser leaves <code>selectedCandidatePairId</code> empty</td>
+<td>falls back to the first <code>succeeded</code> pair with a timing</td>
+</tr>
+<tr>
+<td>Browser reports <code>mediaType</code> instead of <code>kind</code> (older Chrome)</td>
+<td>both are read</td>
+</tr>
+<tr>
+<td><code>framesPerSecond</code> missing</td>
+<td><code>fps: 0</code>, and the last good reading is kept</td>
+</tr>
+<tr>
+<td>Counter restarts (ICE restart)</td>
+<td>a negative delta becomes <code>0</code> and the baseline is rebuilt</td>
+</tr>
+<tr>
+<td>Simulcast (several layers on one track)</td>
+<td>the layers sum; resolution comes from the largest</td>
+</tr>
+</tbody>
+</table>
+<h2 id="createpeermesh-the-whole-room-nn"><code>createPeerMesh</code> — the whole room, N↔N</h2>
+<p>The pieces above handle <strong>one</strong> link. <code>createPeerMesh</code> handles the room: one <code>RTCPeerConnection</code> per participant, with the media lanes negotiated once.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">slots</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"audio"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"cam"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"video"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"screen"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"video"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nx">send</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">message</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">onPeers</span><span class="o">:</span><span class="w"> </span><span class="kt">setPeers</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">onState</span><span class="o">:</span><span class="w"> </span><span class="kt">setState</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="nx">socket</span><span class="p">.</span><span class="nx">onMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">accept</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">addPeer</span><span class="p">(</span><span class="s2">"peer-2"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">offerer</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">setLocalTrack</span><span class="p">(</span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="nx">micTrack</span><span class="p">);</span>
+</code></pre></div>
+<p><strong>The signalling protocol stays yours.</strong> The SDK produces and accepts three shapes (<code>offer</code>, <code>answer</code>, <code>ice</code>) and knows nothing about rooms, identity or delivery — the server is yours to implement. What it brings is the part that is the same in every mesh and wrong in most of them.</p>
+<h3 id="the-six-traps-and-why-each-one-is-mute">The six traps, and why each one is mute</h3>
+<table>
+<thead>
+<tr>
+<th>Trap</th>
+<th>Symptom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>The answerer pre-allocating transceivers</td>
+<td>The other person's camera lands in the screen tile, or the track vanishes</td>
+</tr>
+<tr>
+<td>Routing by position instead of <code>mid</code></td>
+<td>The same, intermittently</td>
+</tr>
+<tr>
+<td>An ICE candidate before the remote description</td>
+<td>The connection sits in <code>checking</code> until it times out</td>
+</tr>
+<tr>
+<td>Renegotiating on every toggle</td>
+<td>With N peers, N−1 offer/answer rounds every time somebody unmutes</td>
+</tr>
+<tr>
+<td>Glare</td>
+<td>Both sides offer, and the negotiation cancels itself</td>
+</tr>
+<tr>
+<td>Dividing the uplink without a floor</td>
+<td>Everybody gets a blur that updates once a second</td>
+</tr>
+</tbody>
+</table>
+<p>None of them raises an error anywhere — which is why each one became a named test.</p>
+<div class="admonition warning">
+<p class="admonition-title">The answering side must not pre-allocate</p>
+<p>Applying a remote offer creates <strong>one transceiver per m-line, in m-line order</strong>, and the browser does <strong>not</strong> reuse the ones the answerer made beforehand. Pre-allocating leaves dead transceivers in front of the live ones, and slot lookup starts pointing at the wrong media. So <code>addPeer(id, { offerer: false })</code> allocates <strong>nothing</strong>: the slots appear when the offer does, and are adopted in <code>mid</code> order.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>mid</code> is the only slot identity valid on both sides</p>
+<p>The track carries nothing that distinguishes a camera from a screen. The offerer allocates the m-lines in the order you declared in <code>slots</code>, so the <code>mid</code> is the ordinal and both ends read the same one. Position in <code>getTransceivers()</code> <strong>disagrees</strong> — the answering side appends the negotiated ones after whatever it already held — which is why it is only a fallback.</p>
+</div>
+<h3 id="who-offers-is-decided-by-arrival-order">Who offers is decided by arrival order</h3>
+<div class="highlight"><pre><span></span><code><span class="c1">// the server announces joins in a total order</span>
+<span class="nx">socket</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s2">"peer-joined"</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">peer</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">addPeer</span><span class="p">(</span><span class="nx">peer</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">offerer</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">}));</span>
+<span class="nx">socket</span><span class="p">.</span><span class="nx">on</span><span class="p">(</span><span class="s2">"welcome"</span><span class="p">,</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">peers</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">peer</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">peers</span><span class="p">)</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">addPeer</span><span class="p">(</span><span class="nx">peer</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">offerer</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Whoever arrives <strong>later</strong> offers; whoever was already there answers. Exactly one side of each link offers, so there is no glare — without the rollback dance of perfect negotiation, and without depending on the browser implementing argument-less <code>setLocalDescription()</code>.</p>
+<h3 id="turning-media-on-and-off-does-not-renegotiate">Turning media on and off does not renegotiate</h3>
+<div class="highlight"><pre><span></span><code><span class="k">await</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">setLocalTrack</span><span class="p">(</span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="nx">micTrack</span><span class="p">);</span><span class="w"> </span><span class="c1">// unmuted</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">setLocalTrack</span><span class="p">(</span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="kc">null</span><span class="p">);</span><span class="w"> </span><span class="c1">// muted</span>
+</code></pre></div>
+<p>The slots are negotiated <strong>before any track exists</strong>, so publishing is a <code>replaceTrack</code> on a transceiver that is already there: no m-line is added and nothing renegotiates. That property is what makes a mesh survive — with N peers, a renegotiation per toggle is N−1 simultaneous offer/answer rounds every time somebody unmutes.</p>
+<p>Overlapping calls on the same slot are queued, and <strong>the last one wins</strong>: a <code>setLocalTrack("mic", null)</code> fired without awaiting the unmute before it ends with an empty sender, even if the unmute's <code>replaceTrack</code> was still in flight. Without the queue, the microphone would keep sending after the mute.</p>
+<h3 id="hanging-up-is-final">Hanging up is final</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kr">declare</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">socket</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">send</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">onMessage</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="kt">never</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="p">};</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">slots</span><span class="o">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"audio"</span><span class="w"> </span><span class="p">}],</span>
+<span class="w">  </span><span class="nx">send</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">message</span><span class="p">),</span>
+<span class="p">});</span>
+<span class="nx">socket</span><span class="p">.</span><span class="nx">onMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">accept</span><span class="p">(</span><span class="nx">message</span><span class="p">);</span>
+
+<span class="nx">mesh</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w"> </span><span class="c1">// hung up</span>
+</code></pre></div>
+<p><code>stop()</code> closes every link, forgets the local tracks and reports <code>closed</code> — <strong>for good</strong>. The signalling socket usually outlives the call, so an offer still in flight from someone who left (or from anyone the server relays to this user) keeps reaching <code>accept</code> after the hang-up. A stopped mesh drops it: it opens no connection, answers nothing and publishes no track, so a call that shows <code>closed</code> never sends the microphone and camera again. The same goes for <code>addPeer</code>, <code>removePeer</code>, <code>setLocalTrack</code> and <code>applyQuality</code>, and for every negotiation that was already waiting on the browser when <code>stop()</code> ran. If the browser rejects that call with <code>InvalidStateError</code>, <code>accept()</code> resolves quietly instead of becoming an unhandled rejection under <code>void mesh.accept(message)</code>; if the browser never settles it (Chromium was measured doing that), nothing else runs. After <code>stop()</code>, <code>onPeers</code> and <code>onState</code> no longer fire.</p>
+<p>The tracks themselves are <strong>not</strong> stopped: they are yours, and may be in a preview or reused on the next call. To join again, create a new mesh.</p>
+<h3 id="who-may-receive-your-microphone-acceptpeer">Who may receive your microphone: <code>acceptPeer</code></h3>
+<p>The answering side usually learns of a peer from its offer, so the mesh answers any offer that reaches <code>accept</code> — it opens the connection and publishes the local tracks. That makes the microphone and camera depend only on the signalling server delivering offers to the right people. With <code>acceptPeer</code>, the app gets a say too:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">room</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Set</span><span class="p">([</span><span class="s2">"ana"</span><span class="p">,</span><span class="w"> </span><span class="s2">"bruno"</span><span class="p">]);</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">slots</span><span class="o">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"audio"</span><span class="w"> </span><span class="p">}],</span>
+<span class="w">  </span><span class="nx">send</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">message</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">acceptPeer</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">peerId</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">room</span><span class="p">.</span><span class="nx">has</span><span class="p">(</span><span class="nx">peerId</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">onNotice</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">reason</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">warn</span><span class="p">(</span><span class="nx">reason</span><span class="p">),</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>A refused offer opens no connection, answers nothing and arrives as <code>onNotice("offer_refused")</code>. A peer added with <code>addPeer</code> is not asked — adding it was the decision. Without <code>acceptPeer</code>, the behaviour is unchanged.</p>
+<h3 id="measuring-the-room-stats">Measuring the room: <code>stats</code></h3>
+<p>The mesh knows how many links there are and when one goes away, which makes it the right place to sample from. <code>stats</code> arms a single timer it owns:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">slots</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">send</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">message</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">stats</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">intervalMs</span><span class="o">:</span><span class="w"> </span><span class="kt">2000</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">onStats</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">peerId</span><span class="p">,</span><span class="w"> </span><span class="nx">stats</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">updateBadge</span><span class="p">(</span><span class="nx">peerId</span><span class="p">,</span><span class="w"> </span><span class="nx">stats</span><span class="p">),</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>The same value lands on <code>MeshPeer.stats</code>, so anything already reading the peer list needs no callback:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nx">mesh</span><span class="p">.</span><span class="nx">peers</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">peer</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">peer</span><span class="p">.</span><span class="nx">peerId</span><span class="p">}&gt;</span>
+<span class="w">    </span><span class="p">{</span><span class="nx">peer</span><span class="p">.</span><span class="nx">peerId</span><span class="p">}</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="p">{</span><span class="nx">peer</span><span class="p">.</span><span class="nx">stats</span><span class="o">?</span><span class="p">.</span><span class="nx">kbps</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"—"</span><span class="p">}</span><span class="w"> </span><span class="nx">kbps</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="p">{</span><span class="nx">peer</span><span class="p">.</span><span class="nx">stats</span><span class="o">?</span><span class="p">.</span><span class="nx">rttMs</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"—"</span><span class="p">}</span><span class="w"> </span><span class="nx">ms</span>
+<span class="w">    </span><span class="p">{</span><span class="nx">peer</span><span class="p">.</span><span class="nx">stats</span><span class="o">?</span><span class="p">.</span><span class="nx">relayed</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">" · via TURN"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">}</span>
+<span class="w">  </span><span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<span class="p">))}</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">One sampler per connection — the rule a hand-rolled loop gets wrong</p>
+<p>The rate is a <strong>delta</strong>, so the sampler keeps the previous reading. Sharing one across peers subtracts one connection's counter from another's and reports nonsense. The mesh keeps one sampler per link and drops it with the link, which is the part a hand-written loop forgets when somebody leaves the room.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Only <code>connected</code> links are sampled</p>
+<p>A link still gathering candidates has no traffic to measure, and asking anyway spends a <code>getStats()</code> to learn that — per link, on every tick. An empty room runs no timer at all, which is where a call sits for as long as the first person is early.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Measuring makes <code>onPeers</code> fire on the interval</p>
+<p>That is the point for a badge, and worth knowing for anything that does real work in that handler.</p>
+</div>
+<h3 id="the-connection-the-mesh-does-not-model-getconnection">The connection the mesh does not model: <code>getConnection</code></h3>
+<p><code>MeshPeer.connection</code> is the <strong>state</strong>, which is what a view needs. <code>getConnection(peerId)</code> is the <strong>object</strong>, which is what a measurement needs:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">pc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">getConnection</span><span class="p">(</span><span class="s2">"peer-1"</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">pc</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">channel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pc</span><span class="p">.</span><span class="nx">createDataChannel</span><span class="p">(</span><span class="s2">"chat"</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>It is the escape hatch for everything the mesh does not model — <code>getSenders()</code>, an <code>RTCDataChannel</code>, an encoding tweak the <code>quality</code> shape has no field for. A mesh that kept the connection to itself would turn adopting the mesh into losing a feature.</p>
+<p>For the common case, which is measuring, prefer <code>stats</code> above: it already handles the one-sampler-per-connection rule.</p>
+<h3 id="the-opus-profile-stays-yours-setlocaldescription">The Opus profile stays yours: <code>setLocalDescription</code></h3>
+<p>The mesh is what creates every offer and every answer, so without a seam here there would be nowhere left for <code>setTunedLocalDescription</code> — and a call adopting the mesh would <strong>silently lose</strong> the bitrate and channel layout it had already negotiated. So applying the local description is a parameter:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="p">,</span><span class="w"> </span><span class="nx">setTunedLocalDescription</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">mesh</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createPeerMesh</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">slots</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"mic"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"audio"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"cam"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"video"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"screen"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"video"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"screen-audio"</span><span class="p">,</span><span class="w"> </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"audio"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nx">send</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">message</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">setLocalDescription</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">connection</span><span class="p">,</span><span class="w"> </span><span class="nx">description</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">    </span><span class="nx">setTunedLocalDescription</span><span class="p">(</span><span class="nx">connection</span><span class="p">,</span><span class="w"> </span><span class="nx">description</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="mf">0</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">maxAverageBitrate</span><span class="o">:</span><span class="w"> </span><span class="kt">48_000</span><span class="p">,</span><span class="w"> </span><span class="nx">stereo</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span><span class="w"> </span><span class="nx">fec</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">dtx</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="mf">1</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">maxAverageBitrate</span><span class="o">:</span><span class="w"> </span><span class="kt">192_000</span><span class="p">,</span><span class="w"> </span><span class="nx">stereo</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">fec</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span><span class="w"> </span><span class="nx">dtx</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">}),</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>It covers the offer <strong>and</strong> the answer, because both halves of the handshake carry the audio lines.</p>
+<div class="admonition info">
+<p class="admonition-title">Why keying profiles by m-line position is legitimate here</p>
+<p>Same reason <code>mid</code> routing works: the <code>slots</code> list fixes the order, so the first audio slot is always the first audio m-line. Outside a mesh with a declared order, keying a profile by position is fragile — here the order <em>is</em> the protocol.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">What is sent is what was applied</p>
+<p>After the hook, the mesh reads the SDP back off <code>connection.localDescription</code> rather than sending what the browser created. So when <code>setTunedLocalDescription</code> falls back — the browser refused the edit — the peer receives the description that actually holds on the connection, not the version nobody applied.</p>
+</div>
+<p>Omitting the parameter uses <code>connection.setLocalDescription(description)</code>, which is the untuned behaviour.</p>
+<h3 id="the-room-divides-the-uplink-and-the-division-has-a-floor">The room divides the uplink, and the division has a floor</h3>
+<div class="highlight"><pre><span></span><code><span class="k">await</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">applyQuality</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">video</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cam</span><span class="o">:</span><span class="w"> </span><span class="kt">1200</span><span class="p">,</span><span class="w"> </span><span class="nx">screen</span><span class="o">:</span><span class="w"> </span><span class="kt">3000</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">audio</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mic</span><span class="o">:</span><span class="w"> </span><span class="kt">32000</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">uplinkBudgetKbps</span><span class="o">:</span><span class="w"> </span><span class="kt">6000</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">minVideoKbps</span><span class="o">:</span><span class="w"> </span><span class="kt">300</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">degradationPreference</span><span class="o">:</span><span class="w"> </span><span class="s2">"maintain-framerate"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">fluidFloorKbps</span><span class="o">:</span><span class="w"> </span><span class="kt">900</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Every peer sends <strong>one copy of everything per participant</strong>, so a cap that is comfortable one-to-one saturates a home uplink with four people. Three rules:</p>
+<ul>
+<li><strong>Audio stays out of the division.</strong> It is an order of magnitude cheaper and it is the part of the call that has to survive.</li>
+<li><strong><code>minVideoKbps</code> is the floor.</strong> Dividing without one eventually allocates tens of kbps per stream — everybody loses the picture instead of the excess giving way.</li>
+<li><strong><code>maintain-framerate</code> is overridden below <code>fluidFloorKbps</code>.</strong> Somebody who asked for fluidity asked for a good picture in motion, not for the number 60: with little bandwidth, holding the rate halves what each frame gets and the result is worse than the 30 fps it replaced.</li>
+<li><strong>A slot with no cap is the most generous case, not the absent one.</strong> <code>null</code> on a video slot means unbounded, which is exactly where fluidity should hold. An uncapped slot beside a modest camera keeps <code>maintain-framerate</code> — reading the <code>null</code> as "not reported" and then deciding from the camera is the answer backwards.</li>
+<li><strong><code>degradationAnchor</code> names the slot the choice was about.</strong> Without it the <strong>largest</strong> cap across the video slots decides, which is right when the slots are interchangeable and wrong when they are not: somebody who picked fluidity was thinking about the screen — code, a spreadsheet, a video at 60 fps — and on a call with only the camera on, that choice ends up being decided by a stream it was never about.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">await</span><span class="w"> </span><span class="nx">mesh</span><span class="p">.</span><span class="nx">applyQuality</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">video</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cam</span><span class="o">:</span><span class="w"> </span><span class="kt">1200</span><span class="p">,</span><span class="w"> </span><span class="nx">screen</span><span class="o">:</span><span class="w"> </span><span class="kt">3000</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">degradationPreference</span><span class="o">:</span><span class="w"> </span><span class="s2">"maintain-framerate"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">degradationAnchor</span><span class="o">:</span><span class="w"> </span><span class="s2">"screen"</span><span class="p">,</span><span class="w">   </span><span class="c1">// the camera does not decide for the screen</span>
+<span class="w">  </span><span class="nx">fluidFloorKbps</span><span class="o">:</span><span class="w"> </span><span class="kt">900</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>A slot the caps do not mention keeps the preference: nothing has been said about the thing being asked about, and a modest camera beside it is not an answer.</p>
+<p><code>scaleForRoom(quality, peers)</code> and <code>resolveDegradation(asked, effective)</code> are the two pure functions behind this, exported because the app needs the <strong>same</strong> division before it captures: choosing 4K for a room of four captures four times more pixels than there are bits to send them with, and the result is worse than the smaller size. Derive the capture size from the divided budget, not from what the person picked.</p>
+<p><code>applyQuality</code> keeps <strong>what was asked for</strong>, not what was applied, so a room that empties returns to the original quality on its own — including when a peer drops, because <code>removePeer</code> re-applies.</p>
+<div class="admonition tip">
+<p class="admonition-title">The aggregate state includes \"alone in the room\"</p>
+<p><code>onState("connected", "alone")</code> is the legitimate state of whoever arrived first. A badge that only asks "is any link connected?" reports a failure for as long as nobody else has joined.</p>
+</div>
+<h2 id="recap">Recap</h2>
+<ul>
+<li><code>tuneOpus(sdp, profiles)</code> rewrites the <strong>audio</strong> m-lines: per-key merge, every Opus payload, inserts a missing <code>fmtp</code>, ignores video.</li>
+<li><code>stereo</code> writes <code>stereo</code> <strong>and</strong> <code>sprop-stereo</code> — setting only one is the classic reason for "it came back mono".</li>
+<li>Profiles keyed by audio m-line index or by <code>mid</code>; a bare profile applies to all of them.</li>
+<li>No built-in presets: the values are the consumer's decision.</li>
+<li><code>setTunedLocalDescription</code> tries the edited SDP and falls back to the original — losing the profile is far cheaper than losing the call.</li>
+<li><code>setSenderBitrate</code> caps the <strong>send</strong> side, which is what saturates the uplink in a mesh.</li>
+<li><code>useLinkStats(pc)</code> gives <code>kbps</code>, resolution, fps and round trip, pausing while the tab is hidden; <code>createLinkStatsSampler()</code> does the same outside React, <strong>one per connection</strong>.</li>
+<li><code>readRoundTripMs(report)</code> reads the <strong>selected</strong> candidate pair, not the first <code>succeeded</code> one — that is the difference between 42 ms and a number that jumps.</li>
+<li>The rate is a delta: call <code>reset()</code> after an ICE restart, a reconnect or a long pause.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../audio/">Audio</a> — <code>createAudioBus</code> for gain above 100% and output routing</li>
+<li><a href="../websocket/">WebSocket</a> — the signaling channel</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../websocket/" class="md-footer__link md-footer__link--prev" aria-label="Previous: WebSocket">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                WebSocket
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../geo/" class="md-footer__link md-footer__link--next" aria-label="Next: Geolocation">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Geolocation
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,5769 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/components/actions/">
+      
+      
+        <link rel="prev" href="../inputs/">
+      
+      
+        <link rel="next" href="../navigation/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Ação - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#acao" class="md-skip">
+          Ir para o conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href="../.." title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Ação
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Selecione o idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../en/components/actions/" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Compartilhar" aria-label="Compartilhar" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando a pesquisa
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Fundamentos da Web
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Comece aqui
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Design de Software
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  Componentes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Módulos
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Receitas
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Projeto
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Fundamentos da Web
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundamentos da Web
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página existe
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página existe
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: estrutura e semântica
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulário e acessibilidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página parece
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página parece
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: seletor, cascata, especificidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Caixa, fluxo, flex e grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties e tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página reage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página reage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: valor, referência, escopo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Assíncrono: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Módulos, npm e o bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Antes do tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Antes do tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: o mínimo que o SDK usa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: componente, estado, efeito
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comece aqui
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Comece aqui
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Buscando dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Ferramentas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Ferramentas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI tempest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Design de Software
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Design de Software
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Desenho do sistema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Desenho do sistema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camadas de um app frontend
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estrutura de pastas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Onde mora cada estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Escrevendo o código
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Escrevendo o código
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pensando em componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Limites objetivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tipagem forte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustentando
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustentando
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estratégia de testes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-padrões
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checklist de revisão
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Componentes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Componentes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Catálogo de componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Entrada de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Ação
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Ação
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#button" class="md-nav__link">
+    <span class="md-ellipsis">
+      Button
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Button">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#botao-que-navega-href" class="md-nav__link">
+    <span class="md-ellipsis">
+      Botão que navega: href
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#buttonslot" class="md-nav__link">
+    <span class="md-ellipsis">
+      ButtonSlot
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#floatingactionbutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      FloatingActionButton
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tooltip" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tooltip
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dropdownmenu" class="md-nav__link">
+    <span class="md-ellipsis">
+      DropdownMenu
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DropdownMenu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#numa-linha-de-tabela" class="md-nav__link">
+    <span class="md-ellipsis">
+      Numa linha de tabela
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#item-que-liga-e-desliga" class="md-nav__link">
+    <span class="md-ellipsis">
+      Item que liga e desliga
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#teclado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Teclado
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#popover" class="md-nav__link">
+    <span class="md-ellipsis">
+      Popover
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#confirmdialog" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConfirmDialog
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConfirmDialog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com-loading-o-dialogo-nao-fecha" class="md-nav__link">
+    <span class="md-ellipsis">
+      Com loading, o diálogo não fecha
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installbutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      InstallButton
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="InstallButton">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dentro-do-navegador-interno-de-um-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dentro do navegador interno de um app
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installbanner" class="md-nav__link">
+    <span class="md-ellipsis">
+      InstallBanner
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="InstallBanner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#por-rota-acima-da-bottom-nav-e-com-guia" class="md-nav__link">
+    <span class="md-ellipsis">
+      Por rota, acima da bottom nav e com guia
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postinstallprompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostInstallPrompt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resumo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resumo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identidade & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telas de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & avançados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & avançados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essenciais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação & conteúdo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados avançados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conversa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Módulos
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Módulos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral do pacote
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fundação de app
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundação de app
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hooks utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Integrações
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrações
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (áudio Opus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocalização
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mapa do Brasil (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pagamentos, fiscal & contato BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix e cartão, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upload resumível (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Áudio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Captura de dispositivo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural (RNNoise 48 kHz)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imagens (processamento)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Formulários
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Estilo & Tema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Estilo & Tema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estilos & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Observabilidade
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observabilidade
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Receitas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Receitas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Integração FastAPI (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Projeto
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Projeto
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#button" class="md-nav__link">
+    <span class="md-ellipsis">
+      Button
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Button">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#botao-que-navega-href" class="md-nav__link">
+    <span class="md-ellipsis">
+      Botão que navega: href
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#buttonslot" class="md-nav__link">
+    <span class="md-ellipsis">
+      ButtonSlot
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#floatingactionbutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      FloatingActionButton
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tooltip" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tooltip
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dropdownmenu" class="md-nav__link">
+    <span class="md-ellipsis">
+      DropdownMenu
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="DropdownMenu">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#numa-linha-de-tabela" class="md-nav__link">
+    <span class="md-ellipsis">
+      Numa linha de tabela
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#item-que-liga-e-desliga" class="md-nav__link">
+    <span class="md-ellipsis">
+      Item que liga e desliga
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#teclado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Teclado
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#popover" class="md-nav__link">
+    <span class="md-ellipsis">
+      Popover
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#confirmdialog" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConfirmDialog
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ConfirmDialog">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#com-loading-o-dialogo-nao-fecha" class="md-nav__link">
+    <span class="md-ellipsis">
+      Com loading, o diálogo não fecha
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installbutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      InstallButton
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="InstallButton">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dentro-do-navegador-interno-de-um-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dentro do navegador interno de um app
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#installbanner" class="md-nav__link">
+    <span class="md-ellipsis">
+      InstallBanner
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="InstallBanner">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#por-rota-acima-da-bottom-nav-e-com-guia" class="md-nav__link">
+    <span class="md-ellipsis">
+      Por rota, acima da bottom nav e com guia
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#postinstallprompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      PostInstallPrompt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resumo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resumo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/components/actions.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/components/actions.md" title="Ver fonte desta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="acao">Ação</h1>
+<p>Componentes de <strong>ação</strong> são o ponto onde o usuário dispara algo: clicar, escolher numa lista, confirmar. Eles carregam intenção — um clique muda dados, navega, ou inicia um fluxo. Por isso a categoria reúne tanto o gatilho direto (<code>Button</code>) quanto os elementos que cercam uma ação: dica contextual (<code>Tooltip</code>), conjunto de ações secundárias (<code>DropdownMenu</code>), painel ancorado (<code>Popover</code>) e a salvaguarda antes de algo destrutivo (<code>ConfirmDialog</code>).</p>
+<p>Use esta página quando precisar que o usuário <strong>faça</strong> algo. Para entrada de dados (texto, seleção, datas) veja <a href="../inputs/">inputs</a>; para apresentar coleções, veja <a href="../data/">data</a>.</p>
+<h2 id="button"><code>Button</code></h2>
+<!-- gallery:buttons -->
+<p><a href="../../gallery/"><img alt="Buttons na gallery" src="../../assets/gallery/buttons.webp" /></a></p>
+<p><em>Seção <code>buttons</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: a ação primária ou secundária de qualquer tela — submeter um form, abrir um modal, navegar. É o gatilho de ação por padrão.</p>
+</blockquote>
+<p>Botão primário com variants, sizes, estado de loading.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Plus</span><span class="p">,</span><span class="w"> </span><span class="nx">Trash</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Button</span><span class="p">&gt;</span><span class="nx">Salvar</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span><span class="w"> </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Trash</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}&gt;</span>
+<span class="w">  </span><span class="nx">Excluir</span>
+<span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span><span class="w"> </span><span class="na">loading</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="nx">Carregando</span><span class="err">…</span>
+<span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"link"</span><span class="w"> </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">ArrowRight</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">14</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}&gt;</span>
+<span class="w">  </span><span class="nx">Ver</span><span class="w"> </span><span class="nx">mais</span>
+<span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Adicionar"</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">Plus</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">fullWidth</span><span class="w"> </span><span class="na">pill</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="nx">CTA</span>
+<span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>variant</code></td>
+<td><code>"primary" \| "secondary" \| "success" \| "danger" \| "soft" \| "outline" \| "ghost" \| "link"</code></td>
+<td><code>"primary"</code></td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>"xs" \| "sm" \| "md" \| "lg" \| "xl"</code></td>
+<td><code>"md"</code></td>
+</tr>
+<tr>
+<td><code>loading</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>fullWidth</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>iconOnly</code></td>
+<td><code>boolean</code> (square, requer <code>aria-label</code>)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>pill</code></td>
+<td><code>boolean</code> (border-radius pílula)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>leftIcon</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>rightIcon</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>href</code></td>
+<td><code>string</code> — renderiza <code>&lt;a&gt;</code> em vez de <code>&lt;button&gt;</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">iconOnly precisa de rótulo acessível</p>
+<p><code>iconOnly</code> remove o texto visível, então leitores de tela não têm o que anunciar. Sempre passe <code>aria-label</code> descrevendo a ação (<code>aria-label="Excluir"</code>). Sem isso o botão é um ícone mudo para tecnologia assistiva.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">loading bloqueia duplo clique</p>
+<p><code>loading</code> desabilita o botão e seta <code>aria-busy="true"</code> — é o padrão para submits assíncronos. Ative-o assim que disparar a request para evitar requisições duplicadas por cliques repetidos.</p>
+<p>O rótulo continua sendo o nome acessível durante o loading: ele some só da pintura (o spinner o substitui na tela, na mesma largura), então o leitor de tela anuncia "Salvar, botão, indisponível" — e não um "botão" sem nome. O spinner é decorativo (<code>aria-hidden</code>) e não entra no nome; o estado vem de <code>aria-busy</code> e do <code>disabled</code>. Vale para <code>&lt;button&gt;</code>, <code>href</code> e <code>ButtonSlot</code>.</p>
+</div>
+<h3 id="botao-que-navega-href">Botão que navega: <code>href</code></h3>
+<p>Um CTA que <strong>leva a algum lugar</strong> — "Fale conosco" no WhatsApp, <code>mailto:</code>, "Ver planos", "Baixar" — é um link, não um botão. Com <code>onClick={() =&gt; location.assign(url)}</code> ele perde o clique do meio, o Ctrl+clique, o "abrir em nova aba", a prévia da URL e o crawler; com <code>&lt;a&gt;&lt;Button /&gt;&lt;/a&gt;</code> vira HTML inválido, com dois tab stops. Com <code>href</code>, o <code>Button</code> renderiza um <code>&lt;a&gt;</code> com a mesma aparência em todas as variants e sizes:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">MessageCircle</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Ctas</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">href</span><span class="o">=</span><span class="s">"/planos"</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="nx">Ver</span><span class="w"> </span><span class="nx">planos</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Button</span>
+<span class="w">        </span><span class="na">href</span><span class="o">=</span><span class="s">"https://wa.me/5586999999999"</span>
+<span class="w">        </span><span class="na">target</span><span class="o">=</span><span class="s">"_blank"</span>
+<span class="w">        </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">MessageCircle</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}</span>
+<span class="w">      </span><span class="p">&gt;</span>
+<span class="w">        </span><span class="nx">Fale</span><span class="w"> </span><span class="nx">conosco</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>target</code> e <code>rel</code> são repassados.</li>
+<li>O <code>ref</code> é tipado por modo: <code>HTMLButtonElement</code> sem <code>href</code>, <code>HTMLAnchorElement</code> com. <code>type</code> só existe no modo <code>&lt;button&gt;</code> — <code>&lt;Button href="/x" type="submit"&gt;</code> não compila.</li>
+</ul>
+<div class="admonition check">
+<p class="admonition-title"><code>target=_blank</code> ganha <code>noopener noreferrer</code> sozinho</p>
+<p>Sem <code>noopener</code>, a aba aberta recebe <code>window.opener</code> e pode redirecionar a sua. É regra mecânica com uma resposta certa, então mora no componente: os tokens que você passar em <code>rel</code> ficam, e os que faltam são acrescentados sem duplicar.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Link desabilitado</p>
+<p><code>&lt;a&gt;</code> não tem <code>disabled</code>. Com <code>disabled</code> ou <code>loading</code>, o link recebe <code>aria-disabled="true"</code>, <code>role="link"</code> e <code>tabIndex={-1}</code>, perde o <code>href</code> e tem o clique e o clique do meio cancelados — não navega e é anunciado como indisponível.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">O esquema da URL é conferido</p>
+<p>O <code>href</code> passa pela mesma lista do <a href="../../utilities/#url-que-veio-de-outra-pessoa-safelinkurl-safeimageurl-safeattachmenturl"><code>safeLinkUrl</code></a>: <code>http:</code>, <code>https:</code>, <code>mailto:</code>, <code>tel:</code>, <code>sms:</code> e URL relativa. Qualquer outro esquema — <code>javascript:</code>, <code>data:</code>, e as variações com maiúscula ou tab no meio — vira o mesmo link inerte e <code>aria-disabled</code> do caso desabilitado. O React 19 bloqueia <code>javascript:</code> sozinho, mas o React 18, dentro do peer range, escreve o <code>href</code> como veio, e um CTA montado com dado de API viraria script clicável. Link para esquema próprio (<code>whatsapp:</code>, deep link de app) vai pelo <a href="#buttonslot"><code>ButtonSlot</code></a> com o seu <code>&lt;a&gt;</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Por que <code>InstallButton</code> não aceita <code>href</code></p>
+<p>O clique dele abre o prompt de instalação ou mostra a instrução — é ação, não navegação. Ele herda as props do modo <code>&lt;button&gt;</code>.</p>
+</div>
+<h2 id="buttonslot"><code>ButtonSlot</code></h2>
+<blockquote>
+<p><strong>Quando usar</strong>: dar a aparência do <code>Button</code> a <strong>outro</strong> elemento — tipicamente o <code>Link</code> do react-router, para trocar de rota sem recarregar a página.</p>
+</blockquote>
+<p>O <code>ButtonSlot</code> não renderiza elemento próprio: aplica as classes, as props e o <code>ref</code> do botão ao <strong>único</strong> filho (o padrão <code>asChild</code>/Slot). Ele aceita as mesmas props de aparência do <code>Button</code> (<code>variant</code>, <code>size</code>, <code>loading</code>, <code>disabled</code>, <code>fullWidth</code>, <code>iconOnly</code>, <code>pill</code>, <code>leftIcon</code>, <code>rightIcon</code>), e o <code>Button</code> nunca importa o router.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ButtonSlot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Link</span><span class="p">,</span><span class="w"> </span><span class="nx">NavLink</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react-router"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Menu</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">ButtonSlot</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"soft"</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Link</span><span class="w"> </span><span class="na">to</span><span class="o">=</span><span class="s">"/conta"</span><span class="p">&gt;</span><span class="nx">Minha</span><span class="w"> </span><span class="nx">conta</span><span class="p">&lt;/</span><span class="nt">Link</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">ButtonSlot</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">ButtonSlot</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">NavLink</span><span class="w"> </span><span class="na">to</span><span class="o">=</span><span class="s">"/"</span><span class="w"> </span><span class="na">className</span><span class="o">=</span><span class="p">{({</span><span class="w"> </span><span class="nx">isActive</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span><span class="nx">isActive</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"ativo"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">)}&gt;</span>
+<span class="w">          </span><span class="nx">Início</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">NavLink</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">ButtonSlot</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Como as props se combinam:</p>
+<ul>
+<li><strong>Classes são somadas.</strong> Um <code>className</code> em função (o do <code>NavLink</code>) continua função.</li>
+<li><strong>As props do <code>ButtonSlot</code> vencem as do filho</strong>, porque são elas que carregam a semântica de desabilitado.</li>
+<li><strong>Handlers rodam os dois</strong>: o do <code>ButtonSlot</code> primeiro; se ele chamar <code>preventDefault()</code>, o do filho não roda.</li>
+<li><strong>Os dois <code>ref</code></strong> — o do filho e o do <code>ButtonSlot</code> — recebem o mesmo nó.</li>
+<li>Um filho com <code>target="_blank"</code> também ganha <code>noopener noreferrer</code>.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Desabilitado em volta de um <code>Link</code></p>
+<p>Com <code>disabled</code> ou <code>loading</code>, o filho recebe <code>aria-disabled="true"</code> e <code>tabIndex={-1}</code>, e o clique e o clique do meio são cancelados — o <code>Link</code> pula a navegação porque o evento chega prevenido. Um <code>&lt;a href&gt;</code> comum ainda perde o <code>href</code>; o <code>href</code> de um <code>Link</code> é calculado por ele e continua no DOM.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Por que um componente e não uma prop <code>asChild</code></p>
+<p>O merge de props e a composição de refs custam ~0,6 kB brotli. Uma prop <code>asChild</code> é um desvio em tempo de execução que nenhum bundler remove, então todo app que usa <code>Button</code> pagaria por ele. Como export separado, o <code>ButtonSlot</code> sai do bundle de quem não o importa: a fatia <code>{ Button }</code> mede 1,21 kB com <code>href</code>, contra 1,71 kB com <code>asChild</code> dentro do <code>Button</code>.</p>
+</div>
+<h2 id="floatingactionbutton"><code>FloatingActionButton</code></h2>
+<!-- gallery:material -->
+<p><a href="../../gallery/"><img alt="Material (ListTile · FAB · Rail) na gallery" src="../../assets/gallery/material.webp" /></a></p>
+<p><em>Seção <code>material</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: a ação primária e persistente de uma tela (criar, compor, adicionar) que deve ficar sempre acessível, flutuando sobre o conteúdo. Redondo quando só tem ícone, ou estendido (pílula) quando tem <code>label</code>.</p>
+</blockquote>
+<p>Por padrão fica fixo no canto inferior direito; passe <code>position="none"</code> para posicioná-lo inline (ex.: dentro de um <code>NavigationRail</code>). Espalha todos os props nativos de <code>&lt;button&gt;</code> (<code>onClick</code>, <code>disabled</code>, etc.).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">FloatingActionButton</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Plus</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">FloatingActionButton</span><span class="w"> </span><span class="na">icon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Plus</span><span class="w"> </span><span class="p">/&gt;}</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Novo"</span><span class="w"> </span><span class="na">position</span><span class="o">=</span><span class="s">"none"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">create</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">&lt;</span><span class="nt">FloatingActionButton</span><span class="w"> </span><span class="na">icon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Plus</span><span class="w"> </span><span class="p">/&gt;}</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Novo pedido"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">create</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>icon</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>ReactNode</code> (presente → FAB estendido)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td><code>"bottom-right" \| "bottom-left" \| "none"</code></td>
+<td><code>"bottom-right"</code></td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>"sm" \| "md" \| "lg"</code></td>
+<td><code>"md"</code></td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>"primary" \| "surface"</code></td>
+<td><code>"primary"</code></td>
+</tr>
+<tr>
+<td>...</td>
+<td>Todos os atributos de <code>HTMLButtonElement</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">FAB só de ícone precisa de <code>aria-label</code></p>
+<p>Sem <code>label</code> visível, o FAB redondo não tem nome acessível. Sempre passe <code>aria-label</code> descrevendo a ação (<code>aria-label="Novo"</code>); quando há <code>label</code>, ele já serve de nome.</p>
+</div>
+<h2 id="tooltip"><code>Tooltip</code></h2>
+<!-- gallery:navigation -->
+<p><a href="../../gallery/"><img alt="AppBar · Tabs · Tooltip · Drawer na gallery" src="../../assets/gallery/navigation.webp" /></a></p>
+<p><em>Seção <code>navigation</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: dar contexto extra a um controle cujo significado não é óbvio — tipicamente botões <code>iconOnly</code>. Nunca para informação crítica.</p>
+</blockquote>
+<p>Hover tooltip em portal: escapa de ancestral com <code>overflow</code> (uma célula de <code>DataTable</code>, por exemplo) e vira para o lado oposto na borda da tela. Aparece no hover <strong>e</strong> no foco por teclado.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Tooltip</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Trash</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ExcluirComDica</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Tooltip</span><span class="w"> </span><span class="na">content</span><span class="o">=</span><span class="s">"Excluir permanentemente"</span><span class="w"> </span><span class="na">placement</span><span class="o">=</span><span class="s">"bottom"</span><span class="w"> </span><span class="na">openDelay</span><span class="o">=</span><span class="p">{</span><span class="mf">300</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Excluir"</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Trash</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Tooltip</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>content</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>placement</code></td>
+<td><code>"top" \| "right" \| "bottom" \| "left"</code></td>
+<td><code>"top"</code></td>
+</tr>
+<tr>
+<td><code>openDelay</code></td>
+<td><code>number</code> (ms antes de aparecer)</td>
+<td><code>150</code></td>
+</tr>
+<tr>
+<td><code>disabled</code></td>
+<td><code>boolean</code> (desliga sem mexer no trigger)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>portal</code></td>
+<td><code>boolean</code> (renderiza em <code>document.body</code>)</td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>Escape</code> esconde a dica sem mover o ponteiro nem o foco, como pede o WCAG 2.2
+SC 1.4.13. Dentro de um <code>Modal</code>, o primeiro <code>Escape</code> esconde a dica e o segundo
+fecha o modal.</p>
+<div class="admonition warning">
+<p class="admonition-title">Não esconda informação essencial num tooltip</p>
+<p>Usuários de touch não têm hover — eles nunca verão o conteúdo. Tooltip é reforço, não a única fonte de uma informação necessária para concluir a tarefa.</p>
+</div>
+<h2 id="dropdownmenu"><code>DropdownMenu</code></h2>
+<!-- gallery:overlays -->
+<p><a href="../../gallery/"><img alt="Popover · Dropdown · HoverCard na gallery" src="../../assets/gallery/overlays.webp" /></a></p>
+<p><em>Seção <code>overlays</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: agrupar ações secundárias atrás de um único gatilho ("Mais ações", menu de perfil) quando elas não cabem na barra principal.</p>
+</blockquote>
+<p>Menu suspenso de ações. Navegação por teclado (↑↓ Home End Esc). Cada entrada precisa de um <code>id</code> estável (usado como key do React).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">DropdownMenu</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">MaisAcoes</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">navigate</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">logout</span><span class="p">,</span>
+<span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">navigate</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">to</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">logout</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">DropdownMenu</span>
+<span class="w">            </span><span class="na">trigger</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="p">&gt;</span><span class="nx">Mais</span><span class="w"> </span><span class="nx">ações</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
+<span class="w">            </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"label"</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"h"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Conta"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"edit"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Editar perfil"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">navigate</span><span class="p">(</span><span class="s2">"/profile"</span><span class="p">),</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"separator"</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"s1"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"logout"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sair"</span><span class="p">,</span><span class="w"> </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="kt">logout</span><span class="p">,</span><span class="w"> </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">            </span><span class="p">]}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Entry type</th>
+<th>Campos</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"item"</code></td>
+<td><code>id</code>, <code>label</code>, <code>icon?</code>, <code>onSelect</code>, <code>disabled?</code>, <code>danger?</code></td>
+</tr>
+<tr>
+<td><code>"checkbox"</code></td>
+<td><code>id</code>, <code>label</code>, <code>icon?</code>, <code>checked</code>, <code>onSelect</code>, <code>disabled?</code></td>
+</tr>
+<tr>
+<td><code>"label"</code></td>
+<td><code>id</code>, <code>label</code></td>
+</tr>
+<tr>
+<td><code>"separator"</code></td>
+<td><code>id</code></td>
+</tr>
+</tbody>
+</table>
+<p>Props do componente: <code>trigger</code> (<code>ReactElement</code>), <code>items</code> (<code>DropdownMenuEntry[]</code>), <code>placement</code> (<code>"bottom-start" \| "bottom-end" \| "top-start" \| "top-end"</code>, default <code>"bottom-start"</code>), <code>portal</code> (<code>boolean</code>, default <code>true</code> — ver <a href="#numa-linha-de-tabela">Numa linha de tabela</a>).</p>
+<h3 id="numa-linha-de-tabela">Numa linha de tabela</h3>
+<p>O menu de ações por linha é o caso mais comum de painel administrativo, e é
+exatamente onde um menu em fluxo quebra: o wrapper do <code>DataTable</code> rola na
+horizontal (<code>overflow-x: auto</code>), e pela regra do CSS isso força <code>overflow-y</code> a
+<code>auto</code> também. Por isso o menu é renderizado <strong>em portal</strong> por padrão, ancorado
+no gatilho.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">DataTable</span><span class="p">,</span><span class="w"> </span><span class="nx">DropdownMenu</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Usuario</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">nome</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">TabelaDeUsuarios</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">usuarios</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">abrir</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">excluir</span><span class="p">,</span>
+<span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">usuarios</span><span class="o">:</span><span class="w"> </span><span class="kt">Usuario</span><span class="p">[];</span>
+<span class="w">    </span><span class="nx">abrir</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">excluir</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">DataTable</span><span class="err">&lt;</span><span class="na">Usuario</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="nx">data</span><span class="o">=</span><span class="p">{</span><span class="nx">usuarios</span><span class="p">}</span>
+<span class="w">            </span><span class="nx">rowKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">usuario</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">usuario</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">            </span><span class="nx">columns</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"nome"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nome"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">render</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">usuario</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">                        </span><span class="p">&lt;</span><span class="nt">DropdownMenu</span>
+<span class="w">                            </span><span class="na">placement</span><span class="o">=</span><span class="s">"bottom-end"</span>
+<span class="w">                            </span><span class="na">trigger</span><span class="o">=</span><span class="p">{</span>
+<span class="w">                                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Ações"</span><span class="p">&gt;</span>
+<span class="w">                                    </span><span class="err">⋮</span>
+<span class="w">                                </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">                            </span><span class="p">}</span>
+<span class="w">                            </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">                                </span><span class="p">{</span>
+<span class="w">                                    </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"ver"</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Ver perfil"</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">abrir</span><span class="p">(</span><span class="nx">usuario</span><span class="p">.</span><span class="nx">id</span><span class="p">),</span>
+<span class="w">                                </span><span class="p">},</span>
+<span class="w">                                </span><span class="p">{</span>
+<span class="w">                                    </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"excluir"</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Excluir"</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">                                    </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">excluir</span><span class="p">(</span><span class="nx">usuario</span><span class="p">.</span><span class="nx">id</span><span class="p">),</span>
+<span class="w">                                </span><span class="p">},</span>
+<span class="w">                            </span><span class="p">]}</span>
+<span class="w">                        </span><span class="p">/&gt;</span>
+<span class="w">                    </span><span class="p">),</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">            </span><span class="p">]}</span>
+<span class="w">        </span><span class="o">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O que o portal resolve, medido no Chrome a 1440 px com o menu de três entradas
+na última linha:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Em fluxo (antes da 0.67.0)</th>
+<th>Em portal</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Entradas visíveis</td>
+<td>1 de 3</td>
+<td>3 de 3</td>
+</tr>
+<tr>
+<td>Sem espaço embaixo</td>
+<td>abria abaixo do fim da tela</td>
+<td><strong>vira para cima</strong> do gatilho</td>
+</tr>
+<tr>
+<td>Tabela rola com o menu aberto</td>
+<td>—</td>
+<td>o menu <strong>acompanha</strong> o gatilho</td>
+</tr>
+<tr>
+<td>Dentro de um <code>Modal</code></td>
+<td>—</td>
+<td>pinta <strong>por cima</strong> do modal</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">Por que o menu em portal fica acima do <code>Modal</code></p>
+<p>Em portal, o menu vive em <code>document.body</code>, ao lado do modal — já não herda o
+empilhamento dele. Ele usa <code>--tempest-z-popover</code> (1150), acima de
+<code>--tempest-z-modal</code> (1100). Com <code>--tempest-z-dropdown</code> (1000), medido, o menu
+aberto dentro de um modal ficava <strong>atrás</strong> dele.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title"><code>portal={false}</code> para voltar ao menu em fluxo</p>
+<p>Use quando o contêiner precisa ser dono do corte ou do empilhamento do menu
+de propósito. O mesmo <code>portal</code> existe no <code>Popover</code> e no <code>Tooltip</code>.</p>
+</div>
+<h3 id="item-que-liga-e-desliga">Item que liga e desliga</h3>
+<p><code>type: "checkbox"</code> renderiza <code>role="menuitemcheckbox"</code> com <code>aria-checked</code> — que é como um leitor de tela anuncia "marcado" em vez de deixar o estado invisível.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">DropdownMenu</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">MenuDaChamada</span><span class="p">({</span><span class="w"> </span><span class="nx">alternarTema</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">alternarTema</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">silencioso</span><span class="p">,</span><span class="w"> </span><span class="nx">setSilencioso</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">DropdownMenu</span>
+<span class="w">            </span><span class="na">trigger</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="p">&gt;</span><span class="nx">Mais</span><span class="w"> </span><span class="nx">opções</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
+<span class="w">            </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">                </span><span class="p">{</span>
+<span class="w">                    </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"checkbox"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"quiet"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Silenciar os sons da chamada"</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">checked</span><span class="o">:</span><span class="w"> </span><span class="kt">silencioso</span><span class="p">,</span>
+<span class="w">                    </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setSilencioso</span><span class="p">((</span><span class="nx">valor</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="o">!</span><span class="nx">valor</span><span class="p">),</span>
+<span class="w">                </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"separator"</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"s"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"tema"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Alternar tema"</span><span class="p">,</span><span class="w"> </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="kt">alternarTema</span><span class="w"> </span><span class="p">},</span>
+<span class="w">            </span><span class="p">]}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Item comum fecha, checkbox não</p>
+<p>Selecionar um <code>"item"</code> dispara <code>onSelect</code> e fecha o menu. Um <code>"checkbox"</code>
+alterna e <strong>deixa o menu aberto</strong>, porque ajustar duas preferências seguidas é
+o caso comum e fechar após a primeira transformaria a segunda numa segunda
+viagem.</p>
+</div>
+<h3 id="teclado">Teclado</h3>
+<p><code>role="menu"</code> é uma promessa sobre o teclado, e o componente a cumpre — o padrão
+é o <a href="https://www.w3.org/WAI/ARIA/apg/patterns/menu-button/">APG Menu Button</a>:</p>
+<table>
+<thead>
+<tr>
+<th>Tecla</th>
+<th>No gatilho</th>
+<th>No menu aberto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Enter</code> / <code>Space</code></td>
+<td>abre e foca o <strong>primeiro</strong> item</td>
+<td>ativa o item focado</td>
+</tr>
+<tr>
+<td><code>↓</code></td>
+<td>abre e foca o <strong>primeiro</strong> item</td>
+<td>próximo, com wrap</td>
+</tr>
+<tr>
+<td><code>↑</code></td>
+<td>abre e foca o <strong>último</strong> item</td>
+<td>anterior, com wrap</td>
+</tr>
+<tr>
+<td><code>Home</code> / <code>End</code></td>
+<td>—</td>
+<td>primeiro / último</td>
+</tr>
+<tr>
+<td><code>Esc</code></td>
+<td>—</td>
+<td>fecha e <strong>devolve o foco ao gatilho</strong></td>
+</tr>
+<tr>
+<td><code>Tab</code></td>
+<td>segue a página</td>
+<td>fecha e segue a página <strong>a partir do gatilho</strong></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Foco gerenciado — <code>Tab</code> não percorre o menu</p>
+<p>As entradas têm <code>tabIndex={-1}</code> e só a ativa tem <code>0</code>. Sem isso, <code>Tab</code> andaria
+item a item e faria o papel que a seta deveria fazer — o que é pior que
+inacessível, porque o widget parece funcionar e contradiz o que o
+<code>role="menu"</code> anunciou. Entrada desabilitada, <code>label</code> e <code>separator</code> nunca são
+parada.</p>
+</div>
+<h2 id="popover"><code>Popover</code></h2>
+<blockquote>
+<p><strong>Quando usar</strong>: um painel flutuante com conteúdo arbitrário (filtros, mini-form, preview) ancorado a um gatilho — quando você precisa de mais que uma lista de ações.</p>
+</blockquote>
+<p>Painel flutuante genérico (anchor + outside-click + Esc dismiss). Funciona controlado (<code>open</code> + <code>onOpenChange</code>) ou não-controlado (<code>defaultOpen</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Checkbox</span><span class="p">,</span><span class="w"> </span><span class="nx">Popover</span><span class="p">,</span><span class="w"> </span><span class="nx">Stack</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Filtros</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Popover</span>
+<span class="w">            </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onOpenChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setOpen</span><span class="p">}</span>
+<span class="w">            </span><span class="na">placement</span><span class="o">=</span><span class="s">"bottom"</span>
+<span class="w">            </span><span class="na">trigger</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="p">&gt;</span><span class="nx">Filtros</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
+<span class="w">        </span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Stack</span><span class="w"> </span><span class="na">gap</span><span class="o">=</span><span class="p">{</span><span class="mf">3</span><span class="p">}&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Checkbox</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Apenas ativos"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Checkbox</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Pago"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}&gt;</span><span class="nx">Aplicar</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Stack</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Popover</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>trigger</code></td>
+<td><code>ReactElement</code> (clonado com handlers)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>— (controlled)</td>
+</tr>
+<tr>
+<td><code>onOpenChange</code></td>
+<td><code>(open: boolean) =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>defaultOpen</code></td>
+<td><code>boolean</code> (uso não-controlado)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>placement</code></td>
+<td><code>"top" \| "bottom" \| "left" \| "right"</code></td>
+<td><code>"bottom"</code></td>
+</tr>
+<tr>
+<td><code>closeOnEsc</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>closeOnOutsideClick</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>portal</code></td>
+<td><code>boolean</code> (renderiza em <code>document.body</code>)</td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Vira na borda da tela</p>
+<p>Em portal (o padrão), o painel vai para o lado oposto quando o <code>placement</code> pedido não cabe na viewport, e é mantido dentro dela com 8 px de margem. Rolar a página ou um contêiner com o painel aberto o leva junto com o gatilho.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>Tab</code> entra no painel, mesmo em portal</p>
+<p>Em portal, o painel mora no fim do <code>body</code>, e o browser o alcançaria por último.
+O <code>Popover</code> devolve a ordem de quando ele estava em fluxo: <code>Tab</code> a partir do
+gatilho aberto entra no primeiro campo do painel, <code>Tab</code> no último campo segue
+para o que vem depois do gatilho, e <code>Shift+Tab</code> faz o caminho inverso.</p>
+</div>
+<h2 id="confirmdialog"><code>ConfirmDialog</code></h2>
+<!-- gallery:modal -->
+<p><a href="../../gallery/"><img alt="Modal &amp; Toast na gallery" src="../../assets/gallery/modal.webp" /></a></p>
+<p><em>Seção <code>modal</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: a última barreira antes de uma ação irreversível ou cara (excluir, sobrescrever, cancelar). Sempre com <code>variant="danger"</code> quando destrutiva.</p>
+</blockquote>
+<p>Prompt destrutivo pré-montado em cima do <a href="../overlay/"><code>Modal</code></a> (texto + 2 botões).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ConfirmDialog</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ExcluirUsuario</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">user</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">deleteUser</span><span class="p">,</span>
+<span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">user</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">};</span>
+<span class="w">    </span><span class="nx">deleteUser</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;;</span>
+<span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">deleting</span><span class="p">,</span><span class="w"> </span><span class="nx">setDeleting</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">ConfirmDialog</span>
+<span class="w">            </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Excluir usuário"</span>
+<span class="w">            </span><span class="na">description</span><span class="o">=</span><span class="p">{</span><span class="sb">`Esta ação é permanente. Excluir </span><span class="si">${</span><span class="nx">user</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">?`</span><span class="p">}</span>
+<span class="w">            </span><span class="na">confirmLabel</span><span class="o">=</span><span class="s">"Sim, excluir"</span>
+<span class="w">            </span><span class="na">cancelLabel</span><span class="o">=</span><span class="s">"Cancelar"</span>
+<span class="w">            </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span>
+<span class="w">            </span><span class="na">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">deleting</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onConfirm</span><span class="o">=</span><span class="p">{</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nx">setDeleting</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="w">                </span><span class="k">await</span><span class="w"> </span><span class="nx">deleteUser</span><span class="p">(</span><span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">                </span><span class="nx">setDeleting</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">                </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}}</span>
+<span class="w">            </span><span class="na">onCancel</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>confirmLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Confirmar"</code></td>
+</tr>
+<tr>
+<td><code>cancelLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Cancelar"</code></td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>"primary" \| "danger"</code></td>
+<td><code>"primary"</code></td>
+</tr>
+<tr>
+<td><code>confirmIcon</code></td>
+<td><code>ReactNode</code> (vira o <code>leftIcon</code> do botão de confirmar)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>loading</code></td>
+<td><code>boolean</code> (spinner no confirmar + trava o diálogo, ver abaixo)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>onConfirm</code></td>
+<td><code>() =&gt; void \| Promise&lt;void&gt;</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onCancel</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Controle o loading durante a request</p>
+<p><code>onConfirm</code> aceita uma promise, mas o <code>ConfirmDialog</code> não gerencia o estado de loading sozinho — passe <code>loading={deleting}</code> controlado pelo seu estado enquanto a ação assíncrona corre.</p>
+</div>
+<h3 id="com-loading-o-dialogo-nao-fecha">Com <code>loading</code>, o diálogo não fecha</h3>
+<p>Enquanto <code>loading</code> é <code>true</code>, <strong>toda</strong> saída fica fechada, não só o botão Cancelar: <code>Esc</code> e clique no backdrop não chamam <code>onCancel</code>, e o botão de fechar (×) some. Cancelar no meio da request deixaria a tela dizendo "cancelado" com a operação ainda em voo — num logout que revoga a sessão no servidor, o usuário sairia mesmo assim. A trava deriva de <code>loading</code>; não há outra prop para manter em sincronia. O <code>confirm()</code> do <code>useModals()</code> herda o mesmo comportamento.</p>
+<p>Com <code>confirmIcon</code>, o botão de confirmar ganha um ícone à esquerda do rótulo — o nome acessível continua sendo o <code>confirmLabel</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LogOut</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ConfirmDialog</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">SairDaConta</span><span class="p">({</span><span class="w"> </span><span class="nx">signOut</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">signOut</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">leaving</span><span class="p">,</span><span class="w"> </span><span class="nx">setLeaving</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">ConfirmDialog</span>
+<span class="w">            </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Sair da conta"</span>
+<span class="w">            </span><span class="na">description</span><span class="o">=</span><span class="s">"Você vai precisar entrar de novo neste aparelho."</span>
+<span class="w">            </span><span class="na">confirmLabel</span><span class="o">=</span><span class="s">"Sair"</span>
+<span class="w">            </span><span class="na">confirmIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">LogOut</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}</span>
+<span class="w">            </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span>
+<span class="w">            </span><span class="na">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">leaving</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onConfirm</span><span class="o">=</span><span class="p">{</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nx">setLeaving</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="w">                </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="k">await</span><span class="w"> </span><span class="nx">signOut</span><span class="p">();</span>
+<span class="w">                    </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span><span class="w"> </span><span class="k">finally</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="nx">setLeaving</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}}</span>
+<span class="w">            </span><span class="na">onCancel</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h2 id="installbutton"><code>InstallButton</code></h2>
+<!-- gallery:pwa -->
+<p><a href="../../gallery/"><img alt="PWA: Install · Push na gallery" src="../../assets/gallery/pwa.webp" /></a></p>
+<p><em>Seção <code>pwa</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<p>Botão de instalação do PWA, ligado a <a href="../../hooks/"><code>useInstallPrompt</code></a>. Onde o navegador dispara <code>beforeinstallprompt</code>, o clique instala. Onde <strong>não</strong> dispara — iOS Safari, o navegador interno de apps (Instagram, WhatsApp, Facebook…) e os forks Chromium de Android (Mi Browser, UC, Opera Mini, Huawei) — o clique revela a instrução daquela plataforma em vez de o botão sumir. Herda todas as props do <a href="#button"><code>Button</code></a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">InstallButton</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Download</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">InstallButton</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"primary"</span><span class="w"> </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Download</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">18</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Instalar app"</code></td>
+</tr>
+<tr>
+<td><code>hintLabel</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Como instalar"</code></td>
+</tr>
+<tr>
+<td><code>onResult</code></td>
+<td><code>(o: "accepted" \| "dismissed" \| "unsupported") =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>renderHint</code></td>
+<td><code>(input: InstallHintInput) =&gt; ReactNode</code></td>
+<td><code>defaultInstallHint</code></td>
+</tr>
+<tr>
+<td><code>manualFallbackDelayMs</code></td>
+<td><code>number</code></td>
+<td><code>3000</code></td>
+</tr>
+<tr>
+<td><code>wrapperClassName</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>…</td>
+<td>todas as props de <code>Button</code> (<code>variant</code>, <code>size</code>, <code>leftIcon</code>)</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition danger">
+<p class="admonition-title">Até a v0.65.0 os dois sumiam justamente onde o usuário precisa deles</p>
+<p><code>InstallButton</code> e <code>InstallBanner</code> eram construídos sobre <code>useBeforeInstallPrompt</code>, então renderizavam <code>null</code> em todo navegador que nunca dispara o evento. iOS Safari é exatamente esse caso — e é onde o caminho de instalação está escondido atrás do menu <strong>Compartilhar</strong>, que ninguém acha sem ser avisado. O resultado prático era cada app manter uma cópia local destes dois componentes só para acrescentar as trilhas <code>ios</code> e <code>manual</code>.</p>
+<p><code>null</code> agora só sai quando não há nada a oferecer: app já instalado, rodando standalone, ou dentro do período de dispensa.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title"><code>renderHint</code> troca a cópia sem reescrever o componente</p>
+<p>O default é PT-BR e nomeia as entradas reais de menu — no Android também oferece o link <code>intent://</code> que reabre a página no Chrome, que é o único caminho que chega a uma instalação de verdade num fork sem entrada de instalar.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">InstallButton</span><span class="p">,</span><span class="w"> </span><span class="nx">defaultInstallHint</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">InstallButton</span>
+<span class="w">    </span><span class="na">renderHint</span><span class="o">=</span><span class="p">{(</span><span class="nx">input</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">        </span><span class="nx">input</span><span class="p">.</span><span class="nx">method</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"ios"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">MeuTutorialIOS</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nx">defaultInstallHint</span><span class="p">(</span><span class="nx">input</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">/&gt;;</span>
+</code></pre></div>
+<p><code>InstallHintInput</code> traz <code>method</code> (<code>"native" | "ios" | "open-in-browser" | "manual" | "none"</code>) e <code>openInChromeIntent</code>.</p>
+</div>
+<h3 id="dentro-do-navegador-interno-de-um-app">Dentro do navegador interno de um app</h3>
+<p>Link compartilhado no WhatsApp ou no Instagram abre <strong>dentro</strong> do app, num navegador interno. Ali não existe instalação: no iPhone só o Safari tem <strong>Adicionar à Tela de Início</strong>, e no Android o web view nunca dispara <code>beforeinstallprompt</code>. O <code>useInstallPrompt</code> reconhece esse caso e resolve <code>method: "open-in-browser"</code> — e o <code>InstallButton</code> e o <code>InstallBanner</code> passam a mostrar a saída certa sem mudança nenhuma no app:</p>
+<table>
+<thead>
+<tr>
+<th>Onde</th>
+<th>O que a instrução padrão mostra</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>iPhone (Instagram, WhatsApp, Facebook, TikTok…)</td>
+<td>"Toque em <strong>⋯</strong> e escolha <strong>Abrir no Safari</strong> (ou <strong>Abrir no navegador</strong>)" + botão <strong>Copiar link</strong></td>
+</tr>
+<tr>
+<td>Android (os mesmos apps)</td>
+<td>link <strong>Abra no Chrome</strong> (<code>intent://</code>) + botão <strong>Copiar link</strong></td>
+</tr>
+</tbody>
+</table>
+<p>O botão <strong>Copiar link</strong> é o <code>InstallCopyLink</code>. Ele tenta <code>navigator.clipboard.writeText</code>, depois <code>execCommand("copy")</code> — o navegador interno costuma negar a Clipboard API — e, se nenhum dos dois funcionar, mostra o endereço num campo somente leitura <strong>já selecionado</strong>, para o usuário copiar segurando o dedo. É o caminho que funciona em todo app, seja qual for o nome que o menu dá a "abrir no navegador".</p>
+<p>Para traduzir, use-o dentro do seu <code>renderHint</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">InstallButton</span><span class="p">,</span><span class="w"> </span><span class="nx">InstallCopyLink</span><span class="p">,</span><span class="w"> </span><span class="nx">defaultInstallHint</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">InstallCta</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">InstallButton</span>
+<span class="w">            </span><span class="na">hintLabel</span><span class="o">=</span><span class="s">"How to install"</span>
+<span class="w">            </span><span class="na">renderHint</span><span class="o">=</span><span class="p">{(</span><span class="nx">input</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">                </span><span class="nx">input</span><span class="p">.</span><span class="nx">method</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"open-in-browser"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">(</span>
+<span class="w">                    </span><span class="p">&lt;&gt;</span>
+<span class="w">                        </span><span class="nx">Tap</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">strong</span><span class="p">&gt;</span><span class="err">⋯</span><span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span><span class="w"> </span><span class="nx">and</span><span class="w"> </span><span class="nx">choose</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">strong</span><span class="p">&gt;</span><span class="nx">Open</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nx">Safari</span><span class="p">&lt;/</span><span class="nt">strong</span><span class="p">&gt;.</span>
+<span class="w">                        </span><span class="p">&lt;</span><span class="nt">InstallCopyLink</span>
+<span class="w">                            </span><span class="na">labels</span><span class="o">=</span><span class="p">{{</span>
+<span class="w">                                </span><span class="nx">copy</span><span class="o">:</span><span class="w"> </span><span class="s2">"Copy link"</span><span class="p">,</span>
+<span class="w">                                </span><span class="nx">copied</span><span class="o">:</span><span class="w"> </span><span class="s2">"Link copied"</span><span class="p">,</span>
+<span class="w">                                </span><span class="nx">manual</span><span class="o">:</span><span class="w"> </span><span class="s2">"Long-press the link to copy it."</span><span class="p">,</span>
+<span class="w">                                </span><span class="nx">field</span><span class="o">:</span><span class="w"> </span><span class="s2">"Page link"</span><span class="p">,</span>
+<span class="w">                            </span><span class="p">}}</span>
+<span class="w">                        </span><span class="p">/&gt;</span>
+<span class="w">                    </span><span class="p">&lt;/&gt;</span>
+<span class="w">                </span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span>
+<span class="w">                    </span><span class="nx">defaultInstallHint</span><span class="p">(</span><span class="nx">input</span><span class="p">)</span>
+<span class="w">                </span><span class="p">)</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td><code>string</code></td>
+<td><code>window.location.href</code> no clique</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;InstallCopyLinkLabels&gt;</code></td>
+<td><code>copy: "Copiar link"</code>, <code>copied: "Link copiado"</code>, <code>manual: "Toque e segure o link para copiar."</code>, <code>field: "Link da página"</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title"><code>renderHint</code> antigo continua funcionando</p>
+<p>Um <code>renderHint</code> escrito só para <code>"ios"</code> e <code>"manual"</code> devolve <code>null</code> para <code>"open-in-browser"</code>. O componente trata <code>null</code> (ou <code>undefined</code>) como "use o padrão" e cai no <code>defaultInstallHint</code> — sem isso, o botão <strong>Como instalar</strong> não revelaria nada dentro do Instagram.</p>
+</div>
+<h2 id="installbanner"><code>InstallBanner</code></h2>
+<p>Banner inferior dispensável que convida a instalar o PWA, sobre o mesmo <code>useInstallPrompt</code>. Onde o navegador não pode ser promptado, o botão vira <strong>"Como instalar"</strong> e revela a instrução da plataforma dentro do próprio banner. <code>storageKey</code> lembra a dispensa entre recarregamentos.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">InstallBanner</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Instalar</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">InstallBanner</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Instale o app"</span>
+<span class="w">            </span><span class="na">description</span><span class="o">=</span><span class="s">"Acesso offline e atalho na tela inicial."</span>
+<span class="w">            </span><span class="na">storageKey</span><span class="o">=</span><span class="s">"meu-app:install-dismissed"</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Instale o app"</code></td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>installLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Instalar"</code></td>
+</tr>
+<tr>
+<td><code>dismissLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Dispensar"</code></td>
+</tr>
+<tr>
+<td><code>icon</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>hintLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Como instalar"</code></td>
+</tr>
+<tr>
+<td><code>storageKey</code></td>
+<td><code>string</code></td>
+<td>— (sessão)</td>
+</tr>
+<tr>
+<td><code>declineCooldownMs</code></td>
+<td><code>number</code></td>
+<td>— (dispensa permanente)</td>
+</tr>
+<tr>
+<td><code>renderHint</code></td>
+<td><code>(input: InstallHintInput) =&gt; ReactNode</code></td>
+<td><code>defaultInstallHint</code></td>
+</tr>
+<tr>
+<td><code>manualFallbackDelayMs</code></td>
+<td><code>number</code></td>
+<td><code>3000</code></td>
+</tr>
+<tr>
+<td><code>visible</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td><code>"inline" \| "bottom"</code></td>
+<td><code>"inline"</code></td>
+</tr>
+<tr>
+<td><code>guide</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onResult</code></td>
+<td><code>(o) =&gt; void</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<h3 id="por-rota-acima-da-bottom-nav-e-com-guia">Por rota, acima da bottom nav e com guia</h3>
+<p>Três decisões que todo app tomava em volta da própria cópia do banner, agora props:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Link</span><span class="p">,</span><span class="w"> </span><span class="nx">useLocation</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react-router"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">InstallBanner</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">SEM_BANNER</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"/camera"</span><span class="p">,</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span><span class="w"> </span><span class="s2">"/instalar"</span><span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">BannerDeInstalacao</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pathname</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLocation</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">InstallBanner</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Instale o app"</span>
+<span class="w">            </span><span class="na">description</span><span class="o">=</span><span class="s">"Acesso offline e atalho na tela inicial."</span>
+<span class="w">            </span><span class="na">storageKey</span><span class="o">=</span><span class="s">"meu-app:install-dismissed"</span>
+<span class="w">            </span><span class="na">visible</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">SEM_BANNER</span><span class="p">.</span><span class="nx">some</span><span class="p">((</span><span class="nx">rota</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">pathname</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="nx">rota</span><span class="p">))}</span>
+<span class="w">            </span><span class="na">position</span><span class="o">=</span><span class="s">"bottom"</span>
+<span class="w">            </span><span class="na">guide</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Link</span><span class="w"> </span><span class="na">to</span><span class="o">=</span><span class="s">"/instalar"</span><span class="p">&gt;</span><span class="nx">Ver</span><span class="w"> </span><span class="nx">guia</span><span class="w"> </span><span class="nx">completo</span><span class="p">&lt;/</span><span class="nt">Link</span><span class="p">&gt;}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong><code>visible</code></strong> esconde sem desmontar. Parece igual a <code>{mostrar &amp;&amp; &lt;InstallBanner /&gt;}</code>, mas não é: sem <code>storageKey</code> a dispensa vive no estado do componente, e desmontar a esquecia — o banner dispensado voltava na próxima rota que o mostrasse. O SDK não lê a rota sozinho de propósito: assim ele não exige contexto de router para renderizar, e a regra de quais rotas escondem continua do app.</li>
+<li><strong><code>position="bottom"</code></strong> prende o banner ao rodapé da viewport (fixo, centralizado, até <code>32rem</code>), acima da safe area <strong>e</strong> acima de <code>--tempest-bottom-nav-height</code>. Dentro de um <a href="../layout/#appshell"><code>AppShell</code></a> com <code>bottomNav</code>, essa variável é medida e publicada pelo próprio shell — o banner fica acima da barra sem configuração nenhuma. Com uma barra própria, publique a altura dela na mesma variável. O default <code>"inline"</code> mantém o comportamento de sempre: o banner fica onde você o renderiza.</li>
+<li><strong><code>guide</code></strong> aparece logo depois da instrução da plataforma (<code>"ios"</code> e <code>"manual"</code>), quando o usuário abre <strong>"Como instalar"</strong>. É um nó, não um <code>href</code>, para você passar o <code>Link</code> do seu router e a página de guia abrir sem recarregar o app.</li>
+</ul>
+<div class="admonition check">
+<p class="admonition-title">Aceitar fecha o banner — e ele não volta</p>
+<p>Até a v0.86.0 o banner sumia ao aceitar a instalação e <strong>voltava 3 s depois</strong> oferecendo "Como instalar": o evento guardado era descartado, a aba que instalou continua em <code>display-mode: browser</code>, e o fallback manual assumia. Medido com o próprio componente no jsdom: visível <code>false</code> logo após o <code>accepted</code>, <code>true</code> com o botão "Como instalar" aos 3,5 s, mesmo depois de <code>appinstalled</code>. Agora o <code>useInstallPrompt</code> lembra a instalação da sessão (<code>accepted</code> ou <code>appinstalled</code>) e resolve <code>method: "none"</code> até o navegador disparar um <code>beforeinstallprompt</code> novo — o que só acontece se o app for desinstalado. Vale também para o <code>InstallButton</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title"><code>declineCooldownMs</code> muda o que é gravado — e respeita o que já estava lá</p>
+<p>Sem ele, a dispensa gravada em <code>storageKey</code> é <strong>permanente</strong>, que é o que o componente sempre fez (grava <code>"1"</code>). Com ele, grava um timestamp e o banner volta depois da janela.</p>
+<p>Uma chave que já contém <code>"1"</code> continua valendo como dispensa permanente mesmo com <code>declineCooldownMs</code> configurado: ela foi escrita sob o contrato antigo, e ressuscitar um banner que o usuário desligou é pior do que mantê-lo desligado.</p>
+</div>
+<h2 id="postinstallprompt"><code>PostInstallPrompt</code></h2>
+<p>Overlay que aparece <strong>na aba do navegador</strong> depois que o app é instalado a partir dela. Sem ele, o usuário aceita a instalação, a aba continua igual e ele segue usando o site sem saber que o app já está na tela inicial.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PostInstallPrompt</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Raiz</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">PostInstallPrompt</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"FAMACHApp instalado"</span>
+<span class="w">            </span><span class="na">onContinue</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">info</span><span class="p">(</span><span class="s2">"seguiu no navegador"</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Monte-o uma vez, na raiz do app. Ele abre sozinho quando o <code>installed</code> de <code>useBeforeInstallPrompt</code> vira <code>true</code> — o usuário aceitou o prompt ou o navegador disparou <code>appinstalled</code> — e oferece duas saídas: <strong>"Fechar esta aba"</strong> e <strong>"Continuar no navegador"</strong> (<code>Escape</code> e clique fora contam como continuar).</p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"App instalado"</code></td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td><code>ReactNode</code></td>
+<td>cópia PT-BR apontando a tela inicial</td>
+</tr>
+<tr>
+<td><code>closeLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Fechar esta aba"</code></td>
+</tr>
+<tr>
+<td><code>continueLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Continuar no navegador"</code></td>
+</tr>
+<tr>
+<td><code>closeBlockedMessage</code></td>
+<td><code>ReactNode</code></td>
+<td>cópia PT-BR pedindo para fechar a aba</td>
+</tr>
+<tr>
+<td><code>onContinue</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>className</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Não existe \"abrir o app instalado\" na web — e o componente não finge que existe</p>
+<p>Nenhuma API web abre um PWA instalado a partir de uma aba do navegador; um link para a <code>start_url</code> abre na mesma aba na maioria dos navegadores. Por isso não há botão "Abrir agora": o que a aba consegue fazer é <strong>se fechar</strong>, e só quando o navegador deixa.</p>
+<p>Medido no Chromium 153 headless (15/11/2026): uma aba aberta pelo usuário direto na URL fecha com <code>window.close()</code> enquanto <code>history.length</code> é 1; <strong>um único <code>pushState</code> e a chamada é ignorada</strong> ("Scripts may close only the windows that were opened by them."). Aba aberta por <code>window.open</code> fecha mesmo depois de navegar. Um SPA que trocou de rota uma vez já passou desse ponto — então o componente prevê a regra e, quando ela não vai deixar, <strong>não mostra o botão</strong>: mostra <code>closeBlockedMessage</code>, pedindo que o usuário feche a aba e abra o app pelo ícone. Se o navegador ignorar o <code>close()</code> mesmo assim, o botão dá lugar à mesma mensagem.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Só abre onde existe sinal de instalação</p>
+<p><code>appinstalled</code> é disparado pelos navegadores Chromium (Chrome, Edge, Samsung Internet), qualquer que tenha sido o caminho da instalação — prompt, ícone da barra de endereço ou menu. Safari (iOS e macOS) e Firefox não disparam o evento, então ali o overlay nunca abre: não há sinal em que se apoiar.</p>
+</div>
+<h2 id="resumo">Resumo</h2>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Use para</th>
+<th>Gatilho</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Button</code></td>
+<td>Disparar a ação primária/secundária</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>FloatingActionButton</code></td>
+<td>Ação primária flutuante e persistente</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>InstallButton</code></td>
+<td>Instalar o PWA, ou ensinar como onde não há prompt</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>InstallBanner</code></td>
+<td>Convite dispensável pra instalar o PWA</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>PostInstallPrompt</code></td>
+<td>Avisar, na aba, que o app já foi instalado</td>
+<td><code>appinstalled</code></td>
+</tr>
+<tr>
+<td><code>Tooltip</code></td>
+<td>Contexto não-crítico num controle</td>
+<td>hover/foco</td>
+</tr>
+<tr>
+<td><code>DropdownMenu</code></td>
+<td>Lista de ações secundárias (fecha ao escolher)</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>Popover</code></td>
+<td>Painel flutuante com conteúdo arbitrário</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>ConfirmDialog</code></td>
+<td>Confirmar ação destrutiva antes de executar</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>Pontos-chave de acessibilidade:</p>
+<ul>
+<li>Ações destrutivas devem usar <code>variant="danger"</code>.</li>
+<li><code>Button.loading</code> é o padrão para submits async — bloqueia duplos cliques.</li>
+<li>Tooltips não devem conter informação crítica (usuários de touch não veem hover).</li>
+<li><code>iconOnly</code> <strong>exige</strong> <code>aria-label</code>.</li>
+</ul>
+<p>Relacionados: <a href="../overlay/">overlay</a> (<code>ConfirmDialog</code> é construído sobre <code>Modal</code>) · <a href="../inputs/">inputs</a> (entrada de dados) · <a href="../feedback/">feedback</a> (toasts/alerts após a ação).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar ao topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../inputs/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Entrada de dados">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Entrada de dados
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../navigation/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Navegação">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                Navegação
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "Mais 1 nesta p\u00e1gina", "search.result.more.other": "Mais # nesta p\u00e1gina", "search.result.none": "Nenhum resultado encontrado", "search.result.one": "1 resultado encontrado", "search.result.other": "# resultados encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

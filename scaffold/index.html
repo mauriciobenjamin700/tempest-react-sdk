@@ -1,0 +1,5300 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/scaffold/">
+      
+      
+        <link rel="prev" href="../tutorial/auth-flow/">
+      
+      
+        <link rel="next" href="../cli/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Scaffold (create-tempest-app) - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#scaffold-create-tempest-app" class="md-skip">
+          Ir para o conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href=".." title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Scaffold (create-tempest-app)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Selecione o idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../en/scaffold/" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Compartilhar" aria-label="Compartilhar" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando a pesquisa
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Fundamentos da Web
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Comece aqui
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Design de Software
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Componentes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Módulos
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Receitas
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Projeto
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Fundamentos da Web
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundamentos da Web
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página existe
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página existe
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: estrutura e semântica
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulário e acessibilidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página parece
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página parece
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: seletor, cascata, especificidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Caixa, fluxo, flex e grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties e tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página reage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página reage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: valor, referência, escopo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Assíncrono: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Módulos, npm e o bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Antes do tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Antes do tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: o mínimo que o SDK usa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: componente, estado, efeito
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Comece aqui
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Comece aqui
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Buscando dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Ferramentas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Ferramentas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#crie-seu-primeiro-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      Crie seu primeiro app
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Crie seu primeiro app">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-cada-pedaco-do-comando-faz" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que cada pedaço do comando faz
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#os-dois-modos-lado-a-lado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Os dois modos, lado a lado
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaffold-dentro-de-um-projeto-existente" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scaffold dentro de um projeto existente
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scaffold dentro de um projeto existente">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scripts-disponiveis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scripts disponíveis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tour-pelo-que-foi-gerado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tour pelo que foi gerado
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tour pelo que foi gerado">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cada-arquivo-o-recurso-do-sdk-que-ele-mostra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cada arquivo → o recurso do SDK que ele mostra
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cada arquivo → o recurso do SDK que ele mostra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#viteconfigts-createviteconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      vite.config.ts → createViteConfig
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcapptsx-appproviders-approuter" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/App.tsx → AppProviders + AppRouter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcstoresauthts-createauthstore-createselectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/stores/auth.ts → createAuthStore + createSelectors
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modo-pwa-pwa" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modo PWA (--pwa)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modo PWA (--pwa)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-a-flag-adiciona" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que a flag adiciona
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#as-cinco-pecas" class="md-nav__link">
+    <span class="md-ellipsis">
+      As cinco peças
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="As cinco peças">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-instalacao-usebeforeinstallprompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Instalação → useBeforeInstallPrompt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-service-worker-tempest-react-sdksw" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Service worker → tempest-react-sdk/sw
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-web-push-usepushsubscription" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Web push → usePushSubscription
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-offline-installprecache-installruntimecache" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Offline → installPrecache + installRuntimeCache
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-icones-tempestpwaicons" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Ícones → tempestPwaIcons
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-pwa-vs-vite-plugin-pwa" class="md-nav__link">
+    <span class="md-ellipsis">
+      --pwa vs vite-plugin-pwa
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recursos-avancados" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recursos avançados
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recursos avançados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#background-sync-mutacoes-offline-que-reenviam-sozinhas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Background Sync — mutações offline que reenviam sozinhas
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#range-requests-seek-de-audiovideo-offline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Range requests — seek de áudio/vídeo offline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#splash-screens-apple-telas-de-abertura-no-ios" class="md-nav__link">
+    <span class="md-ellipsis">
+      Splash screens (Apple) — telas de abertura no iOS
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recap-do-modo-pwa" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap do modo PWA
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proximos-passos" class="md-nav__link">
+    <span class="md-ellipsis">
+      Próximos passos
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Próximos passos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-adicione-uma-pagina" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Adicione uma página
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-adicione-uma-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Adicione uma store
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-busque-dados-com-react-query-querykeys-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Busque dados com React Query + queryKeys + api
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI tempest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Design de Software
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Design de Software
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Desenho do sistema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Desenho do sistema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camadas de um app frontend
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estrutura de pastas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Onde mora cada estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Escrevendo o código
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Escrevendo o código
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pensando em componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Limites objetivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tipagem forte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustentando
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustentando
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estratégia de testes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-padrões
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checklist de revisão
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Componentes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Componentes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Catálogo de componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Entrada de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identidade & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telas de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & avançados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & avançados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essenciais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação & conteúdo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados avançados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conversa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Módulos
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Módulos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral do pacote
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fundação de app
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundação de app
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hooks utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Integrações
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrações
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (áudio Opus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocalização
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mapa do Brasil (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pagamentos, fiscal & contato BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix e cartão, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upload resumível (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Áudio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Captura de dispositivo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural (RNNoise 48 kHz)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imagens (processamento)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Formulários
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Estilo & Tema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Estilo & Tema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estilos & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Observabilidade
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observabilidade
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Receitas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Receitas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Integração FastAPI (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Projeto
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Projeto
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#crie-seu-primeiro-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      Crie seu primeiro app
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Crie seu primeiro app">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-cada-pedaco-do-comando-faz" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que cada pedaço do comando faz
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#os-dois-modos-lado-a-lado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Os dois modos, lado a lado
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scaffold-dentro-de-um-projeto-existente" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scaffold dentro de um projeto existente
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scaffold dentro de um projeto existente">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scripts-disponiveis" class="md-nav__link">
+    <span class="md-ellipsis">
+      Scripts disponíveis
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tour-pelo-que-foi-gerado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tour pelo que foi gerado
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Tour pelo que foi gerado">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cada-arquivo-o-recurso-do-sdk-que-ele-mostra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cada arquivo → o recurso do SDK que ele mostra
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cada arquivo → o recurso do SDK que ele mostra">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#viteconfigts-createviteconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      vite.config.ts → createViteConfig
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcapptsx-appproviders-approuter" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/App.tsx → AppProviders + AppRouter
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#srcstoresauthts-createauthstore-createselectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      src/stores/auth.ts → createAuthStore + createSelectors
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modo-pwa-pwa" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modo PWA (--pwa)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Modo PWA (--pwa)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-a-flag-adiciona" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que a flag adiciona
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#as-cinco-pecas" class="md-nav__link">
+    <span class="md-ellipsis">
+      As cinco peças
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="As cinco peças">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-instalacao-usebeforeinstallprompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Instalação → useBeforeInstallPrompt
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-service-worker-tempest-react-sdksw" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Service worker → tempest-react-sdk/sw
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-web-push-usepushsubscription" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Web push → usePushSubscription
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-offline-installprecache-installruntimecache" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Offline → installPrecache + installRuntimeCache
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-icones-tempestpwaicons" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Ícones → tempestPwaIcons
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#-pwa-vs-vite-plugin-pwa" class="md-nav__link">
+    <span class="md-ellipsis">
+      --pwa vs vite-plugin-pwa
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recursos-avancados" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recursos avançados
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recursos avançados">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#background-sync-mutacoes-offline-que-reenviam-sozinhas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Background Sync — mutações offline que reenviam sozinhas
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#range-requests-seek-de-audiovideo-offline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Range requests — seek de áudio/vídeo offline
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#splash-screens-apple-telas-de-abertura-no-ios" class="md-nav__link">
+    <span class="md-ellipsis">
+      Splash screens (Apple) — telas de abertura no iOS
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recap-do-modo-pwa" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap do modo PWA
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proximos-passos" class="md-nav__link">
+    <span class="md-ellipsis">
+      Próximos passos
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Próximos passos">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-adicione-uma-pagina" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Adicione uma página
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-adicione-uma-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Adicione uma store
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-busque-dados-com-react-query-querykeys-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Busque dados com React Query + queryKeys + api
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/scaffold.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/scaffold.md" title="Ver fonte desta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="scaffold-create-tempest-app">Scaffold — <code>create-tempest-app</code></h1>
+<p><code>create-tempest-app</code> é a CLI oficial de scaffolding da Tempest. Com <strong>um comando</strong> você cria um app React 19 + Vite + TypeScript já pré-cabeado com o <code>tempest-react-sdk</code>: providers, roteamento, store de autenticação e cliente HTTP saem prontos pra rodar. A CLI <strong>não é um pacote separado</strong> — ela vem <strong>dentro do próprio <code>tempest-react-sdk</code></strong> como o <code>bin</code> do pacote (<code>create-tempest-app</code>), junto com um <code>template/</code> embutido no tarball.</p>
+<div class="highlight"><pre><span></span><code><span class="nt">"bin"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"create-tempest-app"</span><span class="p">:</span><span class="w"> </span><span class="s2">"./bin/create-tempest-app.mjs"</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+<p>Esta página é um tutorial: vamos do comando vazio até o app rodando no navegador, e depois passeamos por cada arquivo gerado pra entender qual recurso do SDK ele demonstra. 🚀</p>
+<div class="admonition info">
+<p class="admonition-title">Versionada junto com o SDK</p>
+<p>Como a CLI mora dentro do <code>tempest-react-sdk</code>, ela é <strong>versionada junto com o SDK</strong>. Fixar uma versão é fixar a versão do SDK: <code>npx -p tempest-react-sdk@0.5.1 create-tempest-app …</code>. E o app gerado já nasce com a dependência <code>tempest-react-sdk</code> <strong>carimbada na mesma versão</strong> que o produziu — nada de número hardcoded que desatualiza.</p>
+</div>
+<h2 id="crie-seu-primeiro-app">Crie seu primeiro app</h2>
+<p>O caminho <strong>recomendado</strong> é criar a pasta você mesmo e scaffoldar dentro dela com <code>.</code>:</p>
+<div class="highlight"><pre><span></span><code>mkdir<span class="w"> </span>my-app
+<span class="nb">cd</span><span class="w"> </span>my-app
+npx<span class="w"> </span>-p<span class="w"> </span>tempest-react-sdk<span class="w"> </span>create-tempest-app<span class="w"> </span>.
+npm<span class="w"> </span>install
+cp<span class="w"> </span>.env.example<span class="w"> </span>.env
+npm<span class="w"> </span>run<span class="w"> </span>dev<span class="w">            </span><span class="c1"># http://127.0.0.1:5173</span>
+</code></pre></div>
+<p>Abra <strong><a href="http://127.0.0.1:5173">http://127.0.0.1:5173</a></strong> — o app já está no ar com providers, rotas e store funcionando.</p>
+<h3 id="o-que-cada-pedaco-do-comando-faz">O que cada pedaço do comando faz</h3>
+<table>
+<thead>
+<tr>
+<th>Pedaço</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>npx</code></td>
+<td>Baixa e executa um binário <strong>sem instalar nada global</strong> — descarta o download depois.</td>
+</tr>
+<tr>
+<td><code>-p tempest-react-sdk</code></td>
+<td>Diz <strong>de qual pacote</strong> vem o binário. Necessário porque a CLI mora dentro do SDK, com nome diferente do nome do pacote.</td>
+</tr>
+<tr>
+<td><code>create-tempest-app</code></td>
+<td>O nome do <code>bin</code> dentro daquele pacote — é o que roda de fato.</td>
+</tr>
+<tr>
+<td><code>.</code></td>
+<td>O <strong>destino</strong>: o diretório atual (modo recomendado). Um nome no lugar do <code>.</code> cria a pasta e exige que ela esteja vazia.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Prefira <code>.</code> a <code>create-tempest-app my-app</code></p>
+<p>As duas formas funcionam, mas <code>.</code> é melhor no dia a dia:</p>
+<ul>
+<li><strong>Você controla a pasta e o nome</strong> — o <code>name</code> do <code>package.json</code> sai do nome do diretório atual, sem risco de acabar com <code>my-app/my-app</code> por já estar dentro da pasta.</li>
+<li><strong>Convive com o que já existe</strong> — <code>git init</code>, <code>README.md</code>, <code>LICENSE</code> e afins são <strong>preservados</strong> (a CLI lista o que pulou). O modo com nome <strong>aborta</strong> se a pasta não estiver vazia.</li>
+<li><strong>Um comando só</strong> pra pasta nova e pra projeto existente.</li>
+</ul>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Rodar sem argumento = <code>.</code></p>
+<p><code>npx -p tempest-react-sdk create-tempest-app</code> (sem nada depois) faz exatamente o mesmo que passar <code>.</code>: scaffold no diretório atual. A CLI <strong>não</strong> pergunta nome de projeto.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title"><code>npm create tempest-app</code> não funciona</p>
+<p>Não existe pacote <code>create-tempest-app</code> publicado no npm — a CLI é o <code>bin</code> do <code>tempest-react-sdk</code>, então <code>npm create tempest-app</code> falha com 404. Use <code>npx -p tempest-react-sdk create-tempest-app .</code>; dentro de um projeto que já tem o SDK instalado, o <code>-p</code> é dispensável.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">No modo com nome, a pasta precisa estar vazia</p>
+<p>Em <code>create-tempest-app my-app</code>, o diretório alvo <strong>não pode existir</strong> ou precisa estar <strong>vazio</strong> — isso evita sobrescrever um projeto seu por acidente. Se a pasta já tem arquivos, a CLI sugere usar <code>.</code> para <strong>mesclar</strong> no diretório atual em vez de abortar (veja a próxima seção). Um <code>my-app</code> que é <strong>link simbólico</strong> também é recusado, mesmo apontando para pasta vazia: o projeto seria criado onde o link aponta, não onde você o nomeou.</p>
+</div>
+<h3 id="os-dois-modos-lado-a-lado">Os dois modos, lado a lado</h3>
+<table>
+<thead>
+<tr>
+<th>Você digita</th>
+<th>Destino</th>
+<th>Se a pasta tem arquivos</th>
+<th>Nome do projeto</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>create-tempest-app .</code></td>
+<td>diretório atual</td>
+<td><strong>preserva</strong> os seus e reporta o que foi pulado</td>
+<td>nome da pasta atual</td>
+</tr>
+<tr>
+<td><code>create-tempest-app</code> (só)</td>
+<td>diretório atual</td>
+<td>idem</td>
+<td>nome da pasta atual</td>
+</tr>
+<tr>
+<td><code>create-tempest-app my-app</code></td>
+<td><code>./my-app</code></td>
+<td><strong>aborta</strong> se existir e não estiver vazia</td>
+<td><code>my-app</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="scaffold-dentro-de-um-projeto-existente">Scaffold dentro de um projeto existente</h2>
+<p>Se você já tem um projeto que depende do SDK, dá pra gerar o <code>src/</code> + configs <strong>no diretório atual</strong>, sem criar uma pasta nova:</p>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>tempest-react-sdk
+npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
+</code></pre></div>
+<p>Aqui o <code>npx create-tempest-app</code> resolve o <code>bin</code> a partir do <code>tempest-react-sdk</code> que você acabou de instalar — não precisa do <code>-p</code>. Rodar <strong>sem argumento</strong> se comporta igual a <code>.</code>.</p>
+<p>Nesse modo "diretório atual":</p>
+<ul>
+<li><strong>Arquivos existentes são preservados</strong> — a CLI pula cada um que já existe e <strong>reporta</strong> o que foi pulado, sem sobrescrever nada seu.</li>
+<li><strong>Symlink no destino nunca é atravessado</strong> — um <code>src -&gt; ../outro-lugar</code> (comum em monorepo ou repositório clonado) é pulado e reportado inteiro, assim como um <code>package.json</code> que seja link: a CLI não escreve fora da pasta do projeto.</li>
+<li>Um <code>package.json</code> existente tem os scripts e deps da Tempest <strong>mesclados</strong>: seu <code>name</code>/<code>version</code> e os scripts/deps que já estavam lá são mantidos, e o <code>tempest-react-sdk</code> é fixado na <strong>própria versão do SDK</strong> que está rodando o scaffold. Os <code>overrides</code> do template entram junto (um override que você já declara para o mesmo pacote vence): são eles que mantêm o <code>npm audit</code> limpo enquanto uma dependência de ferramenta ainda não publicou a correção.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">O <code>.env</code></p>
+<p>O <code>.env.example</code> declara <code>VITE_API_URL</code>, a base usada pelo cliente HTTP em <code>src/lib/api.ts</code>. Copie pra <code>.env</code> e ajuste pra apontar pro seu backend.</p>
+</div>
+<h3 id="scripts-disponiveis">Scripts disponíveis</h3>
+<p>O <code>package.json</code> gerado vem com estes scripts:</p>
+<table>
+<thead>
+<tr>
+<th>Script</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>npm run dev</code></td>
+<td><code>vite</code> — dev server em <code>127.0.0.1:5173</code></td>
+</tr>
+<tr>
+<td><code>npm run build</code></td>
+<td><code>tsc --noEmit &amp;&amp; vite build</code> — checa tipos e empacota</td>
+</tr>
+<tr>
+<td><code>npm run preview</code></td>
+<td><code>vite preview</code> — serve o build de produção</td>
+</tr>
+<tr>
+<td><code>npm run typecheck</code></td>
+<td><code>tsc --noEmit</code> — só checagem de tipos</td>
+</tr>
+<tr>
+<td><code>npm run lint</code></td>
+<td><code>eslint .</code> — ESLint 9 flat config (react-hooks + refresh)</td>
+</tr>
+<tr>
+<td><code>npm run lint:fix</code></td>
+<td><code>eslint . --fix</code> — autocorrige o que dá</td>
+</tr>
+</tbody>
+</table>
+<h2 id="tour-pelo-que-foi-gerado">Tour pelo que foi gerado</h2>
+<p>O projeto gerado é enxuto de propósito: cada arquivo existe pra <strong>demonstrar um recurso do SDK</strong> que você vai reaproveitar. Esta é a estrutura completa:</p>
+<div class="highlight"><pre><span></span><code>my-app/
+├── index.html
+├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
+├── tsconfig.json         # alias @ -&gt; ./src em "paths"
+├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── .env.example          # VITE_API_URL
+├── .gitignore
+└── src/
+    ├── main.tsx          # createRoot + "tempest-react-sdk/styles.css" + &lt;App/&gt;
+    ├── App.tsx           # &lt;AppProviders&gt; envolvendo &lt;AppRouter routes fallback/&gt;
+    ├── routes.tsx        # defineRoutes([...]) com index, login e dashboard lazy + protegido
+    ├── layouts/RootLayout.tsx   # nav (Link) + &lt;Outlet/&gt;, lê useAuth.use.isAuthenticated()
+    ├── pages/Home.tsx
+    ├── pages/Login.tsx          # fakeia uma sessão via useAuth.use.setSession() e navigate("/dashboard")
+    ├── pages/Dashboard.tsx      # export default (lazy), rota protegida
+    ├── stores/auth.ts           # createSelectors(createAuthStore&lt;User&gt;({ name: "app-auth" }))
+    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+</code></pre></div>
+<h3 id="cada-arquivo-o-recurso-do-sdk-que-ele-mostra">Cada arquivo → o recurso do SDK que ele mostra</h3>
+<table>
+<thead>
+<tr>
+<th>Arquivo</th>
+<th>Recurso do SDK demonstrado</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vite.config.ts</code></td>
+<td><code>createViteConfig</code> — config Vite pronta pro SDK</td>
+</tr>
+<tr>
+<td><code>src/App.tsx</code></td>
+<td><code>AppProviders</code> + <code>AppRouter</code> — providers e roteamento</td>
+</tr>
+<tr>
+<td><code>src/routes.tsx</code></td>
+<td><code>defineRoutes</code> com rota <code>lazy</code> + guard de autenticação</td>
+</tr>
+<tr>
+<td><code>src/stores/auth.ts</code></td>
+<td><code>createAuthStore</code> + <code>createSelectors</code> — store de auth tipada</td>
+</tr>
+<tr>
+<td><code>src/lib/api.ts</code></td>
+<td><code>createApiClient</code> + <code>createQueryKeys</code> — cliente HTTP + cache</td>
+</tr>
+</tbody>
+</table>
+<p>Vamos olhar os três mais importantes.</p>
+<h4 id="viteconfigts-createviteconfig"><code>vite.config.ts</code> → <code>createViteConfig</code></h4>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestCsp</span><span class="p">()],</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Uma chamada. O <code>createViteConfig</code> já liga o plugin de React, o alias <code>@ -&gt; ./src</code> e os defaults que o SDK espera. Veja a página <a href="../vite-config/">Vite Config</a> pra customizar. O <code>tempestCsp()</code> escreve a Content-Security-Policy no <code>index.html</code>, no dev e no build, com o <code>connect-src</code> tirado das URLs <code>VITE_*</code> do <code>.env</code> — por isso o <code>cp .env.example .env</code> do primeiro passo importa. Veja <a href="../csp/">Content-Security-Policy</a>.</p>
+<h4 id="srcapptsx-appproviders-approuter"><code>src/App.tsx</code> → <code>AppProviders</code> + <code>AppRouter</code></h4>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AppProviders</span><span class="p">,</span><span class="w"> </span><span class="nx">AppRouter</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">routes</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/routes"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">App</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">AppProviders</span><span class="w"> </span><span class="na">errorBoundary</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">fallback</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Something</span><span class="w"> </span><span class="nx">went</span><span class="w"> </span><span class="nx">wrong</span><span class="p">.&lt;/</span><span class="nt">p</span><span class="p">&gt;</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">AppRouter</span><span class="w"> </span><span class="na">routes</span><span class="o">=</span><span class="p">{</span><span class="nx">routes</span><span class="p">}</span><span class="w"> </span><span class="na">fallback</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Loading</span><span class="err">…</span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">AppProviders</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>AppProviders</code> monta numa tacada só o React Query, o error boundary, o tema e o roteador. <code>AppRouter</code> consome o array de rotas e renderiza o <code>fallback</code> enquanto rotas <code>lazy</code> carregam. Detalhes em <a href="../app-providers/">App Providers</a>.</p>
+<h4 id="srcstoresauthts-createauthstore-createselectors"><code>src/stores/auth.ts</code> → <code>createAuthStore</code> + <code>createSelectors</code></h4>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createAuthStore</span><span class="p">,</span><span class="w"> </span><span class="nx">createSelectors</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createSelectors</span><span class="p">(</span><span class="nx">createAuthStore</span><span class="o">&lt;</span><span class="nx">User</span><span class="o">&gt;</span><span class="p">({</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"app-auth"</span><span class="w"> </span><span class="p">}));</span>
+</code></pre></div>
+<p><code>createAuthStore&lt;User&gt;</code> cria uma store Zustand de autenticação persistida (<code>name: "app-auth"</code> é a chave de storage). <code>createSelectors</code> te dá acesso atômico via <code>useAuth.use.&lt;campo&gt;()</code> — é assim que <code>RootLayout.tsx</code> lê <code>useAuth.use.isAuthenticated()</code> e <code>Login.tsx</code> chama <code>useAuth.use.setSession()</code>. Mais padrões em <a href="../state/">State</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">O resto se explica sozinho</p>
+<p><code>routes.tsx</code> usa <code>defineRoutes([...])</code> com uma rota index, uma de login e um <code>dashboard</code> que é ao mesmo tempo <strong>lazy</strong> e <strong>protegido</strong> por guard. <code>lib/api.ts</code> instancia <code>createApiClient</code> com <code>baseURL</code>/<code>getToken</code>/<code>onUnauthorized</code> e exporta <code>createQueryKeys</code> pra você organizar as chaves de cache.</p>
+</div>
+<h2 id="modo-pwa-pwa">Modo PWA (<code>--pwa</code>)</h2>
+<p>Quer que o app já nasça <strong>instalável</strong> (ícone na home screen), capaz de <strong>emitir notificações web push</strong> e <strong>funcionar offline</strong> (app shell + cache)? Passe a flag <code>--pwa</code>:</p>
+<div class="highlight"><pre><span></span><code>npx<span class="w"> </span>-p<span class="w"> </span>tempest-react-sdk<span class="w"> </span>create-tempest-app<span class="w"> </span>.<span class="w"> </span>--pwa
+</code></pre></div>
+<p>A flag funciona nos dois modos (pasta nova <strong>e</strong> <code>.</code>/merge). Ela <strong>sobrepõe</strong> o template PWA por cima do base: tudo do app normal continua igual, mais alguns arquivos novos e alguns sobrescritos.</p>
+<div class="admonition info">
+<p class="admonition-title">Sem <code>vite-plugin-pwa</code>, sem Workbox</p>
+<p>Instalação, push <strong>e</strong> o cache offline são montados com os próprios helpers do SDK (<code>tempest-react-sdk/sw</code> + <code>tempest-react-sdk/vite</code>) e empacotados por um build dedicado. Nada de dependência extra de PWA — o app PWA usa exatamente as mesmas deps do app base. (Comparação completa vs <code>vite-plugin-pwa</code> mais abaixo.)</p>
+</div>
+<h3 id="o-que-a-flag-adiciona">O que a flag adiciona</h3>
+<div class="highlight"><pre><span></span><code>my-app/
+├── index.html                  # (sobrescrito) link do manifest + theme-color + metas apple
+├── vite.config.ts              # (sobrescrito) createViteConfig + tempestPwaIcons + Manifest + DevSw + Csp
+├── vite.sw.config.ts           # build dedicado que empacota src/sw.ts -&gt; dist/sw.js
+├── public/
+│   ├── manifest.webmanifest    # metadados de instalação (aponta pros PNGs gerados)
+│   └── icon.svg                # ícone-fonte (troque pelo seu — os PNGs saem daqui)
+└── src/
+    ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── main.tsx                # (sobrescrito) registra /sw.js em dev e produção
+    ├── vite-env.d.ts           # (sobrescrito) tipa VITE_VAPID_PUBLIC_KEY
+    └── pages/Dashboard.tsx     # (sobrescrito) botão Instalar + toggle de notificações
+</code></pre></div>
+<p>O <code>package.json</code> também é ajustado: o script <code>build</code> passa a empacotar o SW (<code>tsc --noEmit &amp;&amp; vite build &amp;&amp; npm run build:sw</code>) e ganha um <code>build:sw</code>; <code>sharp</code> entra como <code>devDependency</code> (gera os ícones). O build emite <code>dist/precache-manifest.json</code> (lista de assets pro cache offline) via <code>tempestPwaManifest()</code> e o set de ícones PNG (<code>dist/icons/*.png</code> + <code>apple-touch-icon.png</code>) via <code>tempestPwaIcons()</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Em merge, seus arquivos são preservados</p>
+<p>No modo <code>.</code> (mesclar em projeto existente), a CLI <strong>nunca sobrescreve um arquivo seu</strong> — só os que ela mesma acabou de gerar. Se você já tinha um <code>index.html</code>, ele é pulado e reportado, e a parte PWA dele fica por sua conta.</p>
+</div>
+<h3 id="as-cinco-pecas">As cinco peças</h3>
+<h4 id="1-instalacao-usebeforeinstallprompt">1. Instalação → <code>useBeforeInstallPrompt</code></h4>
+<p>O <code>index.html</code> linka o <code>manifest.webmanifest</code>, e o <code>Dashboard.tsx</code> mostra um botão <strong>Instalar</strong> só quando o navegador oferece o prompt:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">install</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useBeforeInstallPrompt</span><span class="p">();</span>
+<span class="c1">// ...</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nx">install</span><span class="p">.</span><span class="nx">installable</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">install</span><span class="p">.</span><span class="nx">prompt</span><span class="p">()}&gt;</span><span class="nx">Install</span><span class="w"> </span><span class="nx">app</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h4 id="2-service-worker-tempest-react-sdksw">2. Service worker → <code>tempest-react-sdk/sw</code></h4>
+<p>O <code>src/sw.ts</code> é só cola em cima dos helpers do SDK:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">/// &lt;reference lib="webworker" /&gt;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">installNotificationClickHandler</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">installPushHandler</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">installSkipWaitingListener</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installPushHandler</span><span class="p">({</span><span class="w"> </span><span class="nx">defaultTitle</span><span class="o">:</span><span class="w"> </span><span class="s2">"Notificação"</span><span class="p">,</span><span class="w"> </span><span class="nx">defaultIcon</span><span class="o">:</span><span class="w"> </span><span class="s2">"/icon.svg"</span><span class="w"> </span><span class="p">});</span>
+<span class="nx">installNotificationClickHandler</span><span class="p">();</span>
+<span class="nx">installSkipWaitingListener</span><span class="p">();</span>
+</code></pre></div>
+<p>O <code>vite.sw.config.ts</code> empacota esse arquivo (e os helpers que ele importa) num <strong>service worker clássico</strong> em <code>dist/sw.js</code>, e o <code>main.tsx</code> registra ele via <code>registerServiceWorker</code>. Em <strong>dev</strong>, o plugin <code>tempestPwaDevSw()</code> compila o <code>sw.ts</code> na hora e serve em <code>/sw.js</code> — então push e cache funcionam também no <code>npm run dev</code> (sem ele, o SW só existiria no build). A compilação passa por <strong>um</strong> contexto incremental do esbuild, criado na primeira requisição: o browser rebusca o script do worker a cada navegação e nas checagens de update dele, então bundle a frio por requisição seria bundle a frio o dia inteiro. Veja os detalhes dos helpers em <a href="../push/">Web Push</a>.</p>
+<h4 id="3-web-push-usepushsubscription">3. Web push → <code>usePushSubscription</code></h4>
+<p>O <code>Dashboard.tsx</code> liga o toggle de notificações ao hook, lendo a chave VAPID do <code>.env</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">push</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">usePushSubscription</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">vapidPublicKey</span><span class="o">:</span><span class="w"> </span><span class="kt">import.meta.env.VITE_VAPID_PUBLIC_KEY</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">onSubscribe</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">subscription</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// mande a subscription pro seu backend entregar os pushes</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">"/webpush/subscribe"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">subscription</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nx">onUnsubscribe</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="ow">delete</span><span class="p">(</span><span class="s2">"/webpush/my"</span><span class="p">);</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">});</span>
+</code></pre></div>
+<h4 id="4-offline-installprecache-installruntimecache">4. Offline → <code>installPrecache</code> + <code>installRuntimeCache</code></h4>
+<p>O <code>vite.config.ts</code> adiciona o plugin <code>tempestPwaManifest()</code>, que emite um <code>dist/precache-manifest.json</code> com todos os assets do build (o equivalente sem-dependência ao <code>__WB_MANIFEST</code> do Workbox). No <code>sw.ts</code>, dois helpers consomem isso:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installPrecache</span><span class="p">,</span><span class="w"> </span><span class="nx">installRuntimeCache</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="c1">// Rotas específicas PRIMEIRO (ganham do catch-all do precache):</span>
+<span class="nx">installRuntimeCache</span><span class="p">([</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">pathname</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s2">"/api/"</span><span class="p">),</span>
+<span class="w">    </span><span class="nx">strategy</span><span class="o">:</span><span class="w"> </span><span class="s2">"network-first"</span><span class="p">,</span><span class="w"> </span><span class="c1">// ou "cache-first" / "stale-while-revalidate"</span>
+<span class="w">    </span><span class="nx">cacheName</span><span class="o">:</span><span class="w"> </span><span class="s2">"tempest-api"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">networkTimeoutSeconds</span><span class="o">:</span><span class="w"> </span><span class="kt">5</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">maxEntries</span><span class="o">:</span><span class="w"> </span><span class="kt">50</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">maxAgeSeconds</span><span class="o">:</span><span class="w"> </span><span class="kt">60</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">5</span><span class="p">,</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">]);</span>
+
+<span class="c1">// App shell por último — abre offline:</span>
+<span class="nx">installPrecache</span><span class="p">({</span><span class="w"> </span><span class="nx">navigateFallback</span><span class="o">:</span><span class="w"> </span><span class="s2">"/index.html"</span><span class="p">,</span><span class="w"> </span><span class="nx">navigateFallbackDenylist</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="sr">/^\/api\//</span><span class="p">]</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+<ul>
+<li><strong><code>installPrecache</code></strong> cacheia o app shell no <code>install</code>, serve assets cache-first, e devolve o <code>navigateFallback</code> (SPA) quando a navegação acontece offline. Versiona o cache pelo <code>version</code> do manifest e limpa versões antigas no <code>activate</code>.</li>
+<li><strong><code>installRuntimeCache</code></strong> aplica estratégias por rota (cache-first / network-first / stale-while-revalidate) com <code>maxEntries</code> e <code>maxAgeSeconds</code>.</li>
+</ul>
+<h4 id="5-icones-tempestpwaicons">5. Ícones → <code>tempestPwaIcons</code></h4>
+<p>O <code>vite.config.ts</code> adiciona o plugin <code>tempestPwaIcons({ source: "public/icon.svg" })</code>, que no build rasteriza <strong>um único SVG-fonte</strong> no set completo de ícones — o equivalente sem-dependência ao <code>@vite-pwa/assets-generator</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tempestPwaIcons</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+
+<span class="nx">tempestPwaIcons</span><span class="p">({</span><span class="w"> </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="s2">"public/icon.svg"</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// emite: dist/icons/icon-192.png, icon-512.png, maskable-512.png, dist/apple-touch-icon.png</span>
+</code></pre></div>
+<p>A rasterização usa <strong><code>sharp</code></strong> (já incluído como <code>devDependency</code> do template). O <code>manifest.webmanifest</code> aponta pros PNGs gerados, e o <code>tempestPwaManifest()</code> os inclui no precache automaticamente. Trocar o ícone do app = trocar o <code>public/icon.svg</code>.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>sharp</code> é opcional</p>
+<p>O plugin importa <code>sharp</code> de forma preguiçosa: se ele não estiver instalado, o build <strong>não falha</strong> — só emite um aviso e pula a geração. O template já traz <code>sharp</code> como devDep, então funciona out-of-the-box.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">Push e offline só valem num build de produção</p>
+<p>A geração de ícones acontece <strong>em tempo de build</strong>, e o app shell só é precacheado depois de <code>npm run build</code>. No <code>npm run dev</code> o <code>tempestPwaDevSw()</code> serve o SW (push + runtime cache funcionam), mas o precache offline e os PNGs só existem no build. Pra testar instalação + offline completos, rode <code>npm run build &amp;&amp; npm run preview</code> (e no DevTools › Network marque <strong>Offline</strong> pra ver o app shell servir).</p>
+</div>
+<h3 id="-pwa-vs-vite-plugin-pwa"><code>--pwa</code> vs <code>vite-plugin-pwa</code></h3>
+<p>O <code>--pwa</code> agora cobre o mesmo terreno do <code>vite-plugin-pwa</code> para o caso comum, sem dependência de runtime nova:</p>
+<table>
+<thead>
+<tr>
+<th>Recurso</th>
+<th><code>vite-plugin-pwa</code> (Workbox)</th>
+<th><code>--pwa</code> (SDK)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Manifest + instalável</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Install prompt</td>
+<td>manual</td>
+<td>✅ <code>useBeforeInstallPrompt</code></td>
+</tr>
+<tr>
+<td>Web push + <code>notificationclick</code></td>
+<td>você escreve</td>
+<td>✅ helpers do SDK</td>
+</tr>
+<tr>
+<td>Update flow (skip-waiting)</td>
+<td>✅</td>
+<td>✅ <code>registerServiceWorker</code></td>
+</tr>
+<tr>
+<td>Precache do app shell</td>
+<td>✅ (<code>__WB_MANIFEST</code>)</td>
+<td>✅ <code>tempestPwaManifest</code> + <code>installPrecache</code></td>
+</tr>
+<tr>
+<td>Runtime caching (cache/network/SWR)</td>
+<td>✅</td>
+<td>✅ <code>installRuntimeCache</code></td>
+</tr>
+<tr>
+<td><code>navigateFallback</code> (SPA offline)</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Limpeza de caches antigos</td>
+<td>✅</td>
+<td>✅ (versão no <code>activate</code>)</td>
+</tr>
+<tr>
+<td>Geração automática de ícones</td>
+<td>✅ (sharp)</td>
+<td>✅ <code>tempestPwaIcons</code> (sharp, opcional)</td>
+</tr>
+<tr>
+<td>SW em dev</td>
+<td>✅ (<code>devOptions</code>)</td>
+<td>✅ <code>tempestPwaDevSw</code> (esbuild)</td>
+</tr>
+<tr>
+<td>Background Sync</td>
+<td>✅ (<code>BackgroundSyncPlugin</code>)</td>
+<td>✅ <code>installBackgroundSync</code></td>
+</tr>
+<tr>
+<td>Range requests (mídia)</td>
+<td>✅ (<code>RangeRequestsPlugin</code>)</td>
+<td>✅ <code>installRuntimeCache({ rangeRequests })</code></td>
+</tr>
+<tr>
+<td>Splash screens (Apple)</td>
+<td>✅ (assets generator)</td>
+<td>✅ <code>tempestPwaIcons({ appleSplash })</code></td>
+</tr>
+</tbody>
+</table>
+<p>Cobertura total do caso comum. Pra extremos muito específicos (range requests parciais de precache, estratégias Workbox exóticas), <code>vite-plugin-pwa</code> ainda existe e pode ser passado via <code>plugins: [...]</code> no <code>createViteConfig</code>.</p>
+<h3 id="recursos-avancados">Recursos avançados</h3>
+<h4 id="background-sync-mutacoes-offline-que-reenviam-sozinhas">Background Sync — mutações offline que reenviam sozinhas</h4>
+<p><code>installBackgroundSync</code> enfileira POST/PUT/PATCH/DELETE que falham offline (IndexedDB) e os <strong>reenvia quando a conexão volta</strong> — via Background Sync API onde existe, e oportunisticamente (no próximo request) onde não:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installBackgroundSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installBackgroundSync</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">self</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">pathname</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s2">"/api/"</span><span class="p">),</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>O fetch original ainda <strong>rejeita</strong> no momento (seu app mostra estado offline), mas a requisição é replayada depois. <code>maxRetentionMinutes</code> descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).</p>
+<h4 id="range-requests-seek-de-audiovideo-offline">Range requests — seek de áudio/vídeo offline</h4>
+<p>Marque uma rota com <code>rangeRequests: true</code> pra servir <code>206 Partial Content</code> fatiando o recurso cacheado — sem isso, mídia não dá seek offline:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">installRuntimeCache</span><span class="p">([</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="o">/</span><span class="err">\</span><span class="p">.(</span><span class="nx">mp3</span><span class="o">|</span><span class="nx">mp4</span><span class="o">|</span><span class="nx">webm</span><span class="p">)</span><span class="nx">$</span><span class="o">/</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">url</span><span class="p">.</span><span class="nx">pathname</span><span class="p">),</span>
+<span class="w">    </span><span class="nx">strategy</span><span class="o">:</span><span class="w"> </span><span class="s2">"cache-first"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">cacheName</span><span class="o">:</span><span class="w"> </span><span class="s2">"tempest-media"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">rangeRequests</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">]);</span>
+</code></pre></div>
+<p>O helper <code>createPartialResponse(request, response)</code> também é exportado pra uso manual.</p>
+<h4 id="splash-screens-apple-telas-de-abertura-no-ios">Splash screens (Apple) — telas de abertura no iOS</h4>
+<p><code>tempestPwaIcons({ appleSplash: true })</code> gera as launch images por device (iPhone/iPad, portrait) e injeta os <code>&lt;link rel="apple-touch-startup-image" media=...&gt;</code> no <code>index.html</code>. Passe um array pra customizar os tamanhos:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">tempestPwaIcons</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">source</span><span class="o">:</span><span class="w"> </span><span class="s2">"public/icon.svg"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">appleSplash</span><span class="o">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="kt">390</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="kt">844</span><span class="p">,</span><span class="w"> </span><span class="nx">ratio</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">}],</span>
+<span class="p">});</span>
+</code></pre></div>
+<h3 id="recap-do-modo-pwa">Recap do modo PWA</h3>
+<p><code>--pwa</code> te entrega manifest + service worker + push + <strong>cache offline</strong> + <strong>ícones gerados</strong> + <strong>SW em dev</strong> + <strong>background sync</strong> + <strong>range requests</strong> + <strong>splash screens</strong>, já cabeados sobre o mesmo app base, usando <code>tempest-react-sdk/sw</code> (<code>installPushHandler</code>, <code>installPrecache</code>, <code>installRuntimeCache</code>, <code>installBackgroundSync</code>, <code>createPartialResponse</code>), <code>tempest-react-sdk/vite</code> (<code>tempestPwaManifest</code>, <code>tempestPwaIcons</code>, <code>tempestPwaDevSw</code>), <code>usePushSubscription</code> e <code>useBeforeInstallPrompt</code> — sem <code>vite-plugin-pwa</code>. Gere o VAPID no backend, preencha <code>VITE_VAPID_PUBLIC_KEY</code> no <code>.env</code>, troque o <code>public/icon.svg</code>, e teste com <code>npm run build &amp;&amp; npm run preview</code>. 🚀</p>
+<h2 id="proximos-passos">Próximos passos</h2>
+<p>Com o app rodando, aqui está como crescer a partir dele:</p>
+<h3 id="1-adicione-uma-pagina">1. Adicione uma página</h3>
+<p>Crie <code>src/pages/Sobre.tsx</code> e registre a rota em <code>src/routes.tsx</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defineRoutes</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">routes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">defineRoutes</span><span class="p">([</span>
+<span class="w">  </span><span class="c1">// ...rotas existentes</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"/sobre"</span><span class="p">,</span><span class="w"> </span><span class="nx">element</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Sobre</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="p">]);</span>
+</code></pre></div>
+<h3 id="2-adicione-uma-store">2. Adicione uma store</h3>
+<p>Pra estado que não é de autenticação, use <code>createStore</code> do SDK:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">useCounter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createStore</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">count</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span><span class="w"> </span><span class="nx">inc</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span><span class="p">((</span><span class="nx">set</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
+<span class="w">  </span><span class="nx">count</span><span class="o">:</span><span class="w"> </span><span class="kt">0</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">inc</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">((</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">count</span><span class="o">:</span><span class="w"> </span><span class="kt">state.count</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="w"> </span><span class="p">})),</span>
+<span class="p">}));</span>
+</code></pre></div>
+<h3 id="3-busque-dados-com-react-query-querykeys-api">3. Busque dados com React Query + queryKeys + api</h3>
+<p>Combine o cliente HTTP, as query keys e o <code>useQuery</code> (já disponível pelo <code>AppProviders</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">api</span><span class="p">,</span><span class="w"> </span><span class="nx">queryKeys</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/api"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">UserList</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">data</span><span class="p">,</span><span class="w"> </span><span class="nx">isLoading</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">queryKeys.users.all</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"/users"</span><span class="p">),</span>
+<span class="w">  </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isLoading</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Carregando</span><span class="err">…</span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">pre</span><span class="p">&gt;{</span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">data</span><span class="p">,</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="mf">2</span><span class="p">)}&lt;/</span><span class="nt">pre</span><span class="p">&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Aprofunde em <a href="../query/">Query</a> e <a href="../http/">HTTP</a>.</p>
+<h2 id="recap">Recap</h2>
+<ul>
+<li>A CLI é o <strong><code>bin</code> do próprio <code>tempest-react-sdk</code></strong> (<code>create-tempest-app</code>), com um <code>template/</code> embutido no tarball — versionada junto com o SDK, não um pacote separado. ✅</li>
+<li>Caminho recomendado: <code>mkdir my-app &amp;&amp; cd my-app &amp;&amp; npx -p tempest-react-sdk create-tempest-app .</code> — o <code>.</code> (igual a rodar <strong>sem argumento</strong>) gera no diretório atual, <strong>preserva arquivos existentes</strong> e tira o nome do projeto da pasta. Use <code>@X</code> no <code>-p</code> pra fixar a versão do SDK.</li>
+<li>Modo com nome: <code>npx -p tempest-react-sdk create-tempest-app my-app</code> cria a pasta, mas <strong>aborta</strong> se ela já existir e não estiver vazia. A CLI <strong>não pergunta</strong> nome de projeto em nenhum modo.</li>
+<li>Projeto existente: <code>npm install tempest-react-sdk</code> e <code>npx create-tempest-app .</code> (sem <code>-p</code>, o <code>bin</code> vem do <code>node_modules</code>) — o <code>package.json</code> tem scripts/deps <strong>mesclados</strong> (<code>tempest-react-sdk</code> fixado na versão do SDK).</li>
+<li><code>npm install &amp;&amp; cp .env.example .env &amp;&amp; npm run dev</code> te leva a <strong><a href="http://127.0.0.1:5173">http://127.0.0.1:5173</a></strong> com providers, rotas e auth funcionando.</li>
+<li>Cada arquivo gerado <strong>demonstra um recurso</strong>: <code>createViteConfig</code>, <code>AppProviders</code> + <code>AppRouter</code>, <code>defineRoutes</code> (lazy + guard), <code>createAuthStore</code> + <code>createSelectors</code>, <code>createApiClient</code> + <code>createQueryKeys</code>.</li>
+<li>Pra crescer: adicione páginas em <code>pages/</code> + entradas em <code>routes.tsx</code>, crie stores com <code>createStore</code>, e busque dados com <code>useQuery</code> + <code>queryKeys</code> + <code>api</code>.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar ao topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../tutorial/auth-flow/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Fluxo de autenticação">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Fluxo de autenticação
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../cli/" class="md-footer__link md-footer__link--next" aria-label="Próximo: CLI tempest">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                CLI tempest
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "Mais 1 nesta p\u00e1gina", "search.result.more.other": "Mais # nesta p\u00e1gina", "search.result.none": "Nenhum resultado encontrado", "search.result.one": "1 resultado encontrado", "search.result.other": "# resultados encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

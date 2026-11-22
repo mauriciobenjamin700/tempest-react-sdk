@@ -1,0 +1,5060 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/components/overlay/">
+      
+      
+        <link rel="prev" href="../navigation/">
+      
+      
+        <link rel="next" href="../layout/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Overlay - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#overlay" class="md-skip">
+          Ir para o conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href="../.." title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Overlay
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Selecione o idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../../en/components/overlay/" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Compartilhar" aria-label="Compartilhar" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando a pesquisa
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Fundamentos da Web
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Comece aqui
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Design de Software
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  Componentes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Módulos
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Receitas
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Projeto
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Fundamentos da Web
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundamentos da Web
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página existe
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página existe
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: estrutura e semântica
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulário e acessibilidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página parece
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página parece
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: seletor, cascata, especificidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Caixa, fluxo, flex e grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties e tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página reage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página reage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: valor, referência, escopo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Assíncrono: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Módulos, npm e o bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Antes do tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Antes do tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: o mínimo que o SDK usa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: componente, estado, efeito
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comece aqui
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Comece aqui
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Buscando dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Ferramentas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Ferramentas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI tempest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Design de Software
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Design de Software
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Desenho do sistema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Desenho do sistema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camadas de um app frontend
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estrutura de pastas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Onde mora cada estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Escrevendo o código
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Escrevendo o código
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pensando em componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Limites objetivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tipagem forte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustentando
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustentando
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estratégia de testes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-padrões
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checklist de revisão
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Componentes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Componentes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Catálogo de componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Entrada de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#modal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modal
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drawer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drawer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bottomsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      BottomSheet
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modalsmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      ModalsManager
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lightbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lightbox
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tela-cheia" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tela cheia
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a11y-geral" class="md-nav__link">
+    <span class="md-ellipsis">
+      A11y geral
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A11y geral">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-foco-fica-dentro-paineis-em-portal-incluidos" class="md-nav__link">
+    <span class="md-ellipsis">
+      O foco fica dentro, painéis em portal incluídos
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escape-fecha-uma-camada-por-vez" class="md-nav__link">
+    <span class="md-ellipsis">
+      Escape fecha uma camada por vez
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resumo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resumo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identidade & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telas de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & avançados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & avançados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essenciais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação & conteúdo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados avançados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conversa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Módulos
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Módulos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral do pacote
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fundação de app
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundação de app
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hooks utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Integrações
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrações
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (áudio Opus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocalização
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mapa do Brasil (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pagamentos, fiscal & contato BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix e cartão, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upload resumível (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Áudio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Captura de dispositivo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural (RNNoise 48 kHz)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imagens (processamento)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Formulários
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Estilo & Tema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Estilo & Tema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estilos & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Observabilidade
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observabilidade
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Receitas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Receitas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Integração FastAPI (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Projeto
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Projeto
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#modal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modal
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#drawer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Drawer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bottomsheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      BottomSheet
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#modalsmanager" class="md-nav__link">
+    <span class="md-ellipsis">
+      ModalsManager
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#lightbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      Lightbox
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tela-cheia" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tela cheia
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a11y-geral" class="md-nav__link">
+    <span class="md-ellipsis">
+      A11y geral
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A11y geral">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-foco-fica-dentro-paineis-em-portal-incluidos" class="md-nav__link">
+    <span class="md-ellipsis">
+      O foco fica dentro, painéis em portal incluídos
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#escape-fecha-uma-camada-por-vez" class="md-nav__link">
+    <span class="md-ellipsis">
+      Escape fecha uma camada por vez
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resumo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resumo
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/components/overlay.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/components/overlay.md" title="Ver fonte desta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="overlay">Overlay</h1>
+<p>Componentes de <strong>overlay</strong> interrompem o fluxo principal para focar a atenção numa tarefa isolada — eles aparecem <em>por cima</em> da página, com backdrop, e capturam o foco até serem fechados. Use-os quando o usuário precisa lidar com algo (editar um registro, confirmar, escolher uma opção) sem perder o contexto da tela de fundo, mas sem poder ignorá-lo.</p>
+<p>Os três compartilham o mesmo motor (portal para <code>document.body</code> + backdrop + Esc + focus trap + scroll lock) e diferem só na ancoragem e na vocação:</p>
+<ul>
+<li><code>Modal</code> — centralizado, propósito geral.</li>
+<li><code>Drawer</code> — ancorado a uma borda, painel lateral.</li>
+<li><code>BottomSheet</code> — ancorado embaixo, mobile-first.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Tudo é portalado</p>
+<p>Os três renderizam em <code>document.body</code>, fora da árvore do componente que os invoca. Isso evita problemas de <code>overflow: hidden</code> / <code>z-index</code> de ancestrais, mas significa que estilos com escopo no pai não vazam para dentro do overlay.</p>
+</div>
+<h2 id="modal"><code>Modal</code></h2>
+<!-- gallery:modal -->
+<p><a href="../../gallery/"><img alt="Modal &amp; Toast na gallery" src="../../assets/gallery/modal.webp" /></a></p>
+<p><em>Seção <code>modal</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: um fluxo central que pausa o contexto — criar/editar um registro, um wizard curto, um form que exige atenção total.</p>
+</blockquote>
+<p>Portal + backdrop + Esc + focus trap + scroll lock.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">FormActions</span><span class="p">,</span><span class="w"> </span><span class="nx">Modal</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">EditarPerfil</span><span class="p">({</span><span class="w"> </span><span class="nx">save</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">save</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Modal</span>
+<span class="w">            </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Editar perfil"</span>
+<span class="w">            </span><span class="na">size</span><span class="o">=</span><span class="s">"md"</span>
+<span class="w">            </span><span class="na">footer</span><span class="o">=</span><span class="p">{</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">FormActions</span><span class="p">&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}&gt;</span>
+<span class="w">                        </span><span class="nx">Cancelar</span>
+<span class="w">                    </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">save</span><span class="p">}&gt;</span><span class="nx">Salvar</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;/</span><span class="nt">FormActions</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">O</span><span class="w"> </span><span class="nx">formulário</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">perfil</span><span class="w"> </span><span class="nx">entra</span><span class="w"> </span><span class="nx">aqui</span><span class="p">.&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Modal</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onClose</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>"sm" \| "md" \| "lg" \| "xl" \| "2xl" \| "3xl"</code></td>
+<td><code>"md"</code></td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>fullscreen</code></td>
+<td><code>boolean</code> (ocupa 100dvh independente do size)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>fullscreenOnMobile</code></td>
+<td><code>boolean</code> (vira fullscreen abaixo de 640px)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>closeOnBackdrop</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>closeOnEsc</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Safe-area em fullscreen</p>
+<p>Em <code>fullscreen</code> o Modal aplica <code>env(safe-area-inset-*)</code> em todos os edges, respeitando notch e barra de gestos. Use <code>fullscreenOnMobile</code> para um modal denso virar tela cheia abaixo de 640px em vez de espremer num cartão minúsculo.</p>
+</div>
+<p><strong>A11y</strong>: <code>role="dialog"</code> + <code>aria-modal="true"</code> + <code>aria-labelledby</code> quando <code>title</code> é string. O foco fica preso dentro do dialog e volta ao trigger ao fechar.</p>
+<h2 id="drawer"><code>Drawer</code></h2>
+<!-- gallery:navigation -->
+<p><a href="../../gallery/"><img alt="AppBar · Tabs · Tooltip · Drawer na gallery" src="../../assets/gallery/navigation.webp" /></a></p>
+<p><em>Seção <code>navigation</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: um painel lateral persistente que complementa a tela de fundo — filtros, detalhes de um item, navegação secundária. Encosta numa borda em vez de centralizar.</p>
+</blockquote>
+<p>Side drawer. <code>placement: left/right/top/bottom</code>. Auto-switch pra bottom-sheet em mobile via <code>mobilePlacement</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Drawer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">GavetaDeFiltros</span><span class="p">({</span><span class="w"> </span><span class="nx">apply</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">apply</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Drawer</span>
+<span class="w">            </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">            </span><span class="na">placement</span><span class="o">=</span><span class="s">"right"</span>
+<span class="w">            </span><span class="na">mobilePlacement</span><span class="o">=</span><span class="s">"bottom"</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Filtros"</span>
+<span class="w">            </span><span class="na">showHandle</span>
+<span class="w">            </span><span class="na">footer</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">apply</span><span class="p">}&gt;</span><span class="nx">Aplicar</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
+<span class="w">        </span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">O</span><span class="w"> </span><span class="nx">formulário</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">perfil</span><span class="w"> </span><span class="nx">entra</span><span class="w"> </span><span class="nx">aqui</span><span class="p">.&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Drawer</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onClose</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>placement</code></td>
+<td><code>"left" \| "right" \| "top" \| "bottom"</code></td>
+<td><code>"right"</code></td>
+</tr>
+<tr>
+<td><code>mobilePlacement</code></td>
+<td><code>"left" \| "right" \| "top" \| "bottom"</code> (override em mobile)</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>showHandle</code></td>
+<td><code>boolean</code> (drag indicator estilo bottom-sheet)</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>hideCloseButton</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>closeOnBackdrop</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>closeOnEsc</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Drawer dimensiona pelo conteúdo, não por <code>size</code></p>
+<p>Diferente do <code>Modal</code>, o <code>Drawer</code> não tem prop <code>size</code> — a largura/altura segue o conteúdo (e o CSS do placement). Para um painel mobile-first com largura total e altura limitada, prefira <code>BottomSheet</code> ou <code>mobilePlacement="bottom"</code>.</p>
+</div>
+<h2 id="bottomsheet"><code>BottomSheet</code></h2>
+<!-- gallery:feedback-extra -->
+<p><a href="../../gallery/"><img alt="Alert · Timeline · BottomSheet na gallery" src="../../assets/gallery/feedback-extra.webp" /></a></p>
+<p><em>Seção <code>feedback-extra</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: ações ou escolhas mobile-first que sobem do rodapé — menu de compartilhar, opções de um item, seletor curto. É o padrão nativo de iOS/Android.</p>
+</blockquote>
+<p>Modal ancorado na borda inferior — slide-up via animation. Otimizado pra mobile.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BottomSheet</span><span class="p">,</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Stack</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Link</span><span class="p">,</span><span class="w"> </span><span class="nx">Mail</span><span class="p">,</span><span class="w"> </span><span class="nx">MessageCircle</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Compartilhar</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">BottomSheet</span><span class="w"> </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span><span class="w"> </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Compartilhar"</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Stack</span><span class="w"> </span><span class="na">gap</span><span class="o">=</span><span class="p">{</span><span class="mf">3</span><span class="p">}&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">MessageCircle</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}&gt;</span><span class="nx">WhatsApp</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Mail</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}&gt;</span><span class="nx">Email</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Link</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}&gt;</span><span class="nx">Copiar</span><span class="w"> </span><span class="nx">link</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Stack</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">BottomSheet</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onClose</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>showHandle</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>dismissOnBackdrop</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
+<td><code>dismissOnEsc</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Safe-area automática</p>
+<p>O <code>BottomSheet</code> adiciona <code>padding-bottom</code> respeitando <code>env(safe-area-inset-bottom)</code>, então os controles não ficam escondidos atrás da barra de gestos em iPhones/Androids modernos.</p>
+</div>
+<p><strong>Diferença vs <code>Drawer</code></strong>: BottomSheet é sempre slide-up + max-height 90dvh + drag handle. Use <code>Drawer</code> quando precisa de placement variável (lateral/topo) ou de comportamento diferente entre desktop e mobile.</p>
+<div class="admonition warning">
+<p class="admonition-title">Cuidado ao desligar <code>closeOnBackdrop</code>/<code>dismissOnBackdrop</code></p>
+<p>Desabilitar o dismiss por backdrop ou Esc prende o usuário no overlay até concluir a tarefa. Faça isso só em forms verdadeiramente críticos (perda de dados) — caso contrário sempre ofereça uma saída clara, ou a navegação por teclado vira uma armadilha.</p>
+</div>
+<h2 id="modalsmanager"><code>ModalsManager</code></h2>
+<blockquote>
+<p><strong>Quando usar</strong>: quando você quer abrir modais e confirmações de forma <strong>imperativa</strong> — direto de um handler, sem montar <code>&lt;Modal open={...}&gt;</code> controlado por estado local em cada lugar. Ideal para confirmações de exclusão e diálogos pontuais.</p>
+</blockquote>
+<p><code>&lt;ModalsProvider&gt;</code> monta uma vez perto da raiz e gerencia uma pilha de modais; <code>useModals()</code> expõe a API imperativa sobre os componentes <code>Modal</code> e <code>ConfirmDialog</code> já existentes.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">encodeIdSegment</span><span class="p">,</span><span class="w"> </span><span class="nx">ModalsProvider</span><span class="p">,</span><span class="w"> </span><span class="nx">useModals</span><span class="p">,</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="c1">// raiz do app</span>
+<span class="p">&lt;</span><span class="nt">ModalsProvider</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ModalsProvider</span><span class="p">&gt;;</span>
+
+<span class="c1">// em qualquer componente abaixo do provider</span>
+<span class="kd">function</span><span class="w"> </span><span class="nx">DeleteButton</span><span class="p">({</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">modals</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useModals</span><span class="p">();</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Button</span>
+<span class="w">      </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span>
+<span class="w">      </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">        </span><span class="nx">modals</span><span class="p">.</span><span class="nx">confirm</span><span class="p">({</span>
+<span class="w">          </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Excluir item"</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="s2">"Esta ação não pode ser desfeita. Continuar?"</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">confirmLabel</span><span class="o">:</span><span class="w"> </span><span class="s2">"Excluir"</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">          </span><span class="nx">onConfirm</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/items/</span><span class="si">${</span><span class="nx">encodeIdSegment</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">"DELETE"</span><span class="w"> </span><span class="p">});</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">        </span><span class="p">})</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">&gt;</span>
+<span class="w">      </span><span class="nx">Excluir</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th><code>useModals()</code></th>
+<th>Assinatura</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>open</code></td>
+<td><code>(options: OpenModalOptions) =&gt; string</code></td>
+<td>Empilha um modal de conteúdo; retorna o id.</td>
+</tr>
+<tr>
+<td><code>confirm</code></td>
+<td><code>(options: ConfirmModalOptions) =&gt; string</code></td>
+<td>Empilha um <code>ConfirmDialog</code>; retorna o id.</td>
+</tr>
+<tr>
+<td><code>close</code></td>
+<td><code>(id: string) =&gt; void</code></td>
+<td>Remove o modal com aquele id.</td>
+</tr>
+<tr>
+<td><code>closeAll</code></td>
+<td><code>() =&gt; void</code></td>
+<td>Remove todos os modais da pilha.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">Construído sobre os componentes existentes</p>
+<p><code>open</code> renderiza um <code>Modal</code> e <code>confirm</code> renderiza um <code>ConfirmDialog</code> — você herda focus trap, scroll lock, Esc e backdrop sem configurar nada. O <code>onConfirm</code> pode ser <code>async</code>: o dialog mostra <code>loading</code> até a promise resolver e fecha sozinho ao terminar.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Precisa do <code>&lt;ModalsProvider&gt;</code> acima</p>
+<p><code>useModals()</code> lança um erro se chamado fora de um <code>&lt;ModalsProvider&gt;</code>. Monte o provider uma única vez perto da raiz do app.</p>
+</div>
+<h2 id="lightbox"><code>Lightbox</code></h2>
+<!-- gallery:capture-media -->
+<p><a href="../../gallery/"><img alt="SignaturePad · Lightbox · AvatarGroup na gallery" src="../../assets/gallery/capture-media.webp" /></a></p>
+<p><em>Seção <code>capture-media</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: visualizar foto em tela cheia com navegação — galeria de imóvel, anexos de uma ocorrência, fotos de vistoria.</p>
+</blockquote>
+<p>Overlay <code>role="dialog" aria-modal</code> com foco preso dentro e rolagem da página travada. Só a imagem atual é montada; as vizinhas são <strong>pré-carregadas</strong> via <code>Image()</code>, então apertar <code>→</code> não pisca um quadro vazio.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Lightbox</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">GaleriaDaVistoria</span><span class="p">({</span><span class="w"> </span><span class="nx">fotos</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">fotos</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">descricao</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}[]</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">aberto</span><span class="p">,</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">indice</span><span class="p">,</span><span class="w"> </span><span class="nx">setIndice</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="mf">0</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="na">className</span><span class="o">=</span><span class="s">"tempest-grid-auto"</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">{</span><span class="nx">fotos</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">foto</span><span class="p">,</span><span class="w"> </span><span class="nx">i</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">          </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">foto</span><span class="p">.</span><span class="nx">url</span><span class="p">}</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">"button"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">setIndice</span><span class="p">(</span><span class="nx">i</span><span class="p">);</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">img</span><span class="w"> </span><span class="na">src</span><span class="o">=</span><span class="p">{</span><span class="nx">foto</span><span class="p">.</span><span class="nx">url</span><span class="p">}</span><span class="w"> </span><span class="na">alt</span><span class="o">=</span><span class="p">{</span><span class="nx">foto</span><span class="p">.</span><span class="nx">descricao</span><span class="p">}</span><span class="w"> </span><span class="na">className</span><span class="o">=</span><span class="s">"tempest-aspect-square"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">          </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">))}</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Lightbox</span>
+<span class="w">        </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">aberto</span><span class="p">}</span>
+<span class="w">        </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">fotos</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">f</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">src</span><span class="o">:</span><span class="w"> </span><span class="kt">f.url</span><span class="p">,</span><span class="w"> </span><span class="nx">alt</span><span class="o">:</span><span class="w"> </span><span class="kt">f.descricao</span><span class="w"> </span><span class="p">}))}</span>
+<span class="w">        </span><span class="na">index</span><span class="o">=</span><span class="p">{</span><span class="nx">indice</span><span class="p">}</span>
+<span class="w">        </span><span class="na">onIndexChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setIndice</span><span class="p">}</span>
+<span class="w">        </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">      </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>LightboxItem[]</code></td>
+<td>—</td>
+<td>Imagens da galeria.</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+<td>Controla a visibilidade.</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td>Índice exibido.</td>
+</tr>
+<tr>
+<td><code>onIndexChange</code></td>
+<td><code>(index: number) =&gt; void</code></td>
+<td>—</td>
+<td>Passar isso torna o índice <strong>controlado</strong>.</td>
+</tr>
+<tr>
+<td><code>onClose</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td>Chamado no <code>Esc</code> e no botão fechar.</td>
+</tr>
+<tr>
+<td><code>showThumbnails</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code> se &gt; 1 item</td>
+<td>Faixa de miniaturas.</td>
+</tr>
+<tr>
+<td><code>showCounter</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Contador <code>3 / 12</code>.</td>
+</tr>
+<tr>
+<td><code>loop</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Circula nas pontas.</td>
+</tr>
+</tbody>
+</table>
+<p><code>LightboxItem = { src, alt, caption?, thumbnail? }</code> — <code>alt</code> é <strong>obrigatório</strong>: galeria de imagem sem rótulo é inutilizável em leitor de tela.</p>
+<p><strong>Teclado</strong>: <code>Esc</code> fecha · <code>←</code>/<code>→</code> navegam · <code>Home</code>/<code>End</code> vão pras pontas.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>loop</code> é <code>true</code> de propósito</p>
+<p>Em visualizador de foto, esbarrar num fim morto na última imagem é lido como bug mais vezes do que como limite. Passe <code>loop={false}</code> quando a ordem tem significado (um passo-a-passo, por exemplo) — aí os botões de navegação desabilitam nas pontas.</p>
+</div>
+<h2 id="tela-cheia">Tela cheia</h2>
+<p>Todo overlay do SDK monta por portal, e o alvo do portal segue o elemento em
+<strong>tela cheia</strong> quando existe um — <code>Modal</code>, <code>Drawer</code>, <code>BottomSheet</code>,
+<code>ToastProvider</code>, <code>Command</code>, <code>ContextMenu</code>, <code>DropdownMenu</code>, <code>Popover</code>, <code>Tooltip</code>, <code>HoverCard</code>, <code>Combobox</code>,
+<code>MultiSelect</code>, <code>NavigationMenu</code>, <code>Menubar</code> e o
+<code>&lt;Portal&gt;</code> genérico.</p>
+<p>Isso não é conveniência: é correção. Enquanto a página está em tela cheia, o
+browser pinta <strong>apenas a subárvore do elemento em tela cheia</strong>, e <code>document.body</code>
+está fora dela. Um overlay montado em <code>body</code> existe no DOM, tem caixa medida, e
+não é visto nem clicado — <code>elementFromPoint</code> no centro dele devolve o que está
+atrás. Nada lança e nada aparece no console.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useRef</span><span class="p">,</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Modal</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Chamada</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">palco</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useRef</span><span class="p">&lt;</span><span class="nt">HTMLDivElement</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">aberto</span><span class="p">,</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="na">ref</span><span class="o">=</span><span class="p">{</span><span class="nx">palco</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">palco</span><span class="p">.</span><span class="nx">current</span><span class="o">?</span><span class="p">.</span><span class="nx">requestFullscreen</span><span class="p">()}&gt;</span><span class="nx">Tela</span><span class="w"> </span><span class="nx">cheia</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">true</span><span class="p">)}&gt;</span><span class="nx">Áudio</span><span class="w"> </span><span class="nx">e</span><span class="w"> </span><span class="nx">vídeo</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Modal</span><span class="w"> </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">aberto</span><span class="p">}</span><span class="w"> </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Áudio e vídeo"</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="nx">O</span><span class="w"> </span><span class="nx">diálogo</span><span class="w"> </span><span class="nx">aparece</span><span class="w"> </span><span class="nx">dentro</span><span class="w"> </span><span class="k">do</span><span class="w"> </span><span class="nx">elemento</span><span class="w"> </span><span class="nx">em</span><span class="w"> </span><span class="nx">tela</span><span class="w"> </span><span class="nx">cheia</span><span class="p">.</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Modal</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">O alvo acompanha, não é lido uma vez</p>
+<p>Entrar ou sair de tela cheia com um diálogo já aberto <strong>move</strong> o diálogo: o
+host é estado e escuta <code>fullscreenchange</code> (mais o <code>webkitfullscreenchange</code>
+que o WebKit ainda emite). O diálogo continua montado e não perde estado.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title"><code>container</code> continua mandando</p>
+<p><code>&lt;Portal container={…}&gt;</code> fixa o alvo e ignora a tela cheia. Use quando você
+precisa de um destino específico — um root de layout, um nó fora de um
+<code>overflow</code>.</p>
+</div>
+<h2 id="a11y-geral">A11y geral</h2>
+<ul>
+<li><strong>Focus trap</strong> (<code>Modal</code>, <code>Drawer</code>, <code>BottomSheet</code>): o foco entra no dialog ao abrir, <code>Tab</code>/<code>Shift+Tab</code> circulam só dentro dele — inclusive pelos painéis em portal abertos de dentro — e o foco volta ao gatilho ao fechar. Ver <a href="#o-foco-fica-dentro-paineis-em-portal-incluidos">O foco fica dentro, painéis em portal incluídos</a>.</li>
+<li><strong>Scroll lock</strong>: <code>body.overflow = "hidden"</code> enquanto aberto.</li>
+<li><strong>Esc</strong> fecha a camada de cima (<code>Modal</code>/<code>Drawer</code>: <code>closeOnEsc={false}</code>; <code>BottomSheet</code>: <code>dismissOnEsc={false}</code>) — ver <a href="#escape-fecha-uma-camada-por-vez"><code>Escape</code> fecha uma camada por vez</a>.</li>
+<li><strong><code>aria-modal="true"</code></strong> indica para leitores de tela que o resto da página está bloqueado.</li>
+<li><strong>Backdrop</strong>: clicks fecham (<code>Modal</code>/<code>Drawer</code>: <code>closeOnBackdrop={false}</code>; <code>BottomSheet</code>: <code>dismissOnBackdrop={false}</code>).</li>
+</ul>
+<h3 id="o-foco-fica-dentro-paineis-em-portal-incluidos">O foco fica dentro, painéis em portal incluídos</h3>
+<p>Aberto, o <code>Modal</code> põe o foco no primeiro elemento focável (no exemplo, o botão
+<strong>Fechar</strong> do cabeçalho). Daí em diante, <code>Tab</code> e <code>Shift+Tab</code> só andam dentro do
+diálogo:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Input</span><span class="p">,</span><span class="w"> </span><span class="nx">Modal</span><span class="p">,</span><span class="w"> </span><span class="nx">Popover</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Filtros</span><span class="p">({</span><span class="w"> </span><span class="nx">aplicar</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">aplicar</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">aberto</span><span class="p">,</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">true</span><span class="p">)}&gt;</span><span class="nx">Abrir</span><span class="w"> </span><span class="nx">filtros</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Modal</span>
+<span class="w">                </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">aberto</span><span class="p">}</span>
+<span class="w">                </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">                </span><span class="na">title</span><span class="o">=</span><span class="s">"Filtros"</span>
+<span class="w">                </span><span class="na">footer</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">aplicar</span><span class="p">}&gt;</span><span class="nx">Aplicar</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
+<span class="w">            </span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Popover</span><span class="w"> </span><span class="na">trigger</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"secondary"</span><span class="p">&gt;</span><span class="nx">Período</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"De"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Até"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;/</span><span class="nt">Popover</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Modal</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Com o <code>Popover</code> aberto, o painel mora no fim do <code>body</code>, fora do diálogo — e mesmo
+assim entra no ciclo logo depois do gatilho: <strong>Período → De → Até → Aplicar →
+Fechar → Período</strong>. Um <code>Modal</code> aberto de dentro de outro prende o foco até
+fechar e devolve ao botão que o abriu, dentro do de baixo. Ao fechar, o foco
+volta a <strong>Abrir filtros</strong>.</p>
+<p>Antes da 0.68.0, <code>Modal</code>, <code>Drawer</code> e <code>BottomSheet</code> declaravam <code>aria-modal="true"</code>
+sem prender o foco. Medido no Chrome, com tecla real, na seção <code>modal</code> da
+gallery:</p>
+<table>
+<thead>
+<tr>
+<th>Momento</th>
+<th>Antes</th>
+<th>Agora</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Logo depois de abrir</td>
+<td>foco no botão que abriu, <strong>fora</strong> do diálogo</td>
+<td>primeiro focável do diálogo</td>
+</tr>
+<tr>
+<td><code>Tab</code> ×5</td>
+<td>5 paradas na página <strong>atrás</strong> do backdrop</td>
+<td>circula entre os focáveis do diálogo</td>
+</tr>
+<tr>
+<td>Ao fechar</td>
+<td>onde o <code>Tab</code> tinha deixado</td>
+<td>o botão que abriu</td>
+</tr>
+</tbody>
+</table>
+<p>O leitor de tela ouvia que a página estava bloqueada enquanto o teclado
+continuava nela. O <code>Command</code> já prendia o foco, mas ao fechar o devolvia ao
+<code>body</code>: o <code>autoFocus</code> do campo de busca tomava o foco antes de o trap anotar de
+onde ele vinha.</p>
+<div class="admonition tip">
+<p class="admonition-title">Diálogo sem nada focável</p>
+<p>Com <code>hideCloseButton</code> e conteúdo só de texto, o foco vai para o próprio
+diálogo (<code>tabIndex={-1}</code>), e o <code>Tab</code> fica parado nele em vez de escapar.</p>
+</div>
+<h3 id="escape-fecha-uma-camada-por-vez"><code>Escape</code> fecha uma camada por vez</h3>
+<p>Um <code>Escape</code> fecha <strong>só a camada aberta mais recentemente</strong>. O próximo <code>Escape</code>
+fecha a de baixo:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">DropdownMenu</span><span class="p">,</span><span class="w"> </span><span class="nx">Modal</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">EditarPedido</span><span class="p">({</span><span class="w"> </span><span class="nx">cancelar</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">cancelar</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">aberto</span><span class="p">,</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Modal</span><span class="w"> </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">aberto</span><span class="p">}</span><span class="w"> </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAberto</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Editar pedido"</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">DropdownMenu</span>
+<span class="w">                </span><span class="na">trigger</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="p">&gt;</span><span class="nx">Mais</span><span class="w"> </span><span class="nx">ações</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
+<span class="w">                </span><span class="na">items</span><span class="o">=</span><span class="p">{[{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"cancelar"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Cancelar pedido"</span><span class="p">,</span><span class="w"> </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="kt">cancelar</span><span class="w"> </span><span class="p">}]}</span>
+<span class="w">            </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Modal</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Com o menu aberto, o primeiro <code>Escape</code> fecha o menu e devolve o foco ao gatilho
+<strong>dentro do modal</strong>. O segundo fecha o modal.</p>
+<p>Antes da 0.67.0, cada overlay escutava <code>keydown</code> no <code>window</code> e fechava em
+qualquer <code>Escape</code>, então uma tecla fechava tudo o que estava aberto. Medido no
+Chrome, com tecla real:</p>
+<table>
+<thead>
+<tr>
+<th>Dentro de</th>
+<th>Camada interna</th>
+<th>Antes</th>
+<th>Agora</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Modal</code></td>
+<td><code>DropdownMenu</code>, <code>Combobox</code>, <code>MultiSelect</code>, <code>Popover</code>, <code>ContextMenu</code>, célula editável do <code>DataTable</code></td>
+<td>fechava as duas</td>
+<td>fecha só a interna</td>
+</tr>
+<tr>
+<td><code>Modal</code></td>
+<td>outro <code>Modal</code></td>
+<td>fechava os dois</td>
+<td>fecha só o de cima</td>
+</tr>
+<tr>
+<td><code>Drawer</code></td>
+<td><code>Popover</code></td>
+<td>fechava os dois</td>
+<td>fecha só o <code>Popover</code></td>
+</tr>
+</tbody>
+</table>
+<p>A regra vale para <code>Modal</code>, <code>Drawer</code>, <code>BottomSheet</code>, <code>Lightbox</code>, <code>Popover</code>,
+<code>ContextMenu</code>, <code>NavigationMenu</code>, <code>Menubar</code> e <code>Tooltip</code>. Quem trata <code>Escape</code> no
+próprio elemento (a lista do <code>Combobox</code>, o editor de célula, o <code>DropdownMenu</code>)
+consome a tecla antes, e o overlay de fora não reage.</p>
+<div class="admonition note">
+<p class="admonition-title"><code>closeOnEsc={false}</code> bloqueia, não deixa passar</p>
+<p>Um <code>Modal</code> (ou <code>Drawer</code>) com <code>Escape</code> desligado continua no topo da pilha e
+<strong>engole</strong> a tecla. Sem isso, o <code>Escape</code> passaria direto e fecharia o modal
+de baixo, com o de cima ainda aberto.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Seu handler de <code>Escape</code> convive com a pilha</p>
+<p>Se um componente seu trata <code>Escape</code> dentro de um overlay, chame
+<code>event.preventDefault()</code>. A pilha ignora tecla já consumida, e o overlay de
+fora continua aberto.</p>
+</div>
+<h2 id="resumo">Resumo</h2>
+<table>
+<thead>
+<tr>
+<th>Componente</th>
+<th>Ancoragem</th>
+<th>Vocação</th>
+<th>Prop de dismiss</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Modal</code></td>
+<td>centralizado</td>
+<td>fluxos centrais (criar/editar)</td>
+<td><code>closeOnBackdrop</code>/<code>closeOnEsc</code></td>
+</tr>
+<tr>
+<td><code>Drawer</code></td>
+<td>borda (variável)</td>
+<td>painéis laterais persistentes</td>
+<td><code>closeOnBackdrop</code>/<code>closeOnEsc</code></td>
+</tr>
+<tr>
+<td><code>BottomSheet</code></td>
+<td>borda inferior</td>
+<td>ações mobile-first (compartilhar)</td>
+<td><code>dismissOnBackdrop</code>/<code>dismissOnEsc</code></td>
+</tr>
+<tr>
+<td><code>ModalsManager</code></td>
+<td>pilha (imperativa)</td>
+<td>abrir modais/confirmações via código</td>
+<td><code>useModals().close</code>/<code>closeAll</code></td>
+</tr>
+</tbody>
+</table>
+<p>Para confirmação destrutiva pré-montada, use o <code>ConfirmDialog</code> (<a href="../actions/">actions</a>), construído sobre o <code>Modal</code>. Para abrir modais imperativamente (sem estado local), use <code>&lt;ModalsProvider&gt;</code> + <code>useModals()</code>.</p>
+<p>Relacionados: <a href="../actions/">actions</a> (<code>ConfirmDialog</code>, botões no <code>footer</code>) · <a href="../inputs/">inputs</a> (forms dentro do overlay) · <a href="../navigation/">navigation</a> (<code>Drawer</code> como nav secundária).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar ao topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../navigation/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Navegação">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Navegação
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../layout/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Layout">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                Layout
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "Mais 1 nesta p\u00e1gina", "search.result.more.other": "Mais # nesta p\u00e1gina", "search.result.none": "Nenhum resultado encontrado", "search.result.one": "1 resultado encontrado", "search.result.other": "# resultados encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

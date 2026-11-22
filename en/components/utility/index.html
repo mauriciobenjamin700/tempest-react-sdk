@@ -1,0 +1,5458 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/components/utility/">
+      
+      
+        <link rel="prev" href="../identity/">
+      
+      
+        <link rel="next" href="../auth-screens/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Utility & headless - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#utility-headless" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Utility & headless
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../components/utility/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#display" class="md-nav__link">
+    <span class="md-ellipsis">
+      Display
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Display">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#copybutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      CopyButton
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relativetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      RelativeTime
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#money" class="md-nav__link">
+    <span class="md-ellipsis">
+      Money
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#truncatetext" class="md-nav__link">
+    <span class="md-ellipsis">
+      TruncateText
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visuallyhidden" class="md-nav__link">
+    <span class="md-ellipsis">
+      VisuallyHidden
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Motion
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Motion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reveal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reveal
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#headless-logical" class="md-nav__link">
+    <span class="md-ellipsis">
+      Headless / logical
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Headless / logical">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Portal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clickoutside" class="md-nav__link">
+    <span class="md-ellipsis">
+      ClickOutside
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditionalwrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConditionalWrapper
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for" class="md-nav__link">
+    <span class="md-ellipsis">
+      For
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errortext" class="md-nav__link">
+    <span class="md-ellipsis">
+      ErrorText
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#media-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      Media / content
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Media / content">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datalist" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataList
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#descriptionlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      DescriptionList
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#codeblock" class="md-nav__link">
+    <span class="md-ellipsis">
+      CodeBlock
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qrcode" class="md-nav__link">
+    <span class="md-ellipsis">
+      QRCode
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="QRCode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-the-payload-is-too-large" class="md-nav__link">
+    <span class="md-ellipsis">
+      When the payload is too large
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#display" class="md-nav__link">
+    <span class="md-ellipsis">
+      Display
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Display">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#copybutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      CopyButton
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relativetime" class="md-nav__link">
+    <span class="md-ellipsis">
+      RelativeTime
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#money" class="md-nav__link">
+    <span class="md-ellipsis">
+      Money
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#truncatetext" class="md-nav__link">
+    <span class="md-ellipsis">
+      TruncateText
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#visuallyhidden" class="md-nav__link">
+    <span class="md-ellipsis">
+      VisuallyHidden
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#motion" class="md-nav__link">
+    <span class="md-ellipsis">
+      Motion
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Motion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reveal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reveal
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#headless-logical" class="md-nav__link">
+    <span class="md-ellipsis">
+      Headless / logical
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Headless / logical">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#portal" class="md-nav__link">
+    <span class="md-ellipsis">
+      Portal
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#clickoutside" class="md-nav__link">
+    <span class="md-ellipsis">
+      ClickOutside
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conditionalwrapper" class="md-nav__link">
+    <span class="md-ellipsis">
+      ConditionalWrapper
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for" class="md-nav__link">
+    <span class="md-ellipsis">
+      For
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errortext" class="md-nav__link">
+    <span class="md-ellipsis">
+      ErrorText
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#media-content" class="md-nav__link">
+    <span class="md-ellipsis">
+      Media / content
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Media / content">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#image" class="md-nav__link">
+    <span class="md-ellipsis">
+      Image
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#datalist" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataList
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#descriptionlist" class="md-nav__link">
+    <span class="md-ellipsis">
+      DescriptionList
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#codeblock" class="md-nav__link">
+    <span class="md-ellipsis">
+      CodeBlock
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#qrcode" class="md-nav__link">
+    <span class="md-ellipsis">
+      QRCode
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="QRCode">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#when-the-payload-is-too-large" class="md-nav__link">
+    <span class="md-ellipsis">
+      When the payload is too large
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/components/utility.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/components/utility.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="utility-headless">Utility &amp; headless</h1>
+<p>Small, focused components: some render bits of UI (<code>Money</code>, <code>RelativeTime</code>, <code>CopyButton</code>), others are <strong>headless</strong> — they drive behavior/logic without dictating the visuals (<code>Portal</code>, <code>ClickOutside</code>, <code>For</code>). All imported from <code>tempest-react-sdk</code>.</p>
+<h2 id="display">Display</h2>
+<h3 id="copybutton"><code>CopyButton</code></h3>
+<!-- gallery:data-display -->
+<p><a href="../../gallery/"><img alt="Stat · Tag · Money · Banner in the gallery" src="../../../assets/gallery/data-display.webp" /></a></p>
+<p><em>Section <code>data-display</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>Button that copies a string to the clipboard and shows a transient "copied" state.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CopyButton</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">CopyButton</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"npm i tempest-react-sdk"</span><span class="w"> </span><span class="p">/&gt;;</span>
+
+<span class="p">&lt;</span><span class="nt">CopyButton</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">token</span><span class="p">}</span><span class="w"> </span><span class="na">timeout</span><span class="o">=</span><span class="p">{</span><span class="mf">3000</span><span class="p">}</span><span class="w"> </span><span class="na">onCopied</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">toast</span><span class="p">(</span><span class="s2">"Token copied"</span><span class="p">)}&gt;</span>
+<span class="w">  </span><span class="nx">Copy</span><span class="w"> </span><span class="nx">token</span>
+<span class="p">&lt;/</span><span class="nt">CopyButton</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>value</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Text written to the clipboard.</td>
+</tr>
+<tr>
+<td><code>timeout</code></td>
+<td><code>number</code> (ms)</td>
+<td><code>2000</code></td>
+<td>How long the "copied" state stays active.</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Copy"</code>/<code>"Copied"</code></td>
+<td>Fixed label in both states; without <code>children</code> the text toggles.</td>
+</tr>
+<tr>
+<td><code>onCopied</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td>Called after a successful write.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>ButtonHTMLAttributes</code>. Clipboard failures are silenced; the timer is cleared on unmount.</p>
+<h3 id="relativetime"><code>RelativeTime</code></h3>
+<p>Renders a date as a relative string ("5 min ago") inside a semantic <code>&lt;time&gt;</code> element with a machine-readable <code>dateTime</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">RelativeTime</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">post</span><span class="p">.</span><span class="nx">createdAt</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span><span class="w"> </span><span class="c1">// pt-BR</span>
+<span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">post</span><span class="p">.</span><span class="nx">createdAt</span><span class="p">}</span><span class="w"> </span><span class="na">locale</span><span class="o">=</span><span class="s">"en"</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>date</code></td>
+<td><code>Date \| string \| number</code></td>
+<td>—</td>
+<td>Instant to render.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>"pt" \| "en"</code></td>
+<td><code>"pt"</code></td>
+<td><code>"pt"</code> maps to <code>"pt-BR"</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLTimeElement&gt;</code>.</p>
+<h3 id="money"><code>Money</code></h3>
+<p>Renders a monetary amount given <strong>in cents</strong> as a localized currency string inside a <code>&lt;span&gt;</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Money</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Money</span><span class="w"> </span><span class="na">cents</span><span class="o">=</span><span class="p">{</span><span class="mf">1990</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span><span class="w"> </span><span class="c1">// "R$ 19,90"</span>
+<span class="p">&lt;</span><span class="nt">Money</span><span class="w"> </span><span class="na">cents</span><span class="o">=</span><span class="p">{</span><span class="mf">500</span><span class="p">}</span><span class="w"> </span><span class="na">currency</span><span class="o">=</span><span class="s">"USD"</span><span class="w"> </span><span class="na">locale</span><span class="o">=</span><span class="s">"en-US"</span><span class="w"> </span><span class="p">/&gt;;</span><span class="w"> </span><span class="c1">// "$5.00"</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cents</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>Amount in the smallest unit (cents).</td>
+</tr>
+<tr>
+<td><code>currency</code></td>
+<td><code>string</code></td>
+<td><code>"BRL"</code></td>
+<td>ISO 4217 code.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>string</code></td>
+<td><code>"pt-BR"</code></td>
+<td>BCP 47 locale used for formatting.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLSpanElement&gt;</code>. Internally divides <code>cents</code> by 100 and uses <code>Intl.NumberFormat</code>.</p>
+<h3 id="truncatetext"><code>TruncateText</code></h3>
+<p>Clamps text to a fixed number of lines via CSS line-clamp, with an ellipsis on overflow.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TruncateText</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">TruncateText</span><span class="w"> </span><span class="na">lines</span><span class="o">=</span><span class="p">{</span><span class="mf">2</span><span class="p">}&gt;{</span><span class="nx">longDescription</span><span class="p">}&lt;/</span><span class="nt">TruncateText</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lines</code></td>
+<td><code>number</code></td>
+<td><code>1</code></td>
+<td>Lines before clamping (<code>--tempest-clamp-lines</code>).</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Content to clamp.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLDivElement&gt;</code>.</p>
+<h3 id="visuallyhidden"><code>VisuallyHidden</code></h3>
+<!-- gallery:headless -->
+<p><a href="../../gallery/"><img alt="Headless &amp; render-props in the gallery" src="../../../assets/gallery/headless.webp" /></a></p>
+<p><em>Section <code>headless</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>Content hidden visually but available to screen readers — the <code>sr-only</code> pattern.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">VisuallyHidden</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">Icon</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">VisuallyHidden</span><span class="p">&gt;</span><span class="nx">Close</span><span class="p">&lt;/</span><span class="nt">VisuallyHidden</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>as</code></td>
+<td><code>keyof JSX.IntrinsicElements</code></td>
+<td><code>"span"</code></td>
+<td>Intrinsic element to render.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLElement&gt;</code>.</p>
+<hr />
+<h2 id="motion">Motion</h2>
+<h3 id="reveal"><code>Reveal</code></h3>
+<!-- gallery:reveal -->
+<p><a href="../../gallery/"><img alt="Reveal in the gallery" src="../../../assets/gallery/reveal.webp" /></a></p>
+<p><em>Section <code>reveal</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>Content that <strong>enters when it reaches the viewport</strong> — a fade or slide on scroll, the pattern of every landing page. It reveals once and stops observing.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Card</span><span class="p">,</span><span class="w"> </span><span class="nx">Reveal</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">steps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Discovery"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"2"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Prototype"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"3"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pilot"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Steps</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">ol</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">steps</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">step</span><span class="p">,</span><span class="w"> </span><span class="nx">index</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Reveal</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">step</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span><span class="w"> </span><span class="na">as</span><span class="o">=</span><span class="s">"li"</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"up"</span><span class="w"> </span><span class="na">delay</span><span class="o">=</span><span class="p">{</span><span class="nx">index</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">90</span><span class="p">}&gt;</span>
+<span class="w">          </span><span class="p">&lt;</span><span class="nt">Card</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="p">{</span><span class="nx">step</span><span class="p">.</span><span class="nx">title</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Reveal</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">))}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">ol</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Staggering is the <code>map</code> index times a step: there is no <code>RevealGroup</code>, because the index is already in your hand and a group would only hide that arithmetic behind <code>cloneElement</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>variant</code></td>
+<td><code>"fade" \| "up" \| "down" \| "left" \| "right" \| "scale"</code></td>
+<td><code>"up"</code></td>
+<td>Where the content comes from. <code>up</code> rises from below; <code>left</code> travels right to left.</td>
+</tr>
+<tr>
+<td><code>delay</code></td>
+<td><code>number</code> (ms)</td>
+<td><code>0</code></td>
+<td>Wait before entering (<code>--tempest-reveal-delay</code>).</td>
+</tr>
+<tr>
+<td><code>duration</code></td>
+<td><code>number</code> (ms)</td>
+<td><code>--tempest-duration-slower</code></td>
+<td>Length of the entrance (<code>--tempest-reveal-duration</code>).</td>
+</tr>
+<tr>
+<td><code>as</code></td>
+<td><code>keyof JSX.IntrinsicElements</code></td>
+<td><code>"div"</code></td>
+<td>Element to render — <code>"li"</code> inside <code>&lt;ul&gt;</code>/<code>&lt;ol&gt;</code> keeps the list semantics.</td>
+</tr>
+<tr>
+<td><code>once</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td><code>false</code> hides again once the element is <strong>fully</strong> out of view, and animates next time.</td>
+</tr>
+<tr>
+<td><code>threshold</code></td>
+<td><code>number</code></td>
+<td><code>0.15</code></td>
+<td>Fraction of the element — or of the viewport, when it is taller — that must be visible.</td>
+</tr>
+<tr>
+<td><code>rootMargin</code></td>
+<td><code>string</code></td>
+<td><code>"0px"</code></td>
+<td>Root margin, as in <code>IntersectionObserver</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLElement&gt;</code>. The current state is written to <code>data-state</code> (<code>"static"</code>, <code>"hidden"</code> or <code>"shown"</code>) and the variant to <code>data-variant</code>.</p>
+<p>The three traps of a hand-rolled <code>Reveal</code> are handled by the component:</p>
+<ul>
+<li><strong><code>prefers-reduced-motion: reduce</code></strong> → the content is visible and still, with no transform and no transition (WCAG 2.3.3). It is CSS, so it also holds when the preference changes with the page open.</li>
+<li><strong>No <code>IntersectionObserver</code></strong> → the element stays at <code>data-state="static"</code>, which is visible content. It is never hidden waiting for an observation that cannot come.</li>
+<li><strong>Element taller than the viewport</strong> → a block three screens tall never reaches 50% visibility, so a raw <code>threshold={0.5}</code> would never reveal it. <code>Reveal</code> reads the geometry on the first observation and rescales the threshold by the highest reachable ratio: the block reveals once it fills half the viewport.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Markup without JavaScript stays visible</p>
+<p>The hidden state is applied only on a client that can observe. Rendered without JS — or before hydration — the element comes out as <code>data-state="static"</code>. The transition lives on the <code>"shown"</code> state only, so the switch to <code>"hidden"</code> on mount is instant, with no fade-out.</p>
+</div>
+<p>Customize without a new prop through the custom properties <code>--tempest-reveal-distance</code> (default <code>1.5rem</code>), <code>--tempest-reveal-scale</code> (<code>0.95</code>) and <code>--tempest-reveal-easing</code>.</p>
+<hr />
+<h2 id="headless-logical">Headless / logical</h2>
+<p>No CSS of their own: they encapsulate behavior and let you supply the markup.</p>
+<h3 id="portal"><code>Portal</code></h3>
+<p>Renders its children into a different part of the DOM tree via a React portal — ideal for overlays that must escape <code>overflow</code>/stacking contexts.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Portal</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Portal</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="na">className</span><span class="o">=</span><span class="s">"toast"</span><span class="p">&gt;</span><span class="nx">Saved</span><span class="o">!</span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">Portal</span><span class="p">&gt;;</span>
+
+<span class="p">&lt;</span><span class="nt">Portal</span><span class="w"> </span><span class="na">container</span><span class="o">=</span><span class="p">{</span><span class="nx">drawerRoot</span><span class="p">}&gt;{</span><span class="nx">menu</span><span class="p">}&lt;/</span><span class="nt">Portal</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Content rendered through the portal.</td>
+</tr>
+<tr>
+<td><code>container</code></td>
+<td><code>Element \| null</code></td>
+<td><code>document.body</code></td>
+<td>Target DOM node.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">SSR-safe</p>
+<p>Renders <code>null</code> on the server and on the first client render; mounts the portal only after hydration.</p>
+</div>
+<h3 id="clickoutside"><code>ClickOutside</code></h3>
+<p>Wraps its children in a <code>&lt;div&gt;</code> and fires <code>onOutside</code> when a <code>mousedown</code>/<code>touchstart</code> happens outside the subtree. Handy for dismissing popovers and menus.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ClickOutside</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">ClickOutside</span><span class="w"> </span><span class="na">onOutside</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">Menu</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ClickOutside</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>onOutside</code></td>
+<td><code>(event: MouseEvent \| TouchEvent) =&gt; void</code></td>
+<td>—</td>
+<td>Called on outside interaction.</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Content inside the boundary.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLDivElement&gt;</code> (props flow to the wrapper <code>&lt;div&gt;</code>).</p>
+<h3 id="conditionalwrapper"><code>ConditionalWrapper</code></h3>
+<p>Wraps its children with <code>wrapper</code> only when <code>condition</code> is <code>true</code> — avoids duplicating the subtree just to add an optional wrapper (link, tooltip, boundary).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ConditionalWrapper</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">ConditionalWrapper</span><span class="w"> </span><span class="na">condition</span><span class="o">=</span><span class="p">{</span><span class="nb">Boolean</span><span class="p">(</span><span class="nx">href</span><span class="p">)}</span><span class="w"> </span><span class="na">wrapper</span><span class="o">=</span><span class="p">{(</span><span class="nx">children</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">a</span><span class="w"> </span><span class="na">href</span><span class="o">=</span><span class="p">{</span><span class="nx">href</span><span class="p">}&gt;{</span><span class="nx">children</span><span class="p">}&lt;/</span><span class="nt">a</span><span class="p">&gt;}&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">CardBody</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ConditionalWrapper</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>condition</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+<td>When <code>true</code>, applies the <code>wrapper</code>.</td>
+</tr>
+<tr>
+<td><code>wrapper</code></td>
+<td><code>(children: ReactNode) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Wrapping function.</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Content that may be wrapped.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="for"><code>For</code></h3>
+<p>Typed, JSX-friendly list renderer with a fallback for the empty collection. The item type is inferred from <code>each</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">For</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">For</span><span class="w"> </span><span class="na">each</span><span class="o">=</span><span class="p">{</span><span class="nx">users</span><span class="p">}</span><span class="w"> </span><span class="na">fallback</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">No</span><span class="w"> </span><span class="nx">users</span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;}&gt;</span>
+<span class="w">  </span><span class="p">{(</span><span class="nx">user</span><span class="p">,</span><span class="w"> </span><span class="nx">index</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">li</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">}&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">}.</span><span class="w"> </span><span class="p">{</span><span class="nx">user</span><span class="p">.</span><span class="nx">name</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">)}</span>
+<span class="p">&lt;/</span><span class="nt">For</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>each</code></td>
+<td><code>readonly T[]</code></td>
+<td>—</td>
+<td>Collection to iterate.</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>(item: T, index: number) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Render per item.</td>
+</tr>
+<tr>
+<td><code>fallback</code></td>
+<td><code>ReactNode</code></td>
+<td><code>null</code></td>
+<td>Rendered when <code>each</code> is empty.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="errortext"><code>ErrorText</code></h3>
+<!-- gallery:inputs-extra -->
+<p><a href="../../gallery/"><img alt="Inputs avançados (Date · Pin · Slider) in the gallery" src="../../../assets/gallery/inputs-extra.webp" /></a></p>
+<p><em>Section <code>inputs-extra</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>A form-field error message as <code>&lt;p role="alert"&gt;</code>. Renders <code>null</code> when there are no children — place it unconditionally below a field and it only appears when an error is present.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ErrorText</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">input</span><span class="w"> </span><span class="na">aria-invalid</span><span class="o">=</span><span class="p">{</span><span class="nb">Boolean</span><span class="p">(</span><span class="nx">error</span><span class="p">)}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">ErrorText</span><span class="p">&gt;{</span><span class="nx">error</span><span class="p">}&lt;/</span><span class="nt">ErrorText</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Message; <code>null</code>/<code>""</code>/<code>false</code> → renders nothing.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLParagraphElement&gt;</code>. Styled with the <code>--tempest-danger</code> token.</p>
+<hr />
+<h2 id="media-content">Media / content</h2>
+<h3 id="image"><code>Image</code></h3>
+<!-- gallery:display-media -->
+<p><a href="../../gallery/"><img alt="Avatar · Image · Carousel in the gallery" src="../../../assets/gallery/display-media.webp" /></a></p>
+<p><em>Section <code>display-media</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p><code>&lt;img&gt;</code> with native lazy loading and a one-shot fallback.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Image</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Image</span><span class="w"> </span><span class="na">src</span><span class="o">=</span><span class="p">{</span><span class="nx">user</span><span class="p">.</span><span class="nx">avatarUrl</span><span class="p">}</span><span class="w"> </span><span class="na">fallback</span><span class="o">=</span><span class="s">"/avatar-placeholder.png"</span><span class="w"> </span><span class="na">alt</span><span class="o">=</span><span class="p">{</span><span class="nx">user</span><span class="p">.</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Primary source.</td>
+</tr>
+<tr>
+<td><code>fallback</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Source swapped in once if the primary fails.</td>
+</tr>
+<tr>
+<td><code>alt</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Alternative text (required).</td>
+</tr>
+<tr>
+<td><code>lazy</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td><code>true</code> → <code>loading="lazy"</code>; <code>false</code> → eager.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>ImgHTMLAttributes</code> (without <code>src</code>). The fallback is guarded so it cannot loop the <code>onError</code> handler.</p>
+<h3 id="datalist"><code>DataList</code></h3>
+<p>Generic, typed list rendering a <code>&lt;ul&gt;</code> with one <code>&lt;li&gt;</code> per item, with an empty slot.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">DataList</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">DataList</span>
+<span class="w">  </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">notifications</span><span class="p">}</span>
+<span class="w">  </span><span class="na">keyExtractor</span><span class="o">=</span><span class="p">{(</span><span class="nx">n</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">n</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">  </span><span class="na">renderItem</span><span class="o">=</span><span class="p">{(</span><span class="nx">n</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">NotificationRow</span><span class="w"> </span><span class="na">notification</span><span class="o">=</span><span class="p">{</span><span class="nx">n</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}</span>
+<span class="w">  </span><span class="na">empty</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Nothing</span><span class="w"> </span><span class="ow">new</span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;}</span>
+<span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>readonly T[]</code></td>
+<td>—</td>
+<td>Collection to render.</td>
+</tr>
+<tr>
+<td><code>renderItem</code></td>
+<td><code>(item: T, index: number) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Contents of each <code>&lt;li&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>keyExtractor</code></td>
+<td><code>(item: T, index: number) =&gt; string \| number</code></td>
+<td>index</td>
+<td>Stable key per item.</td>
+</tr>
+<tr>
+<td><code>empty</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Rendered when <code>items</code> is empty.</td>
+</tr>
+</tbody>
+</table>
+<p>Extends <code>HTMLAttributes&lt;HTMLUListElement&gt;</code>.</p>
+<h3 id="descriptionlist"><code>DescriptionList</code></h3>
+<p>Semantic <code>&lt;dl&gt;</code> of term/description pairs, with token-based key/value styling.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">DescriptionList</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">DescriptionList</span>
+<span class="w">  </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">term</span><span class="o">:</span><span class="w"> </span><span class="s2">"Order"</span><span class="p">,</span><span class="w"> </span><span class="nx">description</span><span class="o">:</span><span class="w"> </span><span class="s2">"#1042"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">term</span><span class="o">:</span><span class="w"> </span><span class="s2">"Status"</span><span class="p">,</span><span class="w"> </span><span class="nx">description</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Badge</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"success"</span><span class="p">&gt;</span><span class="nx">Paid</span><span class="p">&lt;/</span><span class="nt">Badge</span><span class="p">&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">term</span><span class="o">:</span><span class="w"> </span><span class="s2">"Total"</span><span class="p">,</span><span class="w"> </span><span class="nx">description</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Money</span><span class="w"> </span><span class="na">cents</span><span class="o">=</span><span class="p">{</span><span class="mf">1990</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">]}</span>
+<span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>DescriptionListItem[]</code></td>
+<td>—</td>
+<td><code>&lt;dt&gt;</code>/<code>&lt;dd&gt;</code> pairs.</td>
+</tr>
+</tbody>
+</table>
+<p><code>DescriptionListItem = { term: ReactNode; description: ReactNode }</code>. Extends <code>HTMLAttributes&lt;HTMLDListElement&gt;</code>.</p>
+<h3 id="codeblock"><code>CodeBlock</code></h3>
+<!-- gallery:codeblock -->
+<p><a href="../../gallery/"><img alt="CodeBlock in the gallery" src="../../../assets/gallery/codeblock.webp" /></a></p>
+<p><em>Section <code>codeblock</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>A read-only code sample: syntax colours, optional line numbers, copy button.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CodeBlock</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">CodeBlock</span><span class="w"> </span><span class="na">code</span><span class="o">=</span><span class="p">{</span><span class="nx">snippet</span><span class="p">}</span><span class="w"> </span><span class="na">language</span><span class="o">=</span><span class="s">"ts"</span><span class="w"> </span><span class="na">filename</span><span class="o">=</span><span class="s">"src/api.ts"</span><span class="w"> </span><span class="na">showLineNumbers</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">CodeBlock</span><span class="w"> </span><span class="na">code</span><span class="o">=</span><span class="p">{</span><span class="nx">log</span><span class="p">}</span><span class="w"> </span><span class="na">language</span><span class="o">=</span><span class="s">"bash"</span><span class="w"> </span><span class="na">maxHeight</span><span class="o">=</span><span class="p">{</span><span class="mf">280</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>The source. Blank lines at either end are trimmed.</td>
+</tr>
+<tr>
+<td><code>language</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Grammar or alias. Unknown values render as plain text.</td>
+</tr>
+<tr>
+<td><code>filename</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Shown in the header.</td>
+</tr>
+<tr>
+<td><code>showLineNumbers</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Number the lines.</td>
+</tr>
+<tr>
+<td><code>highlightLines</code></td>
+<td><code>number[]</code></td>
+<td>—</td>
+<td>1-based lines marked as the point of the snippet.</td>
+</tr>
+<tr>
+<td><code>copyable</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Copy button in the header.</td>
+</tr>
+<tr>
+<td><code>maxHeight</code></td>
+<td><code>number \| string</code></td>
+<td>—</td>
+<td>Cap the height; the body scrolls.</td>
+</tr>
+<tr>
+<td><code>wrap</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Wrap long lines instead of scrolling sideways.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Accessible name for the region.</td>
+</tr>
+</tbody>
+</table>
+<p>Grammars: <code>typescript</code> · <code>javascript</code> · <code>tsx</code> · <code>jsx</code> · <code>json</code> · <code>css</code> · <code>html</code> · <code>bash</code> · <code>python</code> · <code>sql</code>, with aliases (<code>ts</code>, <code>js</code>, <code>sh</code>, <code>py</code>, <code>scss</code>, <code>xml</code>, <code>shell</code>, <code>zsh</code>, <code>jsonc</code>…).</p>
+<div class="admonition warning">
+<p class="admonition-title">It is a scanner, not a parser — and that is a chosen ceiling</p>
+<p>The highlighter recognises comments, strings, numbers, keywords and punctuation <strong>by pattern</strong>. It knows nothing about scope, types or grammar. A real parser per language is a dependency the size of the rest of the SDK, and the payoff — being right about the rare corners of a documentation snippet — is small. Where it is unsure it emits <code>plain</code>, which renders as ordinary text rather than as something <strong>wrong</strong>. An unknown language produces an uncoloured block, which is a normal outcome and never an error.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The <code>&lt;pre&gt;</code> is always focusable</p>
+<p>A code block scrolls and holds nothing focusable inside. Without a tab stop, a keyboard user can see the scrollbar and has no way to move it — focus never lands anywhere the arrow keys would scroll. It is the one scroll container in the SDK where the stop is unconditional rather than measured: a code sample is meant to be reached, read and selected on its own. The others (<a href="../data/"><code>Table</code></a>, <code>VirtualList</code>, <code>ScrollArea</code>) only take the stop while they actually overflow.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Line numbers are decoration — and stay out of the clipboard</p>
+<p>They are <code>aria-hidden</code> (a screen reader announcing "one const two import" adds nothing) and <code>user-select: none</code>. Selecting the block with the mouse and copying gives you the source, without the numbers. Verified in a browser: selecting the whole <code>&lt;code&gt;</code> yields exactly the original.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Syntax colours have their own tokens, not the chart ramp</p>
+<p><code>--tempest-code-*</code>. The chart ramp is validated at the <strong>mark</strong> floor (3:1); this is text and needs <strong>4.5:1</strong>. Measured as text the ramp fails in both modes — a keyword came out at 3.47:1 on the dark surface and a string at 2.03:1 on the light one. Each code token was solved in OKLCH against <strong>both grounds</strong> it can land on: the block surface, and a highlighted line once the wash composites over it. See <a href="../../styles/">style tokens</a>.</p>
+</div>
+<h3 id="qrcode"><code>QRCode</code></h3>
+<!-- gallery:qrcode -->
+<p><a href="../../gallery/"><img alt="QRCode in the gallery" src="../../../assets/gallery/qrcode.webp" /></a></p>
+<p><em>Section <code>qrcode</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>A QR symbol encoded <strong>in the browser</strong> and drawn as SVG. No dependency and no image-service round trip — a remote generator would hand the payload (a payment link, a session token, an invite) to a third party.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">QRCode</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">QRCode</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"https://tempest.dev"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">QRCode</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">pixPayload</span><span class="p">}</span><span class="w"> </span><span class="na">level</span><span class="o">=</span><span class="s">"H"</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">220</span><span class="p">}</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"QR do Pix — R$ 42,00"</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>value</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>The payload. UTF-8 when it is not digits or upper case.</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>number</code></td>
+<td><code>160</code></td>
+<td>Rendered side in px, quiet zone included.</td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td><code>"L" \| "M" \| "Q" \| "H"</code></td>
+<td><code>"M"</code></td>
+<td>Error correction: ~7% · ~15% · ~25% · ~30% recoverable.</td>
+</tr>
+<tr>
+<td><code>margin</code></td>
+<td><code>number</code></td>
+<td><code>4</code></td>
+<td>Quiet zone in modules.</td>
+</tr>
+<tr>
+<td><code>color</code></td>
+<td><code>string</code></td>
+<td><code>#000000</code></td>
+<td>Module colour.</td>
+</tr>
+<tr>
+<td><code>background</code></td>
+<td><code>string</code></td>
+<td><code>#ffffff</code></td>
+<td>Background colour.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td><code>QR code: {value}</code></td>
+<td>Accessible name.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition danger">
+<p class="admonition-title">Black on white in both themes — on purpose</p>
+<p>This is the one part of the SDK that <strong>ignores the theme tokens</strong>. Scanners expect dark-on-light, and the ones that cope with an inverted symbol do it slowly and unreliably. Wiring the modules to <code>--tempest-text</code> would flip them light in dark mode and leave a light symbol on the white ground, which scans as nothing at all. A QR that matches your dark page and scans on the third try is worse than one that looks pasted on. Only touch <code>color</code>/<code>background</code> with a scanner in hand.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">The mode changes the symbol size, and the size changes how easily it scans</p>
+<p>The encoder picks the densest mode the payload allows: <strong>numeric</strong> packs 3 digits into 10 bits, <strong>alphanumeric</strong> 2 characters into 11, <strong>byte</strong> spends 8 bits per byte. A phone number as plain digits fits in a visibly coarser symbol than the same number as bytes — and a bigger module is an easier module to scan. If you control the payload format, upper case and no accents buys you symbol size.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">A quiet zone below 4 modules is where scanners start to miss</p>
+<p>The default <code>margin</code> follows the standard. Shrinking it to save screen space is the optimisation that costs the most read rate.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The correction level is not quality — it is damage tolerance</p>
+<p><code>L</code> is enough for an on-screen QR that nobody creases. <code>Q</code>/<code>H</code> earn their size when the symbol goes to paper, a sticker, a shop window or a badge: they recover ~25%/~30% of the codewords, so a tear, a fold or a smudge still reads. The cost is a larger symbol for the same content.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">A screen reader cannot scan</p>
+<p>That is why the default <code>aria-label</code> <strong>names the payload</strong> (<code>QR code: https://…</code>) rather than just saying "QR code". When the payload is opaque — a Pix BR Code, say — pass a <code>label</code> describing what it does, and offer the same data as text or a copy button beside it.</p>
+</div>
+<h4 id="when-the-payload-is-too-large">When the payload is too large</h4>
+<p>A payload that does not fit even a version-40 symbol throws <code>QRCapacityError</code> instead of drawing a truncated symbol that scans wrong. That is a programming error rather than a state to render — validate first if the content comes from a user, or wrap it in an <a href="../../error-boundary/"><code>ErrorBoundary</code></a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">encodeQR</span><span class="p">,</span><span class="w"> </span><span class="nx">QRCapacityError</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">encodeQR</span><span class="p">(</span><span class="nx">payload</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">level</span><span class="o">:</span><span class="w"> </span><span class="s2">"H"</span><span class="w"> </span><span class="p">});</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">QRCapacityError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// error.length (bytes) and error.level</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>encodeQR(value, { level, minVersion })</code> returns the raw matrix (<code>modules</code>, <code>size</code>, <code>version</code>, <code>mode</code>, <code>mask</code>) for anyone drawing it themselves — canvas, PDF, thermal label. <code>matrixToPath(matrix, margin)</code> builds the same <code>d</code> the component uses.</p>
+<hr />
+<h2 id="recap">Recap</h2>
+<ul>
+<li><strong>Display</strong>: <code>CopyButton</code> (clipboard + transient state), <code>RelativeTime</code> (relative <code>&lt;time&gt;</code>), <code>Money</code> (cents → currency), <code>TruncateText</code> (line-clamp), <code>VisuallyHidden</code> (sr-only).</li>
+<li><strong>Motion</strong>: <code>Reveal</code> (enter on scroll, staggered by <code>delay</code>; visible without <code>IntersectionObserver</code> and still under <code>prefers-reduced-motion</code>).</li>
+<li><strong>Headless/logical</strong>: <code>Portal</code> (SSR-safe), <code>ClickOutside</code>, <code>ConditionalWrapper</code>, <code>For</code> (typed list with fallback), <code>ErrorText</code> (field error <code>role="alert"</code>).</li>
+<li><strong>Media/content</strong>: <code>Image</code> (lazy + fallback), <code>DataList</code> (generic <code>&lt;ul&gt;</code>), <code>DescriptionList</code> (<code>&lt;dl&gt;</code> term/value), <code>CodeBlock</code> (code sample with highlighting), <code>QRCode</code> (QR symbol as SVG, encoded in the browser).</li>
+<li>"Display" and "content" components use <code>--tempest-*</code> tokens; the headless ones ship no CSS — you supply the markup.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../../utilities/">Utilities</a> — <code>Money</code>/<code>RelativeTime</code> are the component flavors of formatting helpers.</li>
+<li><a href="../data/">Data</a> — <code>Table</code>/<code>VirtualList</code> for larger collections.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../identity/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Identity &amp; micro">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Identity & micro
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../auth-screens/" class="md-footer__link md-footer__link--next" aria-label="Next: Auth screens">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Auth screens
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

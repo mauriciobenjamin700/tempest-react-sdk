@@ -1,0 +1,4882 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/pwa/">
+      
+      
+        <link rel="prev" href="../offline/">
+      
+      
+        <link rel="next" href="../share/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>PWA & Offline-First - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#pwa-offline-first" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              PWA & Offline-First
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../pwa/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-register-the-service-worker-and-update-with-consent" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Register the service worker and update with consent
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-precache-runtime-cache-navigation-preload" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Precache + runtime cache + navigation preload
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Precache + runtime cache + navigation preload">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authenticated-responses-stay-out-of-the-cache-unless-you-ask" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authenticated responses stay out of the cache (unless you ask)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-background-sync-periodic-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Background sync + periodic sync
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Background sync + periodic sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#credentials-never-reach-indexeddb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credentials never reach IndexedDB
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Credentials never reach IndexedDB">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#every-entry-has-an-owner" class="md-nav__link">
+    <span class="md-ellipsis">
+      Every entry has an owner
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credentials-only-go-back-to-a-trusted-origin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credentials only go back to a trusted origin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ownerpolicy-an-app-without-sign-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      ownerPolicy: an app without sign-in
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-durability-request-persistent-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Durability: request persistent storage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cache-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Cache observability
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-logout-clear-the-session-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Logout: clear the session data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-offline-status-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Offline status UI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-reactive-sync-engine-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Reactive sync-engine hooks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-conflict-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Conflict resolution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-register-the-service-worker-and-update-with-consent" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Register the service worker and update with consent
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-precache-runtime-cache-navigation-preload" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Precache + runtime cache + navigation preload
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Precache + runtime cache + navigation preload">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authenticated-responses-stay-out-of-the-cache-unless-you-ask" class="md-nav__link">
+    <span class="md-ellipsis">
+      Authenticated responses stay out of the cache (unless you ask)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-background-sync-periodic-sync" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Background sync + periodic sync
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Background sync + periodic sync">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#credentials-never-reach-indexeddb" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credentials never reach IndexedDB
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Credentials never reach IndexedDB">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#every-entry-has-an-owner" class="md-nav__link">
+    <span class="md-ellipsis">
+      Every entry has an owner
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#credentials-only-go-back-to-a-trusted-origin" class="md-nav__link">
+    <span class="md-ellipsis">
+      Credentials only go back to a trusted origin
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ownerpolicy-an-app-without-sign-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      ownerPolicy: an app without sign-in
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-durability-request-persistent-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Durability: request persistent storage
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cache-observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Cache observability
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-logout-clear-the-session-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Logout: clear the session data
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-offline-status-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Offline status UI
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-reactive-sync-engine-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      8. Reactive sync-engine hooks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-conflict-resolution" class="md-nav__link">
+    <span class="md-ellipsis">
+      9. Conflict resolution
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/pwa.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/pwa.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="pwa-offline-first">PWA &amp; Offline-First</h1>
+<p><code>tempest-react-sdk</code> ships everything a Tempest app needs to become an <strong>offline-first PWA</strong> — with no dependency on Workbox or <code>vite-plugin-pwa</code>. This page is the map: service-worker registration and updates, caching, background sync, storage durability and the status UI. The <strong>sync engine</strong> (<code>createOfflineSync</code>) has its own recipe in <a href="../offline-sync/">Offline Sync (FastAPI)</a> — here we cover the PWA layer around it.</p>
+<div class="admonition info">
+<p class="admonition-title">The pieces</p>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>What it does</th>
+<th>Where it runs</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tempest-react-sdk/vite</code></td>
+<td>generates manifest, icons, dev SW</td>
+<td>build (Vite)</td>
+</tr>
+<tr>
+<td><code>tempest-react-sdk/sw</code></td>
+<td>precache, runtime cache, background sync</td>
+<td>inside <code>sw.ts</code></td>
+</tr>
+<tr>
+<td>hooks + components</td>
+<td>update, status, quota, indicators</td>
+<td>main thread (React)</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h2 id="1-register-the-service-worker-and-update-with-consent">1. Register the service worker and update with consent</h2>
+<p><code>registerServiceWorker</code> handles <code>register()</code> + update detection. For the <strong>user-driven</strong> flow ("New version — update"), use the <code>useServiceWorkerUpdate</code> hook with the <code>&lt;UpdatePrompt&gt;</code> component:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useServiceWorkerUpdate</span><span class="p">,</span><span class="w"> </span><span class="nx">UpdatePrompt</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ServiceWorkerGate</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">updateAvailable</span><span class="p">,</span><span class="w"> </span><span class="nx">applyUpdate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useServiceWorkerUpdate</span><span class="p">({</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">"/sw.js"</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">UpdatePrompt</span><span class="w"> </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">updateAvailable</span><span class="p">}</span><span class="w"> </span><span class="na">onUpdate</span><span class="o">=</span><span class="p">{</span><span class="nx">applyUpdate</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>When a new worker finishes installing, <code>updateAvailable</code> flips to <code>true</code>; <code>applyUpdate()</code> activates the waiting worker (<code>skipWaiting</code>) and reloads the page once it takes control.</p>
+<div class="admonition note">
+<p class="admonition-title">It also catches the worker that was already waiting</p>
+<p>The common case fires no event at all: the user opened the app after a deploy (the new worker installed and went to <code>waiting</code>), closed the tab, and came back later. On that second visit <code>updatefound</code> never fires — <code>install</code> already happened. <code>registerServiceWorker</code> reads <code>registration.waiting</code> as soon as the registration resolves, so <code>updateAvailable</code> flips just the same. Each worker is announced <strong>once</strong>, even when both routes apply in one session, and neither fires on a first install (no <code>controller</code>) — that is <code>onReady</code>, not an update.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Keep <code>autoUpdate</code> off here</p>
+<p><code>useServiceWorkerUpdate</code> exists to hand the reload decision to the user. If you want a silent reload instead, call <code>registerServiceWorker({ url, autoUpdate: true })</code> directly, without the hook.</p>
+</div>
+<h2 id="2-precache-runtime-cache-navigation-preload">2. Precache + runtime cache + navigation preload</h2>
+<p>Inside your <code>sw.ts</code>, register specific routes <strong>before</strong> the precache (so they win over the catch-all):</p>
+<div class="highlight"><pre><span></span><code><span class="c1">/// &lt;reference lib="webworker" /&gt;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installRuntimeCache</span><span class="p">,</span><span class="w"> </span><span class="nx">installPrecache</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installRuntimeCache</span><span class="p">([</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="sr">/\/api\//</span><span class="p">,</span><span class="w"> </span><span class="nx">strategy</span><span class="o">:</span><span class="w"> </span><span class="s2">"network-first"</span><span class="p">,</span><span class="w"> </span><span class="nx">cacheName</span><span class="o">:</span><span class="w"> </span><span class="s2">"tempest-api"</span><span class="p">,</span><span class="w"> </span><span class="nx">maxAgeSeconds</span><span class="o">:</span><span class="w"> </span><span class="kt">300</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="sr">/\.(png|jpg|webp)$/</span><span class="p">,</span><span class="w"> </span><span class="nx">strategy</span><span class="o">:</span><span class="w"> </span><span class="s2">"cache-first"</span><span class="p">,</span><span class="w"> </span><span class="nx">cacheName</span><span class="o">:</span><span class="w"> </span><span class="s2">"tempest-img"</span><span class="p">,</span><span class="w"> </span><span class="nx">maxEntries</span><span class="o">:</span><span class="w"> </span><span class="kt">60</span><span class="w"> </span><span class="p">},</span>
+<span class="p">]);</span>
+
+<span class="nx">installPrecache</span><span class="p">();</span><span class="w"> </span><span class="c1">// app shell + offline navigation</span>
+</code></pre></div>
+<p><code>installPrecache</code> enables the <strong>Navigation Preload API</strong> on <code>activate</code> by default (<code>navigationPreload: true</code>): the browser fetches the navigation request in parallel with the worker boot and the handler serves <code>event.preloadResponse</code>, cutting first-navigation latency after the worker starts.</p>
+<div class="admonition info">
+<p class="admonition-title">The worker can be stopped at any time, and the precache keeps working</p>
+<p>The browser terminates an idle service worker within seconds or minutes and starts it again on the next event, <strong>without</strong> repeating <code>install</code>. That is why <code>installPrecache</code> keeps nothing in memory only: <code>install</code> and <code>activate</code> record, in an entry inside the versioned cache itself (<code>/__tempest-precache-state__</code>), when that version was installed and activated, and the restarted worker reads back from Cache Storage which version is active and which paths it holds. Offline navigation and precached assets keep coming from the cache after the restart, and <code>activate</code> deletes old versions only once it knows which one it is activating — never the current one.</p>
+<p>Up to 0.82.0 the cache name and the paths lived in module variables filled only by <code>install</code>: after the first restart, offline navigation failed with "offline and no cached app shell", and an <code>activate</code> without <code>install</code> in the same run deleted every precache (#572).</p>
+<p>In the first request after a restart, while the worker is still reading which paths are precached, a same-origin <code>GET</code> that no runtime route answered goes to the network through <code>fetch(request)</code> inside the worker instead of bypassing it — the decision to call <code>respondWith</code> cannot wait for Cache Storage. From then on, what is not precached bypasses the worker again.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>Vary</code> does not hide a precached asset</p>
+<p><code>install</code> stores each manifest URL for a header-less request, but the page asks for the same file with the headers its element sends: <code>Origin</code> on the <code>&lt;script type="module" crossorigin&gt;</code> Vite emits, <code>Accept: text/css,…</code> on the stylesheet. A server answering with <code>Vary: Origin</code> or <code>Vary: Accept</code> — <code>vite preview</code>, a CORS middleware serving static files, a CDN — produced an entry <code>cache.match</code> never returned: up to 0.83.0 every precached asset went to the network and, offline, the app opened blank (#582). The precache matches by URL, with <code>ignoreVary</code>: it holds one entry per path, written by the worker itself and never for a credential, so <code>Vary</code> distinguishes nothing there. <code>installRuntimeCache</code> keeps honouring <code>Vary</code> — that is what separates accounts under <code>cacheAuthenticated</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Where the manifest comes from</p>
+<p><code>installPrecache</code> reads <code>precache-manifest.json</code>, emitted by the <code>tempestPwaManifest()</code> plugin from the <code>tempest-react-sdk/vite</code> subpath. See <a href="../vite-config/">Vite config</a>.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Deploying to a subpath (GitHub Pages and friends)</p>
+<p><code>tempestPwaManifest()</code> prefixes the URLs with Vite's <code>base</code>, but <code>installPrecache</code> runs inside the worker and <strong>cannot</strong> see that config. When your <code>base</code> is not <code>/</code>, point both path options inside it:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">installPrecache</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">manifestUrl</span><span class="o">:</span><span class="w"> </span><span class="s2">"/my-app/precache-manifest.json"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">navigateFallback</span><span class="o">:</span><span class="w"> </span><span class="s2">"/my-app/index.html"</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>With the defaults (<code>/precache-manifest.json</code> and <code>/index.html</code>) the worker installs, fetches a manifest that 404s, and offline navigation never resolves.</p>
+</div>
+<h3 id="authenticated-responses-stay-out-of-the-cache-unless-you-ask">Authenticated responses stay out of the cache (unless you ask)</h3>
+<p>Cache Storage is keyed by <strong>URL</strong> and outlives logout. Left alone, account A's <code>GET /api/me</code> stays there and is served to account B on the same browser as soon as the network drops — or takes longer than <code>networkTimeoutSeconds</code>. Measured in Chromium 153 (11/10/2026), before 0.77.0: B, offline, received A's body.</p>
+<p>So <code>installRuntimeCache</code> enforces six rules on its own:</p>
+<ul>
+<li><strong>A request carrying a credential header goes straight to the network</strong> — <code>Authorization</code>, <code>X-Api-Key</code>, <code>X-Auth-Token</code> and the rest of <code>DEFAULT_CREDENTIAL_HEADERS</code> (override per route with <code>credentialHeaders</code>): the route neither reads nor writes the cache, as if the service worker did not exist for it.</li>
+<li><strong>A CORS <code>fetch</code> with <code>credentials: "include"</code> also goes straight through</strong> — it is what <code>ApiClient</code> sends under <code>withCredentials</code>, even on its own origin. <code>&lt;img&gt;</code>, <code>&lt;audio&gt;</code> and <code>&lt;video&gt;</code> send <code>include</code> too, but in <code>no-cors</code> mode, so they keep caching (since 0.82.0).</li>
+<li><strong><code>Cache-Control: no-store</code> is never stored</strong>, and <strong><code>private</code></strong> only with the opt-in.</li>
+<li><strong><code>Vary: *</code> is never stored</strong>: the Cache API rejects that response on <code>put</code>, and up to 0.81.0 the rejection became an error — <code>network-first</code> fell back to the offline path and <code>cache-first</code> failed, with the network response in hand. Now it is served and just not cached.</li>
+<li><strong><code>maxAgeSeconds</code> also applies to the fallback</strong>: an expired entry is a miss, never an offline "last resort". This holds for <code>network-first</code> and <code>stale-while-revalidate</code>.</li>
+<li><strong>Age counts from the write</strong>, not from the <code>Date</code> header — which a CORS response does not expose, so for an API on another origin <code>maxAgeSeconds</code> never expired anything.</li>
+</ul>
+<p>Do you really want authenticated data offline? Turn on <code>cacheAuthenticated</code> for the route:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">/// &lt;reference lib="webworker" /&gt;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installRuntimeCache</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installRuntimeCache</span><span class="p">([</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="sr">/\/api\//</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">strategy</span><span class="o">:</span><span class="w"> </span><span class="s2">"network-first"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">cacheName</span><span class="o">:</span><span class="w"> </span><span class="s2">"tempest-api"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">networkTimeoutSeconds</span><span class="o">:</span><span class="w"> </span><span class="kt">5</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">maxAgeSeconds</span><span class="o">:</span><span class="w"> </span><span class="kt">300</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">cacheAuthenticated</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">]);</span>
+</code></pre></div>
+<p>With the opt-in, every entry is stored with <code>Vary</code> on each credential header the request carried (<code>Vary: authorization</code>, for example): the Cache API only returns it for the <strong>same</strong> credential. Another account (or none) misses instead of reading the data. A token rotated while online simply rewrites the entry.</p>
+<p>The revalidation that keeps going after the response — the <code>stale-while-revalidate</code> refresh and the network request that lost to <code>networkTimeoutSeconds</code> — is handed to <code>event.waitUntil</code>, so the browser does not stop the worker mid-write.</p>
+<div class="admonition warning">
+<p class="admonition-title">Limit: cookie sessions over a plain <code>fetch</code></p>
+<p>The service worker <strong>cannot see</strong> the request's <code>Cookie</code>. What it can see is a <code>fetch</code> that asks for cookies explicitly (<code>credentials: "include"</code> in CORS mode), and that one already goes straight through. A plain same-origin <code>fetch</code> (<code>credentials: "same-origin"</code>, the default) carries the cookie without saying so — and gating on that mode would switch off caching for every request of the origin. For such an API, cache privacy depends on two things outside the SDK:</p>
+<ul>
+<li>the server sending <code>Cache-Control: private</code> (or <code>no-store</code>) on personal responses — the SDK honours it;</li>
+<li>the app calling <a href="#6-logout-clear-the-session-data"><code>clearSessionData()</code></a> on logout.</li>
+</ul>
+</div>
+<h2 id="3-background-sync-periodic-sync">3. Background sync + periodic sync</h2>
+<p><code>installBackgroundSync</code> queues mutating requests (<code>POST</code>/<code>PUT</code>/<code>PATCH</code>/<code>DELETE</code>) that fail offline and replays them when the network returns — via the Background Sync API, with an opportunistic fallback for browsers without it (Safari).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installBackgroundSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installBackgroundSync</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">self</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">pathname</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s2">"/api/"</span><span class="p">),</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>To replay even <strong>without a fresh navigation</strong>, register a periodic sync on the main thread. The SW already listens for the <code>periodicsync</code> event:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">registerPeriodicSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">registration</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">navigator</span><span class="p">.</span><span class="nx">serviceWorker</span><span class="p">.</span><span class="nx">ready</span><span class="p">;</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">registerPeriodicSync</span><span class="p">({</span><span class="w"> </span><span class="nx">registration</span><span class="p">,</span><span class="w"> </span><span class="nx">minIntervalMinutes</span><span class="o">:</span><span class="w"> </span><span class="kt">360</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+<p><code>registerPeriodicSync</code> checks the <code>periodic-background-sync</code> permission first and returns <code>false</code> when unavailable (Chrome-only) — calling it unconditionally is safe.</p>
+<h3 id="credentials-never-reach-indexeddb">Credentials never reach IndexedDB</h3>
+<p>The queue lives in the <code>tempest-bg-sync</code> IndexedDB database and outlives logout. So <code>installBackgroundSync</code> <strong>removes the credential headers</strong> before writing — <code>Authorization</code> and the rest of <code>DEFAULT_CREDENTIAL_HEADERS</code> (<code>x-api-key</code>, <code>x-auth-token</code>, <code>x-csrf-token</code>, …). Before 0.77.0 the bearer stayed readable there after logout and the mutation was replayed with the old identity (measured in Chromium 153, 11/10/2026).</p>
+<p>Entries written by earlier versions are scrubbed too: on the first open after the update, the database migrates and deletes their credential headers from disk. On replay the list is applied again, so no entry goes out with the credential it stored.</p>
+<p>On replay, the worker asks the open pages for the <strong>current</strong> credentials, over <code>postMessage</code> (a message of type <code>BACKGROUND_SYNC_CREDENTIALS_MESSAGE</code>, with a <code>MessagePort</code> for the answer). Install the provider once, next to your auth — the <code>--pwa</code> template already does it in <code>src/pwa.tsx</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">provideBackgroundSyncCredentials</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span><span class="p">({</span><span class="w"> </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="s2">"https://api.example.com"</span><span class="w"> </span><span class="p">});</span>
+
+<span class="nx">provideBackgroundSyncCredentials</span><span class="p">(</span>
+<span class="w">  </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">token</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">auth</span><span class="p">.</span><span class="nx">useAuthStore</span><span class="p">.</span><span class="nx">getState</span><span class="p">();</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">token</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Authorization</span><span class="o">:</span><span class="w"> </span><span class="sb">`Bearer </span><span class="si">${</span><span class="nx">token</span><span class="si">}</span><span class="sb">`</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">getPrincipal</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">auth</span><span class="p">.</span><span class="nx">useAuthStore</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">user</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="p">},</span>
+<span class="p">);</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Without a provider, no mutation is replayed</p>
+<p>The queue does not keep the token, so only the page can hand it back — and only the page can say who is signed in. Without <code>provideBackgroundSyncCredentials</code>, the tab does not answer, the entry's owner is <strong>unknown</strong>, and it stays pending until <code>maxRetentionMinutes</code> and is gone, whether or not it carried a credential header. In development builds the worker warns in the console (once per replay), and <code>provideBackgroundSyncCredentials</code> called <strong>without</strong> <code>getPrincipal</code> warns too: without it every entry is <strong>unbound</strong> and goes out with whichever session answers — B's, if A signed out without <code>clearSessionData()</code>. A cookie-session API with no token installs the provider all the same: <code>provideBackgroundSyncCredentials(() =&gt; null, { getPrincipal })</code>. An app with no sign-in at all uses <a href="#ownerpolicy-an-app-without-sign-in"><code>ownerPolicy: "lenient"</code></a>.</p>
+</div>
+<h4 id="every-entry-has-an-owner">Every entry has an owner</h4>
+<p><code>getPrincipal</code> binds the mutation to whoever made it. Right after queueing, the worker asks the tab that issued the request who is signed in and stores a <strong>SHA-256 fingerprint</strong> of that id on the entry — never the id or the token. The question does not delay the <code>fetch</code> rejection; until it comes back (up to 6 s), replay keeps the entry pending.</p>
+<p>The owner is in one of three states:</p>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>When</th>
+<th>Replay</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>owned</strong></td>
+<td>the tab answered with <code>getPrincipal</code></td>
+<td>only goes out with the answer of a tab where the <strong>same</strong> owner is signed in; none matches → dropped</td>
+</tr>
+<tr>
+<td><strong>unowned</strong></td>
+<td>the tab answered without <code>getPrincipal</code></td>
+<td>any answer will do (preferring one without a principal)</td>
+</tr>
+<tr>
+<td><strong>unknown</strong></td>
+<td>nobody answered, <code>getPrincipal</code> threw, the tab was gone (or there was none), the stamp was lost past the 6 s, or the entry predates 0.77</td>
+<td><strong>fails closed</strong>, with or without a credential header: only goes out when <strong>every</strong> tab that answered lacks a principal; a single tab with one → dropped; no answer → stays pending</td>
+</tr>
+</tbody>
+</table>
+<p>On replay the worker asks <strong>every</strong> tab in parallel, under one 3 s deadline, and uses the answer that fits — another account's tab answering first no longer drops A's mutation. Then:</p>
+<table>
+<thead>
+<tr>
+<th>Chosen answer</th>
+<th>Replay</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>headers including every stripped one</td>
+<td>sent with them — only the header <strong>names</strong> the original request carried, and only to the worker's origin or <code>trustedOrigins</code> (<a href="#credentials-only-go-back-to-a-trusted-origin">below</a>)</td>
+</tr>
+<tr>
+<td>headers missing a stripped one</td>
+<td>stays pending (it does not go out anonymous to take a 401 and vanish)</td>
+</tr>
+<tr>
+<td><code>null</code> (no session)</td>
+<td>dropped, unsent</td>
+</tr>
+<tr>
+<td>no valid answer</td>
+<td>stays pending until <code>maxRetentionMinutes</code></td>
+</tr>
+</tbody>
+</table>
+<p>Only an <strong>unowned</strong> entry with no credential header is replayed as it was, without asking. An entry whose owner is <strong>unknown</strong> asks even without a header: on a cookie-session API (<code>credentials: "include"</code>), the browser attaches on replay the cookie of whoever is signed in at that moment, so replaying unchecked would send A's mutation with B's session (as it did up to 0.77.0; <code>ownerPolicy: "lenient"</code> restores that, see below). And a tab without <code>getPrincipal</code> — say, still running the bundle from before the deploy — does not authorize the replay when another tab answers with a principal: it says nothing about the cookie that rides along. A provider error (<code>getHeaders</code> or <code>getPrincipal</code> throwing) comes back as an explicit <code>{ error: true }</code>, never as silence.</p>
+<p>Measured in Chromium 153 (11/10/2026), with a real service worker, IndexedDB and two tabs: A queues offline, B signs in without clearing anything, the sync fires — the server receives no POST; with B's tab open next to it, A's mutation goes out with A's refreshed token.</p>
+<h4 id="credentials-only-go-back-to-a-trusted-origin">Credentials only go back to a trusted origin</h4>
+<p>The header name is not enough. A request to a third party (<code>https://payments.example/webhooks</code>) carries <strong>that party's</strong> <code>Authorization</code>; the worker strips it before storing, like any credential. If the replay asked the page for the credential and applied it by name, the third party would receive the <strong>app's</strong> bearer — and up to 0.80.0 it did (#523): measured with the <code>--pwa</code> template's <code>match</code> and provider, the replay of a <code>POST https://third.party/api/hooks</code> with <code>Authorization: Bearer THIRD</code> went out with <code>Authorization: Bearer APP</code>.</p>
+<p>The replay now uses the same rule as the <code>ApiClient</code> (<code>isTrustedCredentialTarget</code>): a credential only goes to the <strong>worker's own origin</strong> and to the origins in <code>trustedOrigins</code>.</p>
+<ul>
+<li>An entry that carried a credential header to another origin is <strong>dropped</strong>, without asking the page and before <code>beforeReplay</code>. Replaying it without the credential would be a request the app never made; with the app's, a leak.</li>
+<li>A <code>Request</code> that <code>beforeReplay</code> (custom or default) returns with a <code>credentialHeaders</code> header for another origin is dropped too, instead of sent.</li>
+<li>An entry <strong>without</strong> a credential header is unchanged: the browser attaches that origin's cookies, as on the original attempt.</li>
+</ul>
+<p>In development builds, each drop warns once per origin per replay. If your API lives on another origin, declare it:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installBackgroundSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installBackgroundSync</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"https://api.example.com"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">trustedOrigins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"https://api.example.com"</span><span class="p">],</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>There is one replay per queue: <code>sync</code>, <code>periodicsync</code> and the Safari fallback firing together share the same pass, so a mutation is never sent twice. And <code>clearBackgroundSyncQueue()</code> reaches work in flight: each entry is checked against the database right before it goes out, and a request still failing when the queue was cleared is not written afterwards.</p>
+<p>Outside that path, <code>installBackgroundSync</code> has four knobs:</p>
+<ul>
+<li><strong><code>credentialHeaders</code></strong> — the list of headers removed. For a custom one: <code>[...DEFAULT_CREDENTIAL_HEADERS, "x-tenant-key"]</code>. The provider must return all of them.</li>
+<li><strong><code>beforeReplay(request, { queuedAt, strippedHeaders, ownerState, owner })</code></strong> — replaces the request to the pages: return the <code>Request</code> to send, <code>null</code> to drop, or throw to keep it pending. Useful when the worker can get the credential by itself; <code>ownerState</code>/<code>owner</code> let it apply the same owner rule.</li>
+<li><strong><code>ownerPolicy</code></strong> — <code>"strict"</code> (default) or <code>"lenient"</code>; see <a href="#ownerpolicy-an-app-without-sign-in"><code>ownerPolicy</code>: an app without sign-in</a>.</li>
+<li><strong><code>trustedOrigins</code></strong> — origins besides the worker's that may receive a credential on replay; see <a href="#credentials-only-go-back-to-a-trusted-origin">above</a>.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Limit: credentials in the URL or the body</p>
+<p>Only <strong>headers</strong> leave the queue. A token in the query string (<code>?access_token=…</code>) or inside the mutation body is stored as sent. Send credentials in a header.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title"><code>credentialHeaders: []</code> brings the old behavior back</p>
+<p>With an empty list, every header — bearer included — goes to IndexedDB in plain text and is replayed as stored. It is an explicit choice, for apps with no open page at replay time that accept the risk.</p>
+</div>
+<h4 id="ownerpolicy-an-app-without-sign-in"><code>ownerPolicy</code>: an app without sign-in</h4>
+<p>The default is <code>ownerPolicy: "strict"</code>. An app <strong>without sign-in</strong>, where no page reports a principal and there is no provider, can go back to the unchecked replay of 0.77.0 with <code>ownerPolicy: "lenient"</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">installBackgroundSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="nx">installBackgroundSync</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">match</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">self</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">origin</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">url</span><span class="p">.</span><span class="nx">pathname</span><span class="p">.</span><span class="nx">startsWith</span><span class="p">(</span><span class="s2">"/api/"</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">ownerPolicy</span><span class="o">:</span><span class="w"> </span><span class="s2">"lenient"</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Entry</th>
+<th><code>"strict"</code> (default)</th>
+<th><code>"lenient"</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>unknown</strong> owner, no credential header</td>
+<td>asks the pages: replayed only if every answer lacks a principal, dropped if any has one, pending with no answer</td>
+<td>replayed as it was, without asking</td>
+</tr>
+<tr>
+<td><strong>unknown</strong> owner, credential header stripped</td>
+<td>asks the pages (same rule)</td>
+<td>asks the pages (same rule)</td>
+</tr>
+<tr>
+<td><strong>owned</strong> / <strong>unowned</strong></td>
+<td>same in both modes</td>
+<td>same in both modes</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition danger">
+<p class="admonition-title"><code>lenient</code> is not for a cookie session</p>
+<p>On replay the browser attaches the cookie of whoever is signed in at that moment. Under <code>"lenient"</code>, A's mutation whose owner was never stamped (tab closed, empty <code>clientId</code>, stamp lost, old entry) goes out with B's session. With cookies, stay on <code>"strict"</code> and install the provider with <code>getPrincipal</code>. A custom <code>beforeReplay</code> ignores the option.</p>
+</div>
+<h2 id="4-durability-request-persistent-storage">4. Durability: request persistent storage</h2>
+<p>Without <code>navigator.storage.persist()</code>, the browser may <strong>evict</strong> IndexedDB and Cache Storage under disk pressure — fatal for offline data. <code>useStorageEstimate</code> shows usage/quota and exposes the action to make storage persistent:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">StorageMeter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">usage</span><span class="p">,</span><span class="w"> </span><span class="nx">quota</span><span class="p">,</span><span class="w"> </span><span class="nx">ratio</span><span class="p">,</span><span class="w"> </span><span class="nx">persisted</span><span class="p">,</span><span class="w"> </span><span class="nx">requestPersist</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">();</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">progress</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">ratio</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">{((</span><span class="nx">usage</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="p">).</span><span class="nx">toFixed</span><span class="p">(</span><span class="mf">1</span><span class="p">)}</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="p">{((</span><span class="nx">quota</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="p">).</span><span class="nx">toFixed</span><span class="p">(</span><span class="mf">0</span><span class="p">)}</span><span class="w"> </span><span class="nx">MB</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="o">!</span><span class="nx">persisted</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">requestPersist</span><span class="p">}&gt;</span><span class="nx">Make</span><span class="w"> </span><span class="nx">persistent</span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Outside React, use the pure functions <code>estimateStorage()</code> and <code>requestPersistentStorage()</code>.</p>
+<h2 id="5-cache-observability">5. Cache observability</h2>
+<p>For a "X MB cached" readout or a "clear cache" button, use the main-thread helpers:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">inspectCaches</span><span class="p">,</span><span class="w"> </span><span class="nx">clearCaches</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">reports</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">inspectCaches</span><span class="p">({</span><span class="w"> </span><span class="nx">filter</span><span class="o">:</span><span class="w"> </span><span class="s2">"tempest-"</span><span class="w"> </span><span class="p">});</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">totalMb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">reports</span><span class="p">.</span><span class="nx">reduce</span><span class="p">((</span><span class="nx">n</span><span class="p">,</span><span class="w"> </span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">n</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">.</span><span class="nx">bytes</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">),</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="p">;</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">clearCaches</span><span class="p">(</span><span class="s2">"tempest-img"</span><span class="p">);</span><span class="w"> </span><span class="c1">// one specific bucket</span>
+</code></pre></div>
+<p><code>inspectCaches</code> measures bytes by default (reading each response); pass <code>measureBytes: false</code> for a fast, count-only report.</p>
+<h2 id="6-logout-clear-the-session-data">6. Logout: clear the session data</h2>
+<p>The runtime cache and the background-sync queue belong to the <strong>browser</strong>, not to the user: the next account that signs in inherits both. On logout, call <code>clearSessionData()</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">clearSessionData</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/sw"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="p">({</span><span class="w"> </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="s2">"https://api.example.com"</span><span class="w"> </span><span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">signOut</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">clearSessionData</span><span class="p">();</span>
+<span class="w">  </span><span class="nx">auth</span><span class="p">.</span><span class="nx">logout</span><span class="p">();</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>It deletes <strong>every</strong> Cache Storage bucket except the app-shell precache (<code>tempest-precache-*</code>), plus the whole <code>tempest-bg-sync</code> queue. It returns <code>{ caches, queueCleared }</code> with what it removed.</p>
+<p>Why not a prefix: before 0.77.0 the docs said <code>clearCaches("tempest-")</code> on logout, and the recipe named the cache <code>api</code> — the prefix did not match and <strong>nothing</strong> was deleted. Worse, it would match <code>tempest-precache-*</code> and break the app offline. The default filter inverts the logic, so it works whatever <code>cacheName</code> you chose. To narrow it, pass <code>caches</code> (a <code>CacheFilter</code>); for a queue with another name, <code>queueName</code>. Just the queue: <code>clearBackgroundSyncQueue()</code>.</p>
+<div class="admonition tip">
+<p class="admonition-title">It runs in the page</p>
+<p>Cache Storage and IndexedDB are origin storage, reachable from <code>window</code> — no message to the service worker needed. If your auth exposes an end-of-session callback, call <code>clearSessionData()</code> there too, to cover a session that expires on its own. With <code>getPrincipal</code> on the provider and the token in a header, the queue no longer depends on it to keep its owner — the runtime cache still does. With a cookie session, the owner check trusts that each tab's <code>getPrincipal</code> reflects the cookie the browser will send; a tab with stale state (A still in memory while B signed in on another tab) authorizes the replay with B's cookie. So, with cookies, call <code>clearSessionData()</code> on logout even when using <code>getPrincipal</code>.</p>
+</div>
+<h2 id="7-offline-status-ui">7. Offline status UI</h2>
+<p>Two ready-made components, driven by <code>useOnline</code> and the sync engine:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">OfflineIndicator</span><span class="p">,</span><span class="w"> </span><span class="nx">SyncStatusBadge</span><span class="p">,</span><span class="w"> </span><span class="nx">useSyncStatus</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">notesSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/sync/engine"</span><span class="p">;</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">StatusBar</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">tone</span><span class="p">,</span><span class="w"> </span><span class="nx">pending</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useSyncStatus</span><span class="p">(</span><span class="nx">notesSync</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">OfflineIndicator</span><span class="w"> </span><span class="na">position</span><span class="o">=</span><span class="s">"top"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">SyncStatusBadge</span><span class="w"> </span><span class="na">tone</span><span class="o">=</span><span class="p">{</span><span class="nx">tone</span><span class="p">}</span><span class="w"> </span><span class="na">pending</span><span class="o">=</span><span class="p">{</span><span class="nx">pending</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong><code>&lt;OfflineIndicator&gt;</code></strong> — a fixed bar that appears offline and flashes a confirmation on reconnect. Renders nothing while online, so it is safe to mount at the app root.</li>
+<li><strong><code>&lt;SyncStatusBadge&gt;</code></strong> — a pill with icon + label + pending count, driven by <code>useSyncStatus(sync).tone</code>.</li>
+</ul>
+<h2 id="8-reactive-sync-engine-hooks">8. Reactive sync-engine hooks</h2>
+<p><code>useOfflineSync</code> subscribes a component to an <code>OfflineSync</code> engine and optionally flushes on mount, on the <code>online</code> event and on an interval:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">notesSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/sync/engine"</span><span class="p">;</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">useNotesSync</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="p">(</span><span class="nx">notesSync</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">flushOnMount</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">intervalMs</span><span class="o">:</span><span class="w"> </span><span class="kt">30_000</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="c1">// → { phase, pending, syncing, lastSummary, lastError, lastSyncedAt, enqueue, flush }</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>For <strong>optimistic</strong> mutations that write to the outbox and patch the TanStack Query cache (with rollback on failure), use <code>useOfflineMutation</code> — see <a href="../query/#useofflinemutation">Query</a>.</p>
+<h2 id="9-conflict-resolution">9. Conflict resolution</h2>
+<p>The pull overwrites the local record with the server version. When you need an explicit policy inside <code>applyRemote</code>, the helpers cover the two common cases (ties → remote wins):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">lastWriteWins</span><span class="p">,</span><span class="w"> </span><span class="nx">higherVersionWins</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">applyRemote</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">dto</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">store</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">dto</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">store</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="nx">lastWriteWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">updatedAt</span><span class="p">));</span>
+<span class="p">};</span>
+</code></pre></div>
+<h2 id="recap">Recap</h2>
+<ul>
+<li><strong><code>useServiceWorkerUpdate</code> + <code>&lt;UpdatePrompt&gt;</code></strong> give the consent-based update flow. ✅</li>
+<li><strong><code>installPrecache</code></strong> enables navigation preload; <strong><code>installRuntimeCache</code></strong> covers the Workbox-like strategies and keeps authenticated responses out of the cache unless <code>cacheAuthenticated</code>.</li>
+<li><strong><code>installBackgroundSync</code></strong> + <strong><code>registerPeriodicSync</code></strong> replay offline mutations, with or without a fresh navigation — without storing credentials; <strong><code>provideBackgroundSyncCredentials</code></strong> supplies the current ones at replay.</li>
+<li><strong><code>clearSessionData</code></strong> on logout clears the runtime cache and the queue. 🔒</li>
+<li><strong><code>useStorageEstimate</code></strong> + <strong><code>requestPersistentStorage</code></strong> prevent IndexedDB eviction.</li>
+<li><strong><code>inspectCaches</code>/<code>clearCaches</code></strong> give cache visibility and cleanup.</li>
+<li><strong><code>&lt;OfflineIndicator&gt;</code> / <code>&lt;SyncStatusBadge&gt;</code> / <code>useOfflineSync</code> / <code>useSyncStatus</code></strong> assemble the reactive status UI. 🚀</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../offline/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Offline">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Offline
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../share/" class="md-footer__link md-footer__link--next" aria-label="Next: Web Share">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Web Share
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

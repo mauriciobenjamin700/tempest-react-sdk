@@ -1,0 +1,5153 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/charts/">
+      
+      
+        <link rel="prev" href="../imaging/">
+      
+      
+        <link rel="next" href="../editor/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Charts (recharts) - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#charts-recharts" class="md-skip">
+          Ir para o conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href=".." title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Charts (recharts)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Selecione o idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../en/charts/" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Compartilhar" aria-label="Compartilhar" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando a pesquisa
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Fundamentos da Web
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Comece aqui
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Design de Software
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Componentes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Módulos
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Receitas
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Projeto
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Fundamentos da Web
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundamentos da Web
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página existe
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página existe
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: estrutura e semântica
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulário e acessibilidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página parece
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página parece
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: seletor, cascata, especificidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Caixa, fluxo, flex e grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties e tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página reage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página reage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: valor, referência, escopo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Assíncrono: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Módulos, npm e o bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Antes do tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Antes do tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: o mínimo que o SDK usa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: componente, estado, efeito
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comece aqui
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Comece aqui
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Buscando dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Ferramentas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Ferramentas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI tempest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Design de Software
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Design de Software
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Desenho do sistema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Desenho do sistema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camadas de um app frontend
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estrutura de pastas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Onde mora cada estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Escrevendo o código
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Escrevendo o código
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pensando em componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Limites objetivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tipagem forte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustentando
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustentando
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estratégia de testes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-padrões
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checklist de revisão
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Componentes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Componentes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Catálogo de componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Entrada de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identidade & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telas de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & avançados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & avançados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essenciais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação & conteúdo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados avançados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conversa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Módulos
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Módulos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral do pacote
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Fundação de app
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundação de app
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hooks utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrações
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrações
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (áudio Opus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocalização
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mapa do Brasil (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pagamentos, fiscal & contato BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix e cartão, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upload resumível (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Áudio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Captura de dispositivo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural (RNNoise 48 kHz)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imagens (processamento)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#por-que-um-subpath-separado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Por que um subpath separado
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Por que um subpath separado">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#instalacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Instalação
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-familia-cartesiana-area-bar-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      A família cartesiana: Area, Bar, Line
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A família cartesiana: Area, Bar, Line">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#barchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      BarChart
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linechart" class="md-nav__link">
+    <span class="md-ellipsis">
+      LineChart
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#areachart-com-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      AreaChart (com stack)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cartesianchartprops-referencia" class="md-nav__link">
+    <span class="md-ellipsis">
+      CartesianChartProps — referência
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#piechart" class="md-nav__link">
+    <span class="md-ellipsis">
+      PieChart
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PieChart">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#piechartprops-referencia" class="md-nav__link">
+    <span class="md-ellipsis">
+      PieChartProps — referência
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#radarchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      RadarChart
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cores-e-tema" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cores e tema
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cores e tema">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resolvendo-tokens-voce-mesmo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolvendo tokens você mesmo
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#escala-continua-magnitude-e-polaridade" class="md-nav__link">
+    <span class="md-ellipsis">
+      Escala contínua: magnitude e polaridade
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Escala contínua: magnitude e polaridade">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#como-as-rampas-foram-feitas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Como as rampas foram feitas
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#responsivo-por-padrao-fixo-quando-preciso" class="md-nav__link">
+    <span class="md-ellipsis">
+      Responsivo por padrão, fixo quando preciso
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Formulários
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Estilo & Tema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Estilo & Tema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estilos & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observabilidade
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observabilidade
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Receitas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Receitas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Integração FastAPI (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Projeto
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Projeto
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#por-que-um-subpath-separado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Por que um subpath separado
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Por que um subpath separado">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#instalacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      Instalação
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-familia-cartesiana-area-bar-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      A família cartesiana: Area, Bar, Line
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="A família cartesiana: Area, Bar, Line">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#barchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      BarChart
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linechart" class="md-nav__link">
+    <span class="md-ellipsis">
+      LineChart
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#areachart-com-stack" class="md-nav__link">
+    <span class="md-ellipsis">
+      AreaChart (com stack)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cartesianchartprops-referencia" class="md-nav__link">
+    <span class="md-ellipsis">
+      CartesianChartProps — referência
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#piechart" class="md-nav__link">
+    <span class="md-ellipsis">
+      PieChart
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PieChart">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#piechartprops-referencia" class="md-nav__link">
+    <span class="md-ellipsis">
+      PieChartProps — referência
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#radarchart" class="md-nav__link">
+    <span class="md-ellipsis">
+      RadarChart
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cores-e-tema" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cores e tema
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Cores e tema">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#resolvendo-tokens-voce-mesmo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Resolvendo tokens você mesmo
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#escala-continua-magnitude-e-polaridade" class="md-nav__link">
+    <span class="md-ellipsis">
+      Escala contínua: magnitude e polaridade
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Escala contínua: magnitude e polaridade">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#como-as-rampas-foram-feitas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Como as rampas foram feitas
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#responsivo-por-padrao-fixo-quando-preciso" class="md-nav__link">
+    <span class="md-ellipsis">
+      Responsivo por padrão, fixo quando preciso
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/charts.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/charts.md" title="Ver fonte desta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="charts-recharts">Charts (recharts)</h1>
+<p>Gráficos transformam números em forma: uma tendência que sobe, uma fatia que
+domina, um eixo onde uma série cruza a outra. O SDK embrulha o
+<a href="https://recharts.org">recharts</a> em cinco componentes temados — <code>AreaChart</code>,
+<code>BarChart</code>, <code>LineChart</code>, <code>PieChart</code> e <code>RadarChart</code> — que recebem <strong>dados
+tabulares simples</strong> (um array de objetos) e cuidam de eixos, grid, legenda,
+tooltip e cores pra você.</p>
+<p>Você não monta <code>&lt;XAxis&gt;</code>/<code>&lt;YAxis&gt;</code>/<code>&lt;Tooltip&gt;</code> na mão: passa <code>data</code>, diz qual
+chave é o eixo (<code>index</code>) e quais chaves virar séries (<code>categories</code>), e o
+componente faz o resto.</p>
+<!-- gallery:dataviz-scales -->
+<p><a href="../gallery/"><img alt="Escalas contínuas (heatmap) na gallery" src="../assets/gallery/dataviz-scales.webp" /></a></p>
+<p><em>Seção <code>dataviz-scales</code> da <a href="../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<h2 id="por-que-um-subpath-separado">Por que um subpath separado</h2>
+<p>Os gráficos não vêm do barrel principal. Você os importa de
+<code>tempest-react-sdk/charts</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BarChart</span><span class="p">,</span><span class="w"> </span><span class="nx">LineChart</span><span class="p">,</span><span class="w"> </span><span class="nx">AreaChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Por que isolar os charts num subpath?</p>
+<p>O <code>recharts</code> é uma dependência <strong>pesada</strong> (D3 por baixo). A maioria dos apps
+Tempest não desenha gráfico nenhum — e seria injusto cobrar esse peso de
+todos. Por isso os charts moram num subpath dedicado e o <code>recharts</code> fica
+<strong>externalizado</strong> no bundle do SDK. Apps que nunca importam de
+<code>tempest-react-sdk/charts</code> <strong>não pagam nada</strong>: o tree-shaking do bundler do
+app remove tudo.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Só quer a forma da série? Não precisa de chart</p>
+<p>Um mini-gráfico inline — tendência numa célula de tabela, ao lado de um KPI —
+é o <a href="../components/data/#sparkline"><code>Sparkline</code></a>, que mora na <strong>entrada
+raiz</strong> e é SVG puro. Nenhum <code>recharts</code> envolvido. Use os charts desta página
+quando o leitor precisa <strong>ler valores no eixo</strong>.</p>
+</div>
+<p>Isso é o mesmo padrão do <strong>caller injeta a dependência pesada</strong> que o SDK já usa
+nos adapters de telemetria (Sentry/PostHog) e feature flags
+(GrowthBook/LaunchDarkly): o SDK descreve a integração, mas a biblioteca de
+verdade fica por conta do app. A diferença é que aqui o <code>recharts</code> é uma <strong>peer
+dependency opcional</strong> — você o instala uma vez e os cinco componentes o
+reutilizam.</p>
+<h3 id="instalacao">Instalação</h3>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>i<span class="w"> </span>recharts
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Sem o <code>recharts</code>, os charts não renderizam</p>
+<p>Como o <code>recharts</code> é peer dep <strong>opcional</strong>, o <code>npm install tempest-react-sdk</code>
+não o traz junto. Se você importar de <code>tempest-react-sdk/charts</code> sem ter
+rodado <code>npm i recharts</code>, o build quebra com <code>Cannot find module 'recharts'</code>.
+Instale-o no app que de fato usa gráficos.</p>
+</div>
+<h2 id="a-familia-cartesiana-area-bar-line">A família cartesiana: Area, Bar, Line</h2>
+<p><code>AreaChart</code>, <code>BarChart</code> e <code>LineChart</code> compartilham a <strong>mesma</strong> interface de
+props, <code>CartesianChartProps</code>. Aprenda uma e você sabe as três — troca só o nome
+do componente.</p>
+<p>O modelo mental é sempre o mesmo:</p>
+<ul>
+<li><code>data</code> — suas linhas (array de objetos).</li>
+<li><code>index</code> — a chave que vira o <strong>eixo X</strong> (rótulos: meses, dias, nomes…).</li>
+<li><code>categories</code> — as chaves que viram <strong>séries</strong> (uma área/barra/linha cada).</li>
+</ul>
+<h3 id="barchart">BarChart</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BarChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">faturamento</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">mes</span><span class="o">:</span><span class="w"> </span><span class="s2">"Jan"</span><span class="p">,</span><span class="w"> </span><span class="nx">receita</span><span class="o">:</span><span class="w"> </span><span class="kt">12000</span><span class="p">,</span><span class="w"> </span><span class="nx">custo</span><span class="o">:</span><span class="w"> </span><span class="kt">8000</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">mes</span><span class="o">:</span><span class="w"> </span><span class="s2">"Fev"</span><span class="p">,</span><span class="w"> </span><span class="nx">receita</span><span class="o">:</span><span class="w"> </span><span class="kt">15000</span><span class="p">,</span><span class="w"> </span><span class="nx">custo</span><span class="o">:</span><span class="w"> </span><span class="kt">9000</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">mes</span><span class="o">:</span><span class="w"> </span><span class="s2">"Mar"</span><span class="p">,</span><span class="w"> </span><span class="nx">receita</span><span class="o">:</span><span class="w"> </span><span class="kt">18000</span><span class="p">,</span><span class="w"> </span><span class="nx">custo</span><span class="o">:</span><span class="w"> </span><span class="kt">9500</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">mes</span><span class="o">:</span><span class="w"> </span><span class="s2">"Abr"</span><span class="p">,</span><span class="w"> </span><span class="nx">receita</span><span class="o">:</span><span class="w"> </span><span class="kt">21000</span><span class="p">,</span><span class="w"> </span><span class="nx">custo</span><span class="o">:</span><span class="w"> </span><span class="kt">11000</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">FaturamentoMensal</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">BarChart</span>
+<span class="w">      </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">faturamento</span><span class="p">}</span>
+<span class="w">      </span><span class="na">index</span><span class="o">=</span><span class="s">"mes"</span>
+<span class="w">      </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"receita"</span><span class="p">,</span><span class="w"> </span><span class="s2">"custo"</span><span class="p">]}</span>
+<span class="w">      </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`R$ </span><span class="si">${</span><span class="nx">v</span><span class="p">.</span><span class="nx">toLocaleString</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">}</span>
+<span class="w">      </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">320</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Duas séries (<code>receita</code>, <code>custo</code>), agrupadas lado a lado por mês. O
+<code>valueFormatter</code> formata os números no tooltip <strong>e</strong> no eixo Y.</p>
+<h3 id="linechart">LineChart</h3>
+<p>Mesma forma de dados, mesmo <code>index</code> e <code>categories</code> — só muda o componente:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LineChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">visitas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"Seg"</span><span class="p">,</span><span class="w"> </span><span class="nx">organico</span><span class="o">:</span><span class="w"> </span><span class="kt">320</span><span class="p">,</span><span class="w"> </span><span class="nx">pago</span><span class="o">:</span><span class="w"> </span><span class="kt">120</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"Ter"</span><span class="p">,</span><span class="w"> </span><span class="nx">organico</span><span class="o">:</span><span class="w"> </span><span class="kt">410</span><span class="p">,</span><span class="w"> </span><span class="nx">pago</span><span class="o">:</span><span class="w"> </span><span class="kt">150</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"Qua"</span><span class="p">,</span><span class="w"> </span><span class="nx">organico</span><span class="o">:</span><span class="w"> </span><span class="kt">380</span><span class="p">,</span><span class="w"> </span><span class="nx">pago</span><span class="o">:</span><span class="w"> </span><span class="kt">90</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"Qui"</span><span class="p">,</span><span class="w"> </span><span class="nx">organico</span><span class="o">:</span><span class="w"> </span><span class="kt">520</span><span class="p">,</span><span class="w"> </span><span class="nx">pago</span><span class="o">:</span><span class="w"> </span><span class="kt">200</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sex"</span><span class="p">,</span><span class="w"> </span><span class="nx">organico</span><span class="o">:</span><span class="w"> </span><span class="kt">610</span><span class="p">,</span><span class="w"> </span><span class="nx">pago</span><span class="o">:</span><span class="w"> </span><span class="kt">240</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">VisitasSemanais</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">LineChart</span>
+<span class="w">      </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">visitas</span><span class="p">}</span>
+<span class="w">      </span><span class="na">index</span><span class="o">=</span><span class="s">"dia"</span>
+<span class="w">      </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"organico"</span><span class="p">,</span><span class="w"> </span><span class="s2">"pago"</span><span class="p">]}</span>
+<span class="w">      </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">v</span><span class="p">.</span><span class="nx">toLocaleString</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">)}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title"><code>stack</code> não empilha linhas</p>
+<p><code>CartesianChartProps</code> tem a prop <code>stack</code> por uniformidade, mas o <code>LineChart</code>
+a <strong>ignora</strong> — linhas empilhadas raramente fazem sentido. Use <code>stack</code> no
+<code>AreaChart</code> ou no <code>BarChart</code>, onde ele de fato empilha as séries num
+<code>stackId</code> comum.</p>
+</div>
+<h3 id="areachart-com-stack">AreaChart (com <code>stack</code>)</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AreaChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">trafego</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">hora</span><span class="o">:</span><span class="w"> </span><span class="s2">"08h"</span><span class="p">,</span><span class="w"> </span><span class="nx">desktop</span><span class="o">:</span><span class="w"> </span><span class="kt">120</span><span class="p">,</span><span class="w"> </span><span class="nx">mobile</span><span class="o">:</span><span class="w"> </span><span class="kt">80</span><span class="p">,</span><span class="w"> </span><span class="nx">tablet</span><span class="o">:</span><span class="w"> </span><span class="kt">20</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">hora</span><span class="o">:</span><span class="w"> </span><span class="s2">"12h"</span><span class="p">,</span><span class="w"> </span><span class="nx">desktop</span><span class="o">:</span><span class="w"> </span><span class="kt">200</span><span class="p">,</span><span class="w"> </span><span class="nx">mobile</span><span class="o">:</span><span class="w"> </span><span class="kt">160</span><span class="p">,</span><span class="w"> </span><span class="nx">tablet</span><span class="o">:</span><span class="w"> </span><span class="kt">30</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">hora</span><span class="o">:</span><span class="w"> </span><span class="s2">"18h"</span><span class="p">,</span><span class="w"> </span><span class="nx">desktop</span><span class="o">:</span><span class="w"> </span><span class="kt">90</span><span class="p">,</span><span class="w"> </span><span class="nx">mobile</span><span class="o">:</span><span class="w"> </span><span class="kt">240</span><span class="p">,</span><span class="w"> </span><span class="nx">tablet</span><span class="o">:</span><span class="w"> </span><span class="kt">25</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">hora</span><span class="o">:</span><span class="w"> </span><span class="s2">"22h"</span><span class="p">,</span><span class="w"> </span><span class="nx">desktop</span><span class="o">:</span><span class="w"> </span><span class="kt">60</span><span class="p">,</span><span class="w"> </span><span class="nx">mobile</span><span class="o">:</span><span class="w"> </span><span class="kt">300</span><span class="p">,</span><span class="w"> </span><span class="nx">tablet</span><span class="o">:</span><span class="w"> </span><span class="kt">40</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">TrafegoPorDispositivo</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">AreaChart</span>
+<span class="w">      </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">trafego</span><span class="p">}</span>
+<span class="w">      </span><span class="na">index</span><span class="o">=</span><span class="s">"hora"</span>
+<span class="w">      </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"desktop"</span><span class="p">,</span><span class="w"> </span><span class="s2">"mobile"</span><span class="p">,</span><span class="w"> </span><span class="s2">"tablet"</span><span class="p">]}</span>
+<span class="w">      </span><span class="na">stack</span>
+<span class="w">      </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">v</span><span class="si">}</span><span class="sb"> sessões`</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Com <code>stack</code>, as três áreas se empilham e o topo mostra o total por hora.</p>
+<h3 id="cartesianchartprops-referencia"><code>CartesianChartProps</code> — referência</h3>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code></td>
+<td><code>ChartData</code></td>
+<td>—</td>
+<td>Linhas a plotar (array de objetos <code>chave → string \| number</code>).</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Chave da linha usada no eixo X (cartesiano) ou eixo angular (radar).</td>
+</tr>
+<tr>
+<td><code>categories</code></td>
+<td><code>string[]</code></td>
+<td>—</td>
+<td>Chaves a plotar, uma série cada.</td>
+</tr>
+<tr>
+<td><code>colors</code></td>
+<td><code>string[]</code></td>
+<td>tokens <code>--tempest-chart-*</code></td>
+<td>Cores das séries, cicladas por categoria.</td>
+</tr>
+<tr>
+<td><code>height</code></td>
+<td><code>number</code></td>
+<td><code>300</code></td>
+<td>Altura do gráfico em pixels.</td>
+</tr>
+<tr>
+<td><code>width</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>Largura fixa em px. Quando definida, dispensa o <code>ResponsiveContainer</code>.</td>
+</tr>
+<tr>
+<td><code>stack</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Empilha as séries num <code>stackId</code> comum (ignorado pelo <code>LineChart</code>).</td>
+</tr>
+<tr>
+<td><code>showLegend</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Renderiza a legenda.</td>
+</tr>
+<tr>
+<td><code>showGrid</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Renderiza o grid cartesiano.</td>
+</tr>
+<tr>
+<td><code>showTooltip</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Renderiza o tooltip.</td>
+</tr>
+<tr>
+<td><code>valueFormatter</code></td>
+<td><code>(value: number) =&gt; string</code></td>
+<td>—</td>
+<td>Formata valores numéricos no tooltip e no eixo Y.</td>
+</tr>
+<tr>
+<td><code>className</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Classe extra aplicada ao wrapper do gráfico.</td>
+</tr>
+</tbody>
+</table>
+<p><code>ChartData = Array&lt;Record&lt;string, string | number&gt;&gt;</code> — cada linha mapeia uma
+chave de coluna a um rótulo (string) ou valor (number).</p>
+<div class="admonition tip">
+<p class="admonition-title">Uma série, ou várias</p>
+<p><code>categories</code> é um array, então você decide quantas séries quer. Uma só
+(<code>categories={["receita"]}</code>) desenha um gráfico simples; várias desenham
+séries comparativas, cada uma com a próxima cor da paleta.</p>
+</div>
+<h2 id="piechart">PieChart</h2>
+<p>A <code>PieChart</code> tem uma forma de dados diferente: <strong>uma linha por fatia</strong>. Em vez de
+<code>categories</code>, você diz qual chave segura o <strong>valor</strong> (<code>category</code>) e qual segura o
+<strong>rótulo</strong> (<code>index</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PieChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">planos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">plano</span><span class="o">:</span><span class="w"> </span><span class="s2">"Free"</span><span class="p">,</span><span class="w"> </span><span class="nx">usuarios</span><span class="o">:</span><span class="w"> </span><span class="kt">4200</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">plano</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pro"</span><span class="p">,</span><span class="w"> </span><span class="nx">usuarios</span><span class="o">:</span><span class="w"> </span><span class="kt">1800</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">plano</span><span class="o">:</span><span class="w"> </span><span class="s2">"Business"</span><span class="p">,</span><span class="w"> </span><span class="nx">usuarios</span><span class="o">:</span><span class="w"> </span><span class="kt">600</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">plano</span><span class="o">:</span><span class="w"> </span><span class="s2">"Enterprise"</span><span class="p">,</span><span class="w"> </span><span class="nx">usuarios</span><span class="o">:</span><span class="w"> </span><span class="kt">120</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">DistribuicaoDePlanos</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">PieChart</span>
+<span class="w">      </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">planos</span><span class="p">}</span>
+<span class="w">      </span><span class="na">category</span><span class="o">=</span><span class="s">"usuarios"</span>
+<span class="w">      </span><span class="na">index</span><span class="o">=</span><span class="s">"plano"</span>
+<span class="w">      </span><span class="na">donut</span>
+<span class="w">      </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">v</span><span class="p">.</span><span class="nx">toLocaleString</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">)</span><span class="si">}</span><span class="sb"> usuários`</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Cada linha vira uma fatia colorida pela próxima cor da paleta. Com <code>donut</code>, o
+centro fica vazio (raio interno de 60%) — ótimo pra colocar um total no meio.</p>
+<h3 id="piechartprops-referencia"><code>PieChartProps</code> — referência</h3>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code></td>
+<td><code>ChartData</code></td>
+<td>—</td>
+<td>Linhas a plotar, uma fatia cada.</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Chave da linha com o <strong>valor</strong> numérico da fatia.</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Chave da linha com o <strong>nome/rótulo</strong> da fatia.</td>
+</tr>
+<tr>
+<td><code>colors</code></td>
+<td><code>string[]</code></td>
+<td>tokens <code>--tempest-chart-*</code></td>
+<td>Cores das fatias, cicladas por fatia.</td>
+</tr>
+<tr>
+<td><code>height</code></td>
+<td><code>number</code></td>
+<td><code>300</code></td>
+<td>Altura do gráfico em pixels.</td>
+</tr>
+<tr>
+<td><code>width</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>Largura fixa em px. Quando definida, dispensa o <code>ResponsiveContainer</code>.</td>
+</tr>
+<tr>
+<td><code>donut</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Renderiza como rosca (raio interno não-zero) em vez de pizza cheia.</td>
+</tr>
+<tr>
+<td><code>showLegend</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Renderiza a legenda.</td>
+</tr>
+<tr>
+<td><code>showTooltip</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Renderiza o tooltip.</td>
+</tr>
+<tr>
+<td><code>valueFormatter</code></td>
+<td><code>(value: number) =&gt; string</code></td>
+<td>—</td>
+<td>Formata valores numéricos no tooltip.</td>
+</tr>
+<tr>
+<td><code>className</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Classe extra aplicada ao wrapper.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">A <code>PieChart</code> não tem <code>showGrid</code> nem <code>stack</code></p>
+<p>Pizza não tem grid cartesiano nem empilhamento — essas props da família
+cartesiana simplesmente não existem aqui.</p>
+</div>
+<h2 id="radarchart">RadarChart</h2>
+<p>A <code>RadarChart</code> reusa <code>CartesianChartProps</code> (mesma assinatura de Area/Bar/Line),
+mas plota polígonos num eixo radial: <code>index</code> vira o <strong>eixo angular</strong> (os vértices)
+e cada entrada de <code>categories</code> vira um polígono.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">RadarChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">skills</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">atributo</span><span class="o">:</span><span class="w"> </span><span class="s2">"Velocidade"</span><span class="p">,</span><span class="w"> </span><span class="nx">time_a</span><span class="o">:</span><span class="w"> </span><span class="kt">80</span><span class="p">,</span><span class="w"> </span><span class="nx">time_b</span><span class="o">:</span><span class="w"> </span><span class="kt">65</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">atributo</span><span class="o">:</span><span class="w"> </span><span class="s2">"Defesa"</span><span class="p">,</span><span class="w"> </span><span class="nx">time_a</span><span class="o">:</span><span class="w"> </span><span class="kt">70</span><span class="p">,</span><span class="w"> </span><span class="nx">time_b</span><span class="o">:</span><span class="w"> </span><span class="kt">90</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">atributo</span><span class="o">:</span><span class="w"> </span><span class="s2">"Ataque"</span><span class="p">,</span><span class="w"> </span><span class="nx">time_a</span><span class="o">:</span><span class="w"> </span><span class="kt">95</span><span class="p">,</span><span class="w"> </span><span class="nx">time_b</span><span class="o">:</span><span class="w"> </span><span class="kt">75</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">atributo</span><span class="o">:</span><span class="w"> </span><span class="s2">"Resistência"</span><span class="p">,</span><span class="w"> </span><span class="nx">time_a</span><span class="o">:</span><span class="w"> </span><span class="kt">60</span><span class="p">,</span><span class="w"> </span><span class="nx">time_b</span><span class="o">:</span><span class="w"> </span><span class="kt">85</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">atributo</span><span class="o">:</span><span class="w"> </span><span class="s2">"Técnica"</span><span class="p">,</span><span class="w"> </span><span class="nx">time_a</span><span class="o">:</span><span class="w"> </span><span class="kt">88</span><span class="p">,</span><span class="w"> </span><span class="nx">time_b</span><span class="o">:</span><span class="w"> </span><span class="kt">80</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ComparativoDeTimes</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">RadarChart</span>
+<span class="w">      </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">skills</span><span class="p">}</span>
+<span class="w">      </span><span class="na">index</span><span class="o">=</span><span class="s">"atributo"</span>
+<span class="w">      </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"time_a"</span><span class="p">,</span><span class="w"> </span><span class="s2">"time_b"</span><span class="p">]}</span>
+<span class="w">      </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">v</span><span class="si">}</span><span class="sb"> pts`</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Dois polígonos sobrepostos comparam <code>time_a</code> e <code>time_b</code> em cada atributo —
+perfeito pra comparar perfis multidimensionais.</p>
+<div class="admonition note">
+<p class="admonition-title">A <code>RadarChart</code> ignora <code>showGrid</code> e <code>stack</code></p>
+<p>O radar sempre desenha seu próprio <code>PolarGrid</code> (não há <code>showGrid</code>), e não
+empilha séries (<code>stack</code> é ignorado). <code>showLegend</code>/<code>showTooltip</code>/<code>colors</code>/
+<code>valueFormatter</code> funcionam normalmente.</p>
+</div>
+<h2 id="cores-e-tema">Cores e tema</h2>
+<p><strong>Você não precisa fazer nada:</strong> por padrão as séries saem dos tokens
+<code>--tempest-chart-1</code> … <code>--tempest-chart-8</code> do tema. Trocar a marca com
+<code>createTheme({ chart: [...] })</code> move os gráficos junto, e virar o tema escuro
+troca a paleta pela versão clareada — sem prop nenhuma no gráfico.</p>
+<div class="highlight"><pre><span></span><code><span class="c">/* o que o SDK já define (colors.css) */</span>
+<span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--tempest-chart-1</span><span class="p">:</span><span class="w"> </span><span class="mh">#2563eb</span><span class="p">;</span><span class="w"> </span><span class="c">/* azul    */</span>
+<span class="w">  </span><span class="nv">--tempest-chart-2</span><span class="p">:</span><span class="w"> </span><span class="mh">#16a34a</span><span class="p">;</span><span class="w"> </span><span class="c">/* verde   */</span>
+<span class="w">  </span><span class="nv">--tempest-chart-3</span><span class="p">:</span><span class="w"> </span><span class="mh">#f59e0b</span><span class="p">;</span><span class="w"> </span><span class="c">/* âmbar   */</span>
+<span class="w">  </span><span class="nv">--tempest-chart-4</span><span class="p">:</span><span class="w"> </span><span class="mh">#7c3aed</span><span class="p">;</span><span class="w"> </span><span class="c">/* violeta */</span>
+<span class="w">  </span><span class="nv">--tempest-chart-5</span><span class="p">:</span><span class="w"> </span><span class="mh">#ec4899</span><span class="p">;</span><span class="w"> </span><span class="c">/* rosa    */</span>
+<span class="w">  </span><span class="nv">--tempest-chart-6</span><span class="p">:</span><span class="w"> </span><span class="mh">#06b6d4</span><span class="p">;</span><span class="w"> </span><span class="c">/* ciano   */</span>
+<span class="w">  </span><span class="nv">--tempest-chart-7</span><span class="p">:</span><span class="w"> </span><span class="mh">#ea580c</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--tempest-chart-8</span><span class="p">:</span><span class="w"> </span><span class="mh">#0f766e</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Uma paleta de 6 cores não deve virar 8</p>
+<p>Se você define só <code>chart-1..6</code>, o leitor continuaria andando nos
+<code>--tempest-chart-7</code>/<code>-8</code> embutidos do SDK e o gráfico com 7 séries sairia com
+paleta misturada — 6 cores da sua marca + 2 sobras. Por isso existe
+<code>--tempest-chart-count</code>: o <code>createTheme</code> escreve quantas cores o tema tem, e o
+<code>resolveChartColors</code> para ali. Definindo tokens à mão, declare junto:</p>
+<div class="highlight"><pre><span></span><code><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--tempest-chart-1</span><span class="p">:</span><span class="w"> </span><span class="mh">#0f766e</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--tempest-chart-2</span><span class="p">:</span><span class="w"> </span><span class="mh">#f97316</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--tempest-chart-count</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+</div>
+<p>Sobrescreva no seu CSS, ou gere com o factory de tema:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#0f766e"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">chart</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"#0f766e"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#f97316"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#9333ea"</span><span class="p">],</span>
+<span class="p">}));</span>
+</code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title"><code>colors={["var(--meu-token)"]}</code> <strong>não</strong> funciona</p>
+<p>O recharts aplica cor como <strong>atributo de apresentação</strong> do SVG
+(<code>fill="…"</code>), e navegador nenhum substitui <code>var()</code> ali — custom property só
+é resolvida em <strong>declaração</strong> CSS. Um <code>var()</code> passado em <code>colors</code> renderiza
+como cor inválida (série invisível).</p>
+<p>É por isso que o SDK <strong>lê os tokens</strong> via <code>getComputedStyle</code> e entrega cor
+literal pro recharts. Se você precisa do valor de um token seu em JS, use o
+mesmo caminho:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">readThemeToken</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">marca</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">readThemeToken</span><span class="p">(</span><span class="s2">"--minha-marca"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "#0f766e"</span>
+</code></pre></div>
+</div>
+<p>Para um gráfico específico, <code>colors</code> continua ganhando de tudo — é a via de
+escape, ciclada por índice da série (ou fatia):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BarChart</span><span class="p">,</span><span class="w"> </span><span class="nx">DEFAULT_CHART_COLORS</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">VendasComCoresDaMarca</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">BarChart</span>
+<span class="w">      </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">vendas</span><span class="p">}</span>
+<span class="w">      </span><span class="na">index</span><span class="o">=</span><span class="s">"mes"</span>
+<span class="w">      </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"loja_a"</span><span class="p">,</span><span class="w"> </span><span class="s2">"loja_b"</span><span class="p">,</span><span class="w"> </span><span class="s2">"loja_c"</span><span class="p">]}</span>
+<span class="w">      </span><span class="na">colors</span><span class="o">=</span><span class="p">{[</span><span class="s2">"#0f766e"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#f97316"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#9333ea"</span><span class="p">]}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// Ajustar só a primeira cor e manter o resto do fallback:</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">minhaPaleta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"#e11d48"</span><span class="p">,</span><span class="w"> </span><span class="p">...</span><span class="nx">DEFAULT_CHART_COLORS</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="mf">1</span><span class="p">)];</span>
+</code></pre></div>
+<p><code>DEFAULT_CHART_COLORS</code> é o <strong>fallback</strong>, usado quando os tokens não são
+legíveis: sem <code>styles.css</code> importado, fora do browser (testes, script de build)
+ou numa página que removeu os tokens.</p>
+<h3 id="resolvendo-tokens-voce-mesmo">Resolvendo tokens você mesmo</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">resolveChartColors</span><span class="p">,</span><span class="w"> </span><span class="nx">useChartColors</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="c1">// dentro de um componente — re-resolve quando o tema virar</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">colors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useChartColors</span><span class="p">();</span>
+
+<span class="c1">// fora do React (canvas, export de imagem, tooltip customizado)</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">palette</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">resolveChartColors</span><span class="p">();</span>
+</code></pre></div>
+<p><code>useChartColors</code> observa o atributo <code>data-tempest-theme</code> e re-resolve na troca de
+tema; passar um array explícito curto-circuita o hook (nenhum observer é criado).
+Precisa da cor do grid/eixo? <code>resolveChartChrome("grid" | "axis")</code>.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tema escopado numa seção</p>
+<p>Os dois aceitam um elemento: <code>useChartColors(undefined, sectionRef.current)</code>
+resolve os tokens <strong>daquela</strong> subárvore, então uma seção com tema próprio
+pinta seus gráficos com a paleta dela.</p>
+</div>
+<h2 id="escala-continua-magnitude-e-polaridade">Escala contínua: magnitude e polaridade</h2>
+<p>As 8 cores de série codificam <strong>identidade</strong> — qual série é qual. Um heatmap ou um
+choropleth codifica <strong>quanto</strong>, e isso é outro trabalho: precisa de <em>um</em> hue
+escalonado por claridade, não de oito hues.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">sequentialScale</span><span class="p">,</span><span class="w"> </span><span class="nx">divergingScale</span><span class="p">,</span><span class="w"> </span><span class="nx">scaleSteps</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">cor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sequentialScale</span><span class="p">({</span><span class="w"> </span><span class="nx">min</span><span class="o">:</span><span class="w"> </span><span class="kt">0</span><span class="p">,</span><span class="w"> </span><span class="nx">max</span><span class="o">:</span><span class="w"> </span><span class="kt">250</span><span class="w"> </span><span class="p">});</span>
+<span class="p">&lt;</span><span class="nt">rect</span><span class="w"> </span><span class="na">fill</span><span class="o">=</span><span class="p">{</span><span class="nx">cor</span><span class="p">(</span><span class="nx">valor</span><span class="p">)}</span><span class="w"> </span><span class="p">/&gt;;</span>
+
+<span class="c1">// Polaridade: variação contra a meta</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">desvio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">divergingScale</span><span class="p">({</span><span class="w"> </span><span class="nx">min</span><span class="o">:</span><span class="w"> </span><span class="kt">80</span><span class="p">,</span><span class="w"> </span><span class="nx">max</span><span class="o">:</span><span class="w"> </span><span class="kt">130</span><span class="p">,</span><span class="w"> </span><span class="nx">center</span><span class="o">:</span><span class="w"> </span><span class="kt">100</span><span class="w"> </span><span class="p">});</span>
+<span class="p">&lt;</span><span class="nt">rect</span><span class="w"> </span><span class="na">fill</span><span class="o">=</span><span class="p">{</span><span class="nx">desvio</span><span class="p">(</span><span class="nx">realizado</span><span class="p">)}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Export</th>
+<th>O que faz</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sequentialScale</code></td>
+<td><code>{ min, max, ordinal? }</code> → <code>(valor) =&gt; cor</code></td>
+</tr>
+<tr>
+<td><code>divergingScale</code></td>
+<td><code>{ min, max, center? }</code> → <code>(valor) =&gt; cor</code></td>
+</tr>
+<tr>
+<td><code>scaleSteps</code></td>
+<td>Todos os passos em ordem, pra montar a legenda</td>
+</tr>
+<tr>
+<td><code>SEQUENTIAL_STEP_COUNT</code></td>
+<td><code>7</code></td>
+</tr>
+<tr>
+<td><code>DIVERGING_STEP_COUNT</code></td>
+<td><code>9</code> (1–4 frio · 5 neutro · 6–9 quente)</td>
+</tr>
+<tr>
+<td><code>ORDINAL_START_STEP</code></td>
+<td><code>3</code> — primeiro passo que passa 2:1 na superfície</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">Sai da raiz, não do <code>/charts</code></p>
+<p>São matemática de token pura, <strong>sem recharts</strong>. Quem mais precisa delas — um
+choropleth do <code>/br</code>, um heatmap feito à mão — não tem motivo pra instalar
+recharts. Custo medido: <strong>365 B brotli</strong> importando da raiz. O <code>/charts</code>
+re-exporta só por descoberta.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Devolvem token, não hex</p>
+<p>O retorno é <code>var(--tempest-chart-sequential-4)</code>. Um heatmap pintado uma vez
+segue o tema — inclusive o escuro, cujos passos são <strong>escolhidos</strong> pra superfície
+escura, não invertidos do claro.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Sequencial deixa o zero recuar; ordinal não pode</p>
+<p>Numa <strong>sequencial</strong> o passo mais claro some na superfície de propósito: é o que
+"quase nada" deve parecer num heatmap. Numa <strong>ordinal</strong> — degrau de funil, faixa,
+tier — cada passo é uma marca que alguém precisa ver, e um passo invisível é um
+dado perdido. Passe <code>ordinal: true</code> e a escala começa no passo 3.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">sequentialScale</span><span class="p">({</span><span class="w"> </span><span class="nx">min</span><span class="o">:</span><span class="w"> </span><span class="kt">0</span><span class="p">,</span><span class="w"> </span><span class="nx">max</span><span class="o">:</span><span class="w"> </span><span class="kt">4</span><span class="p">,</span><span class="w"> </span><span class="nx">ordinal</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// usa 3..7</span>
+</code></pre></div>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Cada braço da divergente escala pelo próprio alcance</p>
+<p>Num domínio assimétrico (−5 a +80) os negativos ainda usam o braço frio inteiro.
+Escalar os dois braços pelo mais largo — o erro fácil — colapsaria todo negativo
+no passo ao lado do meio e esconderia o sinal.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">O meio da divergente é cinza, nunca um hue</p>
+<p>Um meio colorido lê como uma <strong>terceira categoria</strong> em vez de "sem desvio", que é
+a única coisa que uma divergente existe pra mostrar. Por isso o token 5 é neutro
+nos dois modos.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Escala contínua precisa de legenda</p>
+<p>Sem uma faixa com rótulo nas pontas, ninguém converte cor de volta em número. O
+<code>scaleSteps</code> existe pra isso:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s2">"flex"</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">  </span><span class="p">{</span><span class="nx">scaleSteps</span><span class="p">(</span><span class="s2">"sequential"</span><span class="p">).</span><span class="nx">map</span><span class="p">((</span><span class="nx">cor</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">span</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">cor</span><span class="p">}</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">background</span><span class="o">:</span><span class="w"> </span><span class="kt">cor</span><span class="p">,</span><span class="w"> </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="kt">20</span><span class="p">,</span><span class="w"> </span><span class="nx">height</span><span class="o">:</span><span class="w"> </span><span class="kt">10</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">))}</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span><span class="mf">0</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span><span class="mf">250</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</code></pre></div>
+</div>
+<h3 id="como-as-rampas-foram-feitas">Como as rampas foram feitas</h3>
+<p>Não foram escolhidas a olho. Os passos são <strong>calculados</strong> em OKLCH com claridade
+espaçada por igual, então passo igual de dado parece passo igual de cor — o que não
+acontece espaçando em RGB. A croma segue um domo: as pontas ficam críveis e o meio
+carrega o hue.</p>
+<p>Cada rampa foi validada por script nos dois modos: claridade monótona, gap ≥ 0,06
+entre passos adjacentes, hue único, e a ponta perto da superfície passando 2:1 no
+recorte ordinal. O <code>createTheme</code> refaz as duas escalas a partir do hue da marca
+(usando o <code>danger</code> do tema como polo quente, pra "quente" e "ruim" não discordarem na
+tela), então rebrandar move o heatmap junto em vez de deixá-lo azul do SDK.</p>
+<h2 id="responsivo-por-padrao-fixo-quando-preciso">Responsivo por padrão, fixo quando preciso</h2>
+<p>Por padrão, cada gráfico se <strong>estica pra largura do pai</strong> via um
+<code>ResponsiveContainer</code> do recharts — você controla só a <code>height</code>. É o que você
+quer em quase todo dashboard: a largura acompanha a coluna.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// Largura fluida (preenche o container), altura fixa de 300px (default).</span>
+<span class="p">&lt;</span><span class="nt">LineChart</span><span class="w"> </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">data</span><span class="p">}</span><span class="w"> </span><span class="na">index</span><span class="o">=</span><span class="s">"dia"</span><span class="w"> </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"valor"</span><span class="p">]}</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<p>Mas há casos em que você precisa de uma largura <strong>fixa e determinística</strong>: testes
+de snapshot, renderização no servidor (SSR), exportar um PNG de tamanho exato. Aí
+você passa <code>width</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// Largura fixa de 600px — sem ResponsiveContainer.</span>
+<span class="p">&lt;</span><span class="nt">LineChart</span><span class="w"> </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">data</span><span class="p">}</span><span class="w"> </span><span class="na">index</span><span class="o">=</span><span class="s">"dia"</span><span class="w"> </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"valor"</span><span class="p">]}</span><span class="w"> </span><span class="na">width</span><span class="o">=</span><span class="p">{</span><span class="mf">600</span><span class="p">}</span><span class="w"> </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">300</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title"><code>width</code> desliga o <code>ResponsiveContainer</code></p>
+<p>Quando você define <code>width</code>, o gráfico renderiza <strong>naquela largura exata</strong> e
+<strong>não</strong> é embrulhado num <code>ResponsiveContainer</code>. Isso é intencional: o
+<code>ResponsiveContainer</code> mede o pai no cliente e não funciona bem em SSR/jsdom,
+onde não há layout calculado. Para uma página normal no navegador, <strong>omita</strong>
+<code>width</code> e deixe ele preencher o pai.</p>
+</div>
+<h2 id="recap">Recap</h2>
+<ul>
+<li>Importe os charts de <strong><code>tempest-react-sdk/charts</code></strong> — subpath dedicado. O
+  <code>recharts</code> é peer dep <strong>opcional</strong>: rode <code>npm i recharts</code> no app que usa
+  gráficos. Quem não importa de lá não paga o peso (mesmo padrão do "caller
+  injeta a dep pesada" dos adapters de telemetria/flags).</li>
+<li><code>AreaChart</code>, <code>BarChart</code> e <code>LineChart</code> compartilham <code>CartesianChartProps</code>:
+  <code>data</code> + <code>index</code> (eixo X) + <code>categories</code> (séries). <code>stack</code> empilha em
+  Area/Bar; o <code>LineChart</code> o ignora.</li>
+<li><code>PieChart</code> usa <code>category</code> (valor) + <code>index</code> (rótulo), uma linha por fatia, com
+  <code>donut</code> opcional.</li>
+<li><code>RadarChart</code> reusa <code>CartesianChartProps</code> (<code>index</code> = eixo angular); ignora
+  <code>showGrid</code>/<code>stack</code>.</li>
+<li><code>DEFAULT_CHART_COLORS</code> é a paleta padrão (6 cores); sobrescreva via a prop
+  <code>colors</code>, cicladas por série/fatia.</li>
+<li>Sem <code>width</code>, o gráfico é <strong>responsivo</strong> (estica no pai via
+  <code>ResponsiveContainer</code>, você controla a <code>height</code>). Com <code>width</code>, ele renderiza
+  num tamanho <strong>fixo</strong> sem <code>ResponsiveContainer</code> — útil pra testes/SSR.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar ao topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../imaging/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Imagens (processamento)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Imagens (processamento)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../editor/" class="md-footer__link md-footer__link--next" aria-label="Próximo: Rich Text Editor (tiptap)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                Rich Text Editor (tiptap)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "Mais 1 nesta p\u00e1gina", "search.result.more.other": "Mais # nesta p\u00e1gina", "search.result.none": "Nenhum resultado encontrado", "search.result.one": "1 resultado encontrado", "search.result.other": "# resultados encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

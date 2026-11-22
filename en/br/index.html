@@ -1,0 +1,5415 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/br/">
+      
+      
+        <link rel="prev" href="../geo/">
+      
+      
+        <link rel="next" href="../br-pagamentos/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Brazil map (br) - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#brazil-map-locations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Brazil map (br)
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../br/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to use
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-1-locations-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 1 — Locations data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 1 — Locations data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-ibge-code-is-what-you-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      The IBGE code is what you store
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-federal-district-has-one-municipality-and-35-administrative-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Federal District has one municipality and 35 administrative regions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#which-ibge-vintage-the-data-comes-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      Which IBGE vintage the data comes from
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feed-a-select-combobox" class="md-nav__link">
+    <span class="md-ellipsis">
+      Feed a &lt;Select&gt; / &lt;Combobox&gt;
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-2-state-city-selector" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 2 — State → City selector
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-3-the-brazilmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 3 — The BrazilMap
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 3 — The BrazilMap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clickable-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Clickable map
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choropleth-tint-by-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choropleth (tint by metric)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#map-cities-full-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Map + cities (full recipe)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#brazilmap-props" class="md-nav__link">
+    <span class="md-ellipsis">
+      BrazilMap props
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-4-state-submap-brazilstatemap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 4 — State submap (BrazilStateMap)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 4 — State submap (BrazilStateMap)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#national-state-drill-down-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      National → state drill-down (recipe)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#municipal-choropleth" class="md-nav__link">
+    <span class="md-ellipsis">
+      Municipal choropleth
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direct-municipal-geometry-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      Direct municipal-geometry access
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-5-offline-geocoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 5 — Offline geocoding
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 5 — Offline geocoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-coordinates-the-seat-and-the-centroid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two coordinates: the seat and the centroid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#name-coordinate-and-neighborhood" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name, coordinate and neighborhood
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recipe-where-am-i-gps-municipality" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recipe: "where am I?" (GPS → municipality)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-6-markers-color-scales-and-legend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 6 — Markers, color scales and legend
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 6 — Markers, color scales and legend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#markers-pins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Markers (pins)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-scales-legend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color scales + legend
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-7-zoom-color-by-region-and-municipality-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 7 — Zoom, color-by-region and municipality search
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 7 — Zoom, color-by-region and municipality search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pan-zoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pan &amp; zoom
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-by-region" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color by region
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#municipality-search-autocomplete" class="md-nav__link">
+    <span class="md-ellipsis">
+      Municipality search (autocomplete)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#about-the-geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      About the geometry
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-geometry-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced geometry access
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to use
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-1-locations-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 1 — Locations data
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 1 — Locations data">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-ibge-code-is-what-you-store" class="md-nav__link">
+    <span class="md-ellipsis">
+      The IBGE code is what you store
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-federal-district-has-one-municipality-and-35-administrative-regions" class="md-nav__link">
+    <span class="md-ellipsis">
+      The Federal District has one municipality and 35 administrative regions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#which-ibge-vintage-the-data-comes-from" class="md-nav__link">
+    <span class="md-ellipsis">
+      Which IBGE vintage the data comes from
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#feed-a-select-combobox" class="md-nav__link">
+    <span class="md-ellipsis">
+      Feed a &lt;Select&gt; / &lt;Combobox&gt;
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-2-state-city-selector" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 2 — State → City selector
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-3-the-brazilmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 3 — The BrazilMap
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 3 — The BrazilMap">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#clickable-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Clickable map
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choropleth-tint-by-metric" class="md-nav__link">
+    <span class="md-ellipsis">
+      Choropleth (tint by metric)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#map-cities-full-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Map + cities (full recipe)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#brazilmap-props" class="md-nav__link">
+    <span class="md-ellipsis">
+      BrazilMap props
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-4-state-submap-brazilstatemap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 4 — State submap (BrazilStateMap)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 4 — State submap (BrazilStateMap)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#national-state-drill-down-recipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      National → state drill-down (recipe)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#municipal-choropleth" class="md-nav__link">
+    <span class="md-ellipsis">
+      Municipal choropleth
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#direct-municipal-geometry-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      Direct municipal-geometry access
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-5-offline-geocoding" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 5 — Offline geocoding
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 5 — Offline geocoding">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-coordinates-the-seat-and-the-centroid" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two coordinates: the seat and the centroid
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#name-coordinate-and-neighborhood" class="md-nav__link">
+    <span class="md-ellipsis">
+      Name, coordinate and neighborhood
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recipe-where-am-i-gps-municipality" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recipe: "where am I?" (GPS → municipality)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-6-markers-color-scales-and-legend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 6 — Markers, color scales and legend
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 6 — Markers, color scales and legend">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#markers-pins" class="md-nav__link">
+    <span class="md-ellipsis">
+      Markers (pins)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-scales-legend" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color scales + legend
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-7-zoom-color-by-region-and-municipality-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 7 — Zoom, color-by-region and municipality search
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 7 — Zoom, color-by-region and municipality search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pan-zoom" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pan &amp; zoom
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#color-by-region" class="md-nav__link">
+    <span class="md-ellipsis">
+      Color by region
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#municipality-search-autocomplete" class="md-nav__link">
+    <span class="md-ellipsis">
+      Municipality search (autocomplete)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#about-the-geometry" class="md-nav__link">
+    <span class="md-ellipsis">
+      About the geometry
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-geometry-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      Advanced geometry access
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/br.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/br.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="brazil-map-locations">Brazil map &amp; locations</h1>
+<p>A <strong>clickable</strong> national map of the 27 federative units + a states-and-cities dataset — <strong>with no paid or external API</strong>. The geometry is a <strong>simplified, bundled</strong> IBGE GeoJSON (rendered as SVG), and the locations list mirrors <code>utils/locations</code> from <a href="https://pypi.org/project/tempest-fastapi-sdk/"><code>tempest-fastapi-sdk</code></a>.</p>
+<div class="admonition info">
+<p class="admonition-title">Import from the <code>tempest-react-sdk/br</code> subpath</p>
+<p>This module bundles data (~5600 city names + UF geometry). To keep it off the bundle of apps that don't use it, it lives in a <strong>separate subpath</strong> — import from <code>tempest-react-sdk/br</code>, not the root. The map geometry still loads <strong>lazily</strong> (only when <code>BrazilMap</code> mounts).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilMap</span><span class="p">,</span><span class="w"> </span><span class="nx">citiesByUf</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+</code></pre></div>
+</div>
+<!-- gallery:brazil-map -->
+<p><a href="../gallery/"><img alt="Mapa do Brasil (UF + cidades) in the gallery" src="../../assets/gallery/brazil-map.webp" /></a></p>
+<p><em>Section <code>brazil-map</code> of the <a href="../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<h2 id="when-to-use">When to use</h2>
+<ul>
+<li>A <strong>clickable Brazil map</strong> to pick a state (dashboards, regional filters).</li>
+<li><strong>Choropleth</strong>: tint states by a metric (sales, users, coverage).</li>
+<li>A cascading <strong>State → City selector</strong> in forms.</li>
+<li>Query states/cities/regions offline (<code>citiesByUf</code>, <code>ufChoices</code>, ...).</li>
+</ul>
+<hr />
+<h2 id="part-1-locations-data">Part 1 — Locations data</h2>
+<p>Start with the data: pure, network-free functions available immediately.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">listStates</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">getState</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">citiesByUf</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">statesByRegion</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">ufChoices</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">isValidUf</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">normalizeUf</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">listStates</span><span class="p">().</span><span class="nx">length</span><span class="p">;</span><span class="w"> </span><span class="c1">// 27 (sorted by name)</span>
+
+<span class="nx">getState</span><span class="p">(</span><span class="s2">"sp"</span><span class="p">);</span>
+<span class="c1">// { uf: "SP", name: "São Paulo", region: "Sudeste", cities: [...] }</span>
+
+<span class="nx">citiesByUf</span><span class="p">(</span><span class="s2">"RJ"</span><span class="p">);</span><span class="w">     </span><span class="c1">// ["Angra dos Reis", "Aperibé", ..., "Rio de Janeiro", ...]</span>
+<span class="nx">citiesByUf</span><span class="p">(</span><span class="s2">"XX"</span><span class="p">);</span><span class="w">     </span><span class="c1">// [] — an invalid UF returns an empty list (never throws)</span>
+
+<span class="nx">statesByRegion</span><span class="p">(</span><span class="s2">"Sul"</span><span class="p">).</span><span class="nx">map</span><span class="p">((</span><span class="nx">s</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">uf</span><span class="p">);</span><span class="w"> </span><span class="c1">// ["PR", "RS", "SC"]</span>
+
+<span class="nx">normalizeUf</span><span class="p">(</span><span class="s2">" rj "</span><span class="p">);</span><span class="w"> </span><span class="c1">// "RJ"</span>
+<span class="nx">normalizeUf</span><span class="p">(</span><span class="s2">"zz"</span><span class="p">);</span><span class="w">   </span><span class="c1">// null</span>
+<span class="nx">isValidUf</span><span class="p">(</span><span class="s2">"mg"</span><span class="p">);</span><span class="w">     </span><span class="c1">// true</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Empty collections are not errors</p>
+<p><code>citiesByUf</code> of an unknown UF returns <code>[]</code>, it does not throw. Same convention as the backend: "no matches" is a valid result.</p>
+</div>
+<h3 id="the-ibge-code-is-what-you-store">The IBGE code is what you store</h3>
+<p>Municipality names change. <code>Presidente Juscelino</code> (RN) became <code>Serra Caiada</code> in 2013, <code>Embu</code> became <code>Embu das Artes</code> in 2011, <code>Campo de Santana</code> (PB) became <code>Tacima</code> in 2010. The <strong>7-digit IBGE code does not</strong> — it is what identifies a municipality, and it is the key every dataset in this module joins on.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">municipalitiesByUf</span><span class="p">,</span><span class="w"> </span><span class="nx">resolveMunicipality</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">municipalitiesByUf</span><span class="p">(</span><span class="s2">"SP"</span><span class="p">).</span><span class="nx">slice</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">2</span><span class="p">);</span>
+<span class="c1">// [{ id: "3500105", name: "Adamantina" }, { id: "3500204", name: "Adolfo" }]</span>
+
+<span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"SP"</span><span class="p">,</span><span class="w"> </span><span class="s2">"São Paulo"</span><span class="p">);</span>
+<span class="c1">// { id: "3550308", name: "São Paulo" }</span>
+</code></pre></div>
+<p><code>resolveMunicipality</code> accepts four ways of writing the same place — which is the point, because an address saved five years ago has to keep pointing at it:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"RN"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Serra Caiada"</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">         </span><span class="c1">// "2410306" — current name</span>
+<span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"RN"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Presidente Juscelino"</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w"> </span><span class="c1">// "2410306" — former name</span>
+<span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"SP"</span><span class="p">,</span><span class="w"> </span><span class="s2">"sao paulo"</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">            </span><span class="c1">// "3550308" — unaccented, lowercase</span>
+<span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"DF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Ceilândia"</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">            </span><span class="c1">// "5300108" — administrative region</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Store the <code>id</code>, display the <code>name</code></p>
+<p><code>BrazilStateCitySelect</code> emits both (<code>municipalityId</code> and <code>city</code>). Persisting the name works until the next rename; persisting the code always works — and it is what <code>municipalitySeat(id)</code>, <code>municipalityCentroid(id)</code> and <code>reverseGeocode</code> hand back.</p>
+</div>
+<h3 id="the-federal-district-has-one-municipality-and-35-administrative-regions">The Federal District has one municipality and 35 administrative regions</h3>
+<p>The DF has exactly <strong>one</strong> municipality: Brasília. Ceilândia, Taguatinga, Gama and the other 32 are <strong>administrative regions</strong> inside it — they have no municipality code and never had one.</p>
+<p>Ignoring that is not an option: nobody in the DF writes "Brasília" in an address field. So they are listed and resolvable, in a field of their own, and they geocode through the municipality that contains them.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">administrativeRegionsByUf</span><span class="p">,</span><span class="w"> </span><span class="nx">municipalitiesByUf</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">municipalitiesByUf</span><span class="p">(</span><span class="s2">"DF"</span><span class="p">);</span>
+<span class="c1">// [{ id: "5300108", name: "Brasília" }]</span>
+
+<span class="nx">administrativeRegionsByUf</span><span class="p">(</span><span class="s2">"DF"</span><span class="p">).</span><span class="nx">length</span><span class="p">;</span><span class="w"> </span><span class="c1">// 35</span>
+<span class="nx">administrativeRegionsByUf</span><span class="p">(</span><span class="s2">"DF"</span><span class="p">)[</span><span class="mf">0</span><span class="p">];</span>
+<span class="c1">// { id: "53001080521", name: "Arniqueira", municipalityId: "5300108" }</span>
+
+<span class="nx">administrativeRegionsByUf</span><span class="p">(</span><span class="s2">"SP"</span><span class="p">);</span><span class="w"> </span><span class="c1">// [] — only the DF has any</span>
+</code></pre></div>
+<p>IBGE names three of them as composites of what the local government signposts separately (<code>SCIA</code> is Estrutural; <code>Sudoeste/Octogonal</code> and <code>Sol Nascente/Pôr do Sol</code> are two each). The older names keep resolving:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"DF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Octogonal"</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w">  </span><span class="c1">// "5300108"</span>
+<span class="nx">resolveMunicipality</span><span class="p">(</span><span class="s2">"DF"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Estrutural"</span><span class="p">)</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span><span class="w"> </span><span class="c1">// "5300108"</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title"><code>citiesByUf("DF")</code> now returns only <code>["Brasília"]</code></p>
+<p>Through v0.53.0 it returned 36 names, 35 of them administrative regions that <strong>did not geocode</strong> — picking "Ceilândia" produced a selection <code>geocodeMunicipality</code> answered empty. If your form needs to offer the regions, use <code>administrativeRegionsByUf("DF")</code> (<code>BrazilStateCitySelect</code> already does) and <code>resolveMunicipality</code> to validate.</p>
+</div>
+<h3 id="which-ibge-vintage-the-data-comes-from">Which IBGE vintage the data comes from</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">datasetVintage</span><span class="p">,</span><span class="w"> </span><span class="nx">pendingGeometryIds</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">datasetVintage</span><span class="p">();</span><span class="w"> </span><span class="c1">// { roster: "2026-08-29", mesh: "2022" }</span>
+<span class="nx">pendingGeometryIds</span><span class="p">();</span><span class="w"> </span><span class="c1">// ["5101837"]</span>
+</code></pre></div>
+<p>The two vintages differ on purpose: IBGE publishes a new municipality before it publishes its boundary. <code>pendingGeometryIds()</code> enumerates exactly that gap — today one municipality, Boa Esperança do Norte (MT), installed in 2023, for which IBGE serves no geometry at any endpoint. It is listed and selectable; it is the one municipality <code>geocodeMunicipality</code> cannot place.</p>
+<div class="admonition info">
+<p class="admonition-title">Why this is exposed</p>
+<p>Because the alternative is your app discovering the gap as an empty result in production. A package test pins this list: when it grows without someone deciding, the build fails.</p>
+</div>
+<h3 id="feed-a-select-combobox">Feed a <code>&lt;Select&gt;</code> / <code>&lt;Combobox&gt;</code></h3>
+<p><code>ufChoices()</code> and <code>cityChoices(uf)</code> already return <code>{ value, label }</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Select</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ufChoices</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Select</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"State"</span><span class="w"> </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Select"</span><span class="w"> </span><span class="na">options</span><span class="o">=</span><span class="p">{</span><span class="nx">ufChoices</span><span class="p">()}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<hr />
+<h2 id="part-2-state-city-selector">Part 2 — State → City selector</h2>
+<p><code>BrazilStateCitySelect</code> chains two selects: picking a state filters the cities of that UF. The city resets when the state changes.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilStateCitySelect</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">AddressForm</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">BrazilStateCitySelect</span>
+<span class="w">      </span><span class="na">onChange</span><span class="o">=</span><span class="p">{({</span><span class="w"> </span><span class="nx">uf</span><span class="p">,</span><span class="w"> </span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">municipalityId</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">uf</span><span class="p">,</span><span class="w"> </span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">municipalityId</span><span class="p">)}</span>
+<span class="w">      </span><span class="na">stateLabel</span><span class="o">=</span><span class="s">"State"</span>
+<span class="w">      </span><span class="na">cityLabel</span><span class="o">=</span><span class="s">"City"</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>defaultUf</code> / <code>defaultCity</code> — initial values (uncontrolled).</li>
+<li><code>onChange({ uf, city, municipalityId })</code> — fires on every change; all three are <code>null</code> when empty. <code>municipalityId</code> is the IBGE code — the value to persist.</li>
+<li><code>layout="column"</code> stacks the selects (default is side by side).</li>
+<li><code>disabled</code> locks both.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">City enables only after a state</p>
+<p>The city select is disabled until a state is chosen — there is nothing to list before that.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">In the DF, the list includes the administrative regions</p>
+<p>Picking <code>"DF"</code> lists Brasília <strong>and</strong> the 35 regions. Every one of them emits <code>municipalityId: "5300108"</code>, so the selection always geocodes.</p>
+</div>
+<hr />
+<h2 id="part-3-the-brazilmap">Part 3 — The <code>BrazilMap</code></h2>
+<p>SVG map of the 27 UFs, with auto-fit, acronym labels and per-state clicking. No external tiles.</p>
+<h3 id="clickable-map">Clickable map</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilMap</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">UF</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">MapPicker</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">uf</span><span class="p">,</span><span class="w"> </span><span class="nx">setUf</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">UF</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">BrazilMap</span><span class="w"> </span><span class="na">selected</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span><span class="w"> </span><span class="na">onSelect</span><span class="o">=</span><span class="p">{</span><span class="nx">setUf</span><span class="p">}</span><span class="w"> </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">440</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">uf</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Selected</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="nx">uf</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;}</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>onSelect(uf)</code> fires on click (and on Enter/Space — states are focusable when <code>onSelect</code> is set).</li>
+<li><code>selected</code> accepts a single UF <strong>or a list</strong> — handy for multi-select.</li>
+<li>Each state has an <code>aria-label</code> with the name — accessible by default.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Hover tooltip</p>
+<p>By default (<code>showTooltip</code>, default <code>true</code>) a <strong>floating tooltip</strong> appears on hover: <strong>name, acronym, region and city count</strong> — plus the choropleth value when <code>values</code> is set (e.g. <code>São Paulo (SP) · Sudeste · 645 cidades</code>). Pass <code>showTooltip={false}</code> to disable, or <code>renderTooltip={(data) =&gt; ...}</code> to customize the content (<code>data</code> = <code>{ uf, name, value? }</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">BrazilMap</span>
+<span class="w">  </span><span class="na">renderTooltip</span><span class="o">=</span><span class="p">{({</span><span class="w"> </span><span class="nx">uf</span><span class="p">,</span><span class="w"> </span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;&lt;</span><span class="nt">strong</span><span class="p">&gt;{</span><span class="nx">name</span><span class="p">}&lt;/</span><span class="nt">strong</span><span class="p">&gt;</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="p">{</span><span class="nx">value</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"no data"</span><span class="p">}&lt;/&gt;</span>
+<span class="w">  </span><span class="p">)}</span>
+<span class="p">/&gt;</span>
+</code></pre></div>
+</div>
+<h3 id="choropleth-tint-by-metric">Choropleth (tint by metric)</h3>
+<p>Pass <code>values</code> (one number per UF) and each state is tinted linearly between <code>minColor</code> and <code>maxColor</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilMap</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sales</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">SP</span><span class="o">:</span><span class="w"> </span><span class="kt">1200</span><span class="p">,</span><span class="w"> </span><span class="nx">MG</span><span class="o">:</span><span class="w"> </span><span class="kt">640</span><span class="p">,</span><span class="w"> </span><span class="nx">RJ</span><span class="o">:</span><span class="w"> </span><span class="kt">580</span><span class="p">,</span><span class="w"> </span><span class="nx">BA</span><span class="o">:</span><span class="w"> </span><span class="kt">410</span><span class="p">,</span><span class="w"> </span><span class="nx">RS</span><span class="o">:</span><span class="w"> </span><span class="kt">390</span><span class="w"> </span><span class="p">};</span>
+
+<span class="p">&lt;</span><span class="nt">BrazilMap</span><span class="w"> </span><span class="na">values</span><span class="o">=</span><span class="p">{</span><span class="nx">sales</span><span class="p">}</span><span class="w"> </span><span class="na">minColor</span><span class="o">=</span><span class="s">"#e0f2fe"</span><span class="w"> </span><span class="na">maxColor</span><span class="o">=</span><span class="s">"#0369a1"</span><span class="w"> </span><span class="na">showLabels</span><span class="o">=</span><span class="p">{</span><span class="kc">false</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<p>States without a value use the base surface color.</p>
+<h3 id="map-cities-full-recipe">Map + cities (full recipe)</h3>
+<p>The case that motivated the module: click the map and list the state's cities.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">BrazilMap</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">BrazilStateCitySelect</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">getState</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">UF</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">NationalMap</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">uf</span><span class="p">,</span><span class="w"> </span><span class="nx">setUf</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">UF</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">state</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">uf</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">getState</span><span class="p">(</span><span class="nx">uf</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">BrazilMap</span><span class="w"> </span><span class="na">selected</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span><span class="w"> </span><span class="na">onSelect</span><span class="o">=</span><span class="p">{</span><span class="nx">setUf</span><span class="p">}</span><span class="w"> </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">440</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+
+<span class="w">      </span><span class="p">{</span><span class="nx">state</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">section</span><span class="p">&gt;</span>
+<span class="w">          </span><span class="p">&lt;</span><span class="nt">h3</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">cities</span><span class="p">.</span><span class="nx">length</span><span class="p">}</span><span class="w"> </span><span class="nx">cities</span>
+<span class="w">          </span><span class="p">&lt;/</span><span class="nt">h3</span><span class="p">&gt;</span>
+<span class="w">          </span><span class="p">&lt;</span><span class="nt">BrazilStateCitySelect</span>
+<span class="w">            </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span>
+<span class="w">            </span><span class="na">defaultUf</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="o">!</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onChange</span><span class="o">=</span><span class="p">{({</span><span class="w"> </span><span class="nx">city</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"city:"</span><span class="p">,</span><span class="w"> </span><span class="nx">city</span><span class="p">)}</span>
+<span class="w">          </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">section</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">)}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Reset on state change</p>
+<p>The <code>key={uf}</code> remounts the selector when the UF changes from the map, ensuring the city resets.</p>
+</div>
+<h3 id="brazilmap-props"><code>BrazilMap</code> props</h3>
+<p><em>(see also <a href="#part-4-state-submap-brazilstatemap"><code>BrazilStateMap</code></a> for the municipality level.)</em></p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>selected</code></td>
+<td><code>UF \| UF[] \| null</code></td>
+<td>—</td>
+<td>Highlighted UF(s).</td>
+</tr>
+<tr>
+<td><code>onSelect</code></td>
+<td><code>(uf: UF) =&gt; void</code></td>
+<td>—</td>
+<td>Click/keyboard on a state.</td>
+</tr>
+<tr>
+<td><code>values</code></td>
+<td><code>Partial&lt;Record&lt;UF, number&gt;&gt;</code></td>
+<td>—</td>
+<td>Per-UF metric → choropleth.</td>
+</tr>
+<tr>
+<td><code>minColor</code> / <code>maxColor</code></td>
+<td><code>string</code></td>
+<td>primary tints</td>
+<td>Choropleth scale ends.</td>
+</tr>
+<tr>
+<td><code>height</code></td>
+<td><code>number</code></td>
+<td><code>440</code></td>
+<td>Viewport height in px.</td>
+</tr>
+<tr>
+<td><code>padding</code></td>
+<td><code>number</code></td>
+<td><code>12</code></td>
+<td>Inner padding in px.</td>
+</tr>
+<tr>
+<td><code>showLabels</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Acronym at each UF centroid.</td>
+</tr>
+<tr>
+<td><code>showTooltip</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Floating hover tooltip (name + region + city count + value).</td>
+</tr>
+<tr>
+<td><code>renderTooltip</code></td>
+<td><code>(data) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Custom tooltip content (<code>{ uf, name, value? }</code>).</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td><code>"Mapa do Brasil por estado"</code></td>
+<td>Accessible region label.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="part-4-state-submap-brazilstatemap">Part 4 — State submap (<code>BrazilStateMap</code>)</h2>
+<p>A submap of <strong>one state</strong> with <strong>all its municipalities</strong> clickable. Municipal geometry is split per UF and loaded <strong>lazily</strong> — opening the SP map fetches only SP's chunk (~40-70 KB gzip), never the country's ~2 MB.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilStateMap</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">Municipality</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">SPMunicipalities</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">setCity</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Municipality</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">BrazilStateMap</span><span class="w"> </span><span class="na">uf</span><span class="o">=</span><span class="s">"SP"</span><span class="w"> </span><span class="na">selected</span><span class="o">=</span><span class="p">{</span><span class="nx">city</span><span class="o">?</span><span class="p">.</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="na">onSelect</span><span class="o">=</span><span class="p">{</span><span class="nx">setCity</span><span class="p">}</span><span class="w"> </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">420</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">city</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;{</span><span class="nx">city</span><span class="p">.</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="err">—</span><span class="w"> </span><span class="nx">IBGE</span><span class="w"> </span><span class="p">{</span><span class="nx">city</span><span class="p">.</span><span class="nx">id</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;}</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>uf</code> (required) — the state to draw.</li>
+<li><code>onSelect({ id, name })</code> — fires on a municipality click (<code>id</code> = 7-digit IBGE code).</li>
+<li><code>selected</code> — matches by <code>id</code> <strong>or</strong> <code>name</code>; accepts a list.</li>
+<li><code>values</code> — choropleth by municipality (key = <code>id</code> or <code>name</code>).</li>
+<li><code>showLabels</code> — <strong><code>false</code> by default</strong>: a state has hundreds of municipalities and labels overlap.</li>
+<li><code>showTooltip</code> (default <code>true</code>) — floating hover tooltip with <strong>name + IBGE code</strong> (+ choropleth value when present). <code>renderTooltip={(data) =&gt; ...}</code> customizes it (<code>data</code> = <code>{ id, name, value? }</code>).</li>
+</ul>
+<h3 id="national-state-drill-down-recipe">National → state drill-down (recipe)</h3>
+<p>Combine both maps: clicking the national map switches the submap's state.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilMap</span><span class="p">,</span><span class="w"> </span><span class="nx">BrazilStateMap</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">Municipality</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">UF</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">DrillDown</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">uf</span><span class="p">,</span><span class="w"> </span><span class="nx">setUf</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">UF</span><span class="p">&gt;(</span><span class="s2">"SP"</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">setCity</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Municipality</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">div</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s2">"flex"</span><span class="p">,</span><span class="w"> </span><span class="nx">gap</span><span class="o">:</span><span class="w"> </span><span class="kt">16</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">BrazilMap</span>
+<span class="w">        </span><span class="na">selected</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span>
+<span class="w">        </span><span class="na">onSelect</span><span class="o">=</span><span class="p">{(</span><span class="nx">u</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">setUf</span><span class="p">(</span><span class="nx">u</span><span class="p">);</span>
+<span class="w">          </span><span class="nx">setCity</span><span class="p">(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}}</span>
+<span class="w">        </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">320</span><span class="p">}</span>
+<span class="w">      </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">BrazilStateMap</span><span class="w"> </span><span class="na">uf</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span><span class="w"> </span><span class="na">selected</span><span class="o">=</span><span class="p">{</span><span class="nx">city</span><span class="o">?</span><span class="p">.</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="na">onSelect</span><span class="o">=</span><span class="p">{</span><span class="nx">setCity</span><span class="p">}</span><span class="w"> </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">320</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="municipal-choropleth">Municipal choropleth</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilStateMap</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">BrazilStateMap</span>
+<span class="w">  </span><span class="na">uf</span><span class="o">=</span><span class="s">"RJ"</span>
+<span class="w">  </span><span class="na">values</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="s2">"Rio de Janeiro"</span><span class="o">:</span><span class="w"> </span><span class="mf">100</span><span class="p">,</span><span class="w"> </span><span class="nx">Niterói</span><span class="o">:</span><span class="w"> </span><span class="kt">40</span><span class="p">,</span><span class="w"> </span><span class="s2">"Duque de Caxias"</span><span class="o">:</span><span class="w"> </span><span class="mf">55</span><span class="w"> </span><span class="p">}}</span>
+<span class="p">/&gt;;</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Map names vs. names dataset</p>
+<p>Municipality names on the map come from the IBGE GeoJSON; <code>citiesByUf</code> comes from the names dataset. They are nearly identical, but spelling/accents may differ in rare cases. To match values, prefer the <strong>IBGE code</strong> (<code>id</code>) when you have it.</p>
+</div>
+<h3 id="direct-municipal-geometry-access">Direct municipal-geometry access</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">loadStateMunicipalities</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">loadStateMunicipalities</span><span class="p">(</span><span class="s2">"SP"</span><span class="p">);</span>
+<span class="nx">sp</span><span class="o">?</span><span class="p">.</span><span class="nx">features</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span><span class="w"> </span><span class="c1">// 644</span>
+</code></pre></div>
+<hr />
+<h2 id="part-5-offline-geocoding">Part 5 — Offline geocoding</h2>
+<p>Convert between name/coordinate and municipality, <strong>offline</strong>. Uses two compact indexes (~78 KB brotli each), loaded <strong>lazily</strong>, and only the one you asked for — no network call, no API key.</p>
+<h3 id="two-coordinates-the-seat-and-the-centroid">Two coordinates: the seat and the centroid</h3>
+<p>A municipality has two points that serve different jobs:</p>
+<table>
+<thead>
+<tr>
+<th>Point</th>
+<th>What it is</th>
+<th>Use it to</th>
+<th>Function</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Seat</strong> (<code>"seat"</code>)</td>
+<td>The city — where the town hall is, where people are</td>
+<td>mark the city on a map, distance/ETA, "nearest to me", route start and end</td>
+<td><code>municipalitySeat(id)</code> · <strong>default</strong> of <code>geocodeMunicipality</code>, <code>searchMunicipalities</code>, <code>nearestMunicipality</code> and <code>MunicipalitySearch</code></td>
+</tr>
+<tr>
+<td><strong>Centroid</strong> (<code>"centroid"</code>)</td>
+<td>The geometric middle of the <strong>territory</strong></td>
+<td>frame or label the municipality, choropleth</td>
+<td><code>municipalityCentroid(id)</code> · <code>{ point: "centroid" }</code> on the others</td>
+</tr>
+</tbody>
+</table>
+<p>The two rarely coincide. Comparing both coordinates municipality by municipality (the 5,571 minus Boa Esperança do Norte, which has no boundary yet), the median gap is <strong>5.6 km</strong>, the p90 <strong>20.9 km</strong>, and more than half (3,067) are over 5 km apart. In Altamira (PA), the largest territory in the country, it is 410 km. A marker on the centroid lands in the bush, off the route line.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">geocodeMunicipality</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">municipalityCentroid</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">municipalitySeat</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">seat</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">municipalitySeat</span><span class="p">(</span><span class="s2">"2208007"</span><span class="p">);</span>
+<span class="c1">// { id: "2208007", name: "Picos", uf: "PI", latitude: -7.07721, longitude: -41.467, point: "seat" }</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">territory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">municipalityCentroid</span><span class="p">(</span><span class="s2">"2208007"</span><span class="p">);</span>
+<span class="c1">// { id: "2208007", name: "Picos", uf: "PI", latitude: -7.0567, longitude: -41.5176, point: "centroid" }</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">byName</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">geocodeMunicipality</span><span class="p">(</span><span class="s2">"Picos"</span><span class="p">,</span><span class="w"> </span><span class="s2">"PI"</span><span class="p">);</span>
+<span class="c1">// the seat, by default — the same point as municipalitySeat("2208007")</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">byNameCentroid</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">geocodeMunicipality</span><span class="p">(</span><span class="s2">"Picos"</span><span class="p">,</span><span class="w"> </span><span class="s2">"PI"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">point</span><span class="o">:</span><span class="w"> </span><span class="s2">"centroid"</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// the territory centroid</span>
+
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">seat</span><span class="p">,</span><span class="w"> </span><span class="nx">territory</span><span class="p">,</span><span class="w"> </span><span class="nx">byName</span><span class="p">,</span><span class="w"> </span><span class="nx">byNameCentroid</span><span class="p">);</span>
+</code></pre></div>
+<p>Every result carries <code>point</code>, which says <strong>which</strong> coordinate it holds — so code never has to guess.</p>
+<div class="admonition info">
+<p class="admonition-title">Where the seat comes from</p>
+<p>Seats come from <a href="https://github.com/kelvins/municipios-brasileiros">kelvins/municipios-brasileiros</a> (MIT license, Copyright (c) 2016 Kelvin S. do Prado), pinned by commit and SHA-256 — the same source as the <code>tempest-fastapi-sdk</code> backend, so front and back give <strong>the same point</strong>. The license text ships inside the data (<code>br-seats.json</code> → <code>source.licenseText</code>). Name and UF still come from IBGE, joined on the 7-digit code.</p>
+<p>For <strong>5</strong> municipalities the source puts the seat outside the municipality's own territory (Pau d'Arco/PA 750 km away, Cerro Azul/PR, Alto Paraíso/PR, São Sebastião da Vargem Alegre/MG, São Caetano/PE). For those, a seat lookup returns the centroid, with <code>point: "centroid"</code> — the field tells the truth. Boa Esperança do Norte (MT), with no boundary and so no centroid, <strong>does</strong> have a seat: <code>municipalitySeat("5101837")</code> answers.</p>
+</div>
+<h3 id="name-coordinate-and-neighborhood">Name, coordinate and neighborhood</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">reverseGeocode</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">nearestMunicipality</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">geocodeMunicipality</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">municipalityCentroid</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">stateCentroid</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="c1">// Coordinate → the municipality that CONTAINS it (point-in-polygon, exact):</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">reverseGeocode</span><span class="p">({</span><span class="w"> </span><span class="nx">latitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">23.5505</span><span class="p">,</span><span class="w"> </span><span class="nx">longitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">46.6333</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// { id: "3550308", name: "São Paulo", uf: "SP" }</span>
+
+<span class="c1">// Coordinate → nearest-seat municipality (fast, approximate, no geometry):</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">nearestMunicipality</span><span class="p">({</span><span class="w"> </span><span class="nx">latitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">23.55</span><span class="p">,</span><span class="w"> </span><span class="nx">longitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">46.63</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// { id, name, uf: "SP", latitude, longitude, point: "seat", distanceKm }</span>
+
+<span class="c1">// Name → seat coordinate (homonyms may exist across states):</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">geocodeMunicipality</span><span class="p">(</span><span class="s2">"Bonito"</span><span class="p">);</span><span class="w">          </span><span class="c1">// several</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">geocodeMunicipality</span><span class="p">(</span><span class="s2">"São Paulo"</span><span class="p">,</span><span class="w"> </span><span class="s2">"SP"</span><span class="p">);</span><span class="w"> </span><span class="c1">// filtered by UF</span>
+
+<span class="c1">// Territory centroids:</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">municipalityCentroid</span><span class="p">(</span><span class="s2">"3550308"</span><span class="p">);</span><span class="w"> </span><span class="c1">// { id, name, uf, latitude, longitude, point: "centroid" }</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">stateCentroid</span><span class="p">(</span><span class="s2">"SP"</span><span class="p">);</span><span class="w">             </span><span class="c1">// { latitude, longitude }</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title"><code>reverseGeocode</code> vs <code>nearestMunicipality</code></p>
+<ul>
+<li><strong><code>reverseGeocode</code></strong> does <strong>point-in-polygon</strong> → returns the municipality that actually contains the point. Loads <strong>one</strong> state's geometry (lazy per-UF chunk). Pass <code>{ uf }</code> if you know it, to skip candidate-state detection.</li>
+<li><strong><code>nearestMunicipality</code></strong> compares <strong>seats</strong> only (or centroids, with <code>{ point: "centroid" }</code>) → fast and geometry-free. It answers "which city is closest", not "which municipality am I in": near a border, the neighbor's seat can be closer than your own.</li>
+</ul>
+</div>
+<h3 id="recipe-where-am-i-gps-municipality">Recipe: "where am I?" (GPS → municipality)</h3>
+<p>Combine with <code>usePositionTracker</code> from the <a href="../geo/">Geolocation</a> module:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="p">,</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">usePositionTracker</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">reverseGeocode</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">ReverseGeocodeResult</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">WhereAmI</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">lastPoint</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">usePositionTracker</span><span class="p">({</span><span class="w"> </span><span class="nx">autoStart</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">place</span><span class="p">,</span><span class="w"> </span><span class="nx">setPlace</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">ReverseGeocodeResult</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+
+<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">lastPoint</span><span class="p">)</span><span class="w"> </span><span class="nx">reverseGeocode</span><span class="p">(</span><span class="nx">lastPoint</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">setPlace</span><span class="p">);</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">lastPoint</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;{</span><span class="nx">place</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="sb">`You are in </span><span class="si">${</span><span class="nx">place</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb"> — </span><span class="si">${</span><span class="nx">place</span><span class="p">.</span><span class="nx">uf</span><span class="si">}</span><span class="sb">`</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"Locating…"</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Accuracy</p>
+<p>The geometry is simplified (~2 km). Points within ~1-2 km of a border may resolve to the neighboring municipality; points offshore / outside the territory fall back to the nearest centroid.</p>
+</div>
+<hr />
+<h2 id="part-6-markers-color-scales-and-legend">Part 6 — Markers, color scales and legend</h2>
+<h3 id="markers-pins">Markers (pins)</h3>
+<p><code>BrazilMap</code>, <code>BrazilStateMap</code> and <code>TrajectoryMap</code> (the <a href="../geo/">Geolocation</a> module) accept <code>markers</code> — <code>{ latitude, longitude }</code> points plotted over the map, with <code>label</code> (tooltip), <code>color</code>, <code>radius</code> and <code>id</code>. <code>onMarkerClick(marker, index)</code> on click.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilMap</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">GeoMarker</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">capitals</span><span class="o">:</span><span class="w"> </span><span class="kt">GeoMarker</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"sp"</span><span class="p">,</span><span class="w"> </span><span class="nx">latitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">23.55</span><span class="p">,</span><span class="w"> </span><span class="nx">longitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">46.63</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"São Paulo"</span><span class="p">,</span><span class="w"> </span><span class="nx">color</span><span class="o">:</span><span class="w"> </span><span class="s2">"#e11d48"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"rj"</span><span class="p">,</span><span class="w"> </span><span class="nx">latitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">22.91</span><span class="p">,</span><span class="w"> </span><span class="nx">longitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">43.17</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Rio de Janeiro"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="p">&lt;</span><span class="nt">BrazilMap</span><span class="w"> </span><span class="na">markers</span><span class="o">=</span><span class="p">{</span><span class="nx">capitals</span><span class="p">}</span><span class="w"> </span><span class="na">onMarkerClick</span><span class="o">=</span><span class="p">{(</span><span class="nx">m</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">m</span><span class="p">.</span><span class="nx">label</span><span class="p">)}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Pins from geocoding</p>
+<p>Combine with geocoding (Part 5): <code>municipalitySeat(id)</code> or <code>geocodeMunicipality(name)</code> give the <strong>seat</strong> to turn into <code>markers</code> — the pin lands on the city. <code>municipalityCentroid(id)</code> is the middle of the territory: good for a label, not for a pin.</p>
+</div>
+<h3 id="color-scales-legend">Color scales + legend</h3>
+<p>For a choropleth beyond the 2-color ramp, pass <code>colorScale</code> (from <code>sequentialScale</code>/<code>quantizeScale</code>/<code>thresholdScale</code>) and pair it with <code>&lt;MapLegend&gt;</code>. Built-in colorblind-safe palettes: <code>SEQUENTIAL_BLUES</code>, <code>SEQUENTIAL_GREENS</code>, <code>SEQUENTIAL_VIRIDIS</code>, <code>DIVERGING_RDBU</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">BrazilMap</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">MapLegend</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">sequentialScale</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">SEQUENTIAL_VIRIDIS</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sales</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">SP</span><span class="o">:</span><span class="w"> </span><span class="kt">1200</span><span class="p">,</span><span class="w"> </span><span class="nx">MG</span><span class="o">:</span><span class="w"> </span><span class="kt">640</span><span class="p">,</span><span class="w"> </span><span class="nx">RJ</span><span class="o">:</span><span class="w"> </span><span class="kt">580</span><span class="p">,</span><span class="w"> </span><span class="nx">BA</span><span class="o">:</span><span class="w"> </span><span class="kt">410</span><span class="p">,</span><span class="w"> </span><span class="nx">RS</span><span class="o">:</span><span class="w"> </span><span class="kt">390</span><span class="w"> </span><span class="p">};</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">scale</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">sequentialScale</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">1200</span><span class="p">,</span><span class="w"> </span><span class="nx">SEQUENTIAL_VIRIDIS</span><span class="p">);</span>
+
+<span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">BrazilMap</span><span class="w"> </span><span class="na">values</span><span class="o">=</span><span class="p">{</span><span class="nx">sales</span><span class="p">}</span><span class="w"> </span><span class="na">colorScale</span><span class="o">=</span><span class="p">{</span><span class="nx">scale</span><span class="p">}</span><span class="w"> </span><span class="na">showLabels</span><span class="o">=</span><span class="p">{</span><span class="kc">false</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">MapLegend</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Sales (R$ k)"</span><span class="w"> </span><span class="na">min</span><span class="o">=</span><span class="p">{</span><span class="mf">0</span><span class="p">}</span><span class="w"> </span><span class="na">max</span><span class="o">=</span><span class="p">{</span><span class="mf">1200</span><span class="p">}</span><span class="w"> </span><span class="na">palette</span><span class="o">=</span><span class="p">{</span><span class="nx">SEQUENTIAL_VIRIDIS</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;;</span>
+</code></pre></div>
+<ul>
+<li><strong><code>sequentialScale(min, max, palette)</code></strong> — continuous gradient.</li>
+<li><strong><code>quantizeScale(min, max, palette)</code></strong> — <code>palette.length</code> equal bands.</li>
+<li><strong><code>thresholdScale(thresholds, palette)</code></strong> — bands by cutoff (<code>palette</code> has <code>thresholds.length + 1</code> colors).</li>
+<li><strong><code>&lt;MapLegend&gt;</code></strong> — continuous gradient (<code>min</code>/<code>max</code>/<code>palette</code> + <code>format</code>) <strong>or</strong> discrete bands (<code>items={[{ color, label }]}</code>).</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Brand palette</p>
+<p>The palettes are public standards (ColorBrewer/Viridis). Swap for any ordered list of your brand's hex colors — the scale builders accept any <code>string[]</code>.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">An empty palette throws at construction</p>
+<p><code>quantizeScale</code> and <code>thresholdScale</code> <strong>throw</strong> when the palette has no colours,
+rather than returning a scale that answers <code>undefined</code> for every value. Such a
+scale reaches the DOM as <code>fill="undefined"</code>: the map comes out blank and
+nothing is reported. The error now lands on the line that built the scale,
+which is where the mistake is — usually a palette coming out of a <code>.filter()</code>
+or a <code>.slice()</code> with the wrong index.</p>
+</div>
+<hr />
+<h2 id="part-7-zoom-color-by-region-and-municipality-search">Part 7 — Zoom, color-by-region and municipality search</h2>
+<h3 id="pan-zoom">Pan &amp; zoom</h3>
+<p><code>zoomable</code> enables wheel-zoom (anchored at the cursor) + drag-pan on <code>BrazilMap</code>/<code>BrazilStateMap</code>. Double-click resets; a <strong>Reset</strong> button appears while zoomed/panned.</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">BrazilStateMap</span><span class="w"> </span><span class="na">uf</span><span class="o">=</span><span class="s">"MG"</span><span class="w"> </span><span class="na">zoomable</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<h3 id="color-by-region">Color by region</h3>
+<p><code>colorByRegion</code> tints each state by its macro-region (categorical), overriding <code>values</code>/<code>colorScale</code>. Pair it with a discrete legend via <code>regionLegendItems()</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BrazilMap</span><span class="p">,</span><span class="w"> </span><span class="nx">MapLegend</span><span class="p">,</span><span class="w"> </span><span class="nx">regionLegendItems</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">BrazilMap</span><span class="w"> </span><span class="na">colorByRegion</span><span class="w"> </span><span class="na">showLabels</span><span class="o">=</span><span class="p">{</span><span class="kc">false</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">MapLegend</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Region"</span><span class="w"> </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">regionLegendItems</span><span class="p">()}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;;</span>
+</code></pre></div>
+<p><code>REGION_COLORS</code> exposes the <code>region → color</code> map (swap for your brand palette).</p>
+<h3 id="municipality-search-autocomplete">Municipality search (autocomplete)</h3>
+<p><code>MunicipalitySearch</code> is an offline autocomplete (uses <code>searchMunicipalities</code>, debounced). Wire <code>onSelect</code> to a <code>BrazilStateMap</code>'s <code>selected</code> to highlight it on the map.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">MunicipalitySearch</span><span class="p">,</span><span class="w"> </span><span class="nx">BrazilStateMap</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">UF</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">SearchOnMap</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">uf</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">UF</span><span class="p">&gt;(</span><span class="s2">"SP"</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">city</span><span class="p">,</span><span class="w"> </span><span class="nx">setCity</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">string</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">MunicipalitySearch</span><span class="w"> </span><span class="na">uf</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Municipality"</span><span class="w"> </span><span class="na">onSelect</span><span class="o">=</span><span class="p">{(</span><span class="nx">m</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setCity</span><span class="p">(</span><span class="nx">m</span><span class="p">.</span><span class="nx">name</span><span class="p">)}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">BrazilStateMap</span><span class="w"> </span><span class="na">uf</span><span class="o">=</span><span class="p">{</span><span class="nx">uf</span><span class="p">}</span><span class="w"> </span><span class="na">selected</span><span class="o">=</span><span class="p">{</span><span class="nx">city</span><span class="p">}</span><span class="w"> </span><span class="na">zoomable</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>uf</code> restricts the search to one state; without it, it searches the whole country (the result shows the UF).</li>
+<li><code>onSelect(m)</code> receives <code>{ id, name, uf, latitude, longitude }</code> — enough to also center/mark it.</li>
+<li>Keyboard matches <code>Combobox</code>: focus stays on the field, <code>↓</code>/<code>↑</code> move the active result (announced through <code>aria-activedescendant</code>), <code>Enter</code> picks it, <code>Esc</code> closes the list and <code>Tab</code> leaves the field, closing the list. Results are not in the <code>Tab</code> order.</li>
+</ul>
+<hr />
+<h2 id="about-the-geometry">About the geometry</h2>
+<ul>
+<li>Source: <strong>IBGE</strong> mesh (<code>/api/v3/malhas</code>, 2022 vintage), simplified with Douglas-Peucker (~2 km tolerance, capped at a twentieth of each ring's diagonal so a small municipality is not erased) and rounded to 3 decimals.</li>
+<li>Size: <strong>~99 KB raw / ~31 KB gzip</strong>, in a separate chunk loaded <strong>lazily</strong> by <code>BrazilMap</code>.</li>
+<li>Accuracy: adequate for a <strong>clickable overview map</strong>, <strong>not</strong> for precise geographic analysis or area computation.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Municipality: use <code>BrazilStateMap</code></p>
+<p><code>BrazilMap</code> draws <strong>states</strong>. For the <strong>municipality</strong> level, <a href="#part-4-state-submap-brazilstatemap"><code>BrazilStateMap</code></a> draws every municipality of a state — the municipal geometry (~2 MB total) is split per UF and loaded <strong>lazily</strong>, one chunk per state, so it never lands in a single bundle.</p>
+</div>
+<h2 id="advanced-geometry-access">Advanced geometry access</h2>
+<p>Need the GeoJSON for a custom render? Load it lazily:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">loadBrUfGeoJson</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">collection</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">loadBrUfGeoJson</span><span class="p">();</span>
+<span class="nx">collection</span><span class="p">.</span><span class="nx">features</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span><span class="w"> </span><span class="c1">// 27</span>
+</code></pre></div>
+<hr />
+<h2 id="recap">Recap</h2>
+<ul>
+<li><strong>Data</strong>: <code>listStates</code>, <code>getState</code>, <code>citiesByUf</code>, <code>statesByRegion</code>, <code>ufChoices</code>, <code>cityChoices</code>, <code>isValidUf</code>, <code>normalizeUf</code>, <code>isValidCity</code> — offline, mirroring the FastAPI SDK's <code>utils/locations</code>.</li>
+<li><strong>Selector</strong>: <code>BrazilStateCitySelect</code> chains State → City.</li>
+<li><strong>National map</strong>: <code>BrazilMap</code> renders the 27 UFs in SVG — clickable (<code>onSelect</code>), highlightable (<code>selected</code>) and choropleth (<code>values</code>). No external tiles; bundled, lazy geometry.</li>
+<li><strong>State submap</strong>: <code>BrazilStateMap</code> draws every municipality of a UF — clickable, choropleth, per-state geometry loaded lazily. <code>loadStateMunicipalities(uf)</code> exposes the raw geometry.</li>
+<li><strong>Import</strong> always from the <code>tempest-react-sdk/br</code> subpath.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../geo/">Geolocation</a> — lat/lon capture, trajectory and tile-free <code>TrajectoryMap</code></li>
+<li><a href="../forms-br/">Forms BR</a> — CPF/CNPJ/CEP and <code>useViaCEP</code></li>
+<li><a href="../components/inputs/">Components: Data entry</a> — <code>Select</code>, <code>Combobox</code></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../geo/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Geolocation">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Geolocation
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../br-pagamentos/" class="md-footer__link md-footer__link--next" aria-label="Next: BR payments, fiscal &amp; contact">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                BR payments, fiscal & contact
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,5303 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/theme/">
+      
+      
+        <link rel="prev" href="../styles/">
+      
+      
+        <link rel="next" href="../i18n/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Theme - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#theme-dark-light" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Theme
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../theme/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#theme-toggle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Theme toggle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-flash-avoiding-the-wrong-theme-flash" class="md-nav__link">
+    <span class="md-ellipsis">
+      No-flash (avoiding the wrong-theme flash)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#customizing-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Customizing tokens
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createtheme-a-whole-brand-from-one-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      createTheme — a whole brand from one color
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="createTheme — a whole brand from one color">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-it-generates" class="md-nav__link">
+    <span class="md-ellipsis">
+      What it generates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bundled-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bundled presets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switching-themes-at-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      Switching themes at runtime
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-js-paste-the-generated-css" class="md-nav__link">
+    <span class="md-ellipsis">
+      No JS: paste the generated CSS
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auditing-your-brands-contrast" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auditing your brand's contrast
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-color-conversions-on-their-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      The color conversions, on their own
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inverse-surface-a-section-in-the-brand-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inverse surface (a section in the brand color)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inverse surface (a section in the brand color)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-changes-inside-the-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      What changes inside the section
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measured-contrast-not-picked" class="md-nav__link">
+    <span class="md-ellipsis">
+      Measured contrast, not picked
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-fill-is-your-brand-when-it-can-carry-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      The fill is your brand — when it can carry it
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dark-theme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dark theme
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#without-the-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      Without the import
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#your-brand-with-createtheme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Your brand, with createTheme
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#back-to-the-pages-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Back to the page's tokens
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#app-css-integration-theme-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      App CSS integration + theme-color
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#partial-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      Partial scope
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#theme-toggle" class="md-nav__link">
+    <span class="md-ellipsis">
+      Theme toggle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-flash-avoiding-the-wrong-theme-flash" class="md-nav__link">
+    <span class="md-ellipsis">
+      No-flash (avoiding the wrong-theme flash)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#customizing-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Customizing tokens
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createtheme-a-whole-brand-from-one-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      createTheme — a whole brand from one color
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="createTheme — a whole brand from one color">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-it-generates" class="md-nav__link">
+    <span class="md-ellipsis">
+      What it generates
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#bundled-presets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Bundled presets
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#switching-themes-at-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      Switching themes at runtime
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-js-paste-the-generated-css" class="md-nav__link">
+    <span class="md-ellipsis">
+      No JS: paste the generated CSS
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auditing-your-brands-contrast" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auditing your brand's contrast
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-color-conversions-on-their-own" class="md-nav__link">
+    <span class="md-ellipsis">
+      The color conversions, on their own
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inverse-surface-a-section-in-the-brand-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      Inverse surface (a section in the brand color)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inverse surface (a section in the brand color)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-changes-inside-the-section" class="md-nav__link">
+    <span class="md-ellipsis">
+      What changes inside the section
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#measured-contrast-not-picked" class="md-nav__link">
+    <span class="md-ellipsis">
+      Measured contrast, not picked
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-fill-is-your-brand-when-it-can-carry-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      The fill is your brand — when it can carry it
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dark-theme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dark theme
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#without-the-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      Without the import
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#your-brand-with-createtheme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Your brand, with createTheme
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#back-to-the-pages-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Back to the page's tokens
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#app-css-integration-theme-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      App CSS integration + theme-color
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#partial-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      Partial scope
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/theme.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/theme.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="theme-dark-light">Theme (dark / light)</h1>
+<p><code>ThemeProvider</code> decides the effective theme and writes <code>data-tempest-theme="dark"</code> (or <code>"light"</code>) on <code>&lt;html&gt;</code>. The <code>--tempest-*</code> CSS tokens react to that attribute, so <strong>switching the theme is switching one attribute</strong> — no component needs to know the theme changed. See the tokens in <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/src/styles/colors.css"><code>src/styles/colors.css</code></a>.</p>
+<div class="admonition info">
+<p class="admonition-title">Why an attribute, not <code>class=\"dark\"</code>?</p>
+<p>Using <code>data-tempest-theme</code> (instead of the <code>class="dark"</code> convention) avoids clashing with the app's classes and enables partial scoping: you can apply a different theme to a subtree (preview, portal, docs) without touching the rest of the page. It is the only theming mechanism the SDK supports.</p>
+</div>
+<h2 id="setup">Setup</h2>
+<p>Wrap your tree in <code>ThemeProvider</code>. The default mode is <code>"system"</code>, which follows the operating system preference:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">StrictMode</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createRoot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react-dom/client"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ThemeProvider</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="s2">"tempest-react-sdk/styles.css"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">App</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"./App"</span><span class="p">;</span>
+
+<span class="nx">createRoot</span><span class="p">(</span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">"root"</span><span class="p">)</span><span class="o">!</span><span class="p">).</span><span class="nx">render</span><span class="p">(</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">StrictMode</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">defaultTheme</span><span class="o">=</span><span class="s">"system"</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;/</span><span class="nt">StrictMode</span><span class="p">&gt;,</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Available modes: <code>"light"</code>, <code>"dark"</code>, <code>"system"</code>. In <code>"system"</code> mode the provider listens to <code>prefers-color-scheme</code> and reacts to OS changes in real time. The user's choice is persisted in <code>localStorage["tempest-theme"]</code> (disable with <code>storageKey={null}</code>).</p>
+<h2 id="theme-toggle">Theme toggle</h2>
+<p><code>useTheme()</code> reads and mutates the theme. A complete toggle:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ThemeToggle</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">theme</span><span class="p">,</span><span class="w"> </span><span class="nx">resolvedTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">setTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">toggle</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useTheme</span><span class="p">();</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">toggle</span><span class="p">}&gt;{</span><span class="nx">resolvedTheme</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"dark"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"🌙 Dark"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"☀️ Light"</span><span class="p">}&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+
+<span class="w">      </span><span class="p">{</span><span class="cm">/* or control all three modes explicitly */</span><span class="p">}</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">select</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">theme</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setTheme</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="ow">typeof</span><span class="w"> </span><span class="nx">theme</span><span class="p">)}&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"light"</span><span class="p">&gt;</span><span class="nx">Light</span><span class="p">&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"dark"</span><span class="p">&gt;</span><span class="nx">Dark</span><span class="p">&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"system"</span><span class="p">&gt;</span><span class="nx">System</span><span class="p">&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>What each field means:</p>
+<ul>
+<li><code>theme</code>: the user's <strong>raw preference</strong> — <code>"light"</code>, <code>"dark"</code> or <code>"system"</code>.</li>
+<li><code>resolvedTheme</code>: the theme <strong>actually applied</strong> — always <code>"light"</code> or <code>"dark"</code> (never <code>"system"</code>).</li>
+<li><code>setTheme(next)</code>: writes the preference (and persists it).</li>
+<li><code>toggle()</code>: inverts the <code>resolvedTheme</code>. In <code>"system"</code> mode it flips to the opposite of what is applied.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Use <code>resolvedTheme</code> to render, <code>theme</code> for the selector</p>
+<p>When deciding which icon/image to show, read <code>resolvedTheme</code> (it is always concrete). Reserve <code>theme</code> for reflecting the choice in a three-option selector.</p>
+</div>
+<h2 id="no-flash-avoiding-the-wrong-theme-flash">No-flash (avoiding the wrong-theme flash)</h2>
+<p>There is a classic problem: the HTML paints before React mounts, so for an instant the user sees the default theme before <code>ThemeProvider</code> corrects it. The fix is a synchronous inline script in the <code>&lt;head&gt;</code>, <strong>before any CSS</strong>, that applies the attribute on first paint.</p>
+<p><code>themeInitScript()</code> returns exactly that snippet. In a Vite <code>index.html</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"en"</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">"UTF-8"</span> <span class="p">/&gt;</span>
+    <span class="cm">&lt;!-- Applies data-tempest-theme before paint. Paste the output of themeInitScript() here. --&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">(</span><span class="kd">function</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tempest-theme"</span><span class="p">;</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">def</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"system"</span><span class="p">;</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">stored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="nx">key</span><span class="p">);</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stored</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">def</span><span class="p">;</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">resolved</span><span class="w"> </span><span class="o">=</span>
+<span class="w">            </span><span class="nx">mode</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"dark"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"light"</span>
+<span class="w">              </span><span class="o">?</span><span class="w"> </span><span class="nx">mode</span>
+<span class="w">              </span><span class="o">:</span><span class="w"> </span><span class="nx">matchMedia</span><span class="p">(</span><span class="s2">"(prefers-color-scheme: dark)"</span><span class="p">).</span><span class="nx">matches</span>
+<span class="w">                </span><span class="o">?</span><span class="w"> </span><span class="s2">"dark"</span>
+<span class="w">                </span><span class="o">:</span><span class="w"> </span><span class="s2">"light"</span><span class="p">;</span>
+<span class="w">          </span><span class="nb">document</span><span class="p">.</span><span class="nx">documentElement</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s2">"data-tempest-theme"</span><span class="p">,</span><span class="w"> </span><span class="nx">resolved</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">      </span><span class="p">})();</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">"root"</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">type</span><span class="o">=</span><span class="s">"module"</span> <span class="na">src</span><span class="o">=</span><span class="s">"/src/main.tsx"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>If you render the HTML via SSR/React (Next, Remix, etc.), inject it with <code>dangerouslySetInnerHTML</code> to keep the generated string in sync with the SDK:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">themeInitScript</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Head</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">script</span><span class="w"> </span><span class="na">dangerouslySetInnerHTML</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">__html</span><span class="o">:</span><span class="w"> </span><span class="kt">themeInitScript</span><span class="p">()</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">The script must be synchronous and run early</p>
+<p>Do not use <code>defer</code>, <code>async</code>, or move the script to the end of <code>&lt;body&gt;</code> — it has to run before the first paint, otherwise the flash returns. <code>getInitialTheme()</code> exposes the same resolution logic for when you want the computed theme in JS without injecting the script.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Safe to inline with any option</p>
+<p><code>storageKey</code> and <code>defaultTheme</code> are escaped into the script: <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, U+2028 and U+2029 become <code>\uXXXX</code>. With plain <code>JSON.stringify</code>, a <code>storageKey</code> containing <code>&lt;/script&gt;</code> closed the element in the HTML parser and the rest became another script — the test proves it by parsing the resulting HTML.</p>
+</div>
+<h2 id="customizing-tokens">Customizing tokens</h2>
+<p>The <code>--tempest-*</code> tokens are the only theming API. Override them anywhere in the cascade — one for the light theme, another inside the dark-theme selector:</p>
+<div class="highlight"><pre><span></span><code><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--tempest-primary</span><span class="p">:</span><span class="w"> </span><span class="mh">#ff3366</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--tempest-radius-md</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">[</span><span class="nt">data-tempest-theme</span><span class="o">=</span><span class="s2">"dark"</span><span class="o">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--tempest-primary</span><span class="p">:</span><span class="w"> </span><span class="mh">#ff6688</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Tokens are public API</p>
+<p>Because apps depend on these names, changing/removing a token is a breaking change — that is why they follow the SDK's semantic versioning.</p>
+</div>
+<h2 id="createtheme-a-whole-brand-from-one-color"><code>createTheme</code> — a whole brand from one color</h2>
+<p>Overriding token by token is fine for a one-off tweak. To <strong>change the brand</strong>, it is ~30 values for <code>primary</code> alone (ten steps × light/dark, plus the hover/active/soft aliases) — and the dark ramp inversion is easy to get wrong by hand. <code>createTheme</code> generates all of it:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#7c3aed"</span><span class="w"> </span><span class="p">});</span>
+
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">theme</span><span class="p">);</span>
+</code></pre></div>
+<p>That's it: all 135 components pick up the new brand, in light and dark.</p>
+<h3 id="what-it-generates">What it generates</h3>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w">          </span><span class="c1">// 50→900 scale + hover/active/soft/foreground/focus-ring</span>
+<span class="w">  </span><span class="nx">gray</span><span class="o">:</span><span class="w"> </span><span class="s2">"#6b7280"</span><span class="p">,</span><span class="w">             </span><span class="c1">// surfaces, borders and text</span>
+<span class="w">  </span><span class="nx">success</span><span class="o">:</span><span class="w"> </span><span class="s2">"#16a34a"</span><span class="p">,</span><span class="w">          </span><span class="c1">// each status becomes -fg / -bg / -border / -solid</span>
+<span class="w">  </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="s2">"#dc2626"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">chart</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#0ea5e9"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#22c55e"</span><span class="p">],</span><span class="w">  </span><span class="c1">// --tempest-chart-1..N + -count (see Charts)</span>
+<span class="w">  </span><span class="nx">radius</span><span class="o">:</span><span class="w"> </span><span class="s2">"lg"</span><span class="p">,</span><span class="w">                </span><span class="c1">// "none" | "sm" | "md" | "lg" | "xl" | "full"</span>
+<span class="p">});</span>
+
+<span class="nx">theme</span><span class="p">.</span><span class="nx">light</span><span class="p">;</span><span class="w"> </span><span class="c1">// { "--tempest-primary-500": "#7c3aed", … } — your color, exactly</span>
+<span class="nx">theme</span><span class="p">.</span><span class="nx">dark</span><span class="p">;</span><span class="w">  </span><span class="c1">// same, with the ramp inverted</span>
+<span class="nx">theme</span><span class="p">.</span><span class="nx">css</span><span class="p">;</span><span class="w">   </span><span class="c1">// ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"</span>
+</code></pre></div>
+<p>Only the families you pass are generated — everything else still comes from the SDK's <code>colors.css</code>. A theme is a <strong>patch</strong>, not a fork of the palette.</p>
+<div class="admonition danger">
+<p class="admonition-title">The focus ring is not derived by transparency — and why that matters</p>
+<p>A generated theme's <code>--tempest-focus-ring-color</code> is <strong>opaque</strong>, and the ramp
+step is <strong>measured</strong>, not fixed: the generator starts at <code>500</code> and walks up
+the ramp until the ring clears the 3:1 WCAG 2.2 SC 1.4.11 asks for <strong>on all
+four surfaces</strong> (<code>--tempest-bg</code>, <code>--tempest-surface</code>, <code>-2</code>, <code>-3</code>), in both
+schemes.</p>
+<p>A tinted ring has no contrast of its own — it has the contrast of whatever it
+composites over. Measured across twelve brands, four surfaces and both themes
+(96 pairings):</p>
+<table>
+<thead>
+<tr>
+<th>ring</th>
+<th>pairings above 3:1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>500</code> at alpha 0.35 (the default through 0.63.0)</td>
+<td>3 of 96</td>
+</tr>
+<tr>
+<td><code>500</code> opaque</td>
+<td>58 of 96</td>
+</tr>
+<tr>
+<td>step picked by measurement</td>
+<td><strong>96 of 96</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Opaque alone does not fix it, which is what the measured step covers: the
+purple <code>#8100D7</code> passes at 7.20:1 in light and fails at <strong>1.91:1 in dark</strong>,
+and a yellow fails at 1.43:1 in light. When the brand already clears the floor
+at <code>500</code>, the ring is your exact color — the walk is a fallback, not a
+recolour.</p>
+<p><code>focusRingAlpha</code> is still there for a translucent ring over a background you
+control; below <code>1</code> it logs a warning in a development build.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">The selected-state indicator is derived alongside it — and never takes an alpha</p>
+<p><code>createTheme</code> also emits <code>--tempest-selected-indicator</code>, by the same method:
+walk the brand ramp until the ink clears 3:1 against all four surfaces, in
+both schemes. It is the ink <code>SegmentedControl</code>, <code>Command</code>, <code>DropdownMenu</code> and
+<code>ContextMenu</code> mark the active item with.</p>
+<p>It is its own token rather than an alias of the ring for two reasons. Focus
+and selection are different states — an app may want different colors. And
+<code>focusRingAlpha</code> <strong>does not reach it</strong>: a translucent ring over a background
+you control is a legitimate choice; a translucent state indicator is the
+defect the token ends.</p>
+<p>The detail and the measurement — including why <code>--tempest-primary-soft</code>
+(1.03:1 to 1.61:1 against <code>--tempest-bg</code> across twelve brands) does not serve
+— is in <a href="../styles/#selected-state">Selected state</a>.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Step <code>500</code> is exactly the color you passed</p>
+<p>The scale is <strong>anchored</strong> at <code>500</code>: your brand's lightness becomes the fixed
+point and both halves of the ramp are rescaled around it. Without that, <code>500</code>
+was forced onto the curve's target lightness and <code>#7c3aed</code> came back as
+<code>#9161fe</code> — same hue, same chroma, <strong>re-lightened</strong>. It looks fine in isolation
+and is wrong anyway: the one color the designer handed over is the one the
+buttons have to be. A very light brand (yellow) or a very dark one (navy)
+simply gets a shorter run on the crowded side, and the ramp stays monotonic.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Why OKLCH and not HSL</p>
+<p>The scale is derived in OKLCH because HSL lightness is <strong>not perceptual</strong>: a yellow and a blue at the same HSL <code>L</code> read as visibly different brightness, and that is exactly what makes a generated palette look broken for some colors. In OKLCH, the <code>500</code> step of any brand sits in the same visual place.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">The text-on-soft step is measured, not conventional</p>
+<p><code>--tempest-primary-on-soft</code> is not pinned to <code>600</code>: the SDK <strong>measures</strong> contrast against the <code>50</code> tint and walks down the ramp until it clears 4.5:1 (AA for body text). This is not fussiness — the default blue only reaches 4.37:1 at <code>500</code> over its own tint, and a generated emerald stops at 4.41:1 at <code>600</code>. Both would miss AA by a hair.</p>
+</div>
+<h3 id="bundled-presets">Bundled presets</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">themePresets</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">(</span><span class="nx">themePresets</span><span class="p">.</span><span class="nx">violet</span><span class="p">));</span>
+
+<span class="c1">// or start from one and tweak it</span>
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="p">...</span><span class="nx">themePresets</span><span class="p">.</span><span class="nx">emerald</span><span class="p">,</span><span class="w"> </span><span class="nx">radius</span><span class="o">:</span><span class="w"> </span><span class="s2">"full"</span><span class="w"> </span><span class="p">}));</span>
+</code></pre></div>
+<p>Available presets: <code>tempest</code> (the SDK default), <code>violet</code>, <code>emerald</code>, <code>rose</code>, <code>slate</code>, <code>amber</code>. Each one is an options object — data, not CSS — so you can persist the chosen name in <code>localStorage</code> and resolve it with <code>getThemePreset(name)</code>, which returns <code>undefined</code> for an unknown name instead of blowing up at boot.</p>
+<h3 id="switching-themes-at-runtime">Switching themes at runtime</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">getThemePreset</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="p">,</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">BrandPicker</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">brand</span><span class="p">,</span><span class="w"> </span><span class="nx">setBrand</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">"brand"</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"tempest"</span><span class="p">);</span>
+
+<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">preset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">getThemePreset</span><span class="p">(</span><span class="nx">brand</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">preset</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">"brand"</span><span class="p">,</span><span class="w"> </span><span class="nx">brand</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">(</span><span class="nx">preset</span><span class="p">));</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">brand</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">select</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">brand</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setBrand</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">)}&gt;</span>
+<span class="w">      </span><span class="p">{[</span><span class="s2">"tempest"</span><span class="p">,</span><span class="w"> </span><span class="s2">"violet"</span><span class="p">,</span><span class="w"> </span><span class="s2">"emerald"</span><span class="p">,</span><span class="w"> </span><span class="s2">"rose"</span><span class="p">,</span><span class="w"> </span><span class="s2">"slate"</span><span class="p">,</span><span class="w"> </span><span class="s2">"amber"</span><span class="p">].</span><span class="nx">map</span><span class="p">((</span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">name</span><span class="p">}&gt;{</span><span class="nx">name</span><span class="p">}&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">))}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>applyTheme</code> is <strong>idempotent</strong>: it owns a single <code>&lt;style id="tempest-theme"&gt;</code> and rewrites its content, so a brand picker can fire as often as it likes without stacking dead stylesheets in <code>&lt;head&gt;</code>. The return value is the disposer (used as the effect cleanup above).</p>
+<div class="admonition tip">
+<p class="admonition-title">Theming one subtree</p>
+<p>Pass <code>selector</code>/<code>darkSelector</code> to <code>createTheme</code> and <code>id</code>/<code>target</code> to <code>applyTheme</code> to paint only part of the screen — handy for a brand preview:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">applyTheme</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#e11d48"</span><span class="p">,</span><span class="w"> </span><span class="nx">selector</span><span class="o">:</span><span class="w"> </span><span class="s2">".preview"</span><span class="p">,</span><span class="w"> </span><span class="nx">darkSelector</span><span class="o">:</span><span class="w"> </span><span class="s1">'.preview[data-tempest-theme="dark"]'</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"preview-theme"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">);</span>
+</code></pre></div>
+</div>
+<h3 id="no-js-paste-the-generated-css">No JS: paste the generated CSS</h3>
+<p><code>theme.css</code> is text. If you prefer a static theme (zero JS on the critical path), generate it once and paste it into the app's global CSS:</p>
+<div class="highlight"><pre><span></span><code>node<span class="w"> </span>-e<span class="w"> </span><span class="s2">"import('tempest-react-sdk').then(({ createTheme }) =&gt; console.log(createTheme({ primary: '#7c3aed' }).css))"</span><span class="w"> </span>&gt;<span class="w"> </span>src/brand.css
+</code></pre></div>
+<h3 id="auditing-your-brands-contrast">Auditing your brand's contrast</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">contrastRatio</span><span class="p">,</span><span class="w"> </span><span class="nx">createColorScale</span><span class="p">,</span><span class="w"> </span><span class="nx">themeContrast</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">themeContrast</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#fde047"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// 15.2 — dark text was picked automatically</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">scale</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createColorScale</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">);</span>
+<span class="nx">contrastRatio</span><span class="p">(</span><span class="nx">scale</span><span class="p">[</span><span class="mf">500</span><span class="p">],</span><span class="w"> </span><span class="s2">"#ffffff"</span><span class="p">);</span><span class="w">  </span><span class="c1">// assert it in your own test if the brand is a requirement</span>
+</code></pre></div>
+<p><code>--tempest-primary-foreground</code> (and <code>--tempest-text-on-primary</code>) is picked by measured contrast between white and the dark gray — hardcoding white would produce unreadable buttons for light brands (yellow, lime, cyan).</p>
+<h3 id="the-color-conversions-on-their-own">The color conversions, on their own</h3>
+<p><code>createTheme</code> does the whole job, but the conversions it uses internally are
+exported for when you need just one — lightening a badge, building an overlay,
+comparing two colors in a test of your own:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">hexToOklch</span><span class="p">,</span><span class="w"> </span><span class="nx">hexToRgb</span><span class="p">,</span><span class="w"> </span><span class="nx">hexToRgbaString</span><span class="p">,</span><span class="w"> </span><span class="nx">oklchToHex</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">l</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">hexToOklch</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">);</span><span class="w"> </span><span class="c1">// lightness, chroma, hue</span>
+<span class="nx">oklchToHex</span><span class="p">({</span><span class="w"> </span><span class="nx">l</span><span class="o">:</span><span class="w"> </span><span class="kt">l</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// 10% lighter, same hue and saturation</span>
+
+<span class="nx">hexToRgbaString</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w"> </span><span class="mf">0.12</span><span class="p">);</span><span class="w"> </span><span class="c1">// "rgb(124 58 237 / 0.12)" — overlay/hover</span>
+<span class="nx">hexToRgb</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">);</span><span class="w"> </span><span class="c1">// { r, g, b } in 0–1, for your own math</span>
+<span class="nx">rgbToHex</span><span class="p">({</span><span class="w"> </span><span class="nx">r</span><span class="o">:</span><span class="w"> </span><span class="kt">0.49</span><span class="p">,</span><span class="w"> </span><span class="nx">g</span><span class="o">:</span><span class="w"> </span><span class="kt">0.23</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="o">:</span><span class="w"> </span><span class="kt">0.93</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// back to "#7c3aed"</span>
+</code></pre></div>
+<p>Two more come from the contrast side, and they are what <code>createTheme</code> uses to
+pick a readable foreground instead of hardcoding white:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">readableForeground</span><span class="p">,</span><span class="w"> </span><span class="nx">relativeLuminance</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">relativeLuminance</span><span class="p">(</span><span class="s2">"#fde047"</span><span class="p">);</span><span class="w"> </span><span class="c1">// 0.83 — WCAG relative luminance, the input to contrastRatio</span>
+<span class="nx">readableForeground</span><span class="p">(</span><span class="s2">"#fde047"</span><span class="p">);</span><span class="w"> </span><span class="c1">// the dark foreground: white on this yellow is unreadable</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Why OKLCH and not HSL</p>
+<p>Lightening in HSL changes the perceived color: <code>hsl(240 100% 50%)</code> and
+<code>hsl(60 100% 50%)</code> declare the same "lightness" and look nothing alike in
+brightness. OKLCH is perceptually uniform, so <code>l + 0.1</code> lightens by the same
+amount at any hue — which is why <code>createTheme</code>'s scale comes out even
+instead of collapsing in the yellows. <code>oklchToHex</code> also walks chroma down
+until the color fits the sRGB gamut, rather than handing back a clipped hex.</p>
+</div>
+<h2 id="inverse-surface-a-section-in-the-brand-color">Inverse surface (a section in the brand color)</h2>
+<p>Hero, call-to-action band, footer: a section painted in the brand color inside
+a light page. The components <strong>inside</strong> it have to invert — a light primary
+button labelled in the brand, light text, a focus ring that separates from the
+fill. Overriding half a dozen tokens by hand leaves the rest of the palette on
+the page's values, and that is where the section breaks.</p>
+<p>The surface is <strong>opt-in</strong> — most apps never paint a section in the brand, so
+nobody pays for it without asking. Load the sheet once and put <code>tone="inverse"</code>
+on the <code>Section</code> (or the <code>data-tempest-tone="inverse"</code> attribute on any
+element):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="s2">"tempest-react-sdk/styles/inverse.css"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Section</span><span class="p">,</span><span class="w"> </span><span class="nx">SectionHeader</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">FinalCta</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Section</span><span class="w"> </span><span class="na">tone</span><span class="o">=</span><span class="s">"inverse"</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">padding</span><span class="o">:</span><span class="w"> </span><span class="kt">48</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">SectionHeader</span>
+<span class="w">                </span><span class="na">eyebrow</span><span class="o">=</span><span class="s">"Ready?"</span>
+<span class="w">                </span><span class="na">title</span><span class="o">=</span><span class="s">"Get started"</span>
+<span class="w">                </span><span class="na">description</span><span class="o">=</span><span class="s">"No credit card, cancel any time."</span>
+<span class="w">            </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="p">&gt;</span><span class="nx">Create</span><span class="w"> </span><span class="nx">account</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span><span class="p">&gt;</span><span class="nx">Talk</span><span class="w"> </span><span class="nx">to</span><span class="w"> </span><span class="nx">sales</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Section</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Done: the fill becomes the brand, the primary <code>Button</code> turns light with the
+label in the brand color, <code>outline</code> and <code>ghost</code> go light, and the focus ring,
+<code>Input</code>, <code>Card</code>, <code>Badge</code> and the <code>muted</code>/<code>subtle</code> text now hold against the
+inverted fill. 🚀</p>
+<p><img alt="Inverse surface in the gallery" src="../../assets/gallery/theme-factory.webp" /></p>
+<h3 id="what-changes-inside-the-section">What changes inside the section</h3>
+<p>The <code>[data-tempest-tone="inverse"]</code> block redefines <strong>every color token</strong> the
+components read — 96 of them: surfaces, borders, the three text levels, the
+action color and its states, <code>soft</code>, focus, the selected indicator, the
+<code>primary-50…900</code> ramp (which <code>Tag</code> and <code>Sidebar</code> read raw), the four statuses,
+chart and syntax colors, shadows. The list is not from memory: the test reads
+<code>colors.css</code> and fails if a color token appears with no value on the inverse
+surface.</p>
+<p>Left out on purpose: the <code>gray-*</code> ramp and <code>--tempest-neutral-on-solid</code> — the
+pair of the neutral solid <code>Badge</code>/<code>Alert</code>. The gray ramp is fixed across themes
+(the dark block does not override it either), and the pair stays the one the
+page measured.</p>
+<p>A <code>:where([data-tempest-tone="inverse"])</code> rule paints the fill and the text color
+on the element itself, at zero specificity: the attribute alone is a complete
+section, and a <code>background</code> you set on the same element wins without a fight.</p>
+<h3 id="measured-contrast-not-picked">Measured contrast, not picked</h3>
+<p>Every value is derived from the brand and <strong>measured</strong> against the fill it will
+sit on, like the rest of <code>createTheme</code>. Measured across 14 brands (the twelve of
+the focus-ring test plus two navies):</p>
+<table>
+<thead>
+<tr>
+<th>pair</th>
+<th>floor</th>
+<th>worst case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>text over the four surfaces and the glow</td>
+<td>7:1</td>
+<td>≥ 7 on all</td>
+</tr>
+<tr>
+<td><code>muted</code> text over the four surfaces and the glow</td>
+<td>4.5:1</td>
+<td>≥ 4.5 on all</td>
+</tr>
+<tr>
+<td><code>subtle</code> text over <code>bg</code>, <code>surface</code> and the glow</td>
+<td>4.5:1</td>
+<td>≥ 4.5 on all</td>
+</tr>
+<tr>
+<td>focus ring and selected indicator</td>
+<td>3:1</td>
+<td>≥ 3 on all</td>
+</tr>
+<tr>
+<td>primary button label at rest, hover and active</td>
+<td>4.5:1</td>
+<td>≥ 4.5 on all</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>glow</strong> is the fill lifted 0.1 in OKLCH lightness toward the text: a section
+is rarely one flat color. The landing that opened #409 lays a radial gradient of
+<code>#1f3f8f</code> at 55% over the navy <code>#03184b</code>, and <code>subtle</code> text measured only
+against the flat fill dropped to 3.64:1 there. Measuring the glow too, the same
+token lands at 5.01:1 on it.</p>
+<p>Measured in the browser (Chromium, built gallery, 04/10/2026, 390 and 1280 px,
+light and dark page theme — identical numbers in all four):</p>
+<table>
+<thead>
+<tr>
+<th>brand</th>
+<th>fill</th>
+<th>title</th>
+<th><code>muted</code></th>
+<th><code>subtle</code></th>
+<th>ring</th>
+<th>primary button</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SDK (<code>#0066ff</code>)</td>
+<td><code>#042e75</code></td>
+<td>12.71</td>
+<td>9.60</td>
+<td>7.28</td>
+<td>6.95</td>
+<td>12.71</td>
+</tr>
+<tr>
+<td>landing (<code>#03184b</code>)</td>
+<td><code>#03184b</code></td>
+<td>16.99</td>
+<td>10.62</td>
+<td>6.63</td>
+<td>6.31</td>
+<td>16.99</td>
+</tr>
+</tbody>
+</table>
+<h3 id="the-fill-is-your-brand-when-it-can-carry-it">The fill is your brand — when it can carry it</h3>
+<p>The fill is your brand's <code>500</code> whenever it can carry the scheme. When it cannot,
+the generator walks the ramp one step at a time until it can: white on <code>#0066ff</code>
+measures 4.83:1, which barely clears AA for the title and leaves no room for
+<code>muted</code> and <code>subtle</code> to clear it too. That is why the SDK's default blue gets the
+<code>800</code> (<code>#042e75</code>) while a navy keeps its <code>500</code>.</p>
+<table>
+<thead>
+<tr>
+<th>brand</th>
+<th>fill step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#03184b</code>, <code>#1e2a5a</code>, <code>#111111</code>, <code>#FFD400</code>, <code>#a3e635</code>, <code>#fafafa</code></td>
+<td><code>500</code> — the brand itself</td>
+</tr>
+<tr>
+<td><code>#8100D7</code>, <code>#4f46e5</code></td>
+<td><code>700</code></td>
+</tr>
+<tr>
+<td><code>#0066ff</code>, <code>#dc2626</code>, <code>#ec4899</code>, <code>#f97316</code></td>
+<td><code>800</code></td>
+</tr>
+<tr>
+<td><code>#22d3ee</code></td>
+<td><code>400</code> · <code>#14b8a6</code> <code>300</code></td>
+</tr>
+</tbody>
+</table>
+<p>The text direction follows the fill: a dark brand gets white text, a light brand
+(yellow, lime) gets dark text — the same pick <code>createTheme</code> makes for
+<code>--tempest-primary-foreground</code>. The section's <code>color-scheme</code> follows too, so the
+scrollbar, autofill and a native <code>&lt;select&gt;</code> popup match the fill, not the page.</p>
+<div class="admonition info">
+<p class="admonition-title">Deeper surfaces, not lighter ones</p>
+<p>On the page, a raised surface moves toward the text (gray on white, lighter
+gray on black). On a mid-tone brand that spends exactly the contrast the
+text needs. On the inverse surface, a <code>Card</code> in a navy band is a deeper navy,
+and in a yellow band a paler yellow: every surface carries the text at least
+as well as the fill does.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Solid values, not alpha over white</p>
+<p><code>rgb(255 255 255 / 0.1)</code> seems to follow any background, and that is exactly
+why it has no contrast of its own — it has the contrast of whatever is below.
+It is the defect the translucent focus ring had. The inverse tokens are solid
+and measured; tolerance to a varying fill comes from the glow measured above,
+not from alpha.</p>
+</div>
+<h3 id="dark-theme">Dark theme</h3>
+<p>The inverse surface is <strong>the same in light and dark</strong>: the values are literal
+colors, not references to the page's ramp. A band in the brand color is the
+brand in both themes — and a brand with no dark variant (the common landing
+case) has nothing to decide.</p>
+<h3 id="without-the-import">Without the import</h3>
+<p>The <code>styles/inverse.css</code> sheet stays out of <code>colors.css</code>, <code>tokens.css</code> <strong>and</strong>
+<code>styles.css</code>: it is 96 declarations most apps never use (measured, they took the
+<code>tokens.css</code> + <code>scoped.css</code> foundation from 3.05 to 3.44 kB brotli for
+everyone). One rule for every way of importing the SDK: the surface exists when
+this sheet — or a theme generated with <code>inverse</code>, below — is loaded.</p>
+<p>With neither, the attribute matches nothing and the section keeps the page's
+tokens: legible, just not inverted. Measured in the browser, a <code>Section
+tone="inverse"</code> without the sheet shows its title at 17.75:1 and its description
+at 7.69:1 in the light theme (17.51 and 9.11 in dark) — an ordinary section.</p>
+<h3 id="your-brand-with-createtheme">Your brand, with <code>createTheme</code></h3>
+<p>The sheet carries the surface of the SDK's blue. For your brand, hand the
+generator to <code>createTheme</code> — no sheet needed:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createInverseSurface</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#03184b"</span><span class="p">,</span><span class="w"> </span><span class="nx">inverse</span><span class="o">:</span><span class="w"> </span><span class="kt">createInverseSurface</span><span class="w"> </span><span class="p">});</span>
+
+<span class="nx">theme</span><span class="p">.</span><span class="nx">inverse</span><span class="o">?</span><span class="p">.[</span><span class="s2">"--tempest-bg"</span><span class="p">];</span><span class="w"> </span><span class="c1">// "#03184b" — your brand is the fill</span>
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">theme</span><span class="p">);</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Why the generator, and not <code>inverse: true</code></p>
+<p>With a flag, <code>createTheme</code> would have to import the generator, and every app
+that generates a theme would load it. Measured with <code>npx size-limit</code>:
+<code>{ createTheme }</code> alone is 3.35 kB brotli, and with the generator inside it
+was 4.86 kB. Passing the function, only whoever imports it pays.</p>
+</div>
+<p>Statuses and chart colors the theme names (<code>danger</code>, <code>chart</code>…) reach the inverse
+surface too. To scope it to another selector, use <code>inverseSelector</code>. Without
+<code>inverse</code>, the theme comes out as always — two blocks, and no <code>theme.inverse</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Pasted static CSS</p>
+<p>If you paste <code>createTheme</code>'s output into a <code>.css</code> file (see
+<a href="#no-js-paste-the-generated-css">No JS</a>), generate it with
+<code>inverse: createInverseSurface</code> so the file carries your brand's block.</p>
+</div>
+<h3 id="back-to-the-pages-tokens">Back to the page's tokens</h3>
+<p>A contact form, a price, a testimonial: sometimes a region <strong>inside</strong> the band
+needs to be page again — a white <code>Card</code> in a navy hero. Inside the inverse
+surface every descendant inherits the inverted tokens, so the <code>Card</code> comes out
+navy. Mark the region with <code>data-tempest-tone="default"</code> (or
+<code>&lt;Section tone="default"&gt;</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="s2">"tempest-react-sdk/styles/inverse.css"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Card</span><span class="p">,</span><span class="w"> </span><span class="nx">Input</span><span class="p">,</span><span class="w"> </span><span class="nx">Section</span><span class="p">,</span><span class="w"> </span><span class="nx">SectionHeader</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ContactHero</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Section</span><span class="w"> </span><span class="na">tone</span><span class="o">=</span><span class="s">"inverse"</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">padding</span><span class="o">:</span><span class="w"> </span><span class="kt">48</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">SectionHeader</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Talk to us"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Card</span><span class="w"> </span><span class="na">data-tempest-tone</span><span class="o">=</span><span class="s">"default"</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Contact"</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Email"</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"email"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="p">&gt;</span><span class="nx">Send</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Card</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Section</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The <code>Card</code> is <strong>the page's</strong> again — light in the light theme, dark in the dark
+one, with your brand and your <code>:root</code> overrides. Measured in the browser
+(Chromium, 2026-10-04): of 28 computed values of a <code>Card</code>, an <code>Input</code> and a
+<code>Button</code>, 0 differ from the same trio outside the band, in the light theme, the
+dark one and a dark subtree. Without the attribute, 25 of 28 differed in light
+and 18 of 28 in dark.</p>
+<p>Put the attribute <strong>on the surface itself</strong> (the <code>Card</code>) so it floats on the
+band. On a wrapper, the whole wrapper becomes a block in the page's background —
+a <code>:where()</code> rule paints <code>background-color</code> and <code>color</code> on it, at zero
+specificity, as on the inverse section.</p>
+<details class="info">
+<summary>How it works — and the two alternatives measured</summary>
+<p>A custom property inherits from the parent, so a rule cannot "skip" the
+section and read <code>:root</code> again — and scoping the inverse block away from the
+region (<code>@scope (…) to (…)</code>, <code>:not()</code>) changes nothing: the region still
+inherits what the section declared. Measured with <code>@scope</code>: the same 25 of 28
+in light.</p>
+<p>What works is saving the page's value <strong>before</strong> the section overrides it.
+Every element a theme is declared on (<code>:root</code>, <code>[data-tempest-theme]</code> and
+<code>createTheme</code>'s selectors) copies each token the surface redefines into a
+<code>--tempest-default-*</code> twin. A <code>var()</code> inside a custom property resolves on
+the element that declares it, so the twin keeps the page's value and crosses
+the section untouched. The region reads its tokens back from the twins.</p>
+<table>
+<thead>
+<tr>
+<th>approach</th>
+<th>cost (brotli)</th>
+<th>who pays</th>
+<th>with a brand override on <code>:root</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--tempest-default-*</code> twins (chosen)</td>
+<td>+821 B in <code>inverse.css</code></td>
+<td>only who loads the surface</td>
+<td>0 of 28 differ</td>
+</tr>
+<tr>
+<td>one block per theme with the SDK's values</td>
+<td>+1257 B</td>
+<td>only who loads the surface</td>
+<td>3 of 28 differ</td>
+</tr>
+<tr>
+<td>the region in <code>colors.css</code>'s selectors</td>
+<td>+15 B</td>
+<td><strong>every app</strong></td>
+<td>3 of 28 differ</td>
+</tr>
+</tbody>
+</table>
+<p><code>tokens.css</code> and <code>styles.css</code> ship the same bytes as before. <code>{ createTheme }</code>
+without <code>inverse</code> grows 40 B brotli (3346 → 3386), handing the selectors to
+the generator; the code that writes the rules lives in the generator. Numbers
+from <code>npx size-limit</code> on 0.74.0 + this change; the 1257 B and 15 B ones from
+<code>zlib.brotliCompressSync</code> over each alternative's CSS.</p>
+</details>
+<p>With <code>createTheme</code>, the rules come along when you pass
+<code>inverse: createInverseSurface</code>, written for your <code>selector</code> and
+<code>darkSelector</code> — a theme scoped to <code>#app</code> is restored too.</p>
+<h3 id="recap">Recap</h3>
+<ul>
+<li><code>&lt;Section tone="inverse"&gt;</code> or <code>data-tempest-tone="inverse"</code> on any element:
+  fill in the brand, every color token inverted.</li>
+<li>Text ≥ 7:1, <code>muted</code> and <code>subtle</code> ≥ 4.5:1, ring ≥ 3:1 — measured on a glow 0.1
+  lighter than the fill too.</li>
+<li>The fill is the <code>500</code> when it can carry it; otherwise the nearest step that can.</li>
+<li>The same in the light and the dark theme.</li>
+<li>Opt-in: <code>import "tempest-react-sdk/styles/inverse.css"</code> for the SDK's blue, or
+  <code>createTheme({ primary, inverse: createInverseSurface })</code> for your brand. With
+  neither, the section keeps the page's tokens.</li>
+<li><code>data-tempest-tone="default"</code> (or <code>&lt;Section tone="default"&gt;</code>) inside the
+  band brings the page's tokens back — light or dark, with your brand.</li>
+<li><code>Navbar</code> and <code>AppBar</code> take <code>tone="inverse"</code> for a bar in the brand color with
+  buttons and links inside; <code>tone="primary"</code> only paints the background — see
+  <a href="../components/navigation/#a-bar-in-the-brand-color">A bar in the brand color</a>.</li>
+</ul>
+<h2 id="app-css-integration-theme-color">App CSS integration + <code>theme-color</code></h2>
+<p>SDK components read <code>data-tempest-theme</code>. If your <strong>app's own CSS</strong> already keys the theme off a different attribute (e.g. <code>[data-theme="dark"]</code>), you don't need a sync effect — pass an array to <code>attribute</code> and the provider writes the resolved theme to <strong>all</strong> of them:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">attribute</span><span class="o">=</span><span class="p">{[</span><span class="s2">"data-tempest-theme"</span><span class="p">,</span><span class="w"> </span><span class="s2">"data-theme"</span><span class="p">]}&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>To keep the browser chrome / PWA status bar in sync, pass <code>themeColor</code> — the provider updates <code>&lt;meta name="theme-color"&gt;</code> with the resolved theme's color (the meta tag must already exist in <code>&lt;head&gt;</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">themeColor</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">light</span><span class="o">:</span><span class="w"> </span><span class="s2">"#1f7a3f"</span><span class="p">,</span><span class="w"> </span><span class="nx">dark</span><span class="o">:</span><span class="w"> </span><span class="s2">"#0f1411"</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Why this exists</p>
+<p>Apps mixing their own CSS with SDK components used to write a hook just to mirror the theme onto <code>data-theme</code> and update the meta tag. <code>attribute</code> (array) + <code>themeColor</code> cover both cases in the provider itself.</p>
+</div>
+<h2 id="partial-scope">Partial scope</h2>
+<p>Pass <code>target</code> to apply the theme to a specific subtree instead of <code>&lt;html&gt;</code> — useful for a preview or portal that needs an independent theme:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">target</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">"preview"</span><span class="p">)}</span><span class="w"> </span><span class="na">defaultTheme</span><span class="o">=</span><span class="s">"dark"</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">Preview</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+</code></pre></div>
+<h2 id="recap_1">Recap</h2>
+<ul>
+<li><code>ThemeProvider</code> writes <code>data-tempest-theme</code> on <code>&lt;html&gt;</code> (or the <code>target</code> element); the <code>--tempest-*</code> tokens react on their own.</li>
+<li>Modes: <code>"light"</code>, <code>"dark"</code>, <code>"system"</code> — the last follows <code>prefers-color-scheme</code> live. The choice persists in <code>localStorage["tempest-theme"]</code>.</li>
+<li><code>useTheme()</code> gives <code>theme</code> (raw preference), <code>resolvedTheme</code> (always <code>light</code>/<code>dark</code>), <code>setTheme</code> and <code>toggle</code>.</li>
+<li>Inline the <code>themeInitScript()</code> <strong>synchronously in <code>&lt;head&gt;</code>, before the CSS</strong>, to kill the wrong-theme flash.</li>
+<li>Customize the look by overriding the <code>--tempest-*</code> tokens; use <code>target</code> for subtree theming.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../components/">Components</a> — they all consume the tokens</li>
+<li><a href="../styles/">Styles</a> — full catalog of the <code>--tempest-*</code> tokens</li>
+<li><a href="../app-providers/">App Providers</a> — mounting the theme alongside Query and i18n</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../styles/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Styles &amp; Design Tokens">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Styles & Design Tokens
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../i18n/" class="md-footer__link md-footer__link--next" aria-label="Next: i18n">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                i18n
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

@@ -1,0 +1,5529 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/components/advanced-data/">
+      
+      
+        <link rel="prev" href="../advanced-navigation/">
+      
+      
+        <link rel="next" href="../advanced-chat/">
+      
+      
+      <link rel="icon" href="../../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Advanced data - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#advanced-data" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Advanced data
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../../components/advanced-data/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#datatablet" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataTable&lt;T&gt;
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wizard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Wizard
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      Markdown
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#masonry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Masonry
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tour" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tour
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transfer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transfer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filterbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      FilterBar
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FilterBar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#applying-the-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applying the filters
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filterpanel" class="md-nav__link">
+    <span class="md-ellipsis">
+      FilterPanel
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kanban" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kanban
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#datatablet" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataTable&lt;T&gt;
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#wizard" class="md-nav__link">
+    <span class="md-ellipsis">
+      Wizard
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      Markdown
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#masonry" class="md-nav__link">
+    <span class="md-ellipsis">
+      Masonry
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tour" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tour
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#transfer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Transfer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filterbar" class="md-nav__link">
+    <span class="md-ellipsis">
+      FilterBar
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FilterBar">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#applying-the-filters" class="md-nav__link">
+    <span class="md-ellipsis">
+      Applying the filters
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#filterpanel" class="md-nav__link">
+    <span class="md-ellipsis">
+      FilterPanel
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kanban" class="md-nav__link">
+    <span class="md-ellipsis">
+      Kanban
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/components/advanced-data.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/components/advanced-data.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="advanced-data">Advanced: data</h1>
+<p>A stateful table, a step wizard, markdown, a masonry wall, a guided tour, list-to-list transfer, a filter bar and the kanban. Each one solves a whole screen.</p>
+<h2 id="datatablet"><code>DataTable&lt;T&gt;</code></h2>
+<!-- gallery:data-table -->
+<p><a href="../../gallery/"><img alt="DataTable in the gallery" src="../../../assets/gallery/data-table.webp" /></a></p>
+<p><em>Section <code>data-table</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>A stateful data table built on top of the headless <code>Table</code>. Adds client-side search, click-to-sort columns, and pagination, delegating all markup to the underlying <code>Table</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">DataTable</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableColumn</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">columns</span><span class="o">:</span><span class="w"> </span><span class="kt">DataTableColumn</span><span class="p">&lt;</span><span class="nt">User</span><span class="p">&gt;[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Name"</span><span class="p">,</span><span class="w"> </span><span class="nx">sortable</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"email"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Email"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"role"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Role"</span><span class="p">,</span><span class="w"> </span><span class="nx">sortable</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">align</span><span class="o">:</span><span class="w"> </span><span class="s2">"right"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="p">&lt;</span><span class="nt">DataTable</span>
+<span class="w">  </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">users</span><span class="p">}</span>
+<span class="w">  </span><span class="na">columns</span><span class="o">=</span><span class="p">{</span><span class="nx">columns</span><span class="p">}</span>
+<span class="w">  </span><span class="na">searchable</span>
+<span class="w">  </span><span class="na">pageSize</span><span class="o">=</span><span class="p">{</span><span class="mf">10</span><span class="p">}</span>
+<span class="w">  </span><span class="na">initialSort</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">direction</span><span class="o">:</span><span class="w"> </span><span class="s2">"asc"</span><span class="w"> </span><span class="p">}}</span>
+<span class="w">  </span><span class="na">rowKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">row</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">row</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">  </span><span class="na">emptyMessage</span><span class="o">=</span><span class="s">"No users found"</span>
+<span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>data</code></td>
+<td><code>T[]</code></td>
+<td>—</td>
+<td>Full dataset; sort/filter/pagination happen client-side</td>
+</tr>
+<tr>
+<td><code>columns</code></td>
+<td><code>DataTableColumn&lt;T&gt;[]</code></td>
+<td>—</td>
+<td>Column definitions</td>
+</tr>
+<tr>
+<td><code>pageSize</code></td>
+<td><code>number</code></td>
+<td><code>10</code></td>
+<td>Rows per page</td>
+</tr>
+<tr>
+<td><code>searchable</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Render a search input above the table</td>
+</tr>
+<tr>
+<td><code>searchKeys</code></td>
+<td><code>(keyof T)[]</code></td>
+<td>—</td>
+<td>Keys to search; default = string/number columns</td>
+</tr>
+<tr>
+<td><code>initialSort</code></td>
+<td><code>DataTableSort&lt;T&gt;</code></td>
+<td>—</td>
+<td>Initial sort applied before any header interaction</td>
+</tr>
+<tr>
+<td><code>rowKey</code></td>
+<td><code>(row: T, index) =&gt; string \| number</code></td>
+<td>index</td>
+<td>Stable key extractor for rows</td>
+</tr>
+<tr>
+<td><code>emptyMessage</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Content shown when no rows match</td>
+</tr>
+</tbody>
+</table>
+<p><code>DataTableColumn&lt;T&gt;</code> = <code>{ key: keyof T; header: ReactNode; render?: (row: T) =&gt; ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }</code>. <code>DataTableSort&lt;T&gt;</code> = <code>{ key: keyof T; direction: "asc" | "desc" }</code>.</p>
+<div class="admonition info">
+<p class="admonition-title">Behavior</p>
+<p>Clicking a sortable header cycles asc → desc → unsorted. Search matches a case-insensitive substring across <code>searchKeys</code> (or every string/number column when omitted). Pagination is hidden when the result fits on a single page.</p>
+</div>
+<h2 id="wizard"><code>Wizard</code></h2>
+<!-- gallery:hierarchy-flow -->
+<p><a href="../../gallery/"><img alt="TreeView · Wizard in the gallery" src="../../../assets/gallery/hierarchy-flow.webp" /></a></p>
+<p><em>Section <code>hierarchy-flow</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<p>Multi-step flow: an indicator, one body at a time, and navigation that respects <strong>per-step validation</strong>. <code>Stepper</code> draws the indicator; <code>Wizard</code> owns the part every app was rewriting — the active index, the async gate before advancing, disabled/pending buttons and the completion call.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">FormField</span><span class="p">,</span><span class="w"> </span><span class="nx">Input</span><span class="p">,</span><span class="w"> </span><span class="nx">Wizard</span><span class="p">,</span><span class="w"> </span><span class="nx">useZodForm</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">FormProvider</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react-hook-form"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"zod"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">object</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">z.string</span><span class="p">().</span><span class="nx">min</span><span class="p">(</span><span class="mf">2</span><span class="p">,</span><span class="w"> </span><span class="s2">"Enter a name"</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="kt">z.string</span><span class="p">().</span><span class="nx">email</span><span class="p">(</span><span class="s2">"Invalid email"</span><span class="p">),</span>
+<span class="w">  </span><span class="nx">zip</span><span class="o">:</span><span class="w"> </span><span class="kt">z.string</span><span class="p">().</span><span class="nx">min</span><span class="p">(</span><span class="mf">5</span><span class="p">,</span><span class="w"> </span><span class="s2">"Incomplete ZIP"</span><span class="p">),</span>
+<span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">SteppedSignup</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useZodForm</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defaultValues</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">zip</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">FormProvider</span><span class="w"> </span><span class="p">{</span><span class="na">...form</span><span class="p">}&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Wizard</span>
+<span class="w">        </span><span class="na">onComplete</span><span class="o">=</span><span class="p">{</span><span class="nx">form</span><span class="p">.</span><span class="nx">handleSubmit</span><span class="p">((</span><span class="nx">values</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">values</span><span class="p">))}</span>
+<span class="w">        </span><span class="na">steps</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">          </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"details"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Details"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">description</span><span class="o">:</span><span class="w"> </span><span class="s2">"Who the customer is"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">validate</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">trigger</span><span class="p">([</span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="s2">"email"</span><span class="p">]),</span>
+<span class="w">            </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="p">(</span>
+<span class="w">              </span><span class="p">&lt;&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"name"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Name"</span><span class="w"> </span><span class="na">required</span><span class="p">&gt;&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="p">/&gt;&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"email"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Email"</span><span class="w"> </span><span class="na">required</span><span class="p">&gt;&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">"email"</span><span class="w"> </span><span class="p">/&gt;&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
+<span class="w">              </span><span class="p">&lt;/&gt;</span>
+<span class="w">            </span><span class="p">),</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">          </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"address"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Address"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">validate</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">trigger</span><span class="p">([</span><span class="s2">"zip"</span><span class="p">]),</span>
+<span class="w">            </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"zip"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"ZIP"</span><span class="w"> </span><span class="na">required</span><span class="p">&gt;&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="p">/&gt;&lt;/</span><span class="nt">FormField</span><span class="p">&gt;,</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">          </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"review"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Review"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">back</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">              </span><span class="p">&lt;&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">pre</span><span class="p">&gt;{</span><span class="nb">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">form</span><span class="p">.</span><span class="nx">getValues</span><span class="p">(),</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="mf">2</span><span class="p">)}&lt;/</span><span class="nt">pre</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">back</span><span class="p">}&gt;</span><span class="nx">Fix</span><span class="w"> </span><span class="nx">something</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">              </span><span class="p">&lt;/&gt;</span>
+<span class="w">            </span><span class="p">),</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">        </span><span class="p">]}</span>
+<span class="w">      </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">FormProvider</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>steps</code></td>
+<td><code>WizardStep[]</code></td>
+<td>—</td>
+<td>The flow's steps.</td>
+</tr>
+<tr>
+<td><code>activeIndex</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>Controlled index.</td>
+</tr>
+<tr>
+<td><code>defaultActiveIndex</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td>Initial index (uncontrolled).</td>
+</tr>
+<tr>
+<td><code>onStepChange</code></td>
+<td><code>(index, step) =&gt; void</code></td>
+<td>—</td>
+<td>Called on every step change.</td>
+</tr>
+<tr>
+<td><code>onComplete</code></td>
+<td><code>() =&gt; void \| Promise&lt;void&gt;</code></td>
+<td>—</td>
+<td>Called when the last step passes validation.</td>
+</tr>
+<tr>
+<td><code>nextLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Next"</code></td>
+<td>Advance button label.</td>
+</tr>
+<tr>
+<td><code>backLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Back"</code></td>
+<td>Back button label.</td>
+</tr>
+<tr>
+<td><code>finishLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Finish"</code></td>
+<td>Label on the last step.</td>
+</tr>
+<tr>
+<td><code>optionalLabel</code></td>
+<td><code>string</code></td>
+<td><code>"(optional)"</code></td>
+<td>Suffix for an optional step in the indicator — override to localize.</td>
+</tr>
+<tr>
+<td><code>clickableSteps</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Allows jumping by clicking the indicator.</td>
+</tr>
+<tr>
+<td><code>renderActions</code></td>
+<td><code>(controls: WizardControls) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Replaces the default button row.</td>
+</tr>
+</tbody>
+</table>
+<p><code>WizardStep = { id, label, description?, content, validate?, optional? }</code> — <code>content</code> accepts a <code>ReactNode</code> <strong>or</strong> a function receiving the controls.</p>
+<p><code>WizardControls = { activeIndex, step, validating, isFirst, isLast, next, back, goTo }</code>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Only the active step is mounted</p>
+<p>Uncommitted input in a step you leave is <strong>lost</strong> unless the state lives outside (react-hook-form's <code>FormProvider</code>, a store, a parent <code>useState</code>) — which is where it belongs anyway, since the last step usually submits everything at once.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">An async <code>validate</code> comes with a pending state</p>
+<p>While the promise runs, the advance button is in <code>loading</code> and Back is disabled. A <code>validate</code> that <strong>throws</strong> counts as "not allowed": a gate wired to a network check should not strand the user on a half-advanced flow when the request fails.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title"><code>clickableSteps</code> is <code>false</code> on purpose</p>
+<p>A wizard exists because <strong>order matters</strong>. With <code>clickableSteps</code>, jumping back is free (going back never blocks), but jumping forward validates <strong>every step crossed</strong> — the first gate that fails stops the jump right there.</p>
+</div>
+<h2 id="markdown"><code>Markdown</code></h2>
+<!-- gallery:markdown -->
+<p><a href="../../gallery/"><img alt="Markdown in the gallery" src="../../../assets/gallery/markdown.webp" /></a></p>
+<p><em>Section <code>markdown</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>When to use</strong>: rendering text that came from people — a comment, a ticket description, release notes, a message body.</p>
+</blockquote>
+<p>A Markdown subset: headings, paragraphs, lists (nested and ordered), blockquote, fenced code (through <a href="../utility/#codeblock"><code>CodeBlock</code></a>), thematic break, GFM pipe tables with alignment, and the usual inline set (<code>**strong**</code>, <code>*em*</code>, <code>`code`</code>, <code>~~del~~</code>, links, images, autolinks, hard breaks).</p>
+<p>Inline nests: emphasis content goes through the same inline parser, so <code>**[contact](mailto:a@b.com)**</code> is a bold link, <code>***text***</code> is italic around bold and <code>*a **b** c*</code> keeps the bold inside the italic. Code spans, links, images and autolinks are read whole, so a marker inside them never closes the emphasis around them — the <code>_</code> in <code>_see [doc](https://x.com/a_b)_</code> belongs to the URL. A link refused by the scheme allowlist inside bold still renders its words as bold text. A link label also takes emphasis and code (<code>[**strong** and *italic*](url)</code>), but never another link: an autolink inside the label stays text, because an <code>&lt;a&gt;</code> inside an <code>&lt;a&gt;</code> is invalid HTML.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Markdown</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Markdown</span><span class="w"> </span><span class="na">source</span><span class="o">=</span><span class="p">{</span><span class="nx">comment</span><span class="p">.</span><span class="nx">body</span><span class="p">}</span><span class="w"> </span><span class="na">linkProps</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">target</span><span class="o">:</span><span class="w"> </span><span class="s2">"_blank"</span><span class="p">,</span><span class="w"> </span><span class="nx">rel</span><span class="o">:</span><span class="w"> </span><span class="s2">"noreferrer"</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="p">/&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>source</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>The Markdown.</td>
+</tr>
+<tr>
+<td><code>headingOffset</code></td>
+<td><code>number</code></td>
+<td><code>2</code></td>
+<td>Level the document's <code>#</code> becomes.</td>
+</tr>
+<tr>
+<td><code>highlightCode</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Fenced code through <code>CodeBlock</code> (copy, line numbers).</td>
+</tr>
+<tr>
+<td><code>showLineNumbers</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Line numbers in fenced code.</td>
+</tr>
+<tr>
+<td><code>linkProps</code></td>
+<td><code>AnchorHTMLAttributes</code></td>
+<td>—</td>
+<td>Extra props on <strong>every</strong> link.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition danger">
+<p class="admonition-title">The safety is structural, not a promise about escaping</p>
+<p><code>dangerouslySetInnerHTML</code> <strong>does not exist</strong> in this component. The parser produces a node tree and the renderer turns it into React elements — and a React child can only be text. So <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> in a comment renders as the characters somebody typed, and so does <code>&lt;img src=x onerror=...&gt;</code>.</p>
+<p>This is not "sanitized HTML": <strong>it is text</strong>. Which is why there is no sanitizer here and no allowed-tags list — there is no path for markup to enter.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">URLs go through a scheme allowlist, not a blocklist</p>
+<p>Links accept <code>http</code>, <code>https</code>, <code>mailto</code>, <code>tel</code>, <code>sms</code> and relative. Images accept the same plus <strong>raster</strong> <code>data:image/</code> (png/jpeg/gif/webp/avif) — <code>data:image/svg+xml</code> is deliberately out: an SVG is a document, it carries <code>&lt;script&gt;</code> and event handlers.</p>
+<p><code>[click](javascript:alert(1))</code> renders <strong>"click"</strong> as text: the link goes, the words stay. A blocklist would have to enumerate <code>javascript:</code>, <code>JaVaScRiPt:</code>, <code>java\tscript:</code>, <code>\u0001javascript:</code> — and would miss the one nobody thought of. An allowlist carries no such debt.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Hostile text does not freeze the tab</p>
+<p>Parsing is <strong>linear</strong> in the length of the text: no regex in the parser has two quantifiers competing for the same run. Before 0.77.0, <code>"# a" + " ".repeat(4000) + "b"</code> — 4 KB in a comment — cost 4.7 s of main thread on every render, and the cost grew cubically. Today a heading line with 50 KB of spaces parses in under 1 ms (measured with <code>performance.now()</code> on Node 24; the time ceiling is pinned by a test in <code>markdown-parse.test.ts</code>).</p>
+<p>Since 0.78.0 the same holds for list items: <code>-</code> or <code>1.</code> followed by 80 KB of spaces and a line separator (U+2028/U+2029) made the list regexes race for the run — 3.6 s per line, twice per line. Today it parses under the same ceiling.</p>
+<p>Inline content does not overflow the stack either: a link label is parsed only once the link is accepted, and inline nesting has a fixed ceiling set by the grammar itself (one link, and at most one of each emphasis kind on each side of it), whatever the text. In the 0.85.0 development line, before release, <code>"[".repeat(5000) + "a](https://x.dev)"</code> threw <code>RangeError</code> and took down the React tree; today 50 thousand <code>[</code> before one <code>](u)</code> parse in ~10 ms.</p>
+<p>Quotes and lists nest up to <strong>32 levels</strong>. Past that the content becomes a paragraph: the words stay, only the nesting is dropped. Without the cap, <code>"- ".repeat(20000)</code> overflowed the stack (<code>RangeError</code>) and took down the React tree of whoever merely opened the conversation.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">It is a subset, and that is the chosen ceiling</p>
+<p>No embedded HTML, footnotes, definition lists, reference links (<code>[a][b]</code>) or task lists. If your case needs full CommonMark with plugins, reach for <code>react-markdown</code> + <code>remark</code> directly — that is 40 KB and a plugin chain the whole SDK does not pay for. The scope here is what a user comment uses.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>#</code> becomes <code>h2</code> by default</p>
+<p>A comment rendered inside a page whose <code>h1</code> is the page title must not emit a second <code>h1</code>. <code>headingOffset</code> shifts the whole scale, and the component never goes past <code>h6</code>, so the document outline stays valid.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">A wide table scrolls in its own box, and the box is reachable</p>
+<p>The tab stop appears <strong>only while</strong> the overflow is real — a scroll area with nothing focusable inside is unreachable by keyboard, and adding the stop unconditionally would pollute the tab order with one entry per table.</p>
+</div>
+<h2 id="masonry"><code>Masonry</code></h2>
+<!-- gallery:masonry -->
+<p><a href="../../gallery/"><img alt="Masonry in the gallery" src="../../../assets/gallery/masonry.webp" /></a></p>
+<p><em>Section <code>masonry</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>When to use</strong>: cards of <strong>uneven height</strong> with no order between them — a notes wall, a photo gallery, dashboard cards.</p>
+</blockquote>
+<p>Measures the cards and deals each one into the shortest column, so the bottom edge is as even as the content allows.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Masonry</span><span class="p">,</span><span class="w"> </span><span class="nx">Card</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="p">&lt;</span><span class="nt">Masonry</span><span class="w"> </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">notes</span><span class="p">}</span><span class="w"> </span><span class="na">itemKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">note</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">note</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span><span class="w"> </span><span class="na">columns</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">0</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span><span class="w"> </span><span class="nx">640</span><span class="o">:</span><span class="w"> </span><span class="kt">2</span><span class="p">,</span><span class="w"> </span><span class="nx">1024</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">  </span><span class="p">{(</span><span class="nx">note</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Card</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="p">{</span><span class="nx">note</span><span class="p">.</span><span class="nx">title</span><span class="p">}&gt;{</span><span class="nx">note</span><span class="p">.</span><span class="nx">body</span><span class="p">}&lt;/</span><span class="nt">Card</span><span class="p">&gt;}</span>
+<span class="p">&lt;/</span><span class="nt">Masonry</span><span class="p">&gt;;</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>T[]</code></td>
+<td>—</td>
+<td>What to lay out.</td>
+</tr>
+<tr>
+<td><code>children</code></td>
+<td><code>(item: T, index: number) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Renders one card.</td>
+</tr>
+<tr>
+<td><code>columns</code></td>
+<td><code>number \| Record&lt;number, number&gt;</code></td>
+<td><code>{ 0: 1, 640: 2, 1024: 3 }</code></td>
+<td>A fixed number, or a <strong>width → columns</strong> map.</td>
+</tr>
+<tr>
+<td><code>itemKey</code></td>
+<td><code>(item: T, index: number) =&gt; string \| number</code></td>
+<td>index</td>
+<td>Stable key per item.</td>
+</tr>
+<tr>
+<td><code>gap</code></td>
+<td><code>string</code></td>
+<td><code>--tempest-space-4</code></td>
+<td>Space between cards.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition info">
+<p class="admonition-title">Why this is not one line of CSS</p>
+<p>CSS <code>columns</code> <strong>breaks a card</strong> across the column boundary, and <code>grid-auto-flow: dense</code> keeps every row at the height of its tallest cell — which is exactly the ragged bottom edge people reach for masonry to avoid. Both are one line of CSS and neither does this job.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Reading order goes down the column, not across the row</p>
+<p>Card 2 sits <strong>below</strong> card 1, not beside it. Which is why this layout is for <strong>independent</strong> items: a list where item 2 must follow item 1 wants a grid, not this. If order matters to your content, do not use masonry — not here, not in plain CSS.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">The breakpoint map is about the container, not the viewport</p>
+<p>A masonry inside a drawer or a two-column page is narrower than the window, and a media query would give it three columns at 300px wide. A <code>ResizeObserver</code> is what makes <code>{ 0: 1, 640: 2 }</code> mean "of this container", which is the only useful reading.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Shortest column, not round-robin</p>
+<p><code>index % columns</code> is the obvious approach and produces ragged columns the moment items differ in height — which is the only reason to use masonry at all.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">An image that loads later is re-measured</p>
+<p>Every card is observed individually: a height measured at mount is wrong in exactly the case of an image still downloading. The first paint weights every card as 1 (so it is never blank) and the measured pass re-deals.</p>
+</div>
+<h2 id="tour"><code>Tour</code></h2>
+<!-- gallery:tour -->
+<p><a href="../../gallery/"><img alt="Tour in the gallery" src="../../../assets/gallery/tour.webp" /></a></p>
+<p><em>Section <code>tour</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>When to use</strong>: introducing a screen — first-run onboarding, a feature that moved, a flow nobody finds on their own.</p>
+</blockquote>
+<p>Dims the page, highlights one element at a time and explains it. The highlighted element <strong>stays clickable</strong>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Tour</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Orders</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="o">!</span><span class="nx">storage</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"tour-orders-v1"</span><span class="p">));</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="cm">/* … the screen … */</span><span class="p">}</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Tour</span>
+<span class="w">        </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
+<span class="w">        </span><span class="na">steps</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">          </span><span class="p">{</span><span class="w"> </span><span class="nx">target</span><span class="o">:</span><span class="w"> </span><span class="s2">"#new-order"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Start here"</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="s2">"Every order begins with this button."</span><span class="w"> </span><span class="p">},</span>
+<span class="w">          </span><span class="p">{</span><span class="w"> </span><span class="nx">target</span><span class="o">:</span><span class="w"> </span><span class="s2">"[data-tour='filters']"</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="s2">"And filter by period here."</span><span class="p">,</span><span class="w"> </span><span class="nx">placement</span><span class="o">:</span><span class="w"> </span><span class="s2">"right"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">]}</span>
+<span class="w">        </span><span class="na">onClose</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
+<span class="w">        </span><span class="na">onFinish</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">storage</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">"tour-orders-v1"</span><span class="p">,</span><span class="w"> </span><span class="kc">true</span><span class="p">)}</span>
+<span class="w">      </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>steps</code></td>
+<td><code>TourStep[]</code></td>
+<td>—</td>
+<td>The stops, in order.</td>
+</tr>
+<tr>
+<td><code>open</code></td>
+<td><code>boolean</code></td>
+<td>—</td>
+<td>Controlled by the app.</td>
+</tr>
+<tr>
+<td><code>onClose</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td><code>Esc</code>, the close button, "skip", or a click on the dim.</td>
+</tr>
+<tr>
+<td><code>onFinish</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td>After the last step, before <code>onClose</code>.</td>
+</tr>
+<tr>
+<td><code>index</code> / <code>onIndexChange</code></td>
+<td><code>number</code> / <code>(i) =&gt; void</code></td>
+<td>internal</td>
+<td>The app drives the current step, if it wants to.</td>
+</tr>
+<tr>
+<td><code>spotlightPadding</code></td>
+<td><code>number</code></td>
+<td><code>4</code></td>
+<td>Space kept clear around the highlighted element.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>"pt-BR" \| "en"</code></td>
+<td><code>"pt-BR"</code></td>
+<td>Labels.</td>
+</tr>
+</tbody>
+</table>
+<p><code>TourStep = { target?, title?, body, placement? }</code> · <code>placement</code> ∈ <code>"top" | "bottom" | "left" | "right" | "center"</code>.</p>
+<div class="admonition check">
+<p class="admonition-title">The highlighted element stays clickable — and that is what makes a coachmark useful</p>
+<p>The dim is <strong>four rectangles</strong> around the target, not one overlay with a <code>box-shadow</code> hole. Because a shadow is <strong>not hit-testable</strong>: a hole made that way would block nothing — the rest of the page would stay clickable and the target would not. Four rectangles are the other way round, which is what "press this button" needs.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The target is a <strong>selector</strong>, not a ref</p>
+<p>So a tour can be declared as data — in a config file, from the backend, next to the copy — without every screen threading refs up to whoever renders the tour.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">A step whose target is missing shows centred, it does not vanish</p>
+<p>That is the real case: a feature hidden by permission, a button that only exists with data. Dropping the step would hide its message silently, and skipping to the next could skip the whole tour.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Keyboard: arrows walk, <code>Esc</code> leaves, focus goes to the card</p>
+<p>The card is <code>role="dialog"</code> + <code>aria-modal</code>, named by its title and described by its body, with a focus trap (<code>useFocusTrap</code>) and a visible "Step 2 of 5". <code>Esc</code> is handled <strong>on the card</strong>, not on <code>window</code>: a tour opened over a modal does not close both.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The card flips when it does not fit — and centres when nothing fits</p>
+<p>It tries the preferred side, then the <strong>opposite</strong> one (which keeps the reading relationship with the target; jumping to a side would move the card across the screen for no visible reason), then the others. A card half off-screen is worse than a card in the middle — and that happens for real when the target is taller than the viewport.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Persisting 'already seen' is the app's business</p>
+<p>The component takes <code>open</code> and emits <code>onClose</code>/<code>onFinish</code>. Writing the flag is one line in the app (<code>storage.set</code>) and would be a wrong default here — the key is versioned, scoped per user, and sometimes lives on the backend.</p>
+</div>
+<h2 id="transfer"><code>Transfer</code></h2>
+<!-- gallery:transfer -->
+<p><a href="../../gallery/"><img alt="Transfer in the gallery" src="../../../assets/gallery/transfer.webp" /></a></p>
+<p><em>Section <code>transfer</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>When to use</strong>: picking a <strong>subset</strong> of a catalogue — a profile's permissions, cities on a route, members of a group, columns of a report.</p>
+</blockquote>
+<p>Two panes, four move controls, a search box on each side. Controlled by the <strong>ids on the right</strong>; both panes are derived.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Transfer</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">TransferItem</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">PERMISSIONS</span><span class="o">:</span><span class="w"> </span><span class="kt">TransferItem</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"orders.read"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Read orders"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"orders.create"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Create orders"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"audit.read"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Read audit log"</span><span class="p">,</span><span class="w"> </span><span class="nx">disabled</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ProfilePermissions</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">permissions</span><span class="p">,</span><span class="w"> </span><span class="nx">setPermissions</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">string</span><span class="err">[]</span><span class="p">&gt;([]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Transfer</span>
+<span class="w">      </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">PERMISSIONS</span><span class="p">}</span>
+<span class="w">      </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">permissions</span><span class="p">}</span>
+<span class="w">      </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setPermissions</span><span class="p">}</span>
+<span class="w">      </span><span class="na">sourceTitle</span><span class="o">=</span><span class="s">"Available"</span>
+<span class="w">      </span><span class="na">targetTitle</span><span class="o">=</span><span class="s">"On the profile"</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td><code>TransferItem[]</code></td>
+<td>—</td>
+<td>The whole catalogue. Both panes come from it.</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>string[]</code></td>
+<td>—</td>
+<td>Ids on the right. <strong>Controlled.</strong></td>
+</tr>
+<tr>
+<td><code>onChange</code></td>
+<td><code>(value: string[]) =&gt; void</code></td>
+<td>—</td>
+<td>Next value, always in catalogue order.</td>
+</tr>
+<tr>
+<td><code>sourceTitle</code> / <code>targetTitle</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Disponíveis"</code> / <code>"Selecionados"</code></td>
+<td>Each pane's heading.</td>
+</tr>
+<tr>
+<td><code>searchable</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code> past 8 items</td>
+<td>A search box on each pane.</td>
+</tr>
+<tr>
+<td><code>renderItem</code></td>
+<td><code>(item, side) =&gt; ReactNode</code></td>
+<td><code>item.label</code></td>
+<td>Custom row body.</td>
+</tr>
+<tr>
+<td><code>height</code></td>
+<td><code>string</code></td>
+<td><code>"16rem"</code></td>
+<td>Height of each pane's scroll area.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>"pt-BR" \| "en"</code></td>
+<td><code>"pt-BR"</code></td>
+<td>Labels and announcements.</td>
+</tr>
+<tr>
+<td><code>disabled</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Blocks every move.</td>
+</tr>
+</tbody>
+</table>
+<p><code>TransferItem = { id, label, searchText?, disabled?, data? }</code></p>
+<div class="admonition info">
+<p class="admonition-title">Only the right-hand ids are state — the panes are derived</p>
+<p>Storing two lists looks simpler and <strong>drifts</strong> the first time the catalogue changes underneath: a permission removed on the server lingers in whichever pane held it, and an id present on both sides is a bug nobody can see. With a single <code>value</code>, <code>items</code> is in charge: anything that left the catalogue simply disappears from both panes.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">The move-all button respects the filter</p>
+<p>Filtering by <code>sao</code> and clicking "move all" moves <strong>what you are looking at</strong>, not the whole pane. Moving the rows the filter hid is the kind of surprise that makes people stop trusting the button — and it was a real bug, caught by a test before the merge.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Search folds accents, both ways</p>
+<p><code>sao</code> finds "São Paulo" and so does <code>são</code>. For a PT-BR audience that is not a refinement: a plain <code>includes</code> would miss half the searches.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">A <code>disabled</code> row does not move by any path</p>
+<p>The check lives in <code>applyMove</code>, not in each of the four buttons — it is a mandatory permission, a locked seat. Which is why <code>»</code> moves "everything movable", not "everything".</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Checks are cleared after a move</p>
+<p>Otherwise the next click on the opposite button sends it all back, and the component looks like it is undoing itself.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The controls sit in the middle by grid order, but come last in the DOM</p>
+<p>A keyboard reaching the buttons before it has seen what they move would have to go back; a screen reader would read "move checked to the right" with no idea what is checked. Each pane is a <code>region</code> named by its heading, and each move is announced in a <code>role="status"</code>.</p>
+</div>
+<h2 id="filterbar"><code>FilterBar</code></h2>
+<!-- gallery:filterbar -->
+<p><a href="../../gallery/"><img alt="FilterBar &amp; FilterPanel in the gallery" src="../../../assets/gallery/filterbar.webp" /></a></p>
+<p><em>Section <code>filterbar</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>When to use</strong>: filtering an admin list — orders by status and period, users by role, invoices by due date.</p>
+</blockquote>
+<p>Chips for the applied filters, plus a small editor to add another. Filters are combined with <strong>AND</strong>, flat.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">FilterBar</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">filtersFromSearchParams</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">filtersToSearchParams</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">Filter</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">FilterField</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">FIELDS</span><span class="o">:</span><span class="w"> </span><span class="kt">FilterField</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"title"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Title"</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"text"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"total"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Total"</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"number"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"createdAt"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Created"</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"date"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"status"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Status"</span><span class="p">,</span>
+<span class="w">    </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"select"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">options</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="s2">"paid"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Paid"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="s2">"sent"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sent"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Orders</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c1">// The set comes from the URL, so a shared link opens with the same filters.</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">filters</span><span class="p">,</span><span class="w"> </span><span class="nx">setFilters</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Filter</span><span class="err">[]</span><span class="p">&gt;(()</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">    </span><span class="nx">filtersFromSearchParams</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">(</span><span class="nx">location</span><span class="p">.</span><span class="nx">search</span><span class="p">),</span><span class="w"> </span><span class="nx">FIELDS</span><span class="p">),</span>
+<span class="w">  </span><span class="p">);</span>
+
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"orders"</span><span class="p">,</span><span class="w"> </span><span class="nx">filters</span><span class="p">],</span>
+<span class="w">    </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/orders?</span><span class="si">${</span><span class="nx">filtersToSearchParams</span><span class="p">(</span><span class="nx">filters</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">),</span>
+<span class="w">  </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">FilterBar</span><span class="w"> </span><span class="na">fields</span><span class="o">=</span><span class="p">{</span><span class="nx">FIELDS</span><span class="p">}</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setFilters</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>fields</code></td>
+<td><code>FilterField[]</code></td>
+<td>—</td>
+<td>Fields that can be filtered.</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td><code>Filter[]</code></td>
+<td>—</td>
+<td>Applied filters. <strong>Controlled.</strong></td>
+</tr>
+<tr>
+<td><code>onChange</code></td>
+<td><code>(filters: Filter[]) =&gt; void</code></td>
+<td>—</td>
+<td>Next set, combined with AND.</td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Next to the controls — "save this view", a counter.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>"pt-BR" \| "en"</code></td>
+<td><code>"pt-BR"</code></td>
+<td>Labels and descriptions.</td>
+</tr>
+</tbody>
+</table>
+<p><code>FilterField = { name, label, type, options?, operators?, placeholder? }</code> · <code>type</code> ∈ <code>"text" | "number" | "date" | "select" | "boolean"</code>
+<code>Filter = { field, operator, value? }</code> · <code>operator</code> ∈ <code>eq · ne · contains · gt · gte · lt · lte · between · in · empty · notEmpty</code></p>
+<p><strong>Exported helpers</strong>: <code>applyFilters</code>, <code>filtersToQueryParams</code>, <code>filtersToSearchParams</code>, <code>filtersFromSearchParams</code>, <code>describeFilter</code>, <code>operatorsFor</code>.</p>
+<h4 id="applying-the-filters">Applying the filters</h4>
+<p><code>FilterBar</code> <strong>produces</strong> <code>Filter[]</code>; evaluating them is yours. The SDK ships both ends, and you pick one by list size, not by taste.</p>
+<p><strong>Whole list in memory</strong> — <code>applyFilters</code> runs the eleven operators:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">FilterBar</span><span class="p">,</span><span class="w"> </span><span class="nx">applyFilters</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">Filter</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Orders</span><span class="p">({</span><span class="w"> </span><span class="nx">orders</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">orders</span><span class="o">:</span><span class="w"> </span><span class="kt">Order</span><span class="p">[]</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">filters</span><span class="p">,</span><span class="w"> </span><span class="nx">setFilters</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Filter</span><span class="err">[]</span><span class="p">&gt;([]);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">visible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMemo</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">applyFilters</span><span class="p">(</span><span class="nx">orders</span><span class="p">,</span><span class="w"> </span><span class="nx">filters</span><span class="p">),</span><span class="w"> </span><span class="p">[</span><span class="nx">orders</span><span class="p">,</span><span class="w"> </span><span class="nx">filters</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">FilterBar</span><span class="w"> </span><span class="na">fields</span><span class="o">=</span><span class="p">{</span><span class="nx">FIELDS</span><span class="p">}</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setFilters</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">DataTable</span><span class="w"> </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">visible</span><span class="p">}</span><span class="w"> </span><span class="na">columns</span><span class="o">=</span><span class="p">{</span><span class="nx">COLUMNS</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><strong>Server-paginated listing</strong> — <code>filtersToQueryParams</code>, which speaks the <code>tempest-fastapi-sdk</code> dialect:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createApiClient</span><span class="p">,</span><span class="w"> </span><span class="nx">filtersToQueryParams</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">Filter</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">api</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createApiClient</span><span class="p">({</span><span class="w"> </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="s2">"/api"</span><span class="w"> </span><span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">usePedidos</span><span class="p">(</span><span class="nx">filtros</span><span class="o">:</span><span class="w"> </span><span class="kt">Filter</span><span class="p">[],</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">filtersToQueryParams</span><span class="p">(</span><span class="nx">filtros</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">params</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">"page"</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="p">(</span><span class="nx">pagina</span><span class="p">));</span>
+<span class="w">    </span><span class="nx">params</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">"page_size"</span><span class="p">,</span><span class="w"> </span><span class="s2">"20"</span><span class="p">);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">({</span>
+<span class="w">        </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"pedidos"</span><span class="p">,</span><span class="w"> </span><span class="nx">filtros</span><span class="p">,</span><span class="w"> </span><span class="nx">pagina</span><span class="p">],</span>
+<span class="w">        </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/pedidos?</span><span class="si">${</span><span class="nx">params</span><span class="si">}</span><span class="sb">`</span><span class="p">),</span>
+<span class="w">    </span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Operator</th>
+<th>Param sent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>eq</code></td>
+<td><code>field</code> (or <code>field__iexact</code> on the <code>name</code> column)</td>
+</tr>
+<tr>
+<td><code>ne</code></td>
+<td><code>field__ne</code></td>
+</tr>
+<tr>
+<td><code>contains</code></td>
+<td><code>field__icontains</code></td>
+</tr>
+<tr>
+<td><code>gt</code> <code>gte</code> <code>lt</code> <code>lte</code></td>
+<td><code>field__gt</code> … <code>field__lte</code></td>
+</tr>
+<tr>
+<td><code>between</code></td>
+<td><code>field__between</code> twice, low value first</td>
+</tr>
+<tr>
+<td><code>in</code></td>
+<td><code>field__in</code>, once per value</td>
+</tr>
+<tr>
+<td><code>empty</code> / <code>notEmpty</code></td>
+<td><code>field__isnull=true</code> / <code>=false</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">The dialect is the <strong>default</strong>, not a law</p>
+<p>The table above is the <code>tempest-fastapi-sdk</code> dialect. A different backend passes
+<code>options</code> rather than reimplementing the encoder:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// The searchable column is `razao_social`, and `ne` is spelled the Django way.</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">params</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">filtersToQueryParams</span><span class="p">(</span><span class="nx">filters</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">substringColumns</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"razao_social"</span><span class="p">],</span>
+<span class="w">  </span><span class="nx">operatorSuffix</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ne</span><span class="o">:</span><span class="w"> </span><span class="s2">"__exclude"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">});</span>
+</code></pre></div>
+<ul>
+<li><code>substringColumns</code> — the columns whose <code>eq</code> is emitted as <code>column__iexact</code>.
+  Default <code>["name"]</code>, which is what <code>build_filter_condition</code> special-cases. Pass
+  <code>[]</code> when your backend treats no column that way and an <code>eq</code> should stay bare.</li>
+<li><code>operatorSuffix</code> — merged <strong>over</strong> the default, so an override names only the
+  operators that differ.</li>
+</ul>
+<p>Through v0.44.0 both were closed module constants. A project whose column was
+called <code>nome</code> or <code>titulo</code> could not get the treatment, and one without the
+special case got an <code>__iexact</code> nobody asked for.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">The backend must <strong>declare</strong> every key, or the filter fails silently</p>
+<p><code>BasePaginationFilterSchema.get_conditions()</code> only forwards fields the subclass declares. A <code>status__ne</code> the schema never mentions is dropped by FastAPI before the repository sees it — no error, no filtering, and the full list comes back looking like "the filter didn't take". Declare <code>status__ne: str | None = None</code> on the filter schema for every operator the screen offers.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title"><code>applyFilters</code> and the backend disagree on two points, deliberately</p>
+<p><strong><code>ne</code> matches rows with no value.</strong> In SQL, <code>column &lt;&gt; 'x'</code> is <code>NULL</code> for a <code>NULL</code> column and the row drops out. On the client, "is not paid" also shows the orders with no status at all — which is what the chip promises.
+<strong><code>empty</code> matches blank text.</strong> <code>__isnull</code> on the server only matches <code>NULL</code>; a column storing <code>""</code> instead of <code>NULL</code> answers differently on each side.
+If one screen alternates between both modes, pick one per field and stay there.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>eq</code> is case-sensitive; <code>contains</code> is not</p>
+<p>That is the alignment with the server: <code>eq</code> becomes <code>WHERE column = value</code>, and a case-insensitive client would quietly disagree with it. <code>contains</code> becomes <code>icontains</code> and is insensitive on both sides — and since it is the <strong>default</strong> operator for text fields, the friendly behaviour is what you get without asking.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Dates compare by <strong>day</strong>, and <code>between</code> is inclusive at both ends</p>
+<p>A row stamped <code>2026-03-05T13:00:00Z</code> matches <code>eq 2026-03-05</code>, and an inverted <code>between</code> (later date first) is <strong>normalised</strong> instead of matching nothing — someone who picked the end date first meant the range, not an empty list.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">Flat <strong>AND</strong>, not a tree with OR — and that is the chosen ceiling</p>
+<p>Nested groups (<code>(a OR b) AND c</code>) are a different component: they need a tree UI with a per-node operator and a different serialization. Trying to be both produces a builder that is clumsy at the 95% case — "status is paid, created after March, title contains nota". If you need nested OR, what you want is a real query builder, and it does not fit behind this API.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">The filter set fits in the URL — and comes back from it</p>
+<p><code>filtersToSearchParams</code> writes <code>status=eq:paid&amp;total=between:10|90</code>; <code>filtersFromSearchParams</code> reads it back, and there is a <strong>round-trip</strong> test. A filter set that cannot survive a reload is one people re-enter every time they open a link somebody sent them.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">Whatever does not parse is <strong>dropped</strong>, not guessed at</p>
+<p>A hand-edited URL is the normal way this input arrives. An operator the field does not offer (<code>total=contains:1</code>), an unknown field, a <code>between</code> with one end — all discarded. Rendering a chip the backend cannot evaluate would show a list that does not match what the chip claims.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">The chip reads in words, and it is the same text a screen reader hears</p>
+<p>"Status is Paid" — with the option's <strong>label</strong>, not its key (<code>paid</code>). The remove button uses the same sentence in its <code>aria-label</code> ("Remove filter: Status is Paid"), because a chip that says one thing to a sighted user and another to a screen reader is two different truths.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The input follows the <strong>field</strong>, not the operator</p>
+<p>A date field gets a date picker even under <code>between</code> (two of them). Typing a date into a text box is the fastest way to produce a filter the backend cannot parse.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">An incomplete filter only disables Apply</p>
+<p>It is not an error to shout about — it is a half-filled form. Changing the operator clears the value, because a value carried across operators produces filters nobody meant to write.</p>
+</div>
+<h2 id="filterpanel"><code>FilterPanel</code></h2>
+<blockquote>
+<p><strong>When to use it</strong>: the screen already knows its filters — city, state, status, a search box — and what is missing is the <strong>frame</strong>: the card, the grid that reflows, the title and the clear button.</p>
+</blockquote>
+<p><code>FilterBar</code> above is a <em>builder</em>: the user picks field, operator and value. <code>FilterPanel</code> is the other case, the most common one in an admin panel — the set is fixed, and the fields are your own <code>Input</code>/<code>Select</code>. It holds no state and has no opinion on the fields: it is layout.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">FilterPanel</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">Input</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">Select</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useDraftFilters</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">usePaginatedQuery</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">OffsetPage</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Activity</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">ActivityFilter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">search</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">state</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">EMPTY</span><span class="o">:</span><span class="w"> </span><span class="kt">ActivityFilter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">search</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">state</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">};</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">STATES</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"All"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="s2">"PI"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Piauí"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="s2">"PE"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pernambuco"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">listActivities</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">params</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="p">&lt;</span><span class="nt">string</span><span class="err">,</span><span class="w"> </span><span class="na">unknown</span><span class="p">&gt;,</span>
+<span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">OffsetPage</span><span class="err">&lt;</span><span class="na">Activity</span><span class="p">&gt;</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/activities?</span><span class="si">${</span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">(</span><span class="nx">params</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">Record</span><span class="p">&lt;</span><span class="nt">string</span><span class="err">,</span><span class="w"> </span><span class="na">string</span><span class="p">&gt;)</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span><span class="k">await</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">())</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">OffsetPage</span><span class="p">&lt;</span><span class="nt">Activity</span><span class="p">&gt;;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Activities</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">filters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDraftFilters</span><span class="p">(</span><span class="nx">EMPTY</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">activities</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">usePaginatedQuery</span><span class="p">&lt;</span><span class="nt">Activity</span><span class="p">&gt;({</span>
+<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"activities"</span><span class="p">,</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">applied</span><span class="p">],</span>
+<span class="w">    </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">params</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">listActivities</span><span class="p">({</span><span class="w"> </span><span class="p">...</span><span class="nx">params</span><span class="p">,</span><span class="w"> </span><span class="p">...</span><span class="nx">filters</span><span class="p">.</span><span class="nx">applied</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">  </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">FilterPanel</span>
+<span class="w">        </span><span class="na">locale</span><span class="o">=</span><span class="s">"en"</span>
+<span class="w">        </span><span class="na">onApply</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">apply</span><span class="p">()}</span>
+<span class="w">        </span><span class="na">onClear</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">clear</span><span class="p">}</span>
+<span class="w">        </span><span class="na">applyDisabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">filters</span><span class="p">.</span><span class="nx">isDirty</span><span class="p">}</span>
+<span class="w">      </span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Input</span>
+<span class="w">          </span><span class="na">label</span><span class="o">=</span><span class="s">"Search"</span>
+<span class="w">          </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">draft</span><span class="p">.</span><span class="nx">search</span><span class="p">}</span>
+<span class="w">          </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">search</span><span class="o">:</span><span class="w"> </span><span class="kt">e.target.value</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Select</span>
+<span class="w">          </span><span class="na">label</span><span class="o">=</span><span class="s">"State"</span>
+<span class="w">          </span><span class="na">options</span><span class="o">=</span><span class="p">{</span><span class="nx">STATES</span><span class="p">}</span>
+<span class="w">          </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">draft</span><span class="p">.</span><span class="nx">state</span><span class="p">}</span>
+<span class="w">          </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">state</span><span class="o">:</span><span class="w"> </span><span class="kt">e.target.value</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">FilterPanel</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;{</span><span class="nx">activities</span><span class="p">.</span><span class="nx">total</span><span class="p">}</span><span class="w"> </span><span class="nx">activities</span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>What happens there:</p>
+<ol>
+<li>The fields edit the <strong>draft</strong> (<code>filters.draft</code>) — typing asks the server for nothing.</li>
+<li><strong>Apply filters</strong>, or Enter in any field, calls <code>onApply</code>: the draft becomes <code>filters.applied</code>, which is in the <code>queryKey</code>, and <strong>one</strong> request goes out.</li>
+<li><strong>Clear filters</strong> calls <code>onClear</code>, which resets the draft and the applied value together.</li>
+<li>With <code>applyDisabled={!filters.isDirty}</code>, the button only lights up when there is something new to apply.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>children</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>The fields. Each child is one grid cell.</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Filtros"</code></td>
+<td>Heading. A string renders as an <code>h3</code> and names the <code>search</code> region.</td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Actions that are not fields — "Export CSV", "Refresh every 30s".</td>
+</tr>
+<tr>
+<td><code>onClear</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td>Shows <strong>Clear filters</strong>. Without it, there is no button.</td>
+</tr>
+<tr>
+<td><code>onApply</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td>Puts the fields in a <code>&lt;form&gt;</code>: the <strong>Apply</strong> button and Enter apply.</td>
+</tr>
+<tr>
+<td><code>applyDisabled</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Disables Apply (and, with it, Enter).</td>
+</tr>
+<tr>
+<td><code>minFieldWidth</code></td>
+<td><code>string</code></td>
+<td><code>"12rem"</code></td>
+<td>Narrowest a field gets before the grid drops a column.</td>
+</tr>
+<tr>
+<td><code>columns</code></td>
+<td><code>ResponsiveValue&lt;number \| string&gt;</code></td>
+<td>—</td>
+<td>Fixed columns per viewport, as in <code>Grid</code>. Replaces <code>minFieldWidth</code>.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>"pt-BR" \| "en"</code></td>
+<td><code>"pt-BR"</code></td>
+<td>Default title and labels.</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;FilterPanelLabels&gt;</code></td>
+<td>—</td>
+<td>Override any label — <code>{ apply: "Search" }</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition check">
+<p class="admonition-title">The grid follows the <strong>panel's</strong> width, not the screen's</p>
+<p>The default is <code>repeat(auto-fill, minmax(min(100%, 12rem), 1fr))</code>. Measured in Chromium: the same set inside a 360 px column of a 1280 px screen, built with <code>Grid columns={{ mobile: 1, tablet: 2, desktop: 4 }}</code>, became four <strong>57.5 px</strong> fields — <code>Grid</code> switches columns on the viewport. With the default, the count comes from the room the panel has, and <code>min(100%, …)</code> keeps a floor wider than the phone from overflowing it.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Cells align to the top</p>
+<p>A field with an error message is taller. With the grid's default <code>stretch</code>, its row-mates' boxes grew with it (62 → 82 px); the <code>input</code> itself did not stretch, but the cell lied about its own height.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">The header wraps</p>
+<p>Three actions next to the title measured 527 px in a 308 px header at 390 px wide, and the whole page scrolled sideways. <code>Card</code>'s header now wraps — this applies to every <code>Card</code> with <code>actions</code> — and the actions wrap among themselves. <strong>Apply</strong> is always last.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Why <code>children</code>, not <code>fields={[…]}</code></p>
+<p>An array of nodes needs a <code>key</code> on every field just to please React, and buys nothing: each child is already a grid cell.</p>
+</div>
+<h2 id="kanban"><code>Kanban</code></h2>
+<blockquote>
+<p><strong>When to use it</strong>: a board of columns whose cards move between stages — backlog, sales pipeline, work orders by status.</p>
+</blockquote>
+<p>Reorders within a column and moves across columns, by pointer <strong>or</strong> keyboard. The drag machine is <code>useSortable</code> — the board reimplements none of it.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyKanbanMove</span><span class="p">,</span><span class="w"> </span><span class="nx">Kanban</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">KanbanColumn</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">BacklogBoard</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">columns</span><span class="p">,</span><span class="w"> </span><span class="nx">setColumns</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">KanbanColumn</span><span class="err">[]</span><span class="p">&gt;([</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"todo"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"To do"</span><span class="p">,</span><span class="w"> </span><span class="nx">cards</span><span class="o">:</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">"Fix login"</span><span class="w"> </span><span class="p">}]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"doing"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Doing"</span><span class="p">,</span><span class="w"> </span><span class="nx">cards</span><span class="o">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"done"</span><span class="p">,</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Done"</span><span class="p">,</span><span class="w"> </span><span class="nx">cards</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="nx">locked</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Kanban</span>
+<span class="w">      </span><span class="na">label</span><span class="o">=</span><span class="s">"Backlog"</span>
+<span class="w">      </span><span class="na">columns</span><span class="o">=</span><span class="p">{</span><span class="nx">columns</span><span class="p">}</span>
+<span class="w">      </span><span class="na">onMove</span><span class="o">=</span><span class="p">{(</span><span class="nx">move</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setColumns</span><span class="p">((</span><span class="nx">current</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">applyKanbanMove</span><span class="p">(</span><span class="nx">current</span><span class="p">,</span><span class="w"> </span><span class="nx">move</span><span class="p">))}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>columns</code></td>
+<td><code>KanbanColumn[]</code></td>
+<td>—</td>
+<td>Columns with their cards, in display order.</td>
+</tr>
+<tr>
+<td><code>onMove</code></td>
+<td><code>(move: KanbanMove) =&gt; void</code></td>
+<td>—</td>
+<td>Called <strong>once</strong> per committed move. You apply it.</td>
+</tr>
+<tr>
+<td><code>renderCard</code></td>
+<td><code>(card, column) =&gt; ReactNode</code></td>
+<td>the card content</td>
+<td>Customizes the card body.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td><code>"Quadro"</code></td>
+<td>Accessible name of the board.</td>
+</tr>
+<tr>
+<td><code>emptyLabel</code></td>
+<td><code>ReactNode</code></td>
+<td><code>"Nenhum card"</code></td>
+<td>Text for an empty column.</td>
+</tr>
+<tr>
+<td><code>cardRoleDescription</code></td>
+<td><code>string</code></td>
+<td>keyboard hint</td>
+<td>Announced per card — override to localize.</td>
+</tr>
+<tr>
+<td><code>disabled</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Blocks all dragging.</td>
+</tr>
+</tbody>
+</table>
+<p><code>KanbanColumn = { id, title, cards, locked? }</code> · <code>KanbanCard = { id, content }</code> · <code>KanbanMove = { cardId, fromColumn, toColumn, toIndex }</code>.</p>
+<p><code>applyKanbanMove(columns, move)</code> is the reducer that applies a move returning new arrays — exported because every consumer needs the same one, and it is where the off-by-one lives.</p>
+<div class="admonition info">
+<p class="admonition-title">A <code>locked</code> column refuses drops but still lets cards leave</p>
+<p>That is a "Done" column which takes no new work, but whose cards can still be pulled back.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">A keyboard move can only target a position that holds a card</p>
+<p>The move walks the index space of existing cards, so <strong>dropping into an empty column works by pointer but not by keyboard</strong>. That is a limitation of the current implementation, not a design choice: until column-switch keys land, the way around is to move into a column that already has a card and then reorder.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">ARIA: one <code>listbox</code> per column, not one per board</p>
+<p>Each column that has cards is a <code>listbox</code> named by its title, containing only <code>option</code>s. A single board-wide listbox does not survive the markup a board needs — <code>listbox</code> requires <code>option</code>/<code>group</code> children and the column header in between breaks that ownership. An <strong>empty</strong> column is not marked as a listbox (zero <code>option</code>s fails <code>aria-required-children</code>), and the header is a <code>div</code>, not a <code>&lt;header&gt;</code>: outside a sectioning element every <code>&lt;header&gt;</code> becomes a <code>banner</code> landmark — with three columns, three duplicate banners.</p>
+</div>
+<h2 id="recap">Recap</h2>
+<ul>
+<li><strong>Data</strong>: <code>DataTable&lt;T&gt;</code> wraps the headless <code>Table</code> with client-side search, sort, and pagination.</li>
+<li><strong>Filters</strong>: <code>FilterBar</code> for free-form querying (field + operator + value); <code>FilterPanel</code> for the fixed set a screen knows, with <code>useDraftFilters</code> keeping the draft apart from what is applied.</li>
+<li>All share the same controlled/uncontrolled patterns, expose keyboard A11y, and import from <code>tempest-react-sdk</code>.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../advanced-navigation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Navigation &amp; content">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Navigation & content
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../advanced-chat/" class="md-footer__link md-footer__link--next" aria-label="Next: Chat">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Chat
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

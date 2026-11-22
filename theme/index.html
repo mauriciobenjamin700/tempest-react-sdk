@@ -1,0 +1,5303 @@
+
+<!doctype html>
+<html lang="pt" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/theme/">
+      
+      
+        <link rel="prev" href="../styles/">
+      
+      
+        <link rel="next" href="../i18n/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Tema - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tema-dark-light" class="md-skip">
+          Ir para o conteúdo
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Cabeçalho">
+    <a href=".." title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tema
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Selecione o idioma">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../en/theme/" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Buscar" placeholder="Buscar" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Pesquisar">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Compartilhar" aria-label="Compartilhar" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Limpar" aria-label="Limpar" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Inicializando a pesquisa
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Abas" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Início
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Fundamentos da Web
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Comece aqui
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Design de Software
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Componentes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Módulos
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Receitas
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Projeto
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navegação" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Ir ao repositório" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Início
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Fundamentos da Web
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundamentos da Web
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página existe
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página existe
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: estrutura e semântica
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulário e acessibilidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página parece
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página parece
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: seletor, cascata, especificidade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Caixa, fluxo, flex e grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties e tema
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Como a página reage
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            Como a página reage
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: valor, referência, escopo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Assíncrono: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Módulos, npm e o bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Antes do tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Antes do tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: o mínimo que o SDK usa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: componente, estado, efeito
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comece aqui
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Comece aqui
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Buscando dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Ferramentas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Ferramentas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI tempest
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Design de Software
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Design de Software
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Desenho do sistema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            Desenho do sistema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Camadas de um app frontend
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estrutura de pastas
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fluxo de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Onde mora cada estado
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Escrevendo o código
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Escrevendo o código
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pensando em componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Limites objetivos
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tipagem forte
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustentando
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustentando
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estratégia de testes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-padrões
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checklist de revisão
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Componentes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Componentes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Catálogo de componentes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Entrada de dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identidade & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telas de autenticação
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & avançados
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & avançados
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essenciais
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navegação & conteúdo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dados avançados
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conversa
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Módulos
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Módulos
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visão geral do pacote
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Fundação de app
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            Fundação de app
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Roteamento
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estado (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hooks utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrações
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrações
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (áudio Opus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocalização
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Mapa do Brasil (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Pagamentos, fiscal & contato BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix e cartão, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Upload resumível (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Áudio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Captura de dispositivo
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural (RNNoise 48 kHz)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imagens (processamento)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Formulários
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Formulários
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Estilo & Tema
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Estilo & Tema
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Estilos & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Tema
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Tema
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#toggle-de-tema" class="md-nav__link">
+    <span class="md-ellipsis">
+      Toggle de tema
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-flash-evitar-o-flash-do-tema-errado" class="md-nav__link">
+    <span class="md-ellipsis">
+      No-flash (evitar o flash do tema errado)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#customizando-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Customizando tokens
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createtheme-a-marca-inteira-a-partir-de-uma-cor" class="md-nav__link">
+    <span class="md-ellipsis">
+      createTheme — a marca inteira a partir de uma cor
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="createTheme — a marca inteira a partir de uma cor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-ele-gera" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que ele gera
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#presets-prontos" class="md-nav__link">
+    <span class="md-ellipsis">
+      Presets prontos
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trocando-de-tema-em-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trocando de tema em runtime
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sem-js-cole-o-css-gerado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sem JS: cole o CSS gerado
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auditando-o-contraste-da-sua-marca" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auditando o contraste da sua marca
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#as-conversoes-de-cor-avulsas" class="md-nav__link">
+    <span class="md-ellipsis">
+      As conversões de cor, avulsas
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#superficie-invertida-secao-na-cor-da-marca" class="md-nav__link">
+    <span class="md-ellipsis">
+      Superfície invertida (seção na cor da marca)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Superfície invertida (seção na cor da marca)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-muda-dentro-da-secao" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que muda dentro da seção
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contraste-medido-nao-escolhido" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contraste medido, não escolhido
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-fundo-e-a-sua-marca-quando-ela-aguenta" class="md-nav__link">
+    <span class="md-ellipsis">
+      O fundo é a sua marca — quando ela aguenta
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tema-escuro" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tema escuro
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sem-o-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sem o import
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sua-marca-com-createtheme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sua marca, com createTheme
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#de-volta-aos-tokens-da-pagina" class="md-nav__link">
+    <span class="md-ellipsis">
+      De volta aos tokens da página
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integracao-com-o-css-do-app-theme-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integração com o CSS do app + theme-color
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#escopo-parcial" class="md-nav__link">
+    <span class="md-ellipsis">
+      Escopo parcial
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#veja-tambem" class="md-nav__link">
+    <span class="md-ellipsis">
+      Veja também
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observabilidade
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observabilidade
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Receitas
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Receitas
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Integração FastAPI (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilitários
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Projeto
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Projeto
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Setup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#toggle-de-tema" class="md-nav__link">
+    <span class="md-ellipsis">
+      Toggle de tema
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#no-flash-evitar-o-flash-do-tema-errado" class="md-nav__link">
+    <span class="md-ellipsis">
+      No-flash (evitar o flash do tema errado)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#customizando-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      Customizando tokens
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createtheme-a-marca-inteira-a-partir-de-uma-cor" class="md-nav__link">
+    <span class="md-ellipsis">
+      createTheme — a marca inteira a partir de uma cor
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="createTheme — a marca inteira a partir de uma cor">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-ele-gera" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que ele gera
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#presets-prontos" class="md-nav__link">
+    <span class="md-ellipsis">
+      Presets prontos
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#trocando-de-tema-em-runtime" class="md-nav__link">
+    <span class="md-ellipsis">
+      Trocando de tema em runtime
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sem-js-cole-o-css-gerado" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sem JS: cole o CSS gerado
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#auditando-o-contraste-da-sua-marca" class="md-nav__link">
+    <span class="md-ellipsis">
+      Auditando o contraste da sua marca
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#as-conversoes-de-cor-avulsas" class="md-nav__link">
+    <span class="md-ellipsis">
+      As conversões de cor, avulsas
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#superficie-invertida-secao-na-cor-da-marca" class="md-nav__link">
+    <span class="md-ellipsis">
+      Superfície invertida (seção na cor da marca)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Superfície invertida (seção na cor da marca)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#o-que-muda-dentro-da-secao" class="md-nav__link">
+    <span class="md-ellipsis">
+      O que muda dentro da seção
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#contraste-medido-nao-escolhido" class="md-nav__link">
+    <span class="md-ellipsis">
+      Contraste medido, não escolhido
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#o-fundo-e-a-sua-marca-quando-ela-aguenta" class="md-nav__link">
+    <span class="md-ellipsis">
+      O fundo é a sua marca — quando ela aguenta
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tema-escuro" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tema escuro
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sem-o-import" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sem o import
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sua-marca-com-createtheme" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sua marca, com createTheme
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#de-volta-aos-tokens-da-pagina" class="md-nav__link">
+    <span class="md-ellipsis">
+      De volta aos tokens da página
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integracao-com-o-css-do-app-theme-color" class="md-nav__link">
+    <span class="md-ellipsis">
+      Integração com o CSS do app + theme-color
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#escopo-parcial" class="md-nav__link">
+    <span class="md-ellipsis">
+      Escopo parcial
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#veja-tambem" class="md-nav__link">
+    <span class="md-ellipsis">
+      Veja também
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/theme.md" title="Editar esta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/theme.md" title="Ver fonte desta página" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="tema-dark-light">Tema (dark / light)</h1>
+<p><code>ThemeProvider</code> decide o tema efetivo e escreve <code>data-tempest-theme="dark"</code> (ou <code>"light"</code>) em <code>&lt;html&gt;</code>. Os tokens CSS <code>--tempest-*</code> reagem a esse atributo, então <strong>trocar o tema é trocar um atributo</strong> — nenhum componente precisa saber que o tema mudou. Veja os tokens em <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/blob/main/src/styles/colors.css"><code>src/styles/colors.css</code></a>.</p>
+<div class="admonition info">
+<p class="admonition-title">Por que um atributo, e não <code>class=\"dark\"</code>?</p>
+<p>Usar <code>data-tempest-theme</code> (em vez da convenção <code>class="dark"</code>) evita colisão com classes do app e permite escopo parcial: você pode aplicar um tema diferente em uma subárvore (preview, portal, docs) sem afetar o resto da página. É a única forma de tema suportada pelo SDK.</p>
+</div>
+<h2 id="setup">Setup</h2>
+<p>Envolva a árvore com <code>ThemeProvider</code>. O modo padrão é <code>"system"</code>, que segue a preferência do sistema operacional:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">StrictMode</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createRoot</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react-dom/client"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ThemeProvider</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="s2">"tempest-react-sdk/styles.css"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">App</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"./App"</span><span class="p">;</span>
+
+<span class="nx">createRoot</span><span class="p">(</span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">"root"</span><span class="p">)</span><span class="o">!</span><span class="p">).</span><span class="nx">render</span><span class="p">(</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">StrictMode</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">defaultTheme</span><span class="o">=</span><span class="s">"system"</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;/</span><span class="nt">StrictMode</span><span class="p">&gt;,</span>
+<span class="p">);</span>
+</code></pre></div>
+<p>Modos disponíveis: <code>"light"</code>, <code>"dark"</code>, <code>"system"</code>. Em <code>"system"</code>, o provider escuta <code>prefers-color-scheme</code> e reage a mudanças do SO em tempo real. A escolha do usuário é persistida em <code>localStorage["tempest-theme"]</code> (desative com <code>storageKey={null}</code>).</p>
+<h2 id="toggle-de-tema">Toggle de tema</h2>
+<p><code>useTheme()</code> lê e muta o tema. Um botão completo de alternância:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ThemeToggle</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">theme</span><span class="p">,</span><span class="w"> </span><span class="nx">resolvedTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">setTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">toggle</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useTheme</span><span class="p">();</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">toggle</span><span class="p">}&gt;{</span><span class="nx">resolvedTheme</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"dark"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"🌙 Escuro"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"☀️ Claro"</span><span class="p">}&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+
+<span class="w">      </span><span class="p">{</span><span class="cm">/* ou controle os três modos explicitamente */</span><span class="p">}</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">select</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">theme</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setTheme</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="ow">typeof</span><span class="w"> </span><span class="nx">theme</span><span class="p">)}&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"light"</span><span class="p">&gt;</span><span class="nx">Claro</span><span class="p">&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"dark"</span><span class="p">&gt;</span><span class="nx">Escuro</span><span class="p">&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="s">"system"</span><span class="p">&gt;</span><span class="nx">Sistema</span><span class="p">&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O que cada campo significa:</p>
+<ul>
+<li><code>theme</code>: a <strong>preferência crua</strong> do usuário — <code>"light"</code>, <code>"dark"</code> ou <code>"system"</code>.</li>
+<li><code>resolvedTheme</code>: o tema <strong>efetivamente aplicado</strong> — sempre <code>"light"</code> ou <code>"dark"</code> (nunca <code>"system"</code>).</li>
+<li><code>setTheme(next)</code>: grava a preferência (e persiste).</li>
+<li><code>toggle()</code>: inverte o <code>resolvedTheme</code>. Em modo <code>"system"</code>, alterna para o oposto do que está aplicado.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Use <code>resolvedTheme</code> para renderizar, <code>theme</code> para o seletor</p>
+<p>Quando precisar decidir qual ícone/imagem mostrar, leia <code>resolvedTheme</code> (é sempre concreto). Reserve <code>theme</code> para refletir a escolha no seletor de três opções.</p>
+</div>
+<h2 id="no-flash-evitar-o-flash-do-tema-errado">No-flash (evitar o flash do tema errado)</h2>
+<p>Há um problema clássico: o HTML pinta antes do React montar, então por um instante o usuário vê o tema padrão antes de o <code>ThemeProvider</code> corrigir. A solução é um script síncrono inline no <code>&lt;head&gt;</code>, <strong>antes de qualquer CSS</strong>, que aplica o atributo na primeira pintura.</p>
+<p><code>themeInitScript()</code> devolve exatamente esse trecho. Em um <code>index.html</code> Vite:</p>
+<div class="highlight"><pre><span></span><code><span class="cp">&lt;!doctype html&gt;</span>
+<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"pt-BR"</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">"UTF-8"</span> <span class="p">/&gt;</span>
+    <span class="cm">&lt;!-- Aplica data-tempest-theme antes de pintar. Cole a saída de themeInitScript() aqui. --&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">(</span><span class="kd">function</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tempest-theme"</span><span class="p">;</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">def</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"system"</span><span class="p">;</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">stored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="nx">key</span><span class="p">);</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stored</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">def</span><span class="p">;</span>
+<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">resolved</span><span class="w"> </span><span class="o">=</span>
+<span class="w">            </span><span class="nx">mode</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"dark"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"light"</span>
+<span class="w">              </span><span class="o">?</span><span class="w"> </span><span class="nx">mode</span>
+<span class="w">              </span><span class="o">:</span><span class="w"> </span><span class="nx">matchMedia</span><span class="p">(</span><span class="s2">"(prefers-color-scheme: dark)"</span><span class="p">).</span><span class="nx">matches</span>
+<span class="w">                </span><span class="o">?</span><span class="w"> </span><span class="s2">"dark"</span>
+<span class="w">                </span><span class="o">:</span><span class="w"> </span><span class="s2">"light"</span><span class="p">;</span>
+<span class="w">          </span><span class="nb">document</span><span class="p">.</span><span class="nx">documentElement</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s2">"data-tempest-theme"</span><span class="p">,</span><span class="w"> </span><span class="nx">resolved</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">      </span><span class="p">})();</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">"root"</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">type</span><span class="o">=</span><span class="s">"module"</span> <span class="na">src</span><span class="o">=</span><span class="s">"/src/main.tsx"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>Se você renderiza o HTML por SSR/React (Next, Remix, etc.), injete via <code>dangerouslySetInnerHTML</code> para manter a string gerada em sincronia com o SDK:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">themeInitScript</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Head</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">script</span><span class="w"> </span><span class="na">dangerouslySetInnerHTML</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">__html</span><span class="o">:</span><span class="w"> </span><span class="kt">themeInitScript</span><span class="p">()</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">O script precisa ser síncrono e vir cedo</p>
+<p>Não use <code>defer</code>, <code>async</code> nem mova o script para o fim do <code>&lt;body&gt;</code> — ele tem que rodar antes da primeira pintura, senão o flash volta. <code>getInitialTheme()</code> expõe a mesma lógica de resolução para quando você quiser o tema calculado em JS sem injetar o script.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">Seguro para inline com qualquer opção</p>
+<p><code>storageKey</code> e <code>defaultTheme</code> entram no script escapados: <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, U+2028 e U+2029 viram <code>\uXXXX</code>. Com <code>JSON.stringify</code> puro, uma <code>storageKey</code> contendo <code>&lt;/script&gt;</code> fechava o elemento no parser de HTML e o resto virava outro script — o teste prova isso parseando o HTML resultante.</p>
+</div>
+<h2 id="customizando-tokens">Customizando tokens</h2>
+<p>Os tokens <code>--tempest-*</code> são a única API de tema. Sobrescreva-os em qualquer ponto da cascata — um para o tema claro, outro dentro do seletor de tema escuro:</p>
+<div class="highlight"><pre><span></span><code><span class="p">:</span><span class="nd">root</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--tempest-primary</span><span class="p">:</span><span class="w"> </span><span class="mh">#ff3366</span><span class="p">;</span>
+<span class="w">  </span><span class="nv">--tempest-radius-md</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="kt">px</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="o">[</span><span class="nt">data-tempest-theme</span><span class="o">=</span><span class="s2">"dark"</span><span class="o">]</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nv">--tempest-primary</span><span class="p">:</span><span class="w"> </span><span class="mh">#ff6688</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Tokens são API pública</p>
+<p>Como apps dependem desses nomes, mudar/remover um token é breaking change — por isso eles seguem o versionamento semântico do SDK.</p>
+</div>
+<h2 id="createtheme-a-marca-inteira-a-partir-de-uma-cor"><code>createTheme</code> — a marca inteira a partir de uma cor</h2>
+<p>Sobrescrever token por token funciona pra um ajuste pontual. Pra <strong>trocar a marca</strong>, são ~30 valores só de <code>primary</code> (dez degraus × claro/escuro, mais os aliases de hover/active/soft) — e é fácil errar a inversão do ramp no dark. <code>createTheme</code> gera tudo:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#7c3aed"</span><span class="w"> </span><span class="p">});</span>
+
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">theme</span><span class="p">);</span>
+</code></pre></div>
+<p>Pronto: os 135 componentes passam a usar a marca nova, no claro e no escuro.</p>
+<h3 id="o-que-ele-gera">O que ele gera</h3>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w">          </span><span class="c1">// escala 50→900 + hover/active/soft/foreground/focus-ring</span>
+<span class="w">  </span><span class="nx">gray</span><span class="o">:</span><span class="w"> </span><span class="s2">"#6b7280"</span><span class="p">,</span><span class="w">             </span><span class="c1">// superfícies, bordas e texto</span>
+<span class="w">  </span><span class="nx">success</span><span class="o">:</span><span class="w"> </span><span class="s2">"#16a34a"</span><span class="p">,</span><span class="w">          </span><span class="c1">// cada status vira -fg / -bg / -border / -solid</span>
+<span class="w">  </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="s2">"#dc2626"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">chart</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#0ea5e9"</span><span class="p">,</span><span class="w"> </span><span class="s2">"#22c55e"</span><span class="p">],</span><span class="w">  </span><span class="c1">// --tempest-chart-1..N + -count (ver Charts)</span>
+<span class="w">  </span><span class="nx">radius</span><span class="o">:</span><span class="w"> </span><span class="s2">"lg"</span><span class="p">,</span><span class="w">                </span><span class="c1">// "none" | "sm" | "md" | "lg" | "xl" | "full"</span>
+<span class="p">});</span>
+
+<span class="nx">theme</span><span class="p">.</span><span class="nx">light</span><span class="p">;</span><span class="w"> </span><span class="c1">// { "--tempest-primary-500": "#7c3aed", … } — a sua cor, exata</span>
+<span class="nx">theme</span><span class="p">.</span><span class="nx">dark</span><span class="p">;</span><span class="w">  </span><span class="c1">// idem, com o ramp invertido</span>
+<span class="nx">theme</span><span class="p">.</span><span class="nx">css</span><span class="p">;</span><span class="w">   </span><span class="c1">// ":root { … }\n\n[data-tempest-theme=\"dark\"] { … }"</span>
+</code></pre></div>
+<p>Só as famílias que você passa são geradas — o resto continua vindo do <code>colors.css</code> do SDK. Um tema é um <strong>patch</strong>, não um fork da paleta.</p>
+<div class="admonition danger">
+<p class="admonition-title">O anel de foco não é derivado por transparência — e por que isso importa</p>
+<p>O <code>--tempest-focus-ring-color</code> de um tema gerado é <strong>opaco</strong>, e o degrau da
+rampa é <strong>medido</strong>, não fixo: o gerador começa no <code>500</code> e sobe a rampa até o
+anel alcançar os 3:1 que a WCAG 2.2 SC 1.4.11 pede <strong>sobre as quatro
+superfícies</strong> (<code>--tempest-bg</code>, <code>--tempest-surface</code>, <code>-2</code>, <code>-3</code>), nos dois
+esquemas.</p>
+<p>Um anel tinto não tem contraste próprio — ele tem o contraste do que estiver
+embaixo. Medido em doze marcas contra as quatro superfícies nos dois temas
+(96 pares):</p>
+<table>
+<thead>
+<tr>
+<th>anel</th>
+<th>pares acima de 3:1</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>500</code> com alfa 0.35 (o default até a 0.63.0)</td>
+<td>3 de 96</td>
+</tr>
+<tr>
+<td><code>500</code> opaco</td>
+<td>58 de 96</td>
+</tr>
+<tr>
+<td>degrau escolhido por medição</td>
+<td><strong>96 de 96</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Opaco sozinho não resolve, e é isso que o degrau medido cobre: o roxo
+<code>#8100D7</code> passa a 7,20:1 no claro e reprova a <strong>1,91:1 no escuro</strong>, e um
+amarelo reprova a 1,43:1 no claro. Quando a marca já alcança o piso no <code>500</code>,
+o anel é a sua cor exata — a caminhada é fallback, não recolorização.</p>
+<p><code>focusRingAlpha</code> continua existindo para quem quer um anel translúcido sobre
+um fundo que controla; abaixo de <code>1</code> ele emite um aviso em build de
+desenvolvimento.</p>
+</div>
+<div class="admonition danger">
+<p class="admonition-title">O indicador de estado selecionado é derivado junto — e nunca aceita alfa</p>
+<p><code>createTheme</code> também emite <code>--tempest-selected-indicator</code>, pelo mesmo método:
+sobe a rampa da marca até a tinta alcançar 3:1 contra as quatro superfícies,
+nos dois esquemas. É a tinta com que <code>SegmentedControl</code>, <code>Command</code>,
+<code>DropdownMenu</code> e <code>ContextMenu</code> marcam o item ativo.</p>
+<p>Ele é token próprio, e não um apelido do anel, por dois motivos. Foco e
+seleção são estados diferentes — um app pode querer cores diferentes. E
+<code>focusRingAlpha</code> <strong>não chega até ele</strong>: anel translúcido sobre um fundo que
+você controla é escolha legítima; indicador de estado translúcido é o defeito
+que o token encerra.</p>
+<p>Detalhe e medição — inclusive por que <code>--tempest-primary-soft</code> (1,03:1 a
+1,61:1 contra <code>--tempest-bg</code> em doze marcas) não serve — em
+<a href="../styles/#estado-selecionado">Estado selecionado</a>.</p>
+</div>
+<div class="admonition check">
+<p class="admonition-title">O degrau <code>500</code> é exatamente a cor que você passou</p>
+<p>A escala é <strong>ancorada</strong> no <code>500</code>: a lightness da sua marca vira o ponto fixo e
+as duas metades do ramp são reescaladas em volta dela. Sem isso o <code>500</code> era
+forçado na lightness alvo da curva e <code>#7c3aed</code> voltava como <code>#9161fe</code> — mesma
+matiz, mesma croma, <strong>re-clareado</strong>. Parece bom isolado e está errado de todo
+jeito: a única cor que o designer entregou é justamente a que os botões
+precisam ter. Marca muito clara (amarelo) ou muito escura (navy) simplesmente
+ganha um trecho mais curto do lado apertado, e o ramp continua monótono.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Por que OKLCH e não HSL</p>
+<p>A escala é derivada em OKLCH porque lightness em HSL <strong>não é perceptual</strong>: um amarelo e um azul com o mesmo <code>L</code> em HSL têm brilho visivelmente diferente, e é exatamente isso que faz uma paleta gerada parecer "quebrada" em algumas cores. Em OKLCH o degrau <code>500</code> de qualquer marca ocupa o mesmo lugar visual.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">O passo de texto sobre a tinta soft é medido, não convencionado</p>
+<p><code>--tempest-primary-on-soft</code> não é fixo no <code>600</code>: o SDK <strong>mede</strong> o contraste contra a tinta <code>50</code> e desce no ramp até passar de 4.5:1 (AA para texto). Isso não é preciosismo — o azul padrão só alcança 4.37:1 no <code>500</code> sobre a própria tinta, e um emerald gerado para em 4.41:1 no <code>600</code>. Os dois reprovariam AA por um fio.</p>
+</div>
+<h3 id="presets-prontos">Presets prontos</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">themePresets</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">(</span><span class="nx">themePresets</span><span class="p">.</span><span class="nx">violet</span><span class="p">));</span>
+
+<span class="c1">// ou partindo de um e ajustando</span>
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="p">...</span><span class="nx">themePresets</span><span class="p">.</span><span class="nx">emerald</span><span class="p">,</span><span class="w"> </span><span class="nx">radius</span><span class="o">:</span><span class="w"> </span><span class="s2">"full"</span><span class="w"> </span><span class="p">}));</span>
+</code></pre></div>
+<p>Presets disponíveis: <code>tempest</code> (o default do SDK), <code>violet</code>, <code>emerald</code>, <code>rose</code>, <code>slate</code>, <code>amber</code>. Cada um é um objeto de opções — dado, não CSS —, então dá pra guardar o nome escolhido em <code>localStorage</code> e resolver com <code>getThemePreset(name)</code> (que devolve <code>undefined</code> para nome inválido em vez de explodir no boot).</p>
+<h3 id="trocando-de-tema-em-runtime">Trocando de tema em runtime</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">getThemePreset</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="p">,</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">BrandPicker</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">brand</span><span class="p">,</span><span class="w"> </span><span class="nx">setBrand</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">"brand"</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"tempest"</span><span class="p">);</span>
+
+<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">preset</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">getThemePreset</span><span class="p">(</span><span class="nx">brand</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">preset</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">"brand"</span><span class="p">,</span><span class="w"> </span><span class="nx">brand</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">(</span><span class="nx">createTheme</span><span class="p">(</span><span class="nx">preset</span><span class="p">));</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">brand</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">select</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">brand</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setBrand</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">)}&gt;</span>
+<span class="w">      </span><span class="p">{[</span><span class="s2">"tempest"</span><span class="p">,</span><span class="w"> </span><span class="s2">"violet"</span><span class="p">,</span><span class="w"> </span><span class="s2">"emerald"</span><span class="p">,</span><span class="w"> </span><span class="s2">"rose"</span><span class="p">,</span><span class="w"> </span><span class="s2">"slate"</span><span class="p">,</span><span class="w"> </span><span class="s2">"amber"</span><span class="p">].</span><span class="nx">map</span><span class="p">((</span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">option</span><span class="w"> </span><span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">name</span><span class="p">}</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">name</span><span class="p">}&gt;{</span><span class="nx">name</span><span class="p">}&lt;/</span><span class="nt">option</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">))}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">select</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>applyTheme</code> é <strong>idempotente</strong>: ele é dono de um <code>&lt;style id="tempest-theme"&gt;</code> e reescreve o conteúdo, então um seletor de marca pode ser acionado à vontade sem empilhar folhas mortas no <code>&lt;head&gt;</code>. O retorno é o disposer (usado como cleanup do effect acima).</p>
+<div class="admonition tip">
+<p class="admonition-title">Tema escopado numa subárvore</p>
+<p>Passe <code>selector</code>/<code>darkSelector</code> no <code>createTheme</code> e <code>id</code>/<code>target</code> no <code>applyTheme</code> pra pintar só um pedaço da tela — útil pra preview de marca:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">applyTheme</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#e11d48"</span><span class="p">,</span><span class="w"> </span><span class="nx">selector</span><span class="o">:</span><span class="w"> </span><span class="s2">".preview"</span><span class="p">,</span><span class="w"> </span><span class="nx">darkSelector</span><span class="o">:</span><span class="w"> </span><span class="s1">'.preview[data-tempest-theme="dark"]'</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"preview-theme"</span><span class="w"> </span><span class="p">},</span>
+<span class="p">);</span>
+</code></pre></div>
+</div>
+<h3 id="sem-js-cole-o-css-gerado">Sem JS: cole o CSS gerado</h3>
+<p><code>theme.css</code> é texto. Se você prefere um tema estático (zero JS no caminho crítico), gere uma vez e cole no CSS global do app:</p>
+<div class="highlight"><pre><span></span><code>node<span class="w"> </span>-e<span class="w"> </span><span class="s2">"import('tempest-react-sdk').then(({ createTheme }) =&gt; console.log(createTheme({ primary: '#7c3aed' }).css))"</span><span class="w"> </span>&gt;<span class="w"> </span>src/brand.css
+</code></pre></div>
+<h3 id="auditando-o-contraste-da-sua-marca">Auditando o contraste da sua marca</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">contrastRatio</span><span class="p">,</span><span class="w"> </span><span class="nx">createColorScale</span><span class="p">,</span><span class="w"> </span><span class="nx">themeContrast</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">themeContrast</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#fde047"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// 15.2 — texto escuro foi escolhido automaticamente</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">scale</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createColorScale</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">);</span>
+<span class="nx">contrastRatio</span><span class="p">(</span><span class="nx">scale</span><span class="p">[</span><span class="mf">500</span><span class="p">],</span><span class="w"> </span><span class="s2">"#ffffff"</span><span class="p">);</span><span class="w">  </span><span class="c1">// asserte no seu teste, se a marca é requisito</span>
+</code></pre></div>
+<p><code>--tempest-primary-foreground</code> (e <code>--tempest-text-on-primary</code>) é escolhido por contraste medido entre branco e o cinza escuro — hardcodar branco produziria botões ilegíveis em marcas claras (amarelo, lima, ciano).</p>
+<h3 id="as-conversoes-de-cor-avulsas">As conversões de cor, avulsas</h3>
+<p>O <code>createTheme</code> faz o trabalho todo, mas as conversões que ele usa por dentro
+são exportadas para quando você precisa de uma só — clarear um badge, gerar um
+overlay, comparar duas cores no seu próprio teste:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">hexToOklch</span><span class="p">,</span><span class="w"> </span><span class="nx">hexToRgb</span><span class="p">,</span><span class="w"> </span><span class="nx">hexToRgbaString</span><span class="p">,</span><span class="w"> </span><span class="nx">oklchToHex</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">l</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">hexToOklch</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">);</span><span class="w"> </span><span class="c1">// luminosidade, croma, matiz</span>
+<span class="nx">oklchToHex</span><span class="p">({</span><span class="w"> </span><span class="nx">l</span><span class="o">:</span><span class="w"> </span><span class="kt">l</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">0.1</span><span class="p">,</span><span class="w"> </span><span class="nx">c</span><span class="p">,</span><span class="w"> </span><span class="nx">h</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// 10% mais claro, mesma matiz e saturação</span>
+
+<span class="nx">hexToRgbaString</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w"> </span><span class="mf">0.12</span><span class="p">);</span><span class="w"> </span><span class="c1">// "rgb(124 58 237 / 0.12)" — overlay/hover</span>
+<span class="nx">hexToRgb</span><span class="p">(</span><span class="s2">"#7c3aed"</span><span class="p">);</span><span class="w"> </span><span class="c1">// { r, g, b } em 0–1, para cálculo próprio</span>
+<span class="nx">rgbToHex</span><span class="p">({</span><span class="w"> </span><span class="nx">r</span><span class="o">:</span><span class="w"> </span><span class="kt">0.49</span><span class="p">,</span><span class="w"> </span><span class="nx">g</span><span class="o">:</span><span class="w"> </span><span class="kt">0.23</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="o">:</span><span class="w"> </span><span class="kt">0.93</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// de volta para "#7c3aed"</span>
+</code></pre></div>
+<p>Duas outras vêm do lado do contraste, e são as que o <code>createTheme</code> usa para
+escolher um foreground legível em vez de fixar branco:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">readableForeground</span><span class="p">,</span><span class="w"> </span><span class="nx">relativeLuminance</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">relativeLuminance</span><span class="p">(</span><span class="s2">"#fde047"</span><span class="p">);</span><span class="w"> </span><span class="c1">// 0.83 — luminância relativa WCAG, a entrada do contrastRatio</span>
+<span class="nx">readableForeground</span><span class="p">(</span><span class="s2">"#fde047"</span><span class="p">);</span><span class="w"> </span><span class="c1">// o foreground escuro: branco nesse amarelo é ilegível</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Por que OKLCH e não HSL</p>
+<p>Clarear em HSL muda a cor percebida: <code>hsl(240 100% 50%)</code> e
+<code>hsl(60 100% 50%)</code> têm a mesma "luminosidade" declarada e brilhos
+completamente diferentes aos olhos. OKLCH é perceptualmente uniforme, então
+<code>l + 0.1</code> clareia o mesmo tanto em qualquer matiz — é por isso que a escala
+do <code>createTheme</code> sai regular em vez de embolar nos amarelos.
+<code>oklchToHex</code> ainda reduz o croma até a cor caber no gamut sRGB, em vez de
+devolver um hex recortado.</p>
+</div>
+<h2 id="superficie-invertida-secao-na-cor-da-marca">Superfície invertida (seção na cor da marca)</h2>
+<p>Hero, faixa de chamada, rodapé: uma seção pintada na cor da marca dentro de uma
+página clara. Os componentes <strong>dentro</strong> dela precisam inverter — botão primário
+claro com texto na cor da marca, texto claro, um anel de foco que se separe do
+fundo. Sobrescrever meia dúzia de tokens à mão deixa o resto da paleta com os
+valores da página, e é aí que a seção quebra.</p>
+<p>A superfície é <strong>opt-in</strong> — a maioria dos apps nunca pinta uma seção na marca,
+então ninguém paga por ela sem pedir. Carregue a folha uma vez e coloque
+<code>tone="inverse"</code> no <code>Section</code> (ou o atributo <code>data-tempest-tone="inverse"</code> em
+qualquer elemento):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="s2">"tempest-react-sdk/styles/inverse.css"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Section</span><span class="p">,</span><span class="w"> </span><span class="nx">SectionHeader</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">FinalCta</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Section</span><span class="w"> </span><span class="na">tone</span><span class="o">=</span><span class="s">"inverse"</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">padding</span><span class="o">:</span><span class="w"> </span><span class="kt">48</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">SectionHeader</span>
+<span class="w">                </span><span class="na">eyebrow</span><span class="o">=</span><span class="s">"Pronto?"</span>
+<span class="w">                </span><span class="na">title</span><span class="o">=</span><span class="s">"Comece agora"</span>
+<span class="w">                </span><span class="na">description</span><span class="o">=</span><span class="s">"Sem cartão de crédito, cancele quando quiser."</span>
+<span class="w">            </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="p">&gt;</span><span class="nx">Criar</span><span class="w"> </span><span class="nx">conta</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span><span class="p">&gt;</span><span class="nx">Falar</span><span class="w"> </span><span class="nx">com</span><span class="w"> </span><span class="nx">vendas</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Section</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Pronto: o fundo vira a marca, o <code>Button</code> primário vira claro com texto na
+cor da marca, o <code>outline</code> e o <code>ghost</code> ficam claros, o anel de foco, o <code>Input</code>, o
+<code>Card</code>, o <code>Badge</code> e os textos <code>muted</code>/<code>subtle</code> passam a valer contra o fundo
+invertido. 🚀</p>
+<p><img alt="Superfície invertida na gallery" src="../assets/gallery/theme-factory.webp" /></p>
+<h3 id="o-que-muda-dentro-da-secao">O que muda dentro da seção</h3>
+<p>O bloco <code>[data-tempest-tone="inverse"]</code> redefine <strong>todo token de cor</strong> que os
+componentes leem — 96 deles: superfícies, bordas, os três níveis de texto, a cor
+de ação e seus estados, <code>soft</code>, foco, indicador de seleção, a rampa
+<code>primary-50…900</code> (que <code>Tag</code> e <code>Sidebar</code> usam crus), os quatro status, as cores
+de gráfico e de sintaxe, as sombras. A lista não é de memória: o teste lê
+<code>colors.css</code> e reprova se surgir token de cor sem valor na superfície invertida.</p>
+<p>Ficam de fora, de propósito, a rampa <code>gray-*</code> e o <code>--tempest-neutral-on-solid</code>
+— o par do <code>Badge</code>/<code>Alert</code> neutro sólido. A rampa cinza é fixa entre os temas
+(o bloco escuro também não a sobrescreve), e o par continua o que a página mediu.</p>
+<p>Uma regra <code>:where([data-tempest-tone="inverse"])</code> pinta o fundo e a cor do texto
+no próprio elemento, com especificidade zero: o atributo sozinho já é uma seção
+completa, e um <code>background</code> que você puser no mesmo elemento vence sem briga.</p>
+<h3 id="contraste-medido-nao-escolhido">Contraste medido, não escolhido</h3>
+<p>Cada valor é derivado da marca e <strong>medido</strong> contra o fundo onde vai ficar, como
+o resto do <code>createTheme</code>. Medido em 14 marcas (as doze do teste do anel de foco
+mais dois navies):</p>
+<table>
+<thead>
+<tr>
+<th>par</th>
+<th>piso</th>
+<th>pior caso</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>texto sobre as quatro superfícies e o brilho</td>
+<td>7:1</td>
+<td>≥ 7 em todas</td>
+</tr>
+<tr>
+<td>texto <code>muted</code> sobre as quatro superfícies e o brilho</td>
+<td>4,5:1</td>
+<td>≥ 4,5 em todas</td>
+</tr>
+<tr>
+<td>texto <code>subtle</code> sobre <code>bg</code>, <code>surface</code> e o brilho</td>
+<td>4,5:1</td>
+<td>≥ 4,5 em todas</td>
+</tr>
+<tr>
+<td>anel de foco e indicador de seleção</td>
+<td>3:1</td>
+<td>≥ 3 em todas</td>
+</tr>
+<tr>
+<td>rótulo do botão primário em repouso, hover e active</td>
+<td>4,5:1</td>
+<td>≥ 4,5 em todas</td>
+</tr>
+</tbody>
+</table>
+<p>O <strong>brilho</strong> é o fundo levantado 0,1 em lightness OKLCH na direção do texto: uma
+seção raramente é uma cor chapada. A landing que abriu o #409 põe um gradiente
+radial de <code>#1f3f8f</code> a 55% sobre o navy <code>#03184b</code>, e o texto <code>subtle</code> medido só
+contra o fundo chapado caía para 3,64:1 ali. Medindo o brilho junto, o mesmo
+token sai a 5,01:1 sobre ele.</p>
+<p>Medido no browser (Chromium, gallery buildada, 04/10/2026, 390 e 1280 px, tema
+da página claro e escuro — números idênticos nos quatro):</p>
+<table>
+<thead>
+<tr>
+<th>marca</th>
+<th>fundo</th>
+<th>título</th>
+<th><code>muted</code></th>
+<th><code>subtle</code></th>
+<th>anel</th>
+<th>botão primário</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SDK (<code>#0066ff</code>)</td>
+<td><code>#042e75</code></td>
+<td>12,71</td>
+<td>9,60</td>
+<td>7,28</td>
+<td>6,95</td>
+<td>12,71</td>
+</tr>
+<tr>
+<td>landing (<code>#03184b</code>)</td>
+<td><code>#03184b</code></td>
+<td>16,99</td>
+<td>10,62</td>
+<td>6,63</td>
+<td>6,31</td>
+<td>16,99</td>
+</tr>
+</tbody>
+</table>
+<h3 id="o-fundo-e-a-sua-marca-quando-ela-aguenta">O fundo é a sua marca — quando ela aguenta</h3>
+<p>O fundo é o <code>500</code> da sua marca sempre que ele carrega o esquema. Quando não
+carrega, o gerador desce (ou sobe) a rampa um degrau por vez até carregar:
+branco sobre o <code>#0066ff</code> mede 4,83:1, o que mal passa AA para o título e não
+deixa espaço para <code>muted</code> e <code>subtle</code> passarem também. Por isso a superfície do
+azul padrão do SDK é o <code>800</code> (<code>#042e75</code>), enquanto um navy fica no <code>500</code>.</p>
+<table>
+<thead>
+<tr>
+<th>marca</th>
+<th>degrau do fundo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>#03184b</code>, <code>#1e2a5a</code>, <code>#111111</code>, <code>#FFD400</code>, <code>#a3e635</code>, <code>#fafafa</code></td>
+<td><code>500</code> — a própria marca</td>
+</tr>
+<tr>
+<td><code>#8100D7</code>, <code>#4f46e5</code></td>
+<td><code>700</code></td>
+</tr>
+<tr>
+<td><code>#0066ff</code>, <code>#dc2626</code>, <code>#ec4899</code>, <code>#f97316</code></td>
+<td><code>800</code></td>
+</tr>
+<tr>
+<td><code>#22d3ee</code></td>
+<td><code>400</code> · <code>#14b8a6</code> <code>300</code></td>
+</tr>
+</tbody>
+</table>
+<p>A direção do texto segue o fundo: marca escura ganha texto branco, marca clara
+(amarelo, lima) ganha texto escuro — a mesma escolha que o <code>createTheme</code> faz para
+<code>--tempest-primary-foreground</code>. O <code>color-scheme</code> da seção acompanha, então
+scrollbar, autofill e o popup de um <code>&lt;select&gt;</code> nativo seguem o fundo, não a
+página.</p>
+<div class="admonition info">
+<p class="admonition-title">Superfícies mais fundas, não mais claras</p>
+<p>Na página, uma superfície elevada caminha na direção do texto (cinza sobre
+branco, cinza mais claro sobre preto). Sobre uma marca de tom médio isso gasta
+exatamente o contraste de que o texto precisa. Na superfície invertida, o
+<code>Card</code> dentro de uma faixa navy é um navy mais fundo, e dentro de uma faixa
+amarela um amarelo mais pálido: toda superfície carrega o texto pelo menos
+tão bem quanto o fundo.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Valores sólidos, não alfa sobre branco</p>
+<p><code>rgb(255 255 255 / 0.1)</code> parece seguir qualquer fundo, e é por isso mesmo
+que não tem contraste próprio — tem o contraste do que estiver embaixo. É o
+defeito que o anel de foco translúcido tinha. Os tokens da superfície
+invertida são sólidos e medidos; a tolerância a variação de fundo vem do
+brilho medido acima, não do alfa.</p>
+</div>
+<h3 id="tema-escuro">Tema escuro</h3>
+<p>A superfície invertida é <strong>a mesma no claro e no escuro</strong>: os valores são cores
+literais, não referências à rampa da página. Uma faixa na cor da marca é a marca
+nos dois temas — e uma marca sem variante escura (o caso comum de landing) não
+precisa decidir nada.</p>
+<h3 id="sem-o-import">Sem o import</h3>
+<p>A folha <code>styles/inverse.css</code> fica fora do <code>colors.css</code>, do <code>tokens.css</code> <strong>e</strong> do
+<code>styles.css</code>: são 96 declarações que a maioria dos apps não usa (medido, elas
+levavam a base <code>tokens.css</code> + <code>scoped.css</code> de 3,05 para 3,44 kB brotli para
+todo mundo). Uma regra só para toda forma de importar o SDK: a superfície existe
+quando essa folha — ou um tema gerado com <code>inverse</code>, abaixo — está carregada.</p>
+<p>Sem nenhum dos dois, o atributo não casa com nada e a seção fica com os tokens
+da página: legível, só não invertida. Medido no browser, um <code>Section
+tone="inverse"</code> sem a folha mostra o título a 17,75:1 e a descrição a 7,69:1 no
+tema claro (17,51 e 9,11 no escuro) — é uma seção comum.</p>
+<h3 id="sua-marca-com-createtheme">Sua marca, com <code>createTheme</code></h3>
+<p>A folha traz a superfície do azul do SDK. Para a sua marca, passe o gerador ao
+<code>createTheme</code> — não precisa da folha:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyTheme</span><span class="p">,</span><span class="w"> </span><span class="nx">createInverseSurface</span><span class="p">,</span><span class="w"> </span><span class="nx">createTheme</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span><span class="w"> </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#03184b"</span><span class="p">,</span><span class="w"> </span><span class="nx">inverse</span><span class="o">:</span><span class="w"> </span><span class="kt">createInverseSurface</span><span class="w"> </span><span class="p">});</span>
+
+<span class="nx">theme</span><span class="p">.</span><span class="nx">inverse</span><span class="o">?</span><span class="p">.[</span><span class="s2">"--tempest-bg"</span><span class="p">];</span><span class="w"> </span><span class="c1">// "#03184b" — a sua marca é o fundo</span>
+<span class="nx">applyTheme</span><span class="p">(</span><span class="nx">theme</span><span class="p">);</span>
+</code></pre></div>
+<div class="admonition info">
+<p class="admonition-title">Por que o gerador, e não <code>inverse: true</code></p>
+<p>Com uma flag, o <code>createTheme</code> teria de importar o gerador, e todo app que
+gera um tema o carregaria. Medido com <code>npx size-limit</code>: <code>{ createTheme }</code>
+sozinho é 3,35 kB brotli, e com o gerador dentro era 4,86 kB. Passando a
+função, só quem a importa paga.</p>
+</div>
+<p>Status e cores de gráfico que o tema nomeia (<code>danger</code>, <code>chart</code>…) entram na
+superfície invertida também. Para escopar a outro seletor, use
+<code>inverseSelector</code>. Sem <code>inverse</code>, o tema sai como sempre — dois blocos, e
+<code>theme.inverse</code> ausente.</p>
+<div class="admonition warning">
+<p class="admonition-title">CSS estático colado</p>
+<p>Se você cola a saída do <code>createTheme</code> num <code>.css</code> (veja
+<a href="#sem-js-cole-o-css-gerado">Sem JS</a>), gere com <code>inverse: createInverseSurface</code>
+para o arquivo trazer o bloco da sua marca.</p>
+</div>
+<h3 id="de-volta-aos-tokens-da-pagina">De volta aos tokens da página</h3>
+<p>Um formulário de contato, um preço, um depoimento: às vezes um trecho <strong>dentro</strong>
+da faixa precisa voltar a ser página — um <code>Card</code> branco num hero navy. Dentro da
+superfície invertida todo descendente herda os tokens invertidos, então o <code>Card</code>
+sai navy. Marque o trecho com <code>data-tempest-tone="default"</code> (ou
+<code>&lt;Section tone="default"&gt;</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="s2">"tempest-react-sdk/styles/inverse.css"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Card</span><span class="p">,</span><span class="w"> </span><span class="nx">Input</span><span class="p">,</span><span class="w"> </span><span class="nx">Section</span><span class="p">,</span><span class="w"> </span><span class="nx">SectionHeader</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ContactHero</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Section</span><span class="w"> </span><span class="na">tone</span><span class="o">=</span><span class="s">"inverse"</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">padding</span><span class="o">:</span><span class="w"> </span><span class="kt">48</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">SectionHeader</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Fale com a gente"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Card</span><span class="w"> </span><span class="na">data-tempest-tone</span><span class="o">=</span><span class="s">"default"</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Contato"</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"E-mail"</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"email"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="p">&gt;</span><span class="nx">Enviar</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Card</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Section</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O <code>Card</code> volta a ser <strong>o da página</strong> — claro no tema claro, escuro no escuro, com
+a sua marca e os seus overrides do <code>:root</code>. Medido no browser (Chromium,
+04/10/2026): de 28 valores computados de um <code>Card</code>, um <code>Input</code> e um <code>Button</code>, 0
+diferem do mesmo trio fora da faixa, no tema claro, no escuro e num subtree
+escuro. Sem o atributo, 25 de 28 diferiam no claro e 18 de 28 no escuro.</p>
+<p>Ponha o atributo <strong>na própria superfície</strong> (o <code>Card</code>) para ela flutuar sobre a
+faixa. Num wrapper, o wrapper inteiro vira um bloco com o fundo da página — uma
+regra <code>:where()</code> pinta <code>background-color</code> e <code>color</code> nele, com especificidade
+zero, como na seção invertida.</p>
+<details class="info">
+<summary>Como funciona — e as duas alternativas medidas</summary>
+<p>Custom property herda do pai, então uma regra não consegue "pular" a seção e
+ler o <code>:root</code> de novo — e escopar o bloco invertido para longe do trecho
+(<code>@scope (…) to (…)</code>, <code>:not()</code>) não muda nada: o trecho continua herdando o
+que a seção declarou. Medido com <code>@scope</code>: os mesmos 25 de 28 no claro.</p>
+<p>O que funciona é guardar o valor da página <strong>antes</strong> de a seção sobrescrever.
+Todo elemento onde um tema é declarado (<code>:root</code>, <code>[data-tempest-theme]</code> e os
+seletores do <code>createTheme</code>) copia cada token que a superfície redefine para um
+gêmeo <code>--tempest-default-*</code>. Um <code>var()</code> dentro de custom property resolve no
+elemento que o declara, então o gêmeo guarda o valor da página e atravessa a
+seção intacto. O trecho lê os tokens de volta dos gêmeos.</p>
+<table>
+<thead>
+<tr>
+<th>abordagem</th>
+<th>custo (brotli)</th>
+<th>quem paga</th>
+<th>com override de marca no <code>:root</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>gêmeos <code>--tempest-default-*</code> (escolhida)</td>
+<td>+821 B no <code>inverse.css</code></td>
+<td>só quem carrega a superfície</td>
+<td>0 de 28 diferem</td>
+</tr>
+<tr>
+<td>um bloco por tema com os valores do SDK</td>
+<td>+1257 B</td>
+<td>só quem carrega a superfície</td>
+<td>3 de 28 diferem</td>
+</tr>
+<tr>
+<td>o trecho nos seletores do <code>colors.css</code></td>
+<td>+15 B</td>
+<td><strong>todo app</strong></td>
+<td>3 de 28 diferem</td>
+</tr>
+</tbody>
+</table>
+<p>O <code>tokens.css</code> e o <code>styles.css</code> saem com os mesmos bytes de antes. O
+<code>{ createTheme }</code> sem <code>inverse</code> cresce 40 B brotli (3346 → 3386), o repasse
+dos seletores ao gerador; o código que escreve as regras mora no gerador.
+Números de <code>npx size-limit</code> na 0.74.0 + este PR; os de 1257 B e 15 B, de
+<code>zlib.brotliCompressSync</code> sobre o CSS de cada alternativa.</p>
+</details>
+<p>Com o <code>createTheme</code>, as regras saem junto quando você passa
+<code>inverse: createInverseSurface</code>, escritas para o seu <code>selector</code> e o seu
+<code>darkSelector</code> — um tema escopado a <code>#app</code> também é restaurado.</p>
+<h3 id="recap">Recap</h3>
+<ul>
+<li><code>&lt;Section tone="inverse"&gt;</code> ou <code>data-tempest-tone="inverse"</code> em qualquer
+  elemento: fundo na marca, todo token de cor invertido.</li>
+<li>Texto ≥ 7:1, <code>muted</code> e <code>subtle</code> ≥ 4,5:1, anel ≥ 3:1 — medidos também sobre um
+  brilho 0,1 mais claro que o fundo.</li>
+<li>O fundo é o <code>500</code> quando ele aguenta; senão o degrau mais próximo que aguenta.</li>
+<li>Igual no tema claro e no escuro.</li>
+<li>Opt-in: <code>import "tempest-react-sdk/styles/inverse.css"</code> para o azul do SDK, ou
+  <code>createTheme({ primary, inverse: createInverseSurface })</code> para a sua marca.
+  Sem nenhum, a seção fica com os tokens da página.</li>
+<li><code>data-tempest-tone="default"</code> (ou <code>&lt;Section tone="default"&gt;</code>) dentro da
+  faixa devolve os tokens da página — claro ou escuro, com a sua marca.</li>
+<li><code>Navbar</code> e <code>AppBar</code> aceitam <code>tone="inverse"</code> para a barra na cor da marca com
+  botões e links dentro; <code>tone="primary"</code> só pinta o fundo — veja
+  <a href="../components/navigation/#barra-na-cor-da-marca">Barra na cor da marca</a>.</li>
+</ul>
+<h2 id="integracao-com-o-css-do-app-theme-color">Integração com o CSS do app + <code>theme-color</code></h2>
+<p>Os componentes do SDK leem <code>data-tempest-theme</code>. Se o <strong>CSS próprio do seu app</strong> já chaveia o tema em outro atributo (ex.: <code>[data-theme="dark"]</code>), você não precisa de um effect de sincronização — passe um array em <code>attribute</code> e o provider escreve o tema resolvido em <strong>todos</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">attribute</span><span class="o">=</span><span class="p">{[</span><span class="s2">"data-tempest-theme"</span><span class="p">,</span><span class="w"> </span><span class="s2">"data-theme"</span><span class="p">]}&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+</code></pre></div>
+<p>Para sincronizar a barra do navegador / status bar do PWA, passe <code>themeColor</code> — o provider atualiza <code>&lt;meta name="theme-color"&gt;</code> com a cor do tema resolvido (a meta tag precisa existir no <code>&lt;head&gt;</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">themeColor</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">light</span><span class="o">:</span><span class="w"> </span><span class="s2">"#1f7a3f"</span><span class="p">,</span><span class="w"> </span><span class="nx">dark</span><span class="o">:</span><span class="w"> </span><span class="s2">"#0f1411"</span><span class="w"> </span><span class="p">}}&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Por que isso existe</p>
+<p>Antes, apps que misturavam CSS próprio + componentes do SDK escreviam um hook só pra espelhar o tema em <code>data-theme</code> e atualizar a meta tag. <code>attribute</code> (array) + <code>themeColor</code> cobrem os dois casos no próprio provider.</p>
+</div>
+<h2 id="escopo-parcial">Escopo parcial</h2>
+<p>Passe <code>target</code> para aplicar o tema em uma subárvore específica em vez de <code>&lt;html&gt;</code> — útil para um preview ou portal que precisa de tema independente:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">target</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">"preview"</span><span class="p">)}</span><span class="w"> </span><span class="na">defaultTheme</span><span class="o">=</span><span class="s">"dark"</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">&lt;</span><span class="nt">Preview</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
+</code></pre></div>
+<h2 id="recap_1">Recap</h2>
+<ul>
+<li><code>ThemeProvider</code> escreve <code>data-tempest-theme</code> no <code>&lt;html&gt;</code> (ou no elemento de <code>target</code>); os tokens <code>--tempest-*</code> reagem sozinhos.</li>
+<li>Modos: <code>"light"</code>, <code>"dark"</code>, <code>"system"</code> — o último segue <code>prefers-color-scheme</code> ao vivo. A escolha persiste em <code>localStorage["tempest-theme"]</code>.</li>
+<li><code>useTheme()</code> dá <code>theme</code> (preferência crua), <code>resolvedTheme</code> (sempre <code>light</code>/<code>dark</code>), <code>setTheme</code> e <code>toggle</code>.</li>
+<li>Inline o <code>themeInitScript()</code> <strong>síncrono no <code>&lt;head&gt;</code>, antes do CSS</strong>, para eliminar o flash do tema errado.</li>
+<li>Customize o visual sobrescrevendo os tokens <code>--tempest-*</code>; use <code>target</code> para tema em subárvore.</li>
+</ul>
+<h2 id="veja-tambem">Veja também</h2>
+<ul>
+<li><a href="../components/">Componentes</a> — todos consomem os tokens</li>
+<li><a href="../styles/">Estilos</a> — catálogo completo dos tokens <code>--tempest-*</code></li>
+<li><a href="../app-providers/">App Providers</a> — montar o tema junto com Query e i18n</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Voltar ao topo
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Rodapé" >
+        
+          
+          <a href="../styles/" class="md-footer__link md-footer__link--prev" aria-label="Anterior: Estilos &amp; Design Tokens">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Anterior
+              </span>
+              <div class="md-ellipsis">
+                Estilos & Design Tokens
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../i18n/" class="md-footer__link md-footer__link--next" aria-label="Próximo: i18n">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Próximo
+              </span>
+              <div class="md-ellipsis">
+                i18n
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copiado para \u00e1rea de transfer\u00eancia", "clipboard.copy": "Copiar para \u00e1rea de transfer\u00eancia", "search.result.more.one": "Mais 1 nesta p\u00e1gina", "search.result.more.other": "Mais # nesta p\u00e1gina", "search.result.none": "Nenhum resultado encontrado", "search.result.one": "1 resultado encontrado", "search.result.other": "# resultados encontrados", "search.result.placeholder": "Digite para iniciar a busca", "search.result.term.missing": "Ausente", "select.version": "Selecione a vers\u00e3o"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

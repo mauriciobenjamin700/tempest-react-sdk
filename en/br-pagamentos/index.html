@@ -1,0 +1,5394 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/br-pagamentos/">
+      
+      
+        <link rel="prev" href="../br/">
+      
+      
+        <link rel="next" href="../payments/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>BR payments, fiscal & contact - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#br-payments-fiscal-contact" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              BR payments, fiscal & contact
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../br-pagamentos/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#part-1-pix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 1 — Pix
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 1 — Pix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      The problem
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-short-path-pixqrcode" class="md-nav__link">
+    <span class="md-ellipsis">
+      The short path: &lt;PixQRCode&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pixpayload-the-string-no-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      pixPayload — the string, no UI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#static-vs-dynamic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Static vs dynamic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keys-validation-and-the-eleven-digit-trap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Keys: validation, and the eleven-digit trap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Accents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-a-payload-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading a payload back
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pixcrc16-if-you-need-the-checksum-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      pixCrc16, if you need the checksum alone
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-2-boleto" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 2 — Boleto
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 2 — Boleto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-layouts-the-same-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two layouts, the same length
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-what-the-scanner-handed-you" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading what the scanner handed you
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validating-typed-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating typed input
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layout-only-without-parsing-boletokind" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layout only, without parsing: boletoKind
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-february-2025-due-date-rollover" class="md-nav__link">
+    <span class="md-ellipsis">
+      The February 2025 due-date rollover
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arrecadacao-what-is-read-and-what-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arrecadação: what is read and what is not
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-three-check-digits-exported" class="md-nav__link">
+    <span class="md-ellipsis">
+      The three check digits, exported
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-3-nfe-access-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 3 — NFe access key
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 3 — NFe access key">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issuing-computing-the-check-digit-and-handling-the-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issuing: computing the check digit and handling the error
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-4-holidays-and-business-days" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 4 — Holidays and business days
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 4 — Holidays and business days">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-is-in-the-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is in the table
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-in-it-and-will-not-be" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is not in it, and will not be
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#business-day-arithmetic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Business-day arithmetic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-easter-comes-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where Easter comes in
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-5-whatsapp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 5 — WhatsApp
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 5 — WhatsApp">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-deep-link-never-a-send" class="md-nav__link">
+    <span class="md-ellipsis">
+      A deep link, never a send
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-the-55-is-not-a-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why the 55 is not a detail
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recipe-asking-for-the-deposit-over-whatsapp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recipe: asking for the deposit over WhatsApp
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audio/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#part-1-pix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 1 — Pix
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 1 — Pix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      The problem
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-short-path-pixqrcode" class="md-nav__link">
+    <span class="md-ellipsis">
+      The short path: &lt;PixQRCode&gt;
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pixpayload-the-string-no-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      pixPayload — the string, no UI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#static-vs-dynamic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Static vs dynamic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#keys-validation-and-the-eleven-digit-trap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Keys: validation, and the eleven-digit trap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#accents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Accents
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-a-payload-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading a payload back
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pixcrc16-if-you-need-the-checksum-alone" class="md-nav__link">
+    <span class="md-ellipsis">
+      pixCrc16, if you need the checksum alone
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-2-boleto" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 2 — Boleto
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 2 — Boleto">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#two-layouts-the-same-length" class="md-nav__link">
+    <span class="md-ellipsis">
+      Two layouts, the same length
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-what-the-scanner-handed-you" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reading what the scanner handed you
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validating-typed-input" class="md-nav__link">
+    <span class="md-ellipsis">
+      Validating typed input
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#layout-only-without-parsing-boletokind" class="md-nav__link">
+    <span class="md-ellipsis">
+      Layout only, without parsing: boletoKind
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-february-2025-due-date-rollover" class="md-nav__link">
+    <span class="md-ellipsis">
+      The February 2025 due-date rollover
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arrecadacao-what-is-read-and-what-is-not" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arrecadação: what is read and what is not
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-three-check-digits-exported" class="md-nav__link">
+    <span class="md-ellipsis">
+      The three check digits, exported
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-3-nfe-access-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 3 — NFe access key
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 3 — NFe access key">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issuing-computing-the-check-digit-and-handling-the-error" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issuing: computing the check digit and handling the error
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-4-holidays-and-business-days" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 4 — Holidays and business days
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 4 — Holidays and business days">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-is-in-the-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is in the table
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-in-it-and-will-not-be" class="md-nav__link">
+    <span class="md-ellipsis">
+      What is not in it, and will not be
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#business-day-arithmetic" class="md-nav__link">
+    <span class="md-ellipsis">
+      Business-day arithmetic
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#where-easter-comes-in" class="md-nav__link">
+    <span class="md-ellipsis">
+      Where Easter comes in
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#part-5-whatsapp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Part 5 — WhatsApp
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Part 5 — WhatsApp">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-deep-link-never-a-send" class="md-nav__link">
+    <span class="md-ellipsis">
+      A deep link, never a send
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#why-the-55-is-not-a-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      Why the 55 is not a detail
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recipe-asking-for-the-deposit-over-whatsapp" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recipe: asking for the deposit over WhatsApp
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/br-pagamentos.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/br-pagamentos.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="br-payments-fiscal-contact">BR payments, fiscal &amp; contact</h1>
+<p>The four rails every Brazilian product ends up needing — <strong>Pix</strong>, <strong>boleto</strong>, the <strong>NFe access key</strong> and <strong>holidays / business days</strong> — plus the channel all of it reaches the customer through: <strong>WhatsApp</strong>. Pure TypeScript, <strong>no new dependency</strong> — the whole slice measures <strong>9.22 KB brotli</strong>, Pix alone (payload + CRC + QR component) measures <strong>6.1 KB</strong>, and the WhatsApp deep link measures <strong>223 B</strong>.</p>
+<div class="admonition info">
+<p class="admonition-title">Import from the <code>tempest-react-sdk/br</code> subpath</p>
+<p>Like the rest of the BR module, these helpers live in <code>tempest-react-sdk/br</code>, not on the root entry. If you don't import it, you don't pay for it.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pixPayload</span><span class="p">,</span><span class="w"> </span><span class="nx">parseLinhaDigitavel</span><span class="p">,</span><span class="w"> </span><span class="nx">parseChaveNFe</span><span class="p">,</span><span class="w"> </span><span class="nx">isBusinessDay</span><span class="p">,</span><span class="w"> </span><span class="nx">whatsAppUrl</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+</code></pre></div>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">The SDK talks to no bank</p>
+<p>Nothing here calls the Brazilian Central Bank, a state tax authority, or a PSP API. These are <strong>local encoders and validators</strong>: they assemble the right string, verify the check digits and read the fields. Whether a boleto exists, is registered or has already been paid — only a bank can answer. Whether an invoice was authorised — only SEFAZ can.</p>
+</div>
+<hr />
+<!-- gallery:br-payments -->
+<p><a href="../gallery/"><img alt="Pagamentos BR (Pix · boleto · NFe) in the gallery" src="../../assets/gallery/br-payments.webp" /></a></p>
+<p><em>Section <code>br-payments</code> of the <a href="../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<h2 id="part-1-pix">Part 1 — Pix</h2>
+<h3 id="the-problem">The problem</h3>
+<p>A Pix QR is not a "link QR". It is an <strong>EMV MPM</strong> payload (the EMVCo standard the Central Bank adopted in its "Manual de Padrões para Iniciação do Pix"): a list of <code>ID + 2-digit length + value</code> triples, closed by a CRC-16.</p>
+<p>Writing that by hand fails in the same place every time — the checksum. It is CRC-16/CCITT-FALSE (polynomial <code>0x1021</code>, initial value <code>0xFFFF</code>) computed over <strong>everything before it plus the literal <code>6304</code></strong>, that is, including the header of tag 63 itself. Get that wrong and you ship a QR that opens in the app and fails to scan.</p>
+<h3 id="the-short-path-pixqrcode">The short path: <code>&lt;PixQRCode&gt;</code></h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PixQRCode</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">CheckoutPix</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">PixQRCode</span>
+<span class="w">      </span><span class="na">pix</span><span class="o">=</span><span class="p">{{</span>
+<span class="w">        </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"loja@tempest.dev"</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Loja Tempest"</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"São Paulo"</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">amount</span><span class="o">:</span><span class="w"> </span><span class="kt">25.5</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">txid</span><span class="o">:</span><span class="w"> </span><span class="s2">"PEDIDO123"</span><span class="p">,</span>
+<span class="w">      </span><span class="p">}}</span>
+<span class="w">      </span><span class="na">amountLabel</span><span class="o">=</span><span class="s">"R$ 25,50"</span>
+<span class="w">      </span><span class="na">payeeLabel</span><span class="o">=</span><span class="s">"Loja Tempest"</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>That renders the symbol <strong>and</strong> the copy-and-paste line with a copy button. The two together are not decoration:</p>
+<div class="admonition tip">
+<p class="admonition-title">Never render the QR alone</p>
+<p>In a mobile checkout the QR appears <strong>on the same device</strong> that would scan it. Without the copyable string the user is stuck. It is the single most common mistake in a Pix screen.</p>
+</div>
+<p>The payload is built in the browser and the symbol is drawn by the SDK's own encoder (the same one behind <a href="../components/utility/#qrcode"><code>QRCode</code></a>). Key, amount and txid <strong>never leave the page</strong> — a QR-image service would receive all three.</p>
+<p>When the payload comes ready from your PSP (a signed dynamic charge), pass it straight through:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">PixQRCode</span><span class="w"> </span><span class="na">payload</span><span class="o">=</span><span class="p">{</span><span class="nx">charge</span><span class="p">.</span><span class="nx">brcode</span><span class="p">}</span><span class="w"> </span><span class="na">level</span><span class="o">=</span><span class="s">"Q"</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">220</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title"><code>pix</code> and <code>payload</code> are mutually exclusive</p>
+<p>Passing both throws <code>PixError</code>. Prefer <code>payload</code> for a dynamic charge: the PSP issued that string, and rebuilding it here only adds a way to get it wrong.</p>
+</div>
+<h3 id="pixpayload-the-string-no-ui"><code>pixPayload</code> — the string, no UI</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pixPayload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pixPayload</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"12345678909"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Loja Tempest"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sao Paulo"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">amount</span><span class="o">:</span><span class="w"> </span><span class="kt">25.5</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">txid</span><span class="o">:</span><span class="w"> </span><span class="s2">"PEDIDO123"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="c1">// 00020101021126330014br.gov.bcb.pix0111123456789095204000053039865405</span>
+<span class="c1">// 25.505802BR5912Loja Tempest6009Sao Paulo62130509PEDIDO1236304D68C</span>
+</code></pre></div>
+<p>Accepted fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Tag</th>
+<th>Required</th>
+<th>Note</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td>26 / 01</td>
+<td>✅</td>
+<td>CPF, CNPJ, e-mail, phone or EVP. Validated and normalised.</td>
+</tr>
+<tr>
+<td><code>merchantName</code></td>
+<td>59</td>
+<td>✅</td>
+<td>Max <strong>25</strong> characters. Longer throws.</td>
+</tr>
+<tr>
+<td><code>merchantCity</code></td>
+<td>60</td>
+<td>✅</td>
+<td>Max <strong>15</strong> characters.</td>
+</tr>
+<tr>
+<td><code>amount</code></td>
+<td>54</td>
+<td>—</td>
+<td>BRL. Omit to let the payer type the value.</td>
+</tr>
+<tr>
+<td><code>txid</code></td>
+<td>62 / 05</td>
+<td>—</td>
+<td><code>[A-Za-z0-9]{1,25}</code>. Defaults to <code>***</code>.</td>
+</tr>
+<tr>
+<td><code>description</code></td>
+<td>26 / 02</td>
+<td>—</td>
+<td>Free text some wallets show.</td>
+</tr>
+<tr>
+<td><code>postalCode</code></td>
+<td>61</td>
+<td>—</td>
+<td>CEP, digits only.</td>
+</tr>
+<tr>
+<td><code>oneTime</code></td>
+<td>01</td>
+<td>—</td>
+<td><code>true</code> → tag <code>12</code> (single use) instead of <code>11</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="static-vs-dynamic">Static vs dynamic</h3>
+<p>The distinction <strong>changes what settles</strong>, so it is not cosmetic:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Static</label><label for="__tabbed_1_2">Dynamic</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Tag 26 carries the <strong>key</strong>. The QR is self-contained, printable and reusable. With <code>amount</code> omitted it settles against whatever the payer typed.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">pixPayload</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"loja@tempest.dev"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Tempest"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"Belo Horizonte"</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Tag 26 carries a <strong>URL</strong> (<code>payloadLocation</code>), and the wallet fetches amount and payee from the PSP. It settles against what the PSP served. Defaults to single use.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">pixPayload</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">kind</span><span class="o">:</span><span class="w"> </span><span class="s2">"dynamic"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="s2">"pix.example.com/qr/v2/abc123"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Tempest"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"Recife"</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+</div>
+</div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">A charge that must reconcile to the cent needs the dynamic form</p>
+<p>A static QR with no amount settles against what the payer typed — including R$ 1.00 on a R$ 100.00 invoice.</p>
+</div>
+<h3 id="keys-validation-and-the-eleven-digit-trap">Keys: validation, and the eleven-digit trap</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">normalizePixKey</span><span class="p">,</span><span class="w"> </span><span class="nx">pixKeyType</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">pixKeyType</span><span class="p">(</span><span class="s2">"123.456.789-09"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "cpf"</span>
+<span class="nx">pixKeyType</span><span class="p">(</span><span class="s2">"11.222.333/0001-81"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "cnpj"</span>
+<span class="nx">pixKeyType</span><span class="p">(</span><span class="s2">"loja@tempest.dev"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "email"</span>
+<span class="nx">pixKeyType</span><span class="p">(</span><span class="s2">"+5511987654321"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "phone"</span>
+<span class="nx">pixKeyType</span><span class="p">(</span><span class="s2">"123e4567-e89b-12d3-a456-426614174000"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "evp"</span>
+<span class="nx">pixKeyType</span><span class="p">(</span><span class="s2">"not a key"</span><span class="p">);</span><span class="w"> </span><span class="c1">// null</span>
+
+<span class="nx">normalizePixKey</span><span class="p">(</span><span class="s2">"(11) 98765-4321"</span><span class="p">);</span><span class="w"> </span><span class="c1">// { type: "phone", value: "+5511987654321" }</span>
+</code></pre></div>
+<p>CPF and CNPJ go through <code>validateCPF</code> / <code>validateCNPJ</code> (the same ones as <a href="../forms-br/">BR Forms</a>) — a key whose check digits fail is rejected with <code>PixError</code>.</p>
+<div class="admonition danger">
+<p class="admonition-title">A CPF and a national mobile number are both eleven digits</p>
+<p><code>"11987654321"</code> is a valid mobile <strong>and</strong> could be a CPF. The check digits break the tie: eleven digits with a valid DV become <code>"cpf"</code>, anything else becomes <code>"phone"</code>. Pass phone keys as <code>+5511987654321</code> and the ambiguity is gone.</p>
+</div>
+<h3 id="accents">Accents</h3>
+<p>The BR Code character set has no room for accents. The SDK <strong>strips diacritics</strong> and rejects whatever is left outside printable ASCII:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">pixPayload</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span><span class="w"> </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Padaria Açúcar"</span><span class="p">,</span><span class="w"> </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"São Paulo"</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// → "5914Padaria Acucar" … "6009Sao Paulo"</span>
+
+<span class="nx">pixPayload</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"…"</span><span class="p">,</span><span class="w"> </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Loja ✅"</span><span class="p">,</span><span class="w"> </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"Recife"</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// → PixError: merchantName has characters the BR Code cannot carry</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Why strip instead of throw</p>
+<p>"São Paulo" is the city's real name and the payload cannot carry it. A QR that does not scan is worse than a name without its tilde. An emoji, on the other hand, is a caller mistake, and that one surfaces.</p>
+</div>
+<h3 id="reading-a-payload-back">Reading a payload back</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">parsePixPayload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parsePixPayload</span><span class="p">(</span><span class="nx">pasted</span><span class="p">);</span>
+<span class="nx">data</span><span class="p">.</span><span class="nx">key</span><span class="p">;</span><span class="w"> </span><span class="c1">// "12345678909"</span>
+<span class="nx">data</span><span class="p">.</span><span class="nx">amount</span><span class="p">;</span><span class="w"> </span><span class="c1">// 25.5</span>
+<span class="nx">data</span><span class="p">.</span><span class="nx">txid</span><span class="p">;</span><span class="w"> </span><span class="c1">// "PEDIDO123"</span>
+<span class="nx">data</span><span class="p">.</span><span class="nx">crcValid</span><span class="p">;</span><span class="w"> </span><span class="c1">// true</span>
+<span class="nx">data</span><span class="p">.</span><span class="nx">fields</span><span class="p">;</span><span class="w"> </span><span class="c1">// every TLV, in order, unknown ones included</span>
+</code></pre></div>
+<p>It is <strong>tolerant of unknown tags</strong> — PSPs do add their own templates, and a reader that rejects them is useless in production. What is <strong>not</strong> tolerated: a broken frame (a length that runs past the end, a missing <code>6304</code>) and a <strong>CRC mismatch</strong>, which throws. To inspect a payload you already know is corrupt:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">parsePixPayload</span><span class="p">(</span><span class="nx">pasted</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">requireCrc</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// crcValid: false, no throw</span>
+</code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title">A CRC mismatch is not a warning</p>
+<p>A BR Code whose checksum fails was corrupted in transit, and the account it now points at is <strong>not</strong> the account the payee published. That is why the default throws.</p>
+</div>
+<p>The CRC detects <strong>corruption</strong>, not <strong>authorship</strong>: whoever crafts a payload recomputes the checksum, so a valid CRC says nothing about who published the account. That is why the reader also refuses a payload with <strong>two readings</strong> — the preview would show one, and the bank's wallet may pay the other:</p>
+<table>
+<thead>
+<tr>
+<th>Refused (<code>PixError</code>)</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>a tag repeated at the root (<code>54</code>, <code>59</code>, <code>26</code>, …)</td>
+<td>the Central Bank's BR Code manual, citing EMV® QRCPS-MPM: no duplicate IDs in the root</td>
+</tr>
+<tr>
+<td>a sub-tag repeated inside <code>26</code> or <code>62</code> (two <code>01</code> keys, two <code>05</code> txids)</td>
+<td>the same ambiguity one level down; no conforming emitter repeats one</td>
+</tr>
+<tr>
+<td>a tag <code>63</code> before the end (a <code>6304</code> + CRC mid-payload, followed by more tags and a second <code>6304</code> + CRC)</td>
+<td>EMV® QRCPS-MPM, which the Bacen manual follows, makes <code>63</code> the last object; cut at the first CRC, the same text is another valid payload, without the <code>54</code> that follows</td>
+</tr>
+<tr>
+<td>a first tag other than <code>00</code> (Payload Format Indicator)</td>
+<td>the same EMV spec makes <code>00</code> the first object; every other root tag may come in any order</td>
+</tr>
+<tr>
+<td>a tag <code>26</code> with a key (<code>01</code>) <strong>and</strong> a URL (<code>25</code>)</td>
+<td>a BR Code is static or dynamic, not both</td>
+</tr>
+<tr>
+<td>a tag <code>54</code> outside the EMV format: <code>1e3</code>, <code>-1</code>, <code>,5</code>, <code>0x10</code>, <code>1.005</code>, over 13 characters</td>
+<td>digits and one <code>.</code> decimal mark only, up to two decimals (BRL) — what <code>Number()</code> would read as <code>1000</code>, <code>-1</code>, <code>NaN</code> or <code>16</code></td>
+</tr>
+<tr>
+<td>non-ASCII text in an <code>ans</code> tag: every root tag except <code>64</code> and <code>80</code>–<code>99</code>, and therefore every sub-field of <code>26</code> and <code>62</code></td>
+<td>outside printable ASCII a character is no longer a byte: tag <code>59</code> with 10 × <code>é</code> + <code>5406999.00</code> read as a name with no amount, while a reader counting UTF-8 bytes reads the same <code>59</code> as <code>éééééééééé</code> followed by a <code>54</code> of <code>999.00</code>, with the same CRC (#497)</td>
+</tr>
+<tr>
+<td>non-ASCII text in <code>64</code> or in an <code>80</code>–<code>99</code> that, counted in UTF-8 bytes or UTF-16 units, frames other tags</td>
+<td>those tags are <code>String</code> format and may still carry accents, emoji or CJK — but not text another reader ends early and whose remainder becomes a <code>54</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>"98"</code> and <code>"98."</code> still parse: EMV allows the <code>.</code> with no decimals. Zero (<code>"0"</code>, <code>"0.00"</code>) reads as <code>amount: 0</code>, because the Central Bank's BR Code manual lists <code>"0"</code> as a tag <code>54</code> example — the reader tolerates what the Bacen spec accepts. <code>pixPayload</code> still refuses a non-positive amount — checked <strong>after</strong> rounding, so <code>0.004</code> throws instead of writing <code>"0.00"</code> — and refuses text outside the EMV common character set (printable ASCII), such as a <code>joão@example.com</code> key — name, city and description lose their accents before the check (<code>"São Paulo"</code> → <code>"Sao Paulo"</code>, case kept) and only throw if an emoji or CJK is left; the key is not transliterated, because another spelling is another key: each TLV length counts characters, and only in that set do a character, a UTF-16 unit and a byte coincide. When reading, lengths count characters, so another PSP's template with non-ASCII text does not misalign the tags after it — and only <code>64</code> and <code>80</code>–<code>99</code> may carry such text, as long as no other length unit reads the payload differently.</p>
+<h3 id="pixcrc16-if-you-need-the-checksum-alone"><code>pixCrc16</code>, if you need the checksum alone</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pixCrc16</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">pixCrc16</span><span class="p">(</span><span class="s2">"123456789"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "29B1" — the published CRC-16/CCITT-FALSE check value</span>
+<span class="nx">pixCrc16</span><span class="p">(</span><span class="nx">payload</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">4</span><span class="p">));</span><span class="w"> </span><span class="c1">// the four hex characters that close the payload</span>
+</code></pre></div>
+<hr />
+<h2 id="part-2-boleto">Part 2 — Boleto</h2>
+<h3 id="two-layouts-the-same-length">Two layouts, the same length</h3>
+<p>The barcode is 44 digits in both cases, and that is where the bug lives:</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>First digit</th>
+<th>Typed line</th>
+<th>Used for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Cobrança</strong> (<code>"banco"</code>)</td>
+<td>≠ 8</td>
+<td>47 digits</td>
+<td>A bank boleto against an invoice</td>
+</tr>
+<tr>
+<td><strong>Arrecadação</strong> (<code>"arrecadacao"</code>)</td>
+<td><code>8</code></td>
+<td>48 digits</td>
+<td>Utility, tax, traffic fine</td>
+</tr>
+</tbody>
+</table>
+<p>They are not variants of one format: <strong>every field moves position and meaning</strong>. The SDK detects the layout from the first digit and returns a discriminated union — narrow on <code>kind</code> before reading it.</p>
+<h3 id="reading-what-the-scanner-handed-you">Reading what the scanner handed you</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">parseCodigoBarras</span><span class="p">,</span><span class="w"> </span><span class="nx">parseLinhaDigitavel</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">boleto</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parseCodigoBarras</span><span class="p">(</span><span class="s2">"34191157000001234560000123456789012345678901"</span><span class="p">);</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">boleto</span><span class="p">.</span><span class="nx">kind</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"banco"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">banco</span><span class="p">;</span><span class="w"> </span><span class="c1">// "341"</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">valor</span><span class="p">;</span><span class="w"> </span><span class="c1">// 1234.56</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">vencimento</span><span class="p">;</span><span class="w"> </span><span class="c1">// Date — 2026-09-15</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">linhaDigitavel</span><span class="p">;</span><span class="w"> </span><span class="c1">// 47 digits, check digits included</span>
+<span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">segmentoLabel</span><span class="p">;</span><span class="w"> </span><span class="c1">// "Órgãos governamentais"</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">valor</span><span class="p">;</span><span class="w"> </span><span class="c1">// BRL, or null when the field is a reference</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">empresa</span><span class="p">;</span><span class="w"> </span><span class="c1">// FEBRABAN code, or a CNPJ prefix on segmento 6</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>parseLinhaDigitavel</code> goes the other way and accepts both lines (47 or 48). Both parsers <strong>verify every check digit the layout allows checking</strong>: the 3 (bank) or 4 (arrecadação) block digits, plus the general one. Any of them wrong throws <code>BoletoError</code> naming which.</p>
+<p>The length fixes the layout, and the first digit has to agree with it. A 47-digit line starting with <code>8</code> throws <code>BoletoError</code> instead of being read: the barcode it rebuilds starts with <code>8</code> too, and in the barcode that digit marks arrecadação — any reader that only sees the 44 positions, <code>parseCodigoBarras</code> included, would read it as a utility slip. Before 0.81.0, <code>81600000090000000000000000000190900000000000000</code> passed the three field check digits and came back as arrecadação with <code>valor</code> 900000000, while the cobrança reading of the same digits is bank 816 with <code>valor</code> 0 (#529).</p>
+<p>Explicit conversion, when you only want the other representation:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">codigoBarrasToLinhaDigitavel</span><span class="p">,</span><span class="w"> </span><span class="nx">linhaDigitavelToCodigoBarras</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">linhaDigitavelToCodigoBarras</span><span class="p">(</span><span class="s2">"34190000172345678901723456789017115700000123456"</span><span class="p">);</span>
+<span class="c1">// "34191157000001234560000123456789012345678901"</span>
+</code></pre></div>
+<h3 id="validating-typed-input">Validating typed input</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">formatLinhaDigitavel</span><span class="p">,</span><span class="w"> </span><span class="nx">validateBoleto</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">validateBoleto</span><span class="p">(</span><span class="nx">input</span><span class="p">);</span><span class="w"> </span><span class="c1">// true / false, never throws</span>
+<span class="nx">formatLinhaDigitavel</span><span class="p">(</span><span class="nx">input</span><span class="p">);</span>
+<span class="c1">// "34190.00017 23456.789017 23456.789017 1 15700000123456"</span>
+</code></pre></div>
+<p><code>formatLinhaDigitavel</code> is a <strong>display</strong> helper: input that is neither 47 nor 48 digits comes back untouched.</p>
+<h3 id="layout-only-without-parsing-boletokind">Layout only, without parsing: <code>boletoKind</code></h3>
+<p>To branch the UI before validating (show the right field, pick the icon),
+<code>boletoKind</code> reports the layout from the length and the first digit, and returns
+<code>null</code> for input that is not a slip — without throwing. When length and first
+digit disagree (47 digits starting with <code>8</code>, 48 starting with anything else), it
+is <code>null</code> too: that is the same input the parser rejects, so the two never name
+different layouts for one string:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">boletoKind</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">boletoKind</span><span class="p">(</span><span class="s2">"34191157000001234560000123456789012345678901"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "banco"</span>
+<span class="nx">boletoKind</span><span class="p">(</span><span class="s2">"848900000017..."</span><span class="p">);</span><span class="w"> </span><span class="c1">// "arrecadacao"</span>
+<span class="nx">boletoKind</span><span class="p">(</span><span class="s2">"123"</span><span class="p">);</span><span class="w"> </span><span class="c1">// null</span>
+</code></pre></div>
+<p>And <code>boletoDueDate(fator, options?)</code> resolves the due-date factor on its own —
+useful when the factor arrived from another system and you do not hold the whole
+barcode. It returns <code>{ date, epoch }</code> (telling you <strong>which</strong> base was used) or
+<code>null</code> when the factor is <code>0</code>, which is the "no due date" value:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">boletoDueDate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">boletoDueDate</span><span class="p">(</span><span class="mf">1000</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">epoch</span><span class="o">:</span><span class="w"> </span><span class="s2">"legacy"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// { date: 2000-07-03, epoch: "legacy" }</span>
+<span class="nx">boletoDueDate</span><span class="p">(</span><span class="mf">1000</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">epoch</span><span class="o">:</span><span class="w"> </span><span class="s2">"current"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// { date: 2025-02-22, epoch: "current" }</span>
+<span class="nx">boletoDueDate</span><span class="p">(</span><span class="mf">0</span><span class="p">);</span><span class="w"> </span><span class="c1">// null</span>
+</code></pre></div>
+<p>The returned <code>epoch</code> matters: it says which of the two ambiguous readings
+(below) came out, which is the difference between showing the date and showing
+the <strong>right</strong> date.</p>
+<h3 id="the-february-2025-due-date-rollover">The February 2025 due-date rollover</h3>
+<p>The due date is not stored as a date. It is a <strong>fator de vencimento</strong>: four digits counting days from a base date. And that base date <strong>changed</strong>:</p>
+<ul>
+<li>Original base <strong>1997-10-07</strong>. The field saturated at <code>9999</code> on <strong>2025-02-21</strong>.</li>
+<li>From <strong>2025-02-22</strong> the counter restarted at <code>1000</code> against a new base of <strong>2022-05-29</strong> (FEBRABAN communication FB-009/2023).</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">The two readings are genuinely ambiguous</p>
+<p>Every fator from 1000 to 9999 has a reading under each base — the old one lands in <code>2000-07-03 … 2025-02-21</code>, the new one in <code>2025-02-22 … 2049-10-14</code>. <strong>Nothing in the barcode says which.</strong></p>
+<p>The <code>"auto"</code> default picks whichever falls nearer <code>reference</code> (today, by default). That is right for the case that matters — a slip being paid now — and wrong for an archive sweep. When you know, say so:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">parseCodigoBarras</span><span class="p">(</span><span class="nx">barcode</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">epoch</span><span class="o">:</span><span class="w"> </span><span class="s2">"current"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// base 2022-05-29</span>
+<span class="nx">parseCodigoBarras</span><span class="p">(</span><span class="nx">barcode</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">epoch</span><span class="o">:</span><span class="w"> </span><span class="s2">"legacy"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// base 1997-10-07</span>
+<span class="nx">parseCodigoBarras</span><span class="p">(</span><span class="nx">barcode</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">reference</span><span class="o">:</span><span class="w"> </span><span class="kt">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="mf">2025</span><span class="p">,</span><span class="w"> </span><span class="mf">5</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+</div>
+<p>The resolved field comes with the base it was read under, so the UI can warn:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">boleto</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parseCodigoBarras</span><span class="p">(</span><span class="nx">barcode</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">boleto</span><span class="p">.</span><span class="nx">kind</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"banco"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">fatorVencimento</span><span class="p">;</span><span class="w"> </span><span class="c1">// 1570</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">vencimentoEpoch</span><span class="p">;</span><span class="w"> </span><span class="c1">// "current"</span>
+<span class="w">  </span><span class="nx">boleto</span><span class="p">.</span><span class="nx">vencimento</span><span class="p">;</span><span class="w"> </span><span class="c1">// Date, or null when the fator is 0 (no due date)</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>To issue one, the inverse:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">fatorVencimento</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">fatorVencimento</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="mf">2025</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">,</span><span class="w"> </span><span class="mf">22</span><span class="p">));</span><span class="w"> </span><span class="c1">// 1000 — current base</span>
+<span class="nx">fatorVencimento</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="mf">2025</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">,</span><span class="w"> </span><span class="mf">21</span><span class="p">),</span><span class="w"> </span><span class="s2">"legacy"</span><span class="p">);</span><span class="w"> </span><span class="c1">// 9999</span>
+<span class="nx">fatorVencimento</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(</span><span class="mf">2020</span><span class="p">,</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">));</span><span class="w"> </span><span class="c1">// BoletoError — no fator represents it</span>
+</code></pre></div>
+<h3 id="arrecadacao-what-is-read-and-what-is-not">Arrecadação: what is read and what is not</h3>
+<p>Position 3 says two things at once — whether the value is money, and which modulo computes the general check digit:</p>
+<table>
+<thead>
+<tr>
+<th>Position 3</th>
+<th>Value</th>
+<th>General DV</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>6</code></td>
+<td>BRL</td>
+<td>módulo 10</td>
+</tr>
+<tr>
+<td><code>7</code></td>
+<td>Currency quantity / reference</td>
+<td>módulo 10</td>
+</tr>
+<tr>
+<td><code>8</code></td>
+<td>BRL</td>
+<td>módulo 11</td>
+</tr>
+<tr>
+<td><code>9</code></td>
+<td>Currency quantity / reference</td>
+<td>módulo 11</td>
+</tr>
+</tbody>
+</table>
+<p>With <code>7</code> or <code>9</code>, <code>valor</code> comes back <code>null</code> and the raw field stays in <code>valorRaw</code> — the SDK does <strong>not</strong> pretend a reference is money. A position 3 outside <code>6-9</code> is rejected rather than mis-read.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>vencimentoCampoLivre</code> is a hint, not a settlement date</p>
+<p>The layout says a due date, <strong>if present</strong>, occupies the first eight digits of the campo livre as <code>AAAAMMDD</code>. But the field is optional and nothing marks its presence, so a campo livre that merely <em>looks</em> like a date lands there too. Use it in a UI; never to settle.</p>
+</div>
+<h3 id="the-three-check-digits-exported">The three check digits, exported</h3>
+<p>They show up in any FEBRABAN integration, so they are on the barrel:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mod10Dac</span><span class="p">,</span><span class="w"> </span><span class="nx">mod11DacArrecadacao</span><span class="p">,</span><span class="w"> </span><span class="nx">mod11DacCobranca</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">mod10Dac</span><span class="p">(</span><span class="s2">"01230067896"</span><span class="p">);</span><span class="w"> </span><span class="c1">// 3 — the worked example in the FEBRABAN v7 layout</span>
+</code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title">Cobrança módulo 11 ≠ arrecadação módulo 11</p>
+<p>Same weights, same subtraction — and <strong>different</strong> rules for the degenerate remainders. Cobrança resolves remainders <code>0</code>, <code>1</code> and <code>10</code> to <strong><code>1</code></strong>; arrecadação resolves <code>0</code> and <code>1</code> to <strong><code>0</code></strong>. Using one on the other's layout produces a wrong digit exactly 3 times in 11, which passes a small-sample test. That is why they are separate functions.</p>
+</div>
+<hr />
+<h2 id="part-3-nfe-access-key">Part 3 — NFe access key</h2>
+<p>The 44 digits that identify any Brazilian electronic fiscal document:</p>
+<div class="highlight"><pre><span></span><code>35 2601 12345678000195 55 001 000000123 1 12345678 5
+cUF AAMM CNPJ           mod série nNF    tp cNF     cDV
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">formatChaveNFe</span><span class="p">,</span><span class="w"> </span><span class="nx">parseChaveNFe</span><span class="p">,</span><span class="w"> </span><span class="nx">validateChaveNFe</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">validateChaveNFe</span><span class="p">(</span><span class="nx">input</span><span class="p">);</span><span class="w"> </span><span class="c1">// true / false</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">chave</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">parseChaveNFe</span><span class="p">(</span><span class="s2">"35260112345678000195550010000001231123456785"</span><span class="p">);</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">uf</span><span class="p">;</span><span class="w"> </span><span class="c1">// "SP" — the br module's own UF type</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">ano</span><span class="p">;</span><span class="w"> </span><span class="c1">// 2026</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">mes</span><span class="p">;</span><span class="w"> </span><span class="c1">// 1</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">cnpj</span><span class="p">;</span><span class="w"> </span><span class="c1">// "12345678000195"</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">modeloLabel</span><span class="p">;</span><span class="w"> </span><span class="c1">// "NF-e"</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">serie</span><span class="p">;</span><span class="w"> </span><span class="c1">// "001"</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">numero</span><span class="p">;</span><span class="w"> </span><span class="c1">// "000000123"</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">tipoEmissaoLabel</span><span class="p">;</span><span class="w"> </span><span class="c1">// "Normal"</span>
+<span class="nx">chave</span><span class="p">.</span><span class="nx">dv</span><span class="p">;</span><span class="w"> </span><span class="c1">// "5"</span>
+
+<span class="nx">formatChaveNFe</span><span class="p">(</span><span class="s2">"35260112345678000195550010000001231123456785"</span><span class="p">);</span>
+<span class="c1">// "3526 0112 3456 7800 0195 5500 1000 0001 2311 2345 6785"</span>
+</code></pre></div>
+<p><code>validateChaveNFe</code> checks three things: 44 digits, a <code>cUF</code> that is a real federative unit, and a check digit that recomputes (módulo 11, weights 2–9 right to left, remainder <code>0</code> or <code>1</code> → digit <code>0</code>).</p>
+<div class="admonition note">
+<p class="admonition-title">The layout is shared — <code>modelo</code> is what tells you which document you hold</p>
+<p>NF-e (<code>55</code>), NFC-e (<code>65</code>), CT-e (<code>57</code>), MDF-e (<code>58</code>), BP-e (<code>63</code>), NF3e (<code>66</code>)… all use the same 44-digit key. A model outside the table comes back with <code>modeloLabel: null</code> rather than a guess.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">The <code>cUF</code> resolves into the <code>UF</code> type</p>
+<p><code>chave.uf</code> is the same <code>UF</code> union that <code>citiesByUf</code>, <code>getState</code> and <code>BrazilMap</code> use, so it chains straight into the rest of the BR module.</p>
+</div>
+<h3 id="issuing-computing-the-check-digit-and-handling-the-error">Issuing: computing the check digit and handling the error</h3>
+<p>Code that <strong>builds</strong> a key (rather than reading a finished one) needs the check
+digit over the first 43 digits. <code>chaveNFeCheckDigit</code> does that calculation on
+its own, and throws <code>ChaveNFeError</code> when the body is not exactly 43 digits:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ChaveNFeError</span><span class="p">,</span><span class="w"> </span><span class="nx">chaveNFeCheckDigit</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">body</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"3526011234567800019555001000000123112345678"</span><span class="p">;</span><span class="w"> </span><span class="c1">// 43 digits</span>
+
+<span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">dv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">chaveNFeCheckDigit</span><span class="p">(</span><span class="nx">body</span><span class="p">);</span><span class="w"> </span><span class="c1">// 5</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">chave</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">body</span><span class="si">}${</span><span class="nx">dv</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">ChaveNFeError</span><span class="p">)</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">.</span><span class="nx">message</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>ChaveNFeError</code> is the NFe group's only exception — <code>validateChaveNFe</code> still
+returns <code>false</code> instead of throwing, because validating user input is not an
+exceptional case.</p>
+<hr />
+<h2 id="part-4-holidays-and-business-days">Part 4 — Holidays and business days</h2>
+<h3 id="what-is-in-the-table">What is in the table</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">holidaysFor</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">holidaysFor</span><span class="p">(</span><span class="mf">2026</span><span class="p">);</span>
+<span class="c1">// 13 entries: 9 national holidays + 4 movable days the financial system observes</span>
+</code></pre></div>
+<p>Each entry carries <code>date</code> (<code>YYYY-MM-DD</code>), <code>name</code>, <code>movable</code> and a <code>kind</code>:</p>
+<ul>
+<li><strong><code>"national"</code></strong> — a feriado nacional in federal law. Nine fixed dates (Lei 662/1949 as amended by Lei 10.607/2002, Lei 6.802/1980 for 12 October, Lei 14.759/2023 for 20 November).</li>
+<li><strong><code>"banking"</code></strong> — not a statutory holiday, but a day the financial system does not operate: <strong>Carnaval (Monday and Tuesday)</strong>, <strong>Good Friday</strong> and <strong>Corpus Christi</strong>. Branches shut, compensation stopped — a boleto or a wire dated there settles later.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Why both kinds exist</p>
+<p>Carnaval and Corpus Christi <strong>are not national holidays by law</strong> — yet CMN Resolução 4.880/2020 closes the banks on all four days. If you compute a payment deadline, both count; if you compute a labour obligation, only <code>"national"</code> does. The default is the banking calendar, because that is the one that breaks money:</p>
+<div class="highlight"><pre><span></span><code><span class="nx">isBusinessDay</span><span class="p">(</span><span class="s2">"2026-04-03"</span><span class="p">);</span><span class="w"> </span><span class="c1">// false — Good Friday</span>
+<span class="nx">isBusinessDay</span><span class="p">(</span><span class="s2">"2026-04-03"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">kinds</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"national"</span><span class="p">]</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// true</span>
+</code></pre></div>
+</div>
+<h3 id="what-is-not-in-it-and-will-not-be">What is <strong>not</strong> in it, and will not be</h3>
+<div class="admonition danger">
+<p class="admonition-title">State and municipal holidays are not covered</p>
+<p>The data magna varies by state and each of the 5,570 municipalities may declare its own, including up to four religious days. No table stays both complete and current. Pass them through <code>extra</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">SAO_PAULO</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">"2026-01-25"</span><span class="p">,</span><span class="w"> </span><span class="s2">"2026-07-09"</span><span class="p">,</span><span class="w"> </span><span class="s2">"2026-11-20"</span><span class="p">];</span>
+<span class="nx">isBusinessDay</span><span class="p">(</span><span class="s2">"2026-07-09"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">extra</span><span class="o">:</span><span class="w"> </span><span class="kt">SAO_PAULO</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// false</span>
+</code></pre></div>
+</div>
+<p>Also deliberately out:</p>
+<ul>
+<li><strong>Ponto facultativo.</strong> A federal decree letting public servants off is not a holiday and moves nobody's deadline.</li>
+<li><strong>Pre-2002 history.</strong> The table encodes the law as it stands today. Asking for 1998 returns today's set shifted to 1998, not what was in force then. The one exception modelled is 20 November, which only appears <strong>from 2024</strong>.</li>
+</ul>
+<h3 id="business-day-arithmetic">Business-day arithmetic</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">addBusinessDays</span><span class="p">,</span><span class="w"> </span><span class="nx">isBusinessDay</span><span class="p">,</span><span class="w"> </span><span class="nx">isHoliday</span><span class="p">,</span><span class="w"> </span><span class="nx">nextBusinessDay</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">isHoliday</span><span class="p">(</span><span class="s2">"2026-11-20"</span><span class="p">);</span><span class="w"> </span><span class="c1">// true</span>
+<span class="nx">isBusinessDay</span><span class="p">(</span><span class="s2">"2026-08-03"</span><span class="p">);</span><span class="w"> </span><span class="c1">// true — an ordinary Monday</span>
+
+<span class="nx">nextBusinessDay</span><span class="p">(</span><span class="s2">"2026-12-24"</span><span class="p">);</span><span class="w"> </span><span class="c1">// 2026-12-28 — skips Christmas and the weekend</span>
+<span class="nx">addBusinessDays</span><span class="p">(</span><span class="s2">"2026-04-01"</span><span class="p">,</span><span class="w"> </span><span class="mf">2</span><span class="p">);</span><span class="w"> </span><span class="c1">// 2026-04-06 — skips Good Friday and the weekend</span>
+<span class="nx">addBusinessDays</span><span class="p">(</span><span class="s2">"2026-04-06"</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="mf">2</span><span class="p">);</span><span class="w"> </span><span class="c1">// 2026-04-01 — a negative count walks back</span>
+</code></pre></div>
+<p>They accept a <code>Date</code> or <code>"YYYY-MM-DD"</code> and return a <code>Date</code> at <strong>local midnight</strong>.</p>
+<div class="admonition warning">
+<p class="admonition-title">Everything is the local calendar, never UTC</p>
+<p>"Is today a holiday?" is a question about the calendar of whoever is looking. The helpers use <code>getFullYear/getMonth/getDate</code> and build with <code>new Date(y, m, d)</code>; going through <code>toISOString()</code> would shift the day for every viewer east of Greenwich.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title"><code>addBusinessDays(date, 0)</code> returns the day untouched</p>
+<p>Even when it is not a business day. Snapping silently would hide exactly the case you need to see.</p>
+</div>
+<h3 id="where-easter-comes-in">Where Easter comes in</h3>
+<p>The four movable days are derived from Easter Sunday, not listed:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">easterSunday</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">easterSunday</span><span class="p">(</span><span class="mf">2026</span><span class="p">);</span><span class="w"> </span><span class="c1">// 2026-04-05</span>
+</code></pre></div>
+<p>It is the anonymous Gregorian <em>computus</em> (Meeus/Jones/Butcher): integer arithmetic over the year, no table and no dependency — exact for every Gregorian year.</p>
+<hr />
+<h2 id="part-5-whatsapp">Part 5 — WhatsApp</h2>
+<p>The Pix is assembled, the boleto is parsed, the slot is booked. What is left is the part no encoder solves: <strong>telling the person</strong>. In Brazil that happens on WhatsApp, and the piece every project rewrites is not the copy — it is normalising the number and building the URL.</p>
+<h3 id="a-deep-link-never-a-send">A deep link, never a send</h3>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">openWhatsApp</span><span class="p">,</span><span class="w"> </span><span class="nx">toWhatsAppNumber</span><span class="p">,</span><span class="w"> </span><span class="nx">whatsAppUrl</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">toWhatsAppNumber</span><span class="p">(</span><span class="s2">"(11) 99999-8888"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "5511999998888"</span>
+<span class="nx">whatsAppUrl</span><span class="p">(</span><span class="s2">"(11) 99999-8888"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Seu horário é amanhã às 14h."</span><span class="p">);</span>
+<span class="c1">// "https://wa.me/5511999998888?text=Seu%20hor%C3%A1rio%20%C3%A9%20amanh%C3%A3%20%C3%A0s%2014h."</span>
+
+<span class="nx">openWhatsApp</span><span class="p">(</span><span class="s2">"(11) 99999-8888"</span><span class="p">,</span><span class="w"> </span><span class="s2">"Seu horário é amanhã às 14h."</span><span class="p">);</span><span class="w"> </span><span class="c1">// opens the tab, returns true</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Opening the chat is the feature, not the limitation</p>
+<p>The link opens WhatsApp with the message <strong>ready</strong> and the person presses send. No official API, no approved template, no business verification — and, above all, the UI never claims a message was delivered when it was only <em>typed</em>. Automated sending is a different product (the Cloud API), with a different cost and a different responsibility.</p>
+</div>
+<h3 id="why-the-55-is-not-a-detail">Why the <code>55</code> is not a detail</h3>
+<p>A Brazilian phone number is stored almost everywhere <strong>without</strong> its country code: ten digits for a landline, eleven for a mobile. <code>wa.me</code> refuses anything that is not fully qualified. <code>toWhatsAppNumber</code> puts <code>55</code> in front of those two shapes, and returns untouched a number that <strong>already</strong> carries a country code (12 to 15 digits, the E.164 range no Brazilian national number can reach) — so a foreign client's mobile works too.</p>
+<div class="highlight"><pre><span></span><code><span class="nx">toWhatsAppNumber</span><span class="p">(</span><span class="s2">"11999998888"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "5511999998888"  — national mobile</span>
+<span class="nx">toWhatsAppNumber</span><span class="p">(</span><span class="s2">"1133334444"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "551133334444"   — national landline</span>
+<span class="nx">toWhatsAppNumber</span><span class="p">(</span><span class="s2">"+55 11 99999-8888"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "5511999998888"  — already qualified</span>
+<span class="nx">toWhatsAppNumber</span><span class="p">(</span><span class="s2">"+351 912 345 678"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "351912345678"   — Portugal, untouched</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">A number that cannot be normalised returns <code>""</code> — on purpose</p>
+<p>Handing back the digits as typed is what the naive version does, and the result is a <code>wa.me</code> URL that opens WhatsApp on a number nobody owns. Here a typo becomes a <strong>disabled button</strong>, not a dead chat window:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">whatsAppUrl</span><span class="p">(</span><span class="nx">client</span><span class="p">.</span><span class="nx">phone</span><span class="p">,</span><span class="w"> </span><span class="nx">greeting</span><span class="p">);</span>
+
+<span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">url</span><span class="p">}</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">openWhatsApp</span><span class="p">(</span><span class="nx">client</span><span class="p">.</span><span class="nx">phone</span><span class="p">,</span><span class="w"> </span><span class="nx">greeting</span><span class="p">)}&gt;</span>
+<span class="w">    </span><span class="nx">Message</span><span class="w"> </span><span class="nx">on</span><span class="w"> </span><span class="nx">WhatsApp</span>
+<span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+</code></pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Trunk and carrier prefixes (<code>0</code>, <code>021</code>) are not stripped</p>
+<p>A leading zero is ambiguous between long-distance dialling and carrier selection, so a number carrying one reads as invalid instead of being reinterpreted in the dark. The zero is what rules out <code>011999998888</code> even at a plausible 12 digits: <strong>no</strong> E.164 country code starts with <code>0</code>, so that is a national number wearing a prefix, never an international one.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The ninth digit belongs to your database, not to the link</p>
+<p>A mobile stored before 2016 has ten digits and reads as a landline here — the link is built and WhatsApp decides whether it finds the account. If your records go back that far, normalise the ninth digit <strong>in the database</strong>; a deep link cannot guess whether <code>1133334444</code> is a landline or a mobile missing its 9.</p>
+</div>
+<h3 id="recipe-asking-for-the-deposit-over-whatsapp">Recipe: asking for the deposit over WhatsApp</h3>
+<p>The case that ties this part back to <a href="#part-1-pix">Part 1</a> — the message body carries the Pix copy-and-paste string:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">openWhatsApp</span><span class="p">,</span><span class="w"> </span><span class="nx">pixPayload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Booking</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">clientName</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">clientPhone</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">depositBRL</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">DepositRequestButton</span><span class="p">({</span><span class="w"> </span><span class="nx">booking</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">booking</span><span class="o">:</span><span class="w"> </span><span class="kt">Booking</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">function</span><span class="w"> </span><span class="nx">requestDeposit</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">payload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">pixPayload</span><span class="p">({</span>
+<span class="w">            </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"financeiro@studio.com.br"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">merchantName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Studio Aurora"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">merchantCity</span><span class="o">:</span><span class="w"> </span><span class="s2">"SAO PAULO"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">amount</span><span class="o">:</span><span class="w"> </span><span class="kt">booking.depositBRL</span><span class="p">,</span>
+<span class="w">        </span><span class="p">});</span>
+
+<span class="w">        </span><span class="nx">openWhatsApp</span><span class="p">(</span>
+<span class="w">            </span><span class="nx">booking</span><span class="p">.</span><span class="nx">clientPhone</span><span class="p">,</span>
+<span class="w">            </span><span class="p">[</span>
+<span class="w">                </span><span class="sb">`Oi, </span><span class="si">${</span><span class="nx">booking</span><span class="p">.</span><span class="nx">clientName</span><span class="si">}</span><span class="sb">! Para confirmar seu horário, o sinal é de R$ </span><span class="si">${</span><span class="nx">booking</span><span class="p">.</span><span class="nx">depositBRL</span><span class="p">.</span><span class="nx">toFixed</span><span class="p">(</span><span class="mf">2</span><span class="p">)</span><span class="si">}</span><span class="sb">.`</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">""</span><span class="p">,</span>
+<span class="w">                </span><span class="s2">"Pix copia e cola:"</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">payload</span><span class="p">,</span>
+<span class="w">            </span><span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s2">"\n"</span><span class="p">),</span>
+<span class="w">        </span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">requestDeposit</span><span class="p">}&gt;</span><span class="nx">Pedir</span><span class="w"> </span><span class="nx">sinal</span><span class="w"> </span><span class="nx">no</span><span class="w"> </span><span class="nx">WhatsApp</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title"><code>openWhatsApp</code> reports the request, not the tab</p>
+<p><code>true</code> means "the number was usable and the open was requested". Opening with <code>noopener</code> makes <code>window.open</code> return <code>null</code> <strong>even on success</strong>, so its result cannot tell a blocked popup from an opened tab — and promising otherwise would be a lie. Outside a browser (test runner, service worker, build plugin) it returns <code>false</code> instead of throwing.</p>
+</div>
+<hr />
+<h2 id="recap">Recap</h2>
+<ul>
+<li><strong>Pix</strong> — <code>pixPayload</code> assembles the EMV BR Code with the right CRC-16/CCITT-FALSE (the literal <code>6304</code> included); <code>parsePixPayload</code> reads it back, tolerant of unknown tags and intolerant of a bad checksum, a repeated tag and an amount outside the EMV format; <code>&lt;PixQRCode&gt;</code> draws the symbol <strong>and</strong> the copy-and-paste line, because on a phone the QR alone is useless.</li>
+<li><strong>Boleto</strong> — <code>parseLinhaDigitavel</code> / <code>parseCodigoBarras</code> convert 47↔44 and 48↔44 while verifying every check digit; cobrança and arrecadação are different layouts and the SDK never conflates them; the fator de vencimento has <strong>two</strong> bases since February 2025 and the choice is explicit.</li>
+<li><strong>NFe</strong> — <code>parseChaveNFe</code> opens the 44 digits and resolves <code>cUF</code> into the module's <code>UF</code> type; <code>validateChaveNFe</code> checks length, UF and check digit.</li>
+<li><strong>Holidays</strong> — <code>holidaysFor</code> returns the 9 national holidays plus the 4 movable banking days, labelled; state and municipal days come in through <code>extra</code>; <code>isBusinessDay</code> / <code>nextBusinessDay</code> / <code>addBusinessDays</code> do the arithmetic in the local calendar.</li>
+<li><strong>WhatsApp</strong> — <code>toWhatsAppNumber</code> puts <code>55</code> in front of a national number and returns <code>""</code> for anything undialable; <code>whatsAppUrl</code> builds the <code>wa.me</code> link with the text encoded; <code>openWhatsApp</code> opens the tab. It is a <strong>deep link</strong>, never a send: the person presses send.</li>
+</ul>
+<p>None of this talks to a bank. For the server side (registering a boleto, creating a Pix charge, authorising an invoice), see <a href="../integration-fastapi/">FastAPI integration</a>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../br/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Brazil map (br)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Brazil map (br)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../payments/" class="md-footer__link md-footer__link--next" aria-label="Next: Checkout (Pix and card, Mercado Pago)">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Checkout (Pix and card, Mercado Pago)
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

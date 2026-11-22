@@ -1,0 +1,5610 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Blocos React/TypeScript compartilhados da Tempest — componentes, hooks, HTTP, auth, query, forms, tempo real, tema, i18n, telemetria, feature flags e offline.">
+      
+      
+      
+        <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/audio/">
+      
+      
+        <link rel="prev" href="../resumable-upload/">
+      
+      
+        <link rel="next" href="../device-capture/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.50">
+    
+    
+      
+        <title>Audio - tempest-react-sdk</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.a40c8224.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#audio" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../" title="tempest-react-sdk" class="md-header__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            tempest-react-sdk
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Audio
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema claro"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Usar tema claro" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Usar tema escuro"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Usar tema escuro" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Seguir preferência do sistema"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Seguir preferência do sistema" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="../../audio/" hreflang="pt" class="md-select__link">
+              Português (BR)
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English (US)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../" class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../basics/" class="md-tabs__link">
+          
+  
+    
+  
+  Web Fundamentals
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../tutorial/" class="md-tabs__link">
+          
+  
+    
+  
+  Start here
+
+        </a>
+      </li>
+    
+  
+
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../design/" class="md-tabs__link">
+          
+  
+    
+  
+  Software Design
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../components/" class="md-tabs__link">
+          
+  
+    
+  
+  Components
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Modules
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cookbook/" class="md-tabs__link">
+          
+  
+    
+  
+  Recipes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../testing/" class="md-tabs__link">
+          
+  
+    
+  
+  Project
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../" title="tempest-react-sdk" class="md-nav__button md-logo" aria-label="tempest-react-sdk" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    tempest-react-sdk
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    mauriciobenjamin700/tempest-react-sdk
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../basics/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Web Fundamentals
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Web Fundamentals
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_2" id="__nav_2_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page exists
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_2">
+            <span class="md-nav__icon md-icon"></span>
+            How the page exists
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTML: structure and semantics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/html-forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms and accessibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page looks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            How the page looks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CSS: selectors, cascade, specificity
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Box, flow, flex and grid
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/css-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Custom properties and theming
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    How the page reacts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            How the page reacts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JavaScript: value, reference, scope
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-async/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Async: promise, await, fetch
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/js-modules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Modules, npm and the bundler
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Before the tutorial
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            Before the tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/typescript/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TypeScript: the minimum the SDK uses
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../basics/react/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    React: component, state, effect
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Start here
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Start here
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_1" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../tutorial/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Tutorial
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3_1" id="__nav_3_1_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_1">
+            <span class="md-nav__icon md-icon"></span>
+            Tutorial
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/data-fetching/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data fetching
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/auth-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_2" id="__nav_3_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Tooling
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_2">
+            <span class="md-nav__icon md-icon"></span>
+            Tooling
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scaffold/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Scaffold (create-tempest-app)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    tempest CLI
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vite-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vite & alias
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../csp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Content-Security-Policy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../openapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI (codegen)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../gallery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Gallery (demo)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../design/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Software Design
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Software Design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_2" id="__nav_4_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    System design
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_2">
+            <span class="md-nav__icon md-icon"></span>
+            System design
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Frontend app layers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/folders/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Folder structure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/data-flow/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data flow
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Where each state lives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Writing the code
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            Writing the code
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Thinking in components
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/limits/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hard limits
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/typing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Strong typing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Sustaining it
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            Sustaining it
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/anti-patterns/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Anti-patterns
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/checklist/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Review checklist
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Components
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Components
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Components catalogue
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../icons/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Ícones por slug
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/inputs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data entry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/actions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Actions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/overlay/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overlay
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/feedback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Status & feedback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/identity/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity & micro
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/utility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility & headless
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/auth-screens/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth screens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_13" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_13" id="__nav_5_13_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Overlays & advanced
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_13">
+            <span class="md-nav__icon md-icon"></span>
+            Overlays & advanced
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-essentials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Essentials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-layout/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Layout & UX
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-navigation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Navigation & content
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-data/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Advanced data
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../components/advanced-chat/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Chat
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Modules
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Modules
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Package overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    App foundation
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_2">
+            <span class="md-nav__icon md-icon"></span>
+            App foundation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../routing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Routing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../state/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    State (Zustand)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../app-providers/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Providers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_3" id="__nav_6_3_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Hooks
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_3">
+            <span class="md-nav__icon md-icon"></span>
+            Hooks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../hooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utility hooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_4" id="__nav_6_4_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_4">
+            <span class="md-nav__icon md-icon"></span>
+            Integrations
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../http/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    HTTP
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../passkeys/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Passkeys (WebAuthn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../oauth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OAuth (Google)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../access-control/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Access Control (RBAC)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../query/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Query (TanStack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-provider/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Provider (CRUD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sse/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SSE
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../websocket/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../webrtc/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebRTC (Opus audio)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../geo/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Geolocation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Brazil map (br)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../br-pagamentos/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    BR payments, fiscal & contact
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../payments/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Checkout (Pix and card, Mercado Pago)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../push/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Push
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pwa/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    PWA & Offline-First
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Web Share
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../resumable-upload/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Resumable upload (tus)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Audio
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#playaudio-one-off-on-the-shared-player" class="md-nav__link">
+    <span class="md-ellipsis">
+      playAudio — one-off on the shared player
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#useaudio-private-per-component-player" class="md-nav__link">
+    <span class="md-ellipsis">
+      useAudio — private per-component player
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createaudioplayer-isolated-channels" class="md-nav__link">
+    <span class="md-ellipsis">
+      createAudioPlayer — isolated channels
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createsfxpool-usesfxpool-short-sound-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      createSfxPool / useSfxPool — short sound effects
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audioplayer-visible-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      AudioPlayer — visible transport
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#autoplay-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Autoplay policy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Assets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recording-start-with-the-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recording: start with the component
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recording: start with the component">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#props" class="md-nav__link">
+    <span class="md-ellipsis">
+      Props
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audioplayer-a-transport-for-one-clip" class="md-nav__link">
+    <span class="md-ellipsis">
+      AudioPlayer — a transport for one clip
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#permission-without-firing-the-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Permission without firing the prompt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#devices-microphone-and-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Devices: microphone and output
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gain-above-100-createaudiobus" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gain above 100%: createAudioBus
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gain above 100%: createAudioBus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-three-traps-the-bus-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      The three traps the bus handles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#details-that-avoid-surprises" class="md-nav__link">
+    <span class="md-ellipsis">
+      Details that avoid surprises
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#who-is-talking-monitorvoiceactivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Who is talking: monitorVoiceActivity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-createvoicechain" class="md-nav__link">
+    <span class="md-ellipsis">
+      Input: createVoiceChain
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input: createVoiceChain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#every-stage-exists-because-of-a-symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      Every stage exists because of a symptom
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nobody-sets-a-gate-threshold-by-eye" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nobody sets a gate threshold by eye
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hearing-yourself-before-joining" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hearing yourself before joining
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#an-idle-chain-builds-nothing" class="md-nav__link">
+    <span class="md-ellipsis">
+      An idle chain builds nothing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-it-yourself-the-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building it yourself: the hooks
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Building it yourself: the hooks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#classified-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Classified errors
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classified errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#messages-in-the-apps-language-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Messages in the app's language: messages
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recording-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recording level
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#format-what-you-can-and-cannot-have" class="md-nav__link">
+    <span class="md-ellipsis">
+      Format: what you can and cannot have
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outside-react-the-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      Outside React: the primitives
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#long-uploads-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Long uploads: chunks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../device-capture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device capture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../neural/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Neural noise suppression (RNNoise)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vision/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Vision (ONNX)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tabular/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tabular (scikit-learn)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Imaging (processing)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../charts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Charts (recharts)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../editor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Rich Text Editor (tiptap)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Forms
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            Forms
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms (zod)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../forms-br/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Forms BR
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_6" id="__nav_6_6_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Style & Theme
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_6">
+            <span class="md-nav__icon md-icon"></span>
+            Style & Theme
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../styles/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Styles & Design Tokens
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../theme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Theme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../i18n/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    i18n
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_7" id="__nav_6_7_label" tabindex="">
+            
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_7">
+            <span class="md-nav__icon md-icon"></span>
+            Observability
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../telemetry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Telemetry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../logger/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Logger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../error-boundary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Boundary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Recipes
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Recipes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integration-fastapi/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FastAPI integration (full-stack)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../offline-sync/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Offline Sync (FastAPI)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../utilities/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Utilities
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Project
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Project
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing helpers
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Release pipeline
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#playaudio-one-off-on-the-shared-player" class="md-nav__link">
+    <span class="md-ellipsis">
+      playAudio — one-off on the shared player
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#useaudio-private-per-component-player" class="md-nav__link">
+    <span class="md-ellipsis">
+      useAudio — private per-component player
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createaudioplayer-isolated-channels" class="md-nav__link">
+    <span class="md-ellipsis">
+      createAudioPlayer — isolated channels
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#createsfxpool-usesfxpool-short-sound-effects" class="md-nav__link">
+    <span class="md-ellipsis">
+      createSfxPool / useSfxPool — short sound effects
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audioplayer-visible-transport" class="md-nav__link">
+    <span class="md-ellipsis">
+      AudioPlayer — visible transport
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#autoplay-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      Autoplay policy
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Assets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recording-start-with-the-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recording: start with the component
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Recording: start with the component">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#props" class="md-nav__link">
+    <span class="md-ellipsis">
+      Props
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audioplayer-a-transport-for-one-clip" class="md-nav__link">
+    <span class="md-ellipsis">
+      AudioPlayer — a transport for one clip
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#permission-without-firing-the-prompt" class="md-nav__link">
+    <span class="md-ellipsis">
+      Permission without firing the prompt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#devices-microphone-and-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      Devices: microphone and output
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gain-above-100-createaudiobus" class="md-nav__link">
+    <span class="md-ellipsis">
+      Gain above 100%: createAudioBus
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Gain above 100%: createAudioBus">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-three-traps-the-bus-handles" class="md-nav__link">
+    <span class="md-ellipsis">
+      The three traps the bus handles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#details-that-avoid-surprises" class="md-nav__link">
+    <span class="md-ellipsis">
+      Details that avoid surprises
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#who-is-talking-monitorvoiceactivity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Who is talking: monitorVoiceActivity
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-createvoicechain" class="md-nav__link">
+    <span class="md-ellipsis">
+      Input: createVoiceChain
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input: createVoiceChain">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#every-stage-exists-because-of-a-symptom" class="md-nav__link">
+    <span class="md-ellipsis">
+      Every stage exists because of a symptom
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#nobody-sets-a-gate-threshold-by-eye" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nobody sets a gate threshold by eye
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hearing-yourself-before-joining" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hearing yourself before joining
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#an-idle-chain-builds-nothing" class="md-nav__link">
+    <span class="md-ellipsis">
+      An idle chain builds nothing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#building-it-yourself-the-hooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Building it yourself: the hooks
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Building it yourself: the hooks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#classified-errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      Classified errors
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Classified errors">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#messages-in-the-apps-language-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      Messages in the app's language: messages
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recording-level" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recording level
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#format-what-you-can-and-cannot-have" class="md-nav__link">
+    <span class="md-ellipsis">
+      Format: what you can and cannot have
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#outside-react-the-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      Outside React: the primitives
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#long-uploads-chunks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Long uploads: chunks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#recap" class="md-nav__link">
+    <span class="md-ellipsis">
+      Recap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      See also
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/edit/main/docs/audio.en.md" title="Edit this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+    
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk/raw/main/docs/audio.en.md" title="View source of this page" class="md-content__button md-icon">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
+    </a>
+  
+
+
+<h1 id="audio">Audio</h1>
+<p>Audio in the browser, both directions.</p>
+<p><strong>Playback</strong> — sound notifications (message chime, payment confirmation) with <code>playAudio</code>, <code>useAudio</code> and <code>createAudioPlayer</code>, plus the <code>AudioPlayer</code> component when you need a transport (play/pause, bar, times).</p>
+<p><strong>Capture</strong> — <code>AudioRecorder</code> for a one-line voice note, and underneath it <code>useMediaPermission</code>, <code>useMediaDevices</code>, <code>useMicrophone</code>, <code>useAudioRecorder</code>, <code>createLevelMeter</code> and <code>blobToWav</code>. No new dependency: the whole slice measures <strong>5.50 KB brotli</strong>.</p>
+<div class="admonition tip">
+<p class="admonition-title">If you just want to record a voice note, skip to <a href="#recording-start-with-the-component">Recording</a></p>
+<p>The rest of the page is the layer underneath, for when the component does not fit.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Why a wrapper around <code>new Audio()</code>?</p>
+<p>Playing sound in the browser runs into the <em>autoplay policy</em> and leaking <code>Audio</code> elements. The SDK encapsulates it: it tracks the current clip (so you can <code>stop</code> it), normalizes volume, handles the autoplay block by returning <code>null</code> instead of throwing, and cleans up on unmount when you use the hook.</p>
+</div>
+<!-- gallery:audio-capture -->
+<p><a href="../gallery/"><img alt="Áudio (gravação) in the gallery" src="../../assets/gallery/audio-capture.webp" /></a></p>
+<p><em>Section <code>audio-capture</code> of the <a href="../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<!-- gallery:voice-chain -->
+<p><a href="../gallery/"><img alt="Cadeia de voz (microfone) in the gallery" src="../../assets/gallery/voice-chain.webp" /></a></p>
+<p><em>Section <code>voice-chain</code> of the <a href="../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<h2 id="playaudio-one-off-on-the-shared-player"><code>playAudio</code> — one-off on the shared player</h2>
+<p>Ideal for a sound fired by an event, with no UI state:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">playAudio</span><span class="p">,</span><span class="w"> </span><span class="nx">useEventStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">StreamEvent</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"NOTIFY"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"PAYMENT-SUCCESS"</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">PaymentSounds</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">useEventStream</span><span class="p">&lt;</span><span class="nt">StreamEvent</span><span class="p">&gt;(</span><span class="sb">`</span><span class="si">${</span><span class="k">import</span><span class="p">.</span><span class="nx">meta</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">VITE_API_URL</span><span class="si">}</span><span class="sb">/notifications`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">onMessage</span><span class="o">:</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="kr">type</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"PAYMENT-SUCCESS"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="ow">void</span><span class="w"> </span><span class="nx">playAudio</span><span class="p">(</span><span class="s2">"/audio/money.mp3"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">volume</span><span class="o">:</span><span class="w"> </span><span class="kt">0.5</span><span class="w"> </span><span class="p">});</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>playAudio(src, options)</code> returns <code>Promise&lt;HTMLAudioElement | null&gt;</code> — <code>null</code> when the browser blocked autoplay. Options: <code>volume</code> (0–1, default 1), <code>loop</code>, <code>autoplay</code>, <code>stopPrevious</code>, <code>onEnded</code>, <code>onError</code>. To stop whatever the shared player is playing, use <code>stopAudio()</code>.</p>
+<h2 id="useaudio-private-per-component-player"><code>useAudio</code> — private per-component player</h2>
+<p>Each hook instance gets its own player, so unmounting stops audio automatically:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useAudio</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">NotificationBell</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">audio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAudio</span><span class="p">();</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">audio</span><span class="p">.</span><span class="nx">play</span><span class="p">(</span><span class="s2">"/audio/plim.wav"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">volume</span><span class="o">:</span><span class="w"> </span><span class="kt">0.8</span><span class="w"> </span><span class="p">})}&gt;</span>
+<span class="w">      </span><span class="err">🔔</span><span class="w"> </span><span class="p">{</span><span class="nx">audio</span><span class="p">.</span><span class="nx">unlocked</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"(tap to enable sound)"</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>audio.play(src, options)</code> — plays on the private player (same options as <code>playAudio</code>).</li>
+<li><code>audio.stop()</code> — stops the current clip.</li>
+<li><code>audio.unlocked</code> — becomes <code>true</code> after the first successful <code>play()</code>. Useful to hide UI asking for the initial interaction.</li>
+<li>Automatic cleanup on unmount.</li>
+</ul>
+<div class="admonition tip">
+<p class="admonition-title">Use <code>unlocked</code> to guide the user</p>
+<p>Before the first click, the browser blocks audio. Show a hint ("tap to enable sound") while <code>unlocked === false</code> and hide it as soon as it flips to <code>true</code>.</p>
+</div>
+<h2 id="createaudioplayer-isolated-channels"><code>createAudioPlayer</code> — isolated channels</h2>
+<p><code>createAudioPlayer()</code> creates a tracker independent from the default. Use it when you need to play two sounds simultaneously without one cutting off the other (e.g. background music + a sound effect):</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createAudioPlayer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">music</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createAudioPlayer</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">sfx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createAudioPlayer</span><span class="p">();</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">music</span><span class="p">.</span><span class="nx">play</span><span class="p">(</span><span class="s2">"/audio/loop.mp3"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">loop</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">volume</span><span class="o">:</span><span class="w"> </span><span class="kt">0.3</span><span class="w"> </span><span class="p">});</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">sfx</span><span class="p">.</span><span class="nx">play</span><span class="p">(</span><span class="s2">"/audio/coin.wav"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">volume</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// does not cut the music</span>
+
+<span class="nx">music</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w"> </span><span class="c1">// stops only the music</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">sfx</span><span class="p">.</span><span class="nx">current</span><span class="p">());</span><span class="w"> </span><span class="c1">// HTMLAudioElement | null</span>
+</code></pre></div>
+<p>Each player tracks <strong>one</strong> current clip. <code>stopPrevious: true</code> in <code>play()</code> stops that same player's previous clip before playing the new one.</p>
+<h2 id="createsfxpool-usesfxpool-short-sound-effects"><code>createSfxPool</code> / <code>useSfxPool</code> — short sound effects</h2>
+<p><code>new Audio(src)</code> on every play allocates an element and re-enters the network stack for a file the browser already has. For a sound that fires dozens of times a minute — a menu blip, a hit, a pickup — that is the wrong shape. The pool allocates once per source and replays.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useSfxPool</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">Menu</span><span class="p">({</span><span class="w"> </span><span class="nx">sfxVolume</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">sfxVolume</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">sfx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useSfxPool</span><span class="p">({</span><span class="w"> </span><span class="nx">volume</span><span class="o">:</span><span class="w"> </span><span class="kt">sfxVolume</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">100</span><span class="p">,</span><span class="w"> </span><span class="nx">baseUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">import.meta.env.BASE_URL</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">sfx</span><span class="p">.</span><span class="nx">preload</span><span class="p">([</span><span class="s2">"sfx/move.mp3"</span><span class="p">,</span><span class="w"> </span><span class="s2">"sfx/select.mp3"</span><span class="p">,</span><span class="w"> </span><span class="s2">"sfx/back.mp3"</span><span class="p">]);</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">sfx</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="o">&lt;</span><span class="nx">button</span><span class="w"> </span><span class="nx">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">sfx</span><span class="p">.</span><span class="nx">play</span><span class="p">(</span><span class="s2">"sfx/select.mp3"</span><span class="p">)}</span><span class="o">&gt;</span><span class="nx">Confirm</span><span class="o">&lt;</span><span class="err">/button&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><code>play(src, { volume })</code> — the per-play volume is multiplied by the pool's master.</li>
+<li><code>preload(src | src[])</code> — fetch ahead of the first play, so it is not silent while the file downloads.</li>
+<li><code>setVolume(v)</code> — also applies to whatever is already sounding, <strong>rescaled by each clip's own gain</strong>: one that started at half volume is not yanked up.</li>
+<li><code>stop(src?)</code> — stop one source, or all of them.</li>
+<li><code>dispose()</code> — release everything. <code>useSfxPool</code> calls it on unmount.</li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title"><code>voices</code>: restart or overlap</p>
+<p>The default (<code>voices: 1</code>) <strong>restarts</strong> the clip on every play, which is what a menu blip wants. Raise it to let the sound overlap itself — a hit landing while the previous one still rings:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">hits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createSfxPool</span><span class="p">({</span><span class="w"> </span><span class="nx">voices</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Not the same as <code>createAudioPlayer</code></p>
+<p><code>createAudioPlayer</code> tracks <strong>one</strong> current clip, with loop, output routing and lifecycle callbacks — what background music needs. Effects are the opposite case: many sources, all short, fire-and-forget, and the only thing that matters is that firing one is cheap.</p>
+</div>
+<p>Changing <code>volume</code> on <code>useSfxPool</code> calls <code>setVolume</code> on the existing pool rather than rebuilding it — rebuilding would throw away every element the user has already downloaded, which is exactly the cost the pool exists to avoid. <code>baseUrl</code>, <code>voices</code> and <code>maxSources</code> are read once, at creation.</p>
+<h2 id="audioplayer-visible-transport"><code>AudioPlayer</code> — visible transport</h2>
+<p><strong>When to use it:</strong> when the user needs to <strong>control</strong> playback, not just hear
+it — a voice message, a recorded take, an attachment. <code>playAudio</code> is
+fire-and-forget; <code>AudioPlayer</code> gives play/pause, a draggable bar and the times.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AudioPlayer</span><span class="p">,</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Trash</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Recording</span><span class="p">({</span><span class="w"> </span><span class="nx">blob</span><span class="p">,</span><span class="w"> </span><span class="nx">remove</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">Blob</span><span class="p">;</span><span class="w"> </span><span class="nx">remove</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">AudioPlayer</span>
+<span class="w">            </span><span class="na">src</span><span class="o">=</span><span class="p">{</span><span class="nx">blob</span><span class="p">}</span>
+<span class="w">            </span><span class="na">durationMs</span><span class="o">=</span><span class="p">{</span><span class="mf">12</span><span class="nx">_400</span><span class="p">}</span>
+<span class="w">            </span><span class="na">actions</span><span class="o">=</span><span class="p">{</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Delete"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">remove</span><span class="p">}&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Trash</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Pass <code>durationMs</code> when you already know the length</p>
+<p>A <code>Blob</code> recorded in the browser usually arrives with no duration header, and
+<code>&lt;audio&gt;</code> reports <code>Infinity</code> until it has played to the end. The bar is stuck
+for that whole stretch. If your recorder already told you the length, pass it
+— the component uses that value until the real metadata lands.</p>
+</div>
+<h2 id="autoplay-policy">Autoplay policy</h2>
+<p>Browsers block playback before the user's first interaction. <code>playAudio</code> / <code>play()</code> return <code>null</code> when blocked (and call <code>onError</code> if provided) — instead of throwing.</p>
+<div class="admonition warning">
+<p class="admonition-title">Unlock audio on the first click</p>
+<p>You can't play sound before any interaction. Design the app to fire a <code>play()</code> (even of a short silent clip) on the first click of any button; from then on the browser allows the rest.</p>
+</div>
+<h2 id="assets">Assets</h2>
+<p>The SDK does <strong>not</strong> bundle audio files. Serve them at <code>/audio/*</code> (or a CDN) and pass the URL. Sound-palette inspiration (alofans):</p>
+<div class="highlight"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">AUDIOS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">plim</span><span class="o">:</span><span class="w"> </span><span class="s2">"/audio/plim.wav"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">money</span><span class="o">:</span><span class="w"> </span><span class="s2">"/audio/money.mp3"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">notification</span><span class="o">:</span><span class="w"> </span><span class="s2">"/audio/bell_sound.wav"</span><span class="p">,</span>
+<span class="p">};</span>
+</code></pre></div>
+<h2 id="recording-start-with-the-component">Recording: start with the component</h2>
+<p>If all you want is a voice note, it is one line. <code>AudioRecorder</code> handles the permission, the level meter, the clock and the review before you ever see the audio:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">encodeIdSegment</span><span class="p">,</span><span class="w"> </span><span class="nx">AudioRecorder</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">VoiceNote</span><span class="p">({</span><span class="w"> </span><span class="nx">ticketId</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ticketId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">AudioRecorder</span>
+<span class="w">      </span><span class="na">maxDurationMs</span><span class="o">=</span><span class="p">{</span><span class="mf">120</span><span class="nx">_000</span><span class="p">}</span>
+<span class="w">      </span><span class="na">onRecorded</span><span class="o">=</span><span class="p">{({</span><span class="w"> </span><span class="nx">blob</span><span class="p">,</span><span class="w"> </span><span class="nx">mimeType</span><span class="p">,</span><span class="w"> </span><span class="nx">durationMs</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">FormData</span><span class="p">();</span>
+<span class="w">        </span><span class="nx">form</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s2">"audio"</span><span class="p">,</span><span class="w"> </span><span class="nx">blob</span><span class="p">,</span><span class="w"> </span><span class="sb">`note.</span><span class="si">${</span><span class="nx">mimeType</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">"mp4"</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"m4a"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"webm"</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">form</span><span class="p">.</span><span class="nx">append</span><span class="p">(</span><span class="s2">"duration"</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="p">(</span><span class="nx">durationMs</span><span class="p">));</span>
+<span class="w">        </span><span class="ow">void</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/tickets/</span><span class="si">${</span><span class="nx">encodeIdSegment</span><span class="p">(</span><span class="nx">ticketId</span><span class="p">)</span><span class="si">}</span><span class="sb">/audio`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">"POST"</span><span class="p">,</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">form</span><span class="w"> </span><span class="p">});</span>
+<span class="w">      </span><span class="p">}}</span>
+<span class="w">      </span><span class="na">footer</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">small</span><span class="p">&gt;</span><span class="nx">Two</span><span class="w"> </span><span class="nx">minutes</span><span class="w"> </span><span class="nx">maximum</span><span class="p">.&lt;/</span><span class="nt">small</span><span class="p">&gt;}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>What you get without writing any of it:</p>
+<table>
+<thead>
+<tr>
+<th>You did</th>
+<th>The component does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>nothing</td>
+<td>Does <strong>not</strong> ask for the microphone on mount — only on the first press of Record</td>
+</tr>
+<tr>
+<td>nothing</td>
+<td>When the permission is already <code>denied</code>, says so and how to fix it, instead of offering a button that cannot work</td>
+</tr>
+<tr>
+<td>nothing</td>
+<td>Live level meter, a clock that <strong>subtracts paused time</strong>, pause/resume</td>
+</tr>
+<tr>
+<td><code>maxDurationMs</code></td>
+<td>Stops itself at the cap, and shows the cap next to the clock</td>
+</tr>
+<tr>
+<td>nothing</td>
+<td>Review player with a transport, and "Record again" reusing the same stream</td>
+</tr>
+<tr>
+<td><code>format="wav"</code></td>
+<td>Converts before handing over, so <code>onRecorded</code> <strong>always</strong> gives you the format you asked for</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition danger">
+<p class="admonition-title">The permission prompt does not fire on mount, and that is the most important decision on this page</p>
+<p>A prompt the user did not provoke is the most reliable way to earn a permanent <strong>Block</strong> — after which <code>getUserMedia</code> rejects <strong>without ever prompting again</strong>. So the microphone opens on the first press of Record, and the press survives the round-trip: the component arms the recording and starts when the stream lands. Waiting for a second click would make the first one look broken.</p>
+</div>
+<h3 id="props">Props</h3>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>onRecorded</code></td>
+<td><code>(recording: AudioRecording) =&gt; void</code></td>
+<td>—</td>
+<td>Receives the finished audio. Never fires on cancel.</td>
+</tr>
+<tr>
+<td><code>maxDurationMs</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>Stops itself. <strong>Always worth setting</strong> on a public screen.</td>
+</tr>
+<tr>
+<td><code>deviceId</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Specific microphone, from <code>useMediaDevices().audioInputs</code>.</td>
+</tr>
+<tr>
+<td><code>format</code></td>
+<td><code>"native" \| "wav"</code></td>
+<td><code>"native"</code></td>
+<td><code>"wav"</code> converts on stop. See the cost below.</td>
+</tr>
+<tr>
+<td><code>wavOptions</code></td>
+<td><code>WavOptions</code></td>
+<td>—</td>
+<td><code>{ mono: true, sampleRate: 16000 }</code> suits speech.</td>
+</tr>
+<tr>
+<td><code>audioBitsPerSecond</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>32000–64000 is plenty for voice in Opus.</td>
+</tr>
+<tr>
+<td><code>review</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+<td>Review player before handing over.</td>
+</tr>
+<tr>
+<td><code>locale</code></td>
+<td><code>"pt-BR" \| "en"</code></td>
+<td><code>"pt-BR"</code></td>
+<td>Labels <strong>and</strong> the microphone error message.</td>
+</tr>
+<tr>
+<td><code>footer</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>A hint, a count, a legal notice.</td>
+</tr>
+<tr>
+<td><code>onError</code></td>
+<td><code>(error: unknown) =&gt; void</code></td>
+<td>—</td>
+<td>Recorder failure, or a WAV conversion that did not work.</td>
+</tr>
+</tbody>
+</table>
+<p><code>AudioRecording = { blob, mimeType, durationMs }</code>.</p>
+<h2 id="audioplayer-a-transport-for-one-clip"><code>AudioPlayer</code> — a transport for one clip</h2>
+<p>Takes a <code>Blob</code> directly, because the thing an app most often plays is the recording it just made:</p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">AudioPlayer</span><span class="w"> </span><span class="na">src</span><span class="o">=</span><span class="p">{</span><span class="nx">recording</span><span class="p">.</span><span class="nx">blob</span><span class="p">}</span><span class="w"> </span><span class="na">durationMs</span><span class="o">=</span><span class="p">{</span><span class="nx">recording</span><span class="p">.</span><span class="nx">durationMs</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="p">&lt;</span><span class="nt">AudioPlayer</span><span class="w"> </span><span class="na">src</span><span class="o">=</span><span class="s">"/audio/briefing.mp3"</span><span class="w"> </span><span class="na">sinkId</span><span class="o">=</span><span class="p">{</span><span class="nx">chosenOutput</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Pass <code>durationMs</code> whenever you have it — <code>&lt;audio&gt;</code> lies about a fresh recording</p>
+<p><code>MediaRecorder</code> writes WebM <strong>with no duration in the header</strong>, so <code>&lt;audio&gt;.duration</code> on a fresh recording is <code>Infinity</code>. That is why the recorder keeps its own clock and you should pass it along. Without it the component applies the only workaround there is — seeking past the end to force the browser to demux to the last frame — and the bar stays stuck until that resolves.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>src</code></td>
+<td><code>string \| Blob \| null</code></td>
+<td>—</td>
+<td>URL or blob. A blob becomes an object URL that is revoked for you.</td>
+</tr>
+<tr>
+<td><code>durationMs</code></td>
+<td><code>number</code></td>
+<td>—</td>
+<td>Known length. Wins over the element's.</td>
+</tr>
+<tr>
+<td><code>sinkId</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Chosen output. Chromium only.</td>
+</tr>
+<tr>
+<td><code>autoPlay</code> · <code>loop</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>As on the native element.</td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td><code>ReactNode</code></td>
+<td>—</td>
+<td>Right of the times — download, delete.</td>
+</tr>
+<tr>
+<td><code>onEnded</code> · <code>onError</code></td>
+<td><code>() =&gt; void</code></td>
+<td>—</td>
+<td>End, and decode/network failure.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="permission-without-firing-the-prompt">Permission without firing the prompt</h2>
+<p><code>useMediaPermission</code> reads the state <strong>without</strong> asking for the device. It is what makes a decent flow possible at all:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMediaPermission</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">RecordButton</span><span class="p">({</span><span class="w"> </span><span class="nx">onStart</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">onStart</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">state</span><span class="p">,</span><span class="w"> </span><span class="nx">supported</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMediaPermission</span><span class="p">(</span><span class="s2">"microphone"</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">state</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"denied"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span><span class="nx">Microphone</span><span class="w"> </span><span class="nx">blocked</span><span class="p">.</span><span class="w"> </span><span class="nx">Allow</span><span class="w"> </span><span class="nx">it</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nx">site</span><span class="w"> </span><span class="nx">settings</span><span class="w"> </span><span class="nx">and</span><span class="w"> </span><span class="nx">reload</span><span class="p">.&lt;/</span><span class="nt">p</span><span class="p">&gt;;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">onStart</span><span class="p">}&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">state</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"prompt"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">!</span><span class="nx">supported</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"Allow microphone and record"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"Record"</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>State</th>
+<th>Means</th>
+<th>What the UI should do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"prompt"</code></td>
+<td>never asked</td>
+<td>a button; asking shows the prompt</td>
+</tr>
+<tr>
+<td><code>"granted"</code></td>
+<td>allowed</td>
+<td>a normal button</td>
+</tr>
+<tr>
+<td><code>"denied"</code></td>
+<td><strong>sticky</strong> — asking again rejects immediately, with no prompt</td>
+<td>instructions for site settings, not a button</td>
+</tr>
+<tr>
+<td><code>"unknown"</code></td>
+<td>the Permissions API did not answer (Safari does not expose <code>microphone</code>)</td>
+<td>treat as "you will have to ask to find out"</td>
+</tr>
+</tbody>
+</table>
+<p>The state is <strong>live</strong>: if the user changes the permission in site settings, the hook updates.</p>
+<h2 id="devices-microphone-and-output">Devices: microphone and output</h2>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMediaDevices</span><span class="p">,</span><span class="w"> </span><span class="nx">isAudioOutputSelectionSupported</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">audioInputs</span><span class="p">,</span><span class="w"> </span><span class="nx">audioOutputs</span><span class="p">,</span><span class="w"> </span><span class="nx">labelsAvailable</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMediaDevices</span><span class="p">();</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">The names only appear after permission</p>
+<p>Before the user allows a capture, <strong>every</strong> <code>label</code> is <code>""</code> — the ids and the count are real, the names are not. A picker rendered there is a column of blanks. Use <code>labelsAvailable</code> to decide when to show it. Ask for the microphone first, then offer the choice.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The list changes while the page is open</p>
+<p>Plugging in a headset mid-recording is the normal case, not an edge case. The hook subscribes to <code>devicechange</code> instead of enumerating once on mount.</p>
+</div>
+<p><code>audioOutputs</code> comes back <strong>empty</strong> where the browser has no output routing — Safari and Firefox do not implement <code>setSinkId</code>. Empty there means "you cannot offer this choice", not "there are no speakers". Check <code>isAudioOutputSelectionSupported()</code> before rendering the picker, or the control is a lie on two of three engines.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">setAudioOutput</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">ok</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">setAudioOutput</span><span class="p">(</span><span class="nx">audioRef</span><span class="p">.</span><span class="nx">current</span><span class="p">,</span><span class="w"> </span><span class="nx">chosenDevice</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">ok</span><span class="p">)</span><span class="w"> </span><span class="nx">toast</span><span class="p">(</span><span class="s2">"This browser cannot choose the sound output."</span><span class="p">);</span>
+</code></pre></div>
+<p><code>playAudio</code> takes <code>sinkId</code> too, which is useful for a chime that must land on a headset while the call audio stays on the speakers.</p>
+<h2 id="gain-above-100-createaudiobus">Gain above 100%: <code>createAudioBus</code></h2>
+<p><strong>When to use:</strong> you need to turn a source <strong>up</strong>, mix several of them, and send the result to a chosen device. A call with per-participant volume is the typical case.</p>
+<p><code>element.volume</code> is clamped at <code>1</code>. A participant who speaks too quietly can only ever be turned <strong>down</strong> — the one correction nobody needs. Going above 100% takes a Web Audio graph, and building one correctly runs into three non-obvious things, which is what this bus packages.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createAudioBus</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">bus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createAudioBus</span><span class="p">({</span><span class="w"> </span><span class="nx">maxGain</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">});</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bus</span><span class="p">.</span><span class="nx">attach</span><span class="p">(</span><span class="nx">remoteStream</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">gain</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="w"> </span><span class="p">});</span>
+<span class="nx">handle</span><span class="p">.</span><span class="nx">setGain</span><span class="p">(</span><span class="mf">2.4</span><span class="p">);</span><span class="w"> </span><span class="c1">// above 1 — the point of the whole thing</span>
+<span class="nx">handle</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span>
+
+<span class="nx">bus</span><span class="p">.</span><span class="nx">setMasterGain</span><span class="p">(</span><span class="mf">1.2</span><span class="p">);</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">bus</span><span class="p">.</span><span class="nx">setOutputDevice</span><span class="p">(</span><span class="nx">headsetId</span><span class="p">);</span><span class="w"> </span><span class="c1">// "" = system default</span>
+<span class="nx">bus</span><span class="p">.</span><span class="nx">close</span><span class="p">();</span>
+</code></pre></div>
+<p>In React, <code>useAudioBus</code> does the same and closes the context on unmount:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useAudioBus</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="kd">function</span><span class="w"> </span><span class="nx">Participant</span><span class="p">({</span><span class="w"> </span><span class="nx">stream</span><span class="p">,</span><span class="w"> </span><span class="nx">volume</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">stream</span><span class="o">:</span><span class="w"> </span><span class="kt">MediaStream</span><span class="p">;</span><span class="w"> </span><span class="nx">volume</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">bus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAudioBus</span><span class="p">({</span><span class="w"> </span><span class="nx">maxGain</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">handle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">bus</span><span class="p">.</span><span class="nx">attach</span><span class="p">(</span><span class="nx">stream</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">handle</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">bus</span><span class="p">,</span><span class="w"> </span><span class="nx">stream</span><span class="p">]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Slider</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">volume</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">bus</span><span class="p">.</span><span class="nx">setMasterGain</span><span class="p">(</span><span class="nx">v</span><span class="p">)}</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Volume"</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="the-three-traps-the-bus-handles">The three traps the bus handles</h3>
+<div class="admonition danger">
+<p class="admonition-title">The Chrome bug that leaves the graph silent</p>
+<p>A <code>MediaStreamAudioSourceNode</code> built over a <strong>remote</strong> WebRTC stream produces no samples in Chrome unless that same stream is also attached to a media element (<a href="https://crbug.com/687574">crbug.com/687574</a>). The graph looks correct and is <strong>completely silent</strong> — without knowing the bug, that is a day of debugging. <code>attach()</code> creates a <code>&lt;audio muted autoplay&gt;</code> anchor for you. It looks like dead code and is <strong>not</strong>: deleting it mutes the entire call in Chrome.</p>
+</div>
+<div class="admonition warning">
+<p class="admonition-title">The limiter goes after the sum, never per source</p>
+<p>Clipping is a property of the <strong>mix</strong>, not of the participant: three people boosted to 200% each stay clean alone and distort the moment they talk over each other. A per-source limiter cannot see that; the master one can. Tune it with <code>limiter: { threshold: -3 }</code>, or turn it off with <code>limiter: false</code>.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>setSinkId</code> lives on the element, not on the context</p>
+<p>Sending the call to a headset while the rest of the system keeps the speakers is only reachable by leaving through <code>MediaStreamAudioDestinationNode</code> → <code>&lt;audio&gt;</code> → <code>setSinkId</code>. <code>AudioContext.setSinkId</code> has far thinner support, so the mix leaves through a real element. <code>bus.canSelectOutput</code> says whether the engine allows it: on Safari and on <strong>every</strong> iOS browser the output follows the system route, and the picker should be <strong>hidden</strong>, not offered and then ignored.</p>
+</div>
+<h3 id="details-that-avoid-surprises">Details that avoid surprises</h3>
+<ul>
+<li><strong>The ceiling is yours.</strong> <code>maxGain</code> (default <code>DEFAULT_MAX_GAIN</code>, which is <code>3</code>) caps both a source and the master. Past about 3, speech distorts before it gets louder.</li>
+<li><strong>Gain is clamped, and <code>NaN</code> becomes <code>1</code>.</strong> <code>NaN</code> arrives from an empty number field or a failed parse, and assigning it to an <code>AudioParam</code> <strong>throws</strong> — losing the audio to a typo in an input is a steep price.</li>
+<li><strong>A context is expensive.</strong> Browsers cap how many <code>AudioContext</code>s may live at once (Chrome allows ~6). Pass <code>context</code> to reuse the one the page already has, and call <code>close()</code> (or use the hook) when you are done.</li>
+<li><strong><code>resume()</code> for the autoplay policy.</strong> A context created outside a user gesture starts suspended — and suspended is silent with no error anywhere. Call <code>resume()</code> from the click that starts playback.</li>
+<li><strong>After <code>close()</code> the bus stays callable.</strong> <code>attach()</code> returns an inert handle instead of throwing — not politeness: creating a node on a closed <code>AudioContext</code> throws <code>InvalidStateError</code>, and the stream that arrives late is the <strong>normal</strong> case (a WebRTC <code>ontrack</code> firing after the component that owned the bus left the screen).</li>
+<li><strong>With no Web Audio the bus is inert, not broken.</strong> <code>supported: false</code>, every method stays callable. A page without sound beats a page that throws.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title"><code>Progress</code> is not an audio meter</p>
+<p>The <code>Progress</code> fill has <code>transition: width</code>, so the bar reports where the level <strong>was</strong> — the one thing a meter cannot do. For a live level use <code>createLevelMeter</code> and write to the DOM inside a <code>requestAnimationFrame</code>.</p>
+<p>Two traps if you draw your own: the scale has to be in <strong>dB</strong> (on a linear one, normal speech is squeezed into the first fifth), and the color gradient has to live on the <strong>track</strong> with a mask on top — on an element that grows, the gradient is rescaled with it and paints red at the tip of a weak signal, reporting clipping to someone who is nearly inaudible.</p>
+</div>
+<h2 id="who-is-talking-monitorvoiceactivity">Who is talking: <code>monitorVoiceActivity</code></h2>
+<p>A speaking indicator is information <strong>every client derives for free</strong> from the track it already receives. Signalling it through a server is the wrong path: the state changes several times per second and floods the room with messages.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">monitorVoiceActivity</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">vad</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">monitorVoiceActivity</span><span class="p">(</span><span class="nx">remoteStream</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">speaking</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setSpeaking</span><span class="p">(</span><span class="nx">speaking</span><span class="p">));</span>
+<span class="c1">// later</span>
+<span class="nx">vad</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span>
+</code></pre></div>
+<p>Two things separate this from an <code>if (level &gt; x)</code>:</p>
+<ul>
+<li><strong>The release.</strong> RMS drops to nothing in the gaps between words, so a bare comparison strobes on every syllable. The state only falls after <code>releaseMs</code> (default 350 ms) of quiet.</li>
+<li><strong><code>onChange</code> fires on the flip, not on the sample.</strong> A callback per reading would re-render the participant list ten times a second to say the same thing.</li>
+</ul>
+<p>The meter underneath runs with smoothing <strong>off</strong> (<code>decay: 0</code>): its eased decay plus this release would hold the indicator open long after the speech stopped.</p>
+<div class="admonition warning">
+<p class="admonition-title">One context per participant hits the browser's cap</p>
+<p>Chrome allows around six live <code>AudioContext</code>s, and a five-person call with a monitor each gets there. Open <strong>one</strong> and pass it as <code>context</code> to every monitor — <code>stop()</code> closes only a context it created itself.</p>
+</div>
+<h2 id="input-createvoicechain">Input: <code>createVoiceChain</code></h2>
+<p><code>createAudioBus</code> handles what reaches <strong>your ears</strong>. <code>createVoiceChain</code> handles what leaves <strong>your microphone</strong> — and what the browser hands over, even with <code>echoCancellation</code> and <code>noiseSuppression</code> on, is still fan rumble under the speech, 20 dB between a whisper and a shout, and consonants that do not read.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">createVoiceChain</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">DEFAULT_VOICE_CHAIN</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">measureNoiseFloor</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">suggestGateThreshold</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">floor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">measureNoiseFloor</span><span class="p">(</span><span class="nx">stream</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">onProgress</span><span class="o">:</span><span class="w"> </span><span class="kt">setProgress</span><span class="w"> </span><span class="p">});</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">chain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createVoiceChain</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">micTrack</span><span class="p">,</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="p">...</span><span class="nx">DEFAULT_VOICE_CHAIN</span><span class="p">,</span><span class="w"> </span><span class="nx">gate</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">gateThreshold</span><span class="o">:</span><span class="w"> </span><span class="kt">suggestGateThreshold</span><span class="p">(</span><span class="nx">floor</span><span class="p">)</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nx">gain</span><span class="o">:</span><span class="w"> </span><span class="kt">1.4</span><span class="w"> </span><span class="p">},</span>
+<span class="p">);</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">peer</span><span class="p">.</span><span class="nx">setLocalTrack</span><span class="p">(</span><span class="nx">chain</span><span class="p">.</span><span class="nx">track</span><span class="p">);</span>
+<span class="c1">// later</span>
+<span class="nx">chain</span><span class="p">.</span><span class="nx">release</span><span class="p">();</span>
+</code></pre></div>
+<h3 id="every-stage-exists-because-of-a-symptom">Every stage exists because of a symptom</h3>
+<table>
+<thead>
+<tr>
+<th>Stage</th>
+<th>Removes</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>highPass</code> (85 Hz)</td>
+<td>fans, traffic rumble, desk knocks, plosives</td>
+<td><strong>on</strong></td>
+</tr>
+<tr>
+<td><code>gate</code> (220 ms hold)</td>
+<td>room noise between phrases</td>
+<td>off</td>
+</tr>
+<tr>
+<td><code>compressor</code> (3:1)</td>
+<td>the distance between a whisper and a shout</td>
+<td><strong>on</strong></td>
+</tr>
+<tr>
+<td><code>presence</code> (+3 dB @ 3 kHz)</td>
+<td>words that arrive but are not understood</td>
+<td>off</td>
+</tr>
+<tr>
+<td><code>hissCut</code> (9 kHz)</td>
+<td>the hiss of a cheap microphone</td>
+<td>off</td>
+</tr>
+<tr>
+<td><code>deEsser</code> (@ 7 kHz)</td>
+<td>S and CH sounds that hurt on headphones</td>
+<td>off</td>
+</tr>
+<tr>
+<td><code>limiter</code> (−1 dBFS)</td>
+<td>digital clipping, which the other end <strong>cannot</strong> recover</td>
+<td><strong>on</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The four that are off by default each cost something audible when they are not needed: a gate at the wrong threshold clips words, presence on an already bright microphone is harsh, and a de-esser on a voice that does not hiss just dulls it.</p>
+<div class="admonition warning">
+<p class="admonition-title">The order is not cosmetic</p>
+<p>Gating <strong>before</strong> the high-pass lets a rumble hold the gate open. Compressing <strong>before</strong> the gate lifts the noise floor up to meet the threshold. A limiter <strong>before</strong> the output gain is a ceiling the gain walks straight through. The chain is built the way a console is: cut what is not speech, silence the rest, level it, shape it, set how loud it goes out, and only then hold a ceiling.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">This comes after the browser's processing, not instead of it</p>
+<p><code>echoCancellation</code> and <code>noiseSuppression</code> stay on: the two solve different problems. The browser's is trained on stationary noise inside the capture pipeline; this cuts what it leaves behind and decides when the line should be silent at all.</p>
+</div>
+<h3 id="nobody-sets-a-gate-threshold-by-eye">Nobody sets a gate threshold by eye</h3>
+<p>Setting a gate by ear means switching it on and hearing what disappeared, which only works if you already know what <strong>should</strong> have disappeared. <code>measureNoiseFloor</code> listens to the room at rest for 3 s and returns the <strong>peak</strong> RMS; <code>suggestGateThreshold</code> puts the threshold above it by a margin, because a gate sitting exactly at the noise level chatters, opening and closing on the room's own variation.</p>
+<p>The result is clamped at both ends: a room measured as perfectly silent would give a threshold of zero (a gate that never closes) and one measured while somebody talked would give a threshold nothing opens.</p>
+<div class="admonition tip">
+<p class="admonition-title">The threshold is read on every tick</p>
+<p>Moving <code>gateThreshold</code> on the settings object changes the <strong>live</strong> chain — a slider does not need to rebuild the graph.</p>
+</div>
+<h3 id="hearing-yourself-before-joining">Hearing yourself before joining</h3>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">monitor</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">monitorVoiceChain</span><span class="p">(</span><span class="nx">previewTrack</span><span class="p">,</span><span class="w"> </span><span class="nx">settings</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">gain</span><span class="w"> </span><span class="p">});</span>
+<span class="c1">// when the button is released</span>
+<span class="nx">monitor</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span>
+</code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title">Feedback</p>
+<p>Without headphones the speakers feed the microphone that feeds the speakers. That is why this is a <strong>held, explicit</strong> action rather than a preference — and the warning belongs in your UI, not only here.</p>
+</div>
+<h3 id="an-idle-chain-builds-nothing">An idle chain builds nothing</h3>
+<p><code>isVoiceChainIdle(settings, gain)</code> answers whether anything would change the signal. With every stage off and gain <code>1</code>, <code>createVoiceChain</code> hands the source track back untouched and <strong>does not even open an <code>AudioContext</code></strong> — browsers cap how many can be live, and one opened for a pass-through chain counts the same. <code>supported</code> is <code>false</code> in that case and on an engine without Web Audio.</p>
+<h2 id="building-it-yourself-the-hooks">Building it yourself: the hooks</h2>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMicrophone</span><span class="p">,</span><span class="w"> </span><span class="nx">useAudioRecorder</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">OwnRecorder</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">mic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMicrophone</span><span class="p">({</span><span class="w"> </span><span class="nx">noiseSuppression</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">rec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAudioRecorder</span><span class="p">(</span><span class="nx">mic</span><span class="p">.</span><span class="nx">stream</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">maxDurationMs</span><span class="o">:</span><span class="w"> </span><span class="kt">60_000</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">start</span><span class="p">}</span><span class="w"> </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">status</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"ready"</span><span class="p">}&gt;</span>
+<span class="w">        </span><span class="nx">Allow</span><span class="w"> </span><span class="nx">microphone</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">rec</span><span class="p">.</span><span class="nx">start</span><span class="p">}</span><span class="w"> </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="o">!</span><span class="nx">rec</span><span class="p">.</span><span class="nx">ready</span><span class="p">}&gt;</span>
+<span class="w">        </span><span class="nx">Record</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">rec</span><span class="p">.</span><span class="nx">stop</span><span class="p">()}&gt;</span><span class="nx">Stop</span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">meter</span><span class="w"> </span><span class="na">min</span><span class="o">=</span><span class="p">{</span><span class="mf">0</span><span class="p">}</span><span class="w"> </span><span class="na">max</span><span class="o">=</span><span class="p">{</span><span class="mf">1</span><span class="p">}</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">rec</span><span class="p">.</span><span class="nx">level</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;{</span><span class="nx">rec</span><span class="p">.</span><span class="nx">durationMs</span><span class="p">}</span><span class="w"> </span><span class="nx">ms</span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">error</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="w"> </span><span class="na">role</span><span class="o">=</span><span class="s">"alert"</span><span class="p">&gt;{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;}</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition danger">
+<p class="admonition-title"><code>stop()</code> on the microphone is not optional</p>
+<p>Dropping the last reference to a <code>MediaStream</code> does <strong>not</strong> turn off the microphone. Every track has to be stopped by hand — otherwise the browser keeps showing its recording indicator, the OS keeps the device busy, and the <strong>next</strong> <code>getUserMedia</code> (in another tab of the same app, typically) fails with <code>NotReadableError</code>. <code>useMicrophone</code> stops tracks on <code>stop()</code>, on unmount, and before re-opening.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">The recorder does <strong>not</strong> own the stream</p>
+<p><code>rec.stop()</code> deliberately leaves the microphone open, so a second take does not need another permission round-trip. Closing belongs to <code>mic.stop()</code>.</p>
+</div>
+<h3 id="classified-errors">Classified errors</h3>
+<p><code>useMicrophone().error</code> arrives already translated from <code>DOMException</code> into something you can branch on:</p>
+<table>
+<thead>
+<tr>
+<th><code>kind</code></th>
+<th>Cause</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insecure</code></td>
+<td>page on plain HTTP</td>
+<td>the fix is a <strong>URL</strong>, not a setting</td>
+</tr>
+<tr>
+<td><code>unsupported</code></td>
+<td>engine with no capture</td>
+<td>another browser</td>
+</tr>
+<tr>
+<td><code>permission-denied</code></td>
+<td>denied</td>
+<td>site settings</td>
+</tr>
+<tr>
+<td><code>not-found</code></td>
+<td>no device, or none matching the constraints</td>
+<td>relax <code>deviceId</code></td>
+</tr>
+<tr>
+<td><code>in-use</code></td>
+<td>hardware busy</td>
+<td>close the other app/tab</td>
+</tr>
+<tr>
+<td><code>unknown</code></td>
+<td>everything else</td>
+<td>shows the original message</td>
+</tr>
+</tbody>
+</table>
+<p>The order matters: a missing <code>mediaDevices</code> is almost never "this browser cannot do audio" — it is a page on HTTP, where the whole API simply does not exist. Reporting <code>unsupported</code> there sends the developer looking for a polyfill for a problem an <code>https://</code> URL fixes.</p>
+<h4 id="messages-in-the-apps-language-messages">Messages in the app's language: <code>messages</code></h4>
+<p><code>error.message</code> is <strong>English</strong> by default. To show the error in another language without
+wrapping the hook, pass <code>messages</code> — one text per <code>kind</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMicrophone</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">MICROPHONE_MESSAGES</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">unsupported</span><span class="o">:</span><span class="w"> </span><span class="s2">"Este navegador não dá acesso ao microfone."</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">insecure</span><span class="o">:</span><span class="w"> </span><span class="s2">"O microfone só funciona em conexão segura (HTTPS)."</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">"permission-denied"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Acesso ao microfone negado. Libere a permissão nas configurações do navegador."</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">"not-found"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nenhum microfone disponível neste aparelho."</span><span class="p">,</span>
+<span class="w">  </span><span class="s2">"in-use"</span><span class="o">:</span><span class="w"> </span><span class="s2">"O microfone está em uso por outro app. Feche-o e tente de novo."</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="kd">const</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">PortugueseMicrophone</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">mic</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMicrophone</span><span class="p">({</span><span class="w"> </span><span class="nx">messages</span><span class="o">:</span><span class="w"> </span><span class="kt">MICROPHONE_MESSAGES</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">start</span><span class="p">}&gt;</span><span class="nx">Allow</span><span class="w"> </span><span class="nx">microphone</span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">error</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">p</span><span class="w"> </span><span class="na">role</span><span class="o">=</span><span class="s">"alert"</span><span class="p">&gt;{</span><span class="nx">mic</span><span class="p">.</span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;}</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The <code>kind</code> does not change, so a UI that branches on it keeps working; only <code>message</code> is
+replaced. A <code>kind</code> you leave out keeps the English sentence. <code>AudioRecorder</code> already does
+this from its <code>locale</code>: under <code>"pt-BR"</code> (the default) the microphone error is in Portuguese,
+under <code>"en"</code> it is the hook's sentence.</p>
+<div class="admonition tip">
+<p class="admonition-title">Switching language does not ask for the microphone again</p>
+<p>The message is applied when the error is read, not when it is caught. If the user
+switches language with the error on screen, the text changes at once, with no new
+<code>getUserMedia</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Overriding <code>unknown</code> hides the original cause</p>
+<p>Under <code>unknown</code> the default <code>message</code> is the browser's own error text — the only clue
+to the cause. Translating that <code>kind</code> trades the clue for a generic sentence; log the
+error first if it matters.</p>
+</div>
+<h2 id="recording-level">Recording level</h2>
+<p><code>useAudioRecorder</code> already publishes <code>level</code> (0–1) at 10 Hz. For a per-frame bar, use <code>createLevelMeter</code> directly and write to the DOM:</p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">meter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createLevelMeter</span><span class="p">(</span><span class="nx">stream</span><span class="p">);</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">tick</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">bar</span><span class="p">.</span><span class="nx">style</span><span class="p">.</span><span class="nx">transform</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`scaleX(</span><span class="si">${</span><span class="nx">meter</span><span class="p">.</span><span class="nx">level</span><span class="p">()</span><span class="si">}</span><span class="sb">)`</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">raf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">requestAnimationFrame</span><span class="p">(</span><span class="nx">tick</span><span class="p">);</span>
+<span class="p">};</span>
+<span class="c1">// ...and always meter.stop() in cleanup</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">A meter is not decoration</p>
+<p>A muted OS input, or a headset with its mic arm folded up, produces a <strong>perfectly successful recording of silence</strong> — and with no visible level the user only finds out after they finish talking.</p>
+</div>
+<p>The value is RMS, not peak: peak reacts to a single sample and flickers, RMS tracks perceived loudness. Attack is instant and release is eased, which is how every hardware meter behaves — one that lags on the way up reads as "not recording".</p>
+<div class="admonition info">
+<p class="admonition-title">Close the <code>AudioContext</code></p>
+<p>The meter creates an <code>AudioContext</code> and <code>stop()</code> closes it. Browsers cap live contexts (Chrome allows around six), so a meter left running on unmount breaks every later one on the page. The hooks and the components close it for you; with a raw <code>createLevelMeter</code>, <code>stop()</code> is yours.</p>
+</div>
+<h2 id="format-what-you-can-and-cannot-have">Format: what you can and cannot have</h2>
+<div class="admonition danger">
+<p class="admonition-title"><code>MediaRecorder</code> produces neither MP3 nor WAV — in any browser</p>
+<p>Chromium and Firefox produce <strong>Opus</strong> (in WebM or Ogg); Safari produces <strong>AAC</strong> (in MP4). No engine implements an MP3 or WAV encoder for it. The SDK default negotiates in that order and reports what actually came out — <code>AudioRecording.mimeType</code> is what the browser said, not what you asked for.</p>
+</div>
+<p>If the backend only takes <strong>WAV</strong>, <code>blobToWav</code> converts client-side with <strong>zero dependency</strong>: it decodes with the browser's own decoder (<code>decodeAudioData</code>) and re-encodes RIFF/PCM 16-bit.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">blobToWav</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">wav</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">blobToWav</span><span class="p">(</span><span class="nx">recording</span><span class="p">.</span><span class="nx">blob</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">mono</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">sampleRate</span><span class="o">:</span><span class="w"> </span><span class="kt">16000</span><span class="w"> </span><span class="p">});</span>
+</code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">WAV costs about 10× the bytes</p>
+<p>The same voice note that is 40 KB in Opus lands around 500 KB as WAV at 48 kHz stereo. <code>{ mono: true, sampleRate: 16000 }</code> takes that to roughly 80 KB — and 16 kHz mono is what a speech-to-text endpoint wants anyway. The resampler is <code>OfflineAudioContext</code>, i.e. the browser's own, not a hand-rolled one.</p>
+</div>
+<p>If the backend only takes <strong>MP3</strong>: transcode on the server. An MP3 encoder in the client means a WASM build of the order of 150 KB in <strong>every</strong> SDK consumer's bundle to serve one format — the trade this SDK does not make.</p>
+<h2 id="outside-react-the-primitives">Outside React: the primitives</h2>
+<p><code>useAudioRecorder</code> is a thin shell over a recorder that knows nothing about
+React. When recording happens away from a component — in a store, a worker, a
+state machine — reach for the primitive directly:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createAudioRecorder</span><span class="p">,</span><span class="w"> </span><span class="nx">isAudioRecordingSupported</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">isAudioRecordingSupported</span><span class="p">())</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="s2">"This browser cannot record audio"</span><span class="p">);</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">rec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createAudioRecorder</span><span class="p">(</span><span class="nx">stream</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">audioBitsPerSecond</span><span class="o">:</span><span class="w"> </span><span class="kt">48_000</span><span class="w"> </span><span class="p">});</span>
+<span class="nx">rec</span><span class="p">.</span><span class="nx">start</span><span class="p">();</span>
+<span class="c1">// ...</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">recording</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">rec</span><span class="p">.</span><span class="nx">stop</span><span class="p">();</span><span class="w"> </span><span class="c1">// { blob, mimeType, durationMs }</span>
+</code></pre></div>
+<p>The handle exposes <code>start</code>, <code>pause</code>, <code>resume</code>, <code>stop</code>, <code>cancel</code>, plus the
+readers <code>status()</code> and <code>durationMs()</code> (both discounting paused time) and the
+negotiated <code>mimeType</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>createAudioRecorder(stream, opts)</code></td>
+<td>The recorder behind the hook. It does not own the stream — stop the mic yourself.</td>
+</tr>
+<tr>
+<td><code>isAudioRecordingSupported()</code></td>
+<td><code>MediaRecorder</code> exists <strong>and</strong> some container is producible.</td>
+</tr>
+<tr>
+<td><code>isMediaCaptureSupported()</code></td>
+<td>The same question for capture as a whole (<code>getUserMedia</code> + <code>MediaRecorder</code>) — use it before offering a record button of any kind.</td>
+</tr>
+<tr>
+<td><code>pickAudioMimeType(preferred?)</code></td>
+<td>First container in the list the browser actually produces, or <code>null</code>.</td>
+</tr>
+<tr>
+<td><code>AUDIO_MIME_CANDIDATES</code></td>
+<td>The order the SDK negotiates: Opus (WebM/Ogg) → AAC (MP4).</td>
+</tr>
+<tr>
+<td><code>encodeWav({ channels, sampleRate })</code></td>
+<td>RIFF/PCM 16-bit from Float32 channels — the engine behind <code>blobToWav</code>.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title"><code>isAudioRecordingSupported()</code> asks the right question</p>
+<p>Checking only <code>typeof MediaRecorder !== "undefined"</code> lets through the engine
+that has the API and produces none of the containers — the failure then
+surfaces at <code>start()</code>, with the user already waiting. This function checks
+both.</p>
+</div>
+<h2 id="long-uploads-chunks">Long uploads: chunks</h2>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">rec</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAudioRecorder</span><span class="p">(</span><span class="nx">mic</span><span class="p">.</span><span class="nx">stream</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">timesliceMs</span><span class="o">:</span><span class="w"> </span><span class="kt">5_000</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">onChunk</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">chunk</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">upload</span><span class="p">(</span><span class="nx">chunk</span><span class="p">),</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Without <code>timesliceMs</code> the whole recording sits in memory until <code>stop()</code> — fine for a voice note, not fine for an hour-long meeting. <strong>Chunks are not independently playable</strong>: only the set forms a valid file.</p>
+<h2 id="recap">Recap</h2>
+<ul>
+<li><code>playAudio(src, options)</code> — one-off sound on the shared player; returns <code>null</code> if autoplay was blocked. <code>stopAudio()</code> stops that player.</li>
+<li><code>useAudio()</code> — private per-component player with <code>play</code>/<code>stop</code>/<code>unlocked</code> and unmount cleanup.</li>
+<li><code>createAudioPlayer()</code> — isolated channel to play simultaneous sounds without one cutting off the other.</li>
+<li>The autoplay policy is handled by returning <code>null</code>; unlock audio on the first interaction.</li>
+<li>The SDK ships no audio files — you serve them and pass the URL.</li>
+<li><code>AudioRecorder</code> — a complete voice note: permission, level, clock, review, retake.</li>
+<li><code>AudioPlayer</code> — a transport for one clip; takes a <code>Blob</code> and <strong>needs</strong> <code>durationMs</code> for a fresh recording.</li>
+<li><code>useMediaPermission</code> — permission state <strong>without</strong> firing the prompt; separates "never asked" from "denied" (which is sticky).</li>
+<li><code>useMediaDevices</code> — mics and outputs, reacts to <code>devicechange</code>; <code>labelsAvailable</code> says when a picker is worth showing.</li>
+<li><code>useMicrophone</code> — stream plus classified error; <code>stop()</code> <strong>must</strong> be called or the recording indicator never clears. <code>messages</code> puts the error in the app's language.</li>
+<li><code>useAudioRecorder</code> — status, a clock that subtracts pauses, level, <code>maxDurationMs</code>, chunks.</li>
+<li><code>blobToWav</code> — WAV with no dependency, about 10× the bytes; MP3 stays on the server.</li>
+<li><code>setAudioOutput</code> / <code>isAudioOutputSelectionSupported</code> — output routing, Chromium only.</li>
+<li><code>createAudioBus</code> / <code>useAudioBus</code> — gain <strong>above 100%</strong>, a limiter after the sum and <code>setSinkId</code>; <code>attach()</code> brings the crbug.687574 anchor that keeps the graph from going silent in Chrome.</li>
+</ul>
+<h2 id="see-also">See also</h2>
+<ul>
+<li><a href="../sse/">SSE</a> / <a href="../push/">Push</a> — typical audio triggers</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../resumable-upload/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Resumable upload (tus)">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Resumable upload (tus)
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../device-capture/" class="md-footer__link md-footer__link--next" aria-label="Next: Device capture">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Device capture
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Mauricio Benjamin — MIT License
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/mauriciobenjamin700/tempest-react-sdk" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://www.npmjs.com/package/tempest-react-sdk" target="_blank" rel="noopener" title="www.npmjs.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M288 288h-32v-64h32zm288-128v192H288v32H160v-32H0V160zm-416 32H32v128h64v-96h32v96h32zm160 0H192v160h64v-32h64zm224 0H352v128h64v-96h32v96h32v-96h32v96h32z"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": ["announce.dismiss", "content.action.edit", "content.action.view", "content.code.annotate", "content.code.copy", "content.tabs.link", "content.tooltips", "navigation.footer", "navigation.indexes", "navigation.path", "navigation.sections", "navigation.tabs", "navigation.tabs.sticky", "navigation.top", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "toc.follow"], "search": "../../assets/javascripts/workers/search.f8cc74c7.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.60a45f97.min.js"></script>
+      
+    
+  </body>
+</html>

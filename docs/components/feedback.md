@@ -618,6 +618,8 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
 
+`sync` aceita o motor com o payload que ele tiver (`OfflineSync<Nota>` acima): a prop é tipada como `SyncStatusSource`, só o `getState` e o `subscribe` que o badge lê. Até a 0.92.0 ela era `OfflineSync<unknown>`, e todo motor tipado reprovava com TS2322 sob `strict` — o `enqueue` recebe o payload, então o motor não é covariante nele.
+
 ## `UpdatePrompt`
 
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.

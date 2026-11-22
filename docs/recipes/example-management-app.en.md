@@ -150,28 +150,11 @@ One file, mirroring the backend JSON field by field. The names stay in English a
 
 ```ts
 // src/lib/api.ts
-import { QueryClient } from "@tanstack/react-query";
-import {
-    CACHE_TIME,
-    STALE_TIME,
-    createQueryKeys,
-    createTempestAuth,
-    shouldRetryQuery,
-} from "tempest-react-sdk";
+import { createQueryClient, createQueryKeys, createTempestAuth } from "tempest-react-sdk";
 
 import type { User } from "@/types";
 
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: STALE_TIME.DEFAULT,
-            gcTime: CACHE_TIME.DEFAULT,
-            retry: shouldRetryQuery,
-            refetchOnWindowFocus: false,
-        },
-        mutations: { retry: 0 },
-    },
-});
+export const queryClient = createQueryClient();
 
 export const auth = createTempestAuth<User>({
     baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
@@ -203,8 +186,8 @@ This file is the heart of the app. Piece by piece:
 - **`retry: true`** retries a `GET` that failed on the network or with a `5xx`. A write is never retried on its own — a replayed `POST` could register the patient twice.
 - **`onSessionEnd`** clears the query cache when the session ends — on **Sign out**, on expiry and on account switch. Without it, the receptionist who signs in after the manager would see, for a moment, the revenue left in the cache.
 
-!!! warning "Why create the `QueryClient` by hand"
-    `AppProviders` creates a `QueryClient` on its own, but it stays locked inside, and `onSessionEnd` needs to call `clear()` on it. So the app creates its own and hands it to the provider. The `defaultOptions` copy the SDK's (`STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`, `shouldRetryQuery`), so the behaviour stays the same — see [Query → Provider](../query.md#provider).
+!!! note "Why the app creates the `QueryClient`"
+    `AppProviders` creates a `QueryClient` on its own, but it stays locked inside, and `onSessionEnd` needs to call `clear()` on it. So the app creates its own with `createQueryClient()` and hands it to the provider. It is the same client, with the same SDK defaults, none of them retyped — see [`createQueryClient`](../query.md#createqueryclient-the-client-outside-react).
 
 **`createQueryKeys`** gives every cache key a common prefix. Note the `patients()` / `patientList(search)` pair: the list is cached per search, and invalidating `patients()` drops **every** search at once after a registration.
 
@@ -459,7 +442,7 @@ The app's two doors live here. 🚪
 
 **The session door** is on the `/` route, which wraps all the others. The `useSessionGuard` guard is a hook — hence the `use` prefix — and subscribes to the store: when the session ends, by sign-out or by expiry, it re-renders on its own and sends the person to `/login`. `preserveFrom: true` carries along the address they came from.
 
-The guard asks for **token and user**. Between the token arriving and `/auth/me` answering there is a moment where only the token exists; without the user there is no role, and without a role the permissions say "no" to everything.
+The guard asks for **token and user**. Between the token arriving and `/auth/me` answering there is a moment where only the token exists; without the user there is no role, and without a role the permissions say "no" to everything. It is only that moment: when `/auth/me` fails, `login()` undoes the sign-in before rejecting, and the token is not left alone in the store (#748).
 
 **The role door** is on `pacientes`. `useCan` answers in an effect pass, so on the first render it does not know yet. The guard returns `"pending"` meanwhile: the app shows the spinner instead of bouncing the receptionist out in a blink. Details in [Routing → `"pending"`](../routing.md#the-async-function-form-the-third-state-pending).
 

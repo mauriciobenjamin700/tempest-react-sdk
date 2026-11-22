@@ -10,7 +10,7 @@ this final page we **stitch it all** into a complete flow: login → protected a
 
 ```text
 1. User opens /dashboard with no session
-        → guard reads useAuth.getState().isAuthenticated (false)
+        → guard reads useAuth.use.isAuthenticated() (false)
         → redirect to /login
 2. User submits login
         → api.post("/auth/login")  → { user, token }
@@ -153,7 +153,9 @@ the gate that reads the store **at render time**:
 {
   path: "dashboard",
   lazy: () => import("@/pages/Dashboard"),
-  guard: () => useAuth.getState().isAuthenticated,
+  guard: function useSignedIn() {
+    return useAuth.use.isAuthenticated();
+  },
   redirectTo: "/login",
 },
 ```
@@ -162,13 +164,15 @@ Before login, `isAuthenticated` is `false` → the `<AppRouter>` redirects to
 `/login`. After `setSession`, the next attempt to open `/dashboard` finds `true` →
 the Dashboard renders.
 
-!!! warning "Why the guard uses `getState()` and not the hook"
+!!! warning "Why the guard uses the hook and not `getState()`"
 
-    The `guard` runs **outside** the hooks cycle (during route mounting), so it
-    can't call `useAuth.use.isAuthenticated()`. It reads the current snapshot with
-    `getState()`. Inside **components** — like `RootLayout` — you use the `.use`
-    hook to re-render when auth changes. Same store, two ways to read depending on
-    the context. 💡
+    The `guard` runs **inside** the route's render, so it can call a hook — and it
+    has to: `useAuth.use.isAuthenticated()` subscribes the route, which is what
+    makes the logout in Step 4 and the 401 in Step 5 take the person off the
+    protected screen. `getState()` would read the value once: after logout, the
+    Dashboard would stay open, with an empty user, until the next navigation.
+    `getState()` is for code that runs **outside** React, like the client's
+    `onUnauthorized`. 💡
 
 ## Step 4 — Manual logout
 
@@ -229,8 +233,9 @@ You built a complete app with `tempest-react-sdk`, end to end:
   **same** `useAuth`. ✅
 - **Login**: `api.post("/auth/login")` → `setSession({ user, token })` →
   `navigate("/dashboard")`.
-- **Protected area**: the `guard` reads `useAuth.getState().isAuthenticated` on
-  render and redirects with `redirectTo` when false.
+- **Protected area**: the `guard` reads `useAuth.use.isAuthenticated()` on
+  render and redirects with `redirectTo` when false — mid-screen too, when the
+  session ends.
 - **Manual logout**: `useAuth.use.logout()` on a button; `RootLayout` re-renders
   because it reads via the `.use` hook.
 - **Automatic logout**: `onUnauthorized: () => useAuth.getState().logout()` on the

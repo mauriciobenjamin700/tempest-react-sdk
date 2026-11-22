@@ -39,14 +39,6 @@ function wait(ms: number): Promise<void> {
 }
 
 /**
- * A cookie-session backend whose `/api/orders` answers `401` to a request with
- * no bearer and account A's order, 50 ms later, to one with A's bearer — the
- * shape that makes the api client replay a tokenless request with the token a
- * `login()` or `refresh()` in flight installs.
- *
- * @returns The fetcher, the cookie switch and the bearers `/api/orders` saw.
- */
-/**
  * Wait until the bearer replay of `/api/orders` has reached the backend.
  *
  * The run-12 C1 cases end session A while that replay is on the wire, and
@@ -57,16 +49,43 @@ function wait(ms: number): Promise<void> {
  * precondition failed while the outcome under test still held. Polling every
  * millisecond lands inside the 50 ms the fake backend holds the replay.
  *
+ * The 2 s budget stays under the 5 s test timeout, so a replay that never
+ * leaves fails here, on `backend.seen`, instead of as a bare
+ * `TestTimeoutError` with no line (#692).
+ *
  * @param backend - The fake backend whose `seen` log is watched.
  * @returns Once the second `/api/orders` request was seen.
  */
 async function replaySent(backend: { seen: string[] }): Promise<void> {
     await vi.waitFor(() => expect(backend.seen).toHaveLength(2), {
         interval: 1,
-        timeout: 5_000,
+        timeout: 2_000,
     });
 }
 
+/**
+ * A cookie-session backend whose `/api/orders` answers `401` to a request with
+ * no bearer and account A's order, 50 ms later, to one with A's bearer — the
+ * shape that makes the api client replay a tokenless request with the token a
+ * `login()` or `refresh()` in flight installs.
+ *
+ * The replay these cases pin needs the tokenless `401` to land while a
+ * sign-in (`/api/auth/login`, `/api/auth/refresh`) is pending, so the backend
+ * orders the two instead of trusting the clock: the `401` waits for a sign-in
+ * to have arrived, and a sign-in is answered only after every tokenless
+ * `/api/orders` it overlapped got its `401`, plus one macrotask for the client
+ * to hand that `401` to the sign-in in flight. With wall-clock delays alone
+ * (`401` after 15 ms, sign-in after 30 ms) the order held by ~20 ms on an idle
+ * machine: the tokenless request left 5–15 ms after `login()`, which settled
+ * at 41–51 ms. Under load either side slipped — the `401` landed after
+ * `login()` had moved the epoch, or before the `login()` sent after it had
+ * left — the client surfaced it without replaying (by design, security audit
+ * run-17), and `replaySent` waited out the 5 s test timeout. Running this
+ * file 12 at a time alongside 12 copies of itself, three rounds, failed 12 of
+ * 36 runs across three cases (#692).
+ *
+ * @returns The fetcher, the cookie switch and the bearers `/api/orders` saw.
+ */
 function replayBackend(): {
     fetcher: typeof fetch;
     cookie: { alive: boolean };
@@ -75,17 +94,28 @@ function replayBackend(): {
     const cookie = { alive: true };
     const seen: string[] = [];
     let issued = 0;
+    let unauthorized: Promise<void> = Promise.resolve();
+    let signInArrived: () => void = () => undefined;
+    const signIn = new Promise<void>((resolve) => {
+        signInArrived = resolve;
+    });
     const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = new URL(String(input)).pathname;
         const bearer = new Headers(init?.headers).get("Authorization");
         if (path === "/api/auth/refresh") {
+            signInArrived();
             await wait(30);
+            await unauthorized;
+            await wait(1);
             if (!cookie.alive) return jsonResponse({ detail: "no cookie" }, 401);
             issued += 1;
             return jsonResponse({ access_token: `tok-${issued}` });
         }
         if (path === "/api/auth/login") {
+            signInArrived();
             await wait(30);
+            await unauthorized;
+            await wait(1);
             issued += 1;
             return jsonResponse({ access_token: `tok-${issued}` });
         }
@@ -97,7 +127,9 @@ function replayBackend(): {
         if (path === "/api/orders") {
             seen.push(bearer ?? "none");
             if (!bearer) {
-                await wait(15);
+                const answered = Promise.all([wait(15), signIn]).then(() => undefined);
+                unauthorized = Promise.all([unauthorized, answered]).then(() => undefined);
+                await answered;
                 return jsonResponse({ detail: "unauthorized" }, 401);
             }
             await wait(50);

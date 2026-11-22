@@ -27,7 +27,7 @@ function toMillis(value: number | string | Date): number {
  * @example
  * applyRemote: async (dto) => {
  *     const local = await store.get(dto.id);
- *     await store.save(lastWriteWins(local, dto, (r) => r.updatedAt));
+ *     await store.put(lastWriteWins(local, dto, (r) => r.updatedAt));
  * }
  */
 export function lastWriteWins<T>(
@@ -52,7 +52,7 @@ export function lastWriteWins<T>(
  * @example
  * applyRemote: async (dto) => {
  *     const local = await store.get(dto.id);
- *     await store.save(higherVersionWins(local, dto, (r) => r.version));
+ *     await store.put(higherVersionWins(local, dto, (r) => r.version));
  * }
  */
 export function higherVersionWins<T>(

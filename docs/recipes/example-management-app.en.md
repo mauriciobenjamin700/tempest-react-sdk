@@ -442,7 +442,7 @@ The app's two doors live here. 🚪
 
 **The session door** is on the `/` route, which wraps all the others. The `useSessionGuard` guard is a hook — hence the `use` prefix — and subscribes to the store: when the session ends, by sign-out or by expiry, it re-renders on its own and sends the person to `/login`. `preserveFrom: true` carries along the address they came from.
 
-The guard asks for **token and user**. Between the token arriving and `/auth/me` answering there is a moment where only the token exists; without the user there is no role, and without a role the permissions say "no" to everything.
+The guard asks for **token and user**. Between the token arriving and `/auth/me` answering there is a moment where only the token exists; without the user there is no role, and without a role the permissions say "no" to everything. It is only that moment: when `/auth/me` fails, `login()` undoes the sign-in before rejecting, and the token is not left alone in the store (#748).
 
 **The role door** is on `pacientes`. `useCan` answers in an effect pass, so on the first render it does not know yet. The guard returns `"pending"` meanwhile: the app shows the spinner instead of bouncing the receptionist out in a blink. Details in [Routing → `"pending"`](../routing.md#the-async-function-form-the-third-state-pending).
 

@@ -442,7 +442,7 @@ Aqui moram as duas portas do app. 🚪
 
 **A porta da sessão** está na rota `/`, que envolve todas as outras. O guard `useSessionGuard` é um hook — por isso o nome começa com `use` — e assina o store: quando a sessão termina, por Sair ou por expiração, ele re-renderiza sozinho e manda para `/login`. O `preserveFrom: true` leva junto o endereço de onde a pessoa veio.
 
-O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo.
+O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo. É só esse instante: se o `/auth/me` falha, o `login()` desfaz a entrada antes de rejeitar, e o token não fica sozinho no store (#748).
 
 **A porta do papel** está em `pacientes`. O `useCan` responde numa passada de efeito, então no primeiro render ele ainda não sabe. O guard devolve `"pending"` nesse meio-tempo: o app mostra o spinner, em vez de mandar a recepcionista embora num piscar de olhos. Detalhes em [Roteamento → `"pending"`](../routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 

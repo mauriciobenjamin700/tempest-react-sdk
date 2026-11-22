@@ -87,6 +87,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **#725, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
@@ -142,6 +143,20 @@ PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a 
   `SessionSupersededError` e `onUnauthorized` não roda. O refresh que falha sem ninguém entrar
   continua deixando o 401 e chamando `onUnauthorized` (#646). O preset `createTempestAuth` não era
   afetado.
+
+### Corrigido
+
+- **`createTempestAuth`: `login()` cujo `mePath` falha não deixa mais token instalado com usuário
+  `null`** (#748). O `login()` instalava o token e o refresh token e só então buscava o usuário; se
+  o `GET` do `mePath` falhava, ele rejeitava com o erro, mas a sessão ficava — medido na 71727a7
+  com um `/me` respondendo 500: `token: "tok-B"`, `user: null`, `isAuthenticated: true` e
+  `tempest-auth-refresh` guardado. Um guard que olha só o token (ou o `isAuthenticated`) deixava
+  entrar uma sessão sem usuário. Agora a entrada é desfeita antes de o `login()` rejeitar: o refresh
+  token novo é revogado (`logoutPath`, modo body), store e refresh token são limpos e o
+  `onSessionEnd` roda com `"expired"` para ela. Vale para `restore()` e para a troca de conta que um
+  `refresh()` detecta, que passam pelo mesmo caminho. Um `SessionSupersededError` no `/me` continua
+  sem mexer na sessão instalada por quem a moveu. A receita "Exemplo integrado: app de gestão" (PT
+  e EN) explica que o guard de token e usuário cobre só o instante antes do `/me` responder.
 
 ### Interno
 

@@ -200,6 +200,23 @@ useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/ru
   Agora a versão do projeto vence; o `tempest-react-sdk` continua fixado na versão do SDK que roda
   o scaffold. A receita do app de gestão deixa de mandar instalar `zod` e `@tanstack/react-query`.
 
+### Corrigido
+
+- **Scaffold `--pwa`: o background sync do worker não enfileira mais o que a página já reenvia**
+  (#727). O `src/sw.ts` gerado casava toda mutação do `/api/` da própria origem. Reproduzido com o
+  `installBackgroundSync` real e o `match` da 0.92.0 (`test/scaffold-pwa-background-sync.test.ts`):
+  um `PATCH` tus que falha offline fica na fila com o corpo inteiro do chunk (1 MiB no teste; o
+  padrão do `createResumableUpload` é 5 MiB, guardado de novo a cada tentativa) e o `Upload-Offset`
+  de quando falhou, e é reenviado depois de o cliente de upload já ter relido o offset com `HEAD` e
+  seguido sozinho. A issue tinha a outbox no lugar certo, mas o efeito é maior que "envia em dobro":
+  o worker reenvia, na ordem dele, cada tentativa feita offline, inclusive versões que a outbox já
+  superou, por cima da política de conflito dela. O template ganha `src/sw-sync-scope.ts`, com
+  `queuesInTheWorker`, que nunca enfileira requisição tus (`Tus-Resumable`) nem um prefixo de
+  `RETRIED_BY_THE_PAGE` — que nasce vazio, para o app acrescentar o que a outbox entrega. A seção de
+  background sync do `scaffold.md` explica a combinação, e a receita do app de campo troca o aviso
+  de contorno por um ponteiro para ela. Um scaffold `--pwa` com o template novo instala e builda
+  (`npm run build`, `dist/sw.js` de 17,01 kB).
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

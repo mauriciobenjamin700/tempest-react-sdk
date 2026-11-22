@@ -1568,12 +1568,12 @@ installPrecache({
 - **`sw.ts`** only precaches the app shell, so the app opens without a network. See
   [PWA](../pwa.md#2-precache-runtime-cache-navigation-preload).
 
-!!! warning "Do not turn on `installBackgroundSync` for the routes the outbox already handles"
-    The `--pwa` template ships `installBackgroundSync` matching **all** of `/api/`. In this
-    app, the outbox is what resends. With both on, a `PUT /api/visits/…` that failed
-    offline goes out twice — and a tus `PATCH` held by the worker is replayed later, with a
-    stale `Upload-Offset`, and gets a `409`. Remove `installBackgroundSync` (as above) or
-    take `/api/visits` and `/api/uploads` out of its `match`.
+!!! info "Why this `sw.ts` has no `installBackgroundSync`"
+    In this app, the outbox is what resends, and the tus upload resumes by itself. The
+    `--pwa` template already keeps tus out of background sync; if you keep the scaffold's
+    `installBackgroundSync`, add `"/api/visits/"` to `RETRIED_BY_THE_PAGE` in
+    `src/sw-sync-scope.ts`, or a `PUT /api/visits/…` that failed offline goes out of both
+    queues. See [One queue per mutation](../scaffold.md#background-sync-offline-mutations-that-resend-themselves).
 
 ## Testing in the field (without going to the field)
 

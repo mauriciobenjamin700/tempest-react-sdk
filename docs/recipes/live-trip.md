@@ -373,7 +373,7 @@ Pedaço por pedaço:
 - **`signal`** resume tudo em um estado: `connecting`, `waiting` (aberto, sem posição ainda), `live`, `stale` (última posição há mais de 30 s) e `lost`.
 
 !!! warning "Posição velha parece posição boa"
-    O mapa não sabe a idade da posição: a van continua desenhada onde estava, com a mesma seta. Quem diz "isso tem 4 minutos" é a sua tela — por isso o `signal` existe e o `SignalStatus` do passo 5 aparece logo acima do mapa.
+    O mapa não sabe a idade da posição: a van continua desenhada onde estava, com a mesma seta. Quem diz "isso tem 4 minutos" é a sua tela — por isso o `signal` existe e o `SignalStatus` do passo 6 aparece logo acima do mapa.
 
 ## Passo 4 — Paradas viram marcadores
 
@@ -558,7 +558,7 @@ export function TripMap({
 - **`route`** é a rota planejada, tracejada; **`trail`** é o caminho percorrido, sólido. A rota e os marcadores decidem o enquadramento — a van **não** entra nele, então uma posição nova não dá zoom-out.
 - **`follow`** mantém a van à vista sem mudar o zoom. Se a Juliana arrasta o mapa para olhar o próprio ponto, o seguir pausa e aparece **Recentralizar**.
 - **`vehicle.heading`** vem do GPS. Sem ele, a van vira um ponto — ou, com `roads`, segue a direção da rua.
-- **`etaLabel`** é o que o leitor de tela anuncia, numa região educada. O mapa não calcula ETA: ela vem do passo 6.
+- **`etaLabel`** é o que o leitor de tela anuncia, numa região educada. O mapa não calcula ETA: ela vem do passo 7.
 - **`markerScale` 1,25 em tela de toque** (`pointer: coarse`) deixa o número legível no celular. O alvo de toque já é 44 px em qualquer escala — a escala é para **ler**, não para conseguir tocar.
 - **[`LiveRouteMapLegend`](../geo.md#legenda-liveroutemaplegend)** desenha os mesmos glifos do mapa. Passe o mesmo `markerScale` para eles baterem.
 

@@ -22,13 +22,13 @@ Elas abrem o app no computador da recepção e no celular, entre um atendimento 
 Cada tela cobre os cinco estados de uma tela real: **carregando**, **vazio**, **erro**, **sucesso** e **celular**.
 
 !!! info "O que você precisa"
-    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)) e o `zod`:
+    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)):
 
     ```bash
-    npm install recharts zod @tanstack/react-query
+    npm install recharts
     ```
 
-    O `@tanstack/react-query` já vem com o SDK; declarar no seu `package.json` deixa explícito que o app importa dele. Rode `npx tempest doctor` depois: ele avisa se o npm aninhou uma segunda cópia.
+    O `zod` e o `@tanstack/react-query` que esta página importa já vêm declarados no `package.json` do scaffold, na mesma faixa do SDK — veja [Dependências que o app importa direto](../scaffold.md#dependencias-que-o-app-importa-direto).
 
 ## O contrato com o backend
 

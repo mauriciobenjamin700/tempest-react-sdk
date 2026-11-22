@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Scaffold: o `package.json` gerado declara `@tanstack/react-query`, `react-hook-form` e `zod`**
+  (#747). A documentação importa os três direto do código do app, e o template não os declarava.
+  No npm e no yarn o import resolvia por acaso, pela cópia que o SDK deixa na raiz do
+  `node_modules`; no pnpm, que só expõe o que o app declara, um scaffold da 0.92.0 reprovava o `tsc`
+  com `TS2307: Cannot find module` em `@tanstack/react-query`, `react-hook-form`, `zod` e
+  `lucide-react` (medido em 22/11/2026: `create-tempest-app .` sobre o tarball, `npx pnpm@9 install`,
+  `npx tsc --noEmit` num arquivo que importa os quatro). A issue citava dois pacotes; a varredura
+  das docs (`grep -rlE 'from "<pacote>"' docs`) acha 18 páginas importando `zod`, 18
+  `@tanstack/react-query`, 3 `react-hook-form` e 14 `lucide-react`. Os três primeiros passam a ser
+  declarados **na faixa do próprio SDK**, então o npm instala uma cópia só de cada (`npm ls`
+  mostra os do SDK como `deduped`) — o que importa para os dois que carregam contexto React. O
+  `lucide-react` fica de fora, como o `docs/icons.md` já prescreve. Com o template novo, o mesmo
+  scaffold instala, passa no `tsc`, no `eslint` e no `npm run build` em npm e em pnpm.
+  `test/scaffold-template.test.ts` varre as docs e reprova dependência do SDK importada por elas e
+  não declarada, e faixa do template diferente da do SDK.
+- **`create-tempest-app .` mantém a dependência que o projeto já declara.** O merge num
+  `package.json` existente deixava o template vencer, ao contrário do que o `docs/scaffold.md`
+  promete; com o `zod` no template, um projeto em `zod ^3` seria reescrito para `^4` sem aviso.
+  Agora a versão do projeto vence; o `tempest-react-sdk` continua fixado na versão do SDK que roda
+  o scaffold. A receita do app de gestão deixa de mandar instalar `zod` e `@tanstack/react-query`.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

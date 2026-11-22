@@ -18,7 +18,7 @@ props, examples, and accessibility notes.
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager, Lightbox
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Data](./components/data.md)** — Table, VirtualList, VirtualTable, DataTable, ListTile, Accordion, Timeline, TreeView, Sparkline
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, StorageUsage, UpdatePrompt
 - **[Identity & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 - **[Utilities & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Reveal, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
 - **[Auth screens](./components/auth-screens.md)** — AuthPage, AuthForm, LoginForm, SignUpForm, ForgotPasswordForm, ResetPasswordForm

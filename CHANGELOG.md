@@ -6,6 +6,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`<StorageUsage>`: exibe uso, quota e bytes pendentes de envio do armazenamento do navegador**
+  (parte de #726). Recebe tudo por prop (`usage`, `quota`, `pendingBytes`, `persisted`, `warnAt`,
+  `onRequestPersist`) e não lê `navigator.storage` sozinho: o app decide o limite e o momento de
+  pedir persistência. Mostra "X de Y usados · Z pendentes de envio" (bytes por `formatBytes`), avisa
+  quando `usage / quota >= warnAt` e quando há pendências num armazenamento não permanente, e troca a
+  barra por uma frase quando o navegador não informa os números (`null`). A barra é `role="meter"`
+  com `aria-valuetext`; os avisos, `role="status"`. A seção 4 de [PWA](docs/pwa.md) troca o medidor
+  escrito à mão (`<progress>` + `toFixed`) pelo componente. Doc em
+  [Status & feedback](docs/components/feedback.md#storageusage) e cenários na seção `pwa` da
+  gallery.
 - **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
   React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
   precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num

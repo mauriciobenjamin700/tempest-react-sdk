@@ -19,7 +19,7 @@ file**, complete, with its imports. You copy, paste and adapt. 🚀
     Every recipe assumes an app created by
     [`create-tempest-app`](../scaffold.md), or a Vite + React + TS app with the SDK
     installed and its CSS imported once in the entrypoint
-    ([Manual installation](../index.md#manual-installation)). When a recipe talks to
+    ([Manual installation](../index.md#manual-install)). When a recipe talks to
     a backend, the contract is that of a FastAPI service built on
     `tempest-fastapi-sdk`, described in [FastAPI integration](../integration-fastapi.md).
 

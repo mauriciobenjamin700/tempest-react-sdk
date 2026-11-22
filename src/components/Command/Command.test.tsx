@@ -152,3 +152,43 @@ describe("Command — navigation guards, wrap and icons", () => {
         expect(onOpenChange).toHaveBeenCalledWith(false);
     });
 });
+
+describe("Command — PT-BR search and naming", () => {
+    const items: CommandItem[] = [
+        { id: "users", label: "Usuários", onSelect: () => {} },
+        { id: "actions", label: "Relatórios", keywords: ["Ação em lote"], onSelect: () => {} },
+        { id: "home", label: "Início", onSelect: () => {} },
+    ];
+
+    it("finds an accented label from an unaccented query, with no keyword copy (#730)", async () => {
+        render(<Command open onOpenChange={vi.fn()} items={items} />);
+        await userEvent.type(screen.getByRole("combobox"), "usuarios");
+        expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Usuários"]);
+    });
+
+    it("folds keywords the same way, so 'acao' finds 'Ação em lote'", async () => {
+        render(<Command open onOpenChange={vi.fn()} items={items} />);
+        await userEvent.type(screen.getByRole("combobox"), "acao");
+        expect(screen.getAllByRole("option").map((o) => o.textContent)).toEqual(["Relatórios"]);
+    });
+
+    it("names the dialog and its search box in PT-BR by default (#731)", () => {
+        render(<Command open onOpenChange={vi.fn()} items={items} />);
+        expect(screen.getByRole("dialog", { name: "Paleta de comandos" })).toBeInTheDocument();
+        expect(screen.getByRole("combobox", { name: "Paleta de comandos" })).toHaveAttribute(
+            "placeholder",
+            "Digite um comando…",
+        );
+    });
+
+    it("takes the caller's accessible name", () => {
+        render(<Command open onOpenChange={vi.fn()} items={items} label="Ir para…" />);
+        expect(screen.getByRole("dialog", { name: "Ir para…" })).toBeInTheDocument();
+    });
+
+    it("shows the PT-BR empty message by default", async () => {
+        render(<Command open onOpenChange={vi.fn()} items={items} />);
+        await userEvent.type(screen.getByRole("combobox"), "zzz");
+        expect(screen.getByText("Nenhum resultado")).toBeInTheDocument();
+    });
+});

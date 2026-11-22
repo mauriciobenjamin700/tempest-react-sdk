@@ -39,21 +39,139 @@ const columns: DataTableColumn<User>[] = [
 />;
 ```
 
-| Prop           | Type                                  | Default | Description                                             |
-| -------------- | ------------------------------------- | ------- | ------------------------------------------------------- |
-| `data`         | `T[]`                                 | —       | Full dataset; sort/filter/pagination happen client-side |
-| `columns`      | `DataTableColumn<T>[]`                | —       | Column definitions                                      |
-| `pageSize`     | `number`                              | `10`    | Rows per page                                           |
-| `searchable`   | `boolean`                             | `false` | Render a search input above the table                   |
-| `searchKeys`   | `(keyof T)[]`                         | —       | Keys to search; default = string/number columns         |
-| `initialSort`  | `DataTableSort<T>`                    | —       | Initial sort applied before any header interaction      |
-| `rowKey`       | `(row: T, index) => string \| number` | index   | Stable key extractor for rows                           |
-| `emptyMessage` | `ReactNode`                           | —       | Content shown when no rows match                        |
+| Prop                | Type                                  | Default              | Description                                                  |
+| ------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| `data`              | `T[]`                                 | —                    | Full dataset; sort/filter/pagination happen client-side      |
+| `columns`           | `DataTableColumn<T>[]`                | —                    | Column definitions                                           |
+| `pageSize`          | `number`                              | `10`                 | Rows per page                                                |
+| `searchable`        | `boolean`                             | `false`              | Render a search input above the table                        |
+| `searchKeys`        | `(keyof T)[]`                         | —                    | Keys to search; default = string/number columns              |
+| `searchPlaceholder` | `string`                              | `"Buscar..."`        | Placeholder of the search box                                |
+| `searchLabel`       | `string`                              | `"Buscar na tabela"` | Accessible name of the search box                            |
+| `searchDebounceMs`  | `number`                              | `0`                  | Quiet time before the typed term applies                     |
+| `search`            | `string`                              | —                    | Controlled term (requires `onSearchChange`)                  |
+| `initialSort`       | `DataTableSort<T>`                    | —                    | Initial sort, read **on mount only**                         |
+| `sort`              | `DataTableSort<T> \| null`            | —                    | Controlled sort (requires `onSortChange`)                    |
+| `rowKey`            | `(row: T, index) => string \| number` | index                | Stable key extractor for rows                                |
+| `selectable`        | `true`                                | —                    | Checkbox column (with `selectedKeys` and `onSelectionChange`) |
+| `rowActions`        | `(row: T) => ReactNode`               | —                    | Trailing actions column, no borrowed `key`                   |
+| `rowActionsLabel`   | `string`                              | `"Ações"`            | Visually hidden heading of the actions column                |
+| `stackOnMobile`     | `boolean`                             | `false`              | Below 768 px, each row becomes a card                        |
+| `onRowClick`        | `(row: T) => void`                    | —                    | Row click                                                    |
+| `scrollLabel`       | `string`                              | —                    | Accessible name of the scroll region                         |
+| `emptyMessage`      | `ReactNode`                           | —                    | Content shown when no rows match                             |
 
-`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
+`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number; className?: string }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
 
 !!! info "Behavior"
-    Clicking a sortable header cycles asc → desc → unsorted. Search matches a case-insensitive substring across `searchKeys` (or every string/number column when omitted). Pagination is hidden when the result fits on a single page.
+    Clicking a sortable header cycles asc → desc → unsorted. Search matches a substring across `searchKeys` (or every string/number column when omitted), **ignoring case and accents**: "joao" finds "João", "usuarios" finds "Usuários". Pagination is hidden when the result fits on a single page.
+
+### Row selection and actions column
+
+`selectable` prepends a checkbox column; `rowActions` appends an actions column. Neither uses a field of the row as its `key`, so there is no duplicated column and no repeated React key.
+
+```tsx
+import { useState } from "react";
+import { Button, DataTable, type DataTableRowKey } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+}
+
+export function ProductTable({ products }: { products: Product[] }) {
+  const [selected, setSelected] = useState<DataTableRowKey[]>([]);
+
+  return (
+    <DataTable<Product>
+      data={products}
+      columns={[
+        { key: "sku", header: "SKU" },
+        { key: "name", header: "Product", sortable: true },
+      ]}
+      rowKey={(product) => product.id}
+      selectable
+      selectedKeys={selected}
+      onSelectionChange={setSelected}
+      selectionLabel={(product) => `Select ${product.name}`}
+      rowActions={(product) => (
+        <Button variant="ghost" size="sm" onClick={() => console.log("edit", product.id)}>
+          Edit
+        </Button>
+      )}
+      stackOnMobile
+    />
+  );
+}
+```
+
+- Selection is **controlled** and stores what `rowKey` returns. Pass a `rowKey` that returns the record id; with the index (the default) the selection follows positions and moves to other records when the page or the order changes.
+- The header checkbox selects and clears **the page on screen**, and turns `indeterminate` when only part of it is selected. Keys selected on other pages stay: a "select all" that reaches rows the user never saw is how a bulk delete removes the wrong record.
+- A click on a checkbox or inside the actions column does **not** fire `onRowClick` — not even inside a `DropdownMenu` portalled from it.
+
+| Prop                | Type                                   | Default                                    | Description                          |
+| ------------------- | -------------------------------------- | ------------------------------------------ | ------------------------------------ |
+| `selectable`        | `true`                                 | —                                          | Turns the selection column on        |
+| `selectedKeys`      | `readonly (string \| number)[]`        | —                                          | Selected keys, across every page     |
+| `onSelectionChange` | `(keys: (string \| number)[]) => void` | —                                          | Receives the whole new selection     |
+| `selectionLabel`    | `(row: T) => string`                   | `"Selecionar linha N"`                     | Accessible name of a row checkbox    |
+| `selectAllLabel`    | `string`                               | `"Selecionar todas as linhas desta página"` | Accessible name of the header checkbox |
+
+!!! check "The type rejects half a selection"
+    `selectable` without `selectedKeys` would be a column of checkboxes that never tick. The three come together, or `tsc` fails at the call site.
+
+### Controlled search and sort
+
+When search and sort live outside the table — in the URL, say — pass `search` and `sort`. The box opens with the term and follows it when it changes from outside (back button, a "clear filters" link); the header arrow follows `sort` on every render. `initialSort` still exists, but is read once, on mount.
+
+```tsx
+import { DataTable, useUrlState, type DataTableSort } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+  city: string;
+}
+
+export function Members({ members }: { members: Member[] }) {
+  const { state, set } = useUrlState({ q: "", order: "", dir: "" });
+  const sort: DataTableSort<Member> | null =
+    state.order === "name" || state.order === "city"
+      ? { key: state.order, direction: state.dir === "desc" ? "desc" : "asc" }
+      : null;
+
+  return (
+    <DataTable<Member>
+      data={members}
+      columns={[
+        { key: "name", header: "Name", sortable: true },
+        { key: "city", header: "City", sortable: true },
+      ]}
+      rowKey={(member) => member.id}
+      searchable
+      searchLabel="Search members"
+      searchPlaceholder="Name or city"
+      search={state.q}
+      searchDebounceMs={300}
+      onSearchChange={(q) => set({ q }, { replace: true })}
+      sort={sort}
+      onSortChange={(next) =>
+        set({ order: next ? String(next.key) : null, dir: next?.direction ?? null })
+      }
+    />
+  );
+}
+```
+
+`searchDebounceMs` lets the box show every keystroke and publishes the term only after the pause. In server mode, that is what makes a search cost **one** request instead of one per letter.
+
+!!! check "A controlled pair with nowhere to go does not compile"
+    `sort` without `onSortChange` (or `search` without `onSearchChange`) would be an arrow or a box that never changes. Both types reject it.
+
+### On a phone 📱
+
+`stackOnMobile` is forwarded to [`Table`](./data.md#tablet): below 768 px each row becomes a label/value card instead of a table that scrolls sideways. The label comes from `header` when it is text, `sortable` columns included (their header becomes a button). The selection and actions columns get no label — the checkbox and the button already say what they do. In card mode the header row is visually hidden, so the page's "select all" is only reachable by a screen reader; add your own button if the phone screen needs it.
 
 ## `Wizard`
 

@@ -94,7 +94,6 @@ src/
 └── features/products/
     ├── product.ts
     ├── use-product-filters.ts
-    ├── ProductSearch.tsx
     ├── ProductFormDrawer.tsx
     └── ProductsPage.tsx
 ```
@@ -269,12 +268,14 @@ formulário vazio de cadastro.
 
 ```ts
 // src/features/products/use-product-filters.ts
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   ALL_OPTION_VALUE,
-  useSearchParams,
+  useUrlState,
   type DataTableSort,
   type GetListParams,
+  type UrlStatePatch,
+  type UrlStateWriteOptions,
 } from "tempest-react-sdk";
 
 import type { Product } from "@/features/products/product";
@@ -285,15 +286,13 @@ const DEFAULTS = {
   busca: "",
   categoria: ALL_OPTION_VALUE,
   status: ALL_OPTION_VALUE,
-  pagina: "1",
-  por_pagina: "20",
+  pagina: 1,
+  por_pagina: 20,
   ordem: "",
   dir: "",
 };
 
-type ParamName = keyof typeof DEFAULTS;
-
-export type FiltersPatch = Partial<Record<ParamName, string | number | null>>;
+export type FiltersPatch = UrlStatePatch<typeof DEFAULTS>;
 
 export interface ProductFilters {
   search: string;
@@ -306,65 +305,33 @@ export interface ProductFilters {
   key: string;
 }
 
-function readPositiveInt(raw: string | null, fallback: number): number {
-  const value = Number(raw);
-  return Number.isInteger(value) && value > 0 ? value : fallback;
-}
-
-function readSort(params: URLSearchParams): DataTableSort<Product> | null {
-  const field = SORTABLE.find((name) => name === params.get("ordem"));
-  if (!field) return null;
-  return { key: field, direction: params.get("dir") === "desc" ? "desc" : "asc" };
-}
-
 export function useProductFilters(): {
   filters: ProductFilters;
-  update: (patch: FiltersPatch, options?: { replace?: boolean }) => void;
+  update: (patch: FiltersPatch, options?: UrlStateWriteOptions) => void;
   clear: () => void;
 } {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const latest = useRef(searchParams);
-
-  useEffect(() => {
-    latest.current = searchParams;
-  }, [searchParams]);
+  const { state, set, reset } = useUrlState(DEFAULTS);
 
   const filters = useMemo<ProductFilters>(() => {
-    const search = searchParams.get("busca") ?? DEFAULTS.busca;
-    const category = searchParams.get("categoria") ?? DEFAULTS.categoria;
-    const status = searchParams.get("status") ?? DEFAULTS.status;
+    const field = SORTABLE.find((name) => name === state.ordem);
     return {
-      search,
-      category,
-      status,
-      page: readPositiveInt(searchParams.get("pagina"), 1),
-      pageSize: readPositiveInt(searchParams.get("por_pagina"), Number(DEFAULTS.por_pagina)),
-      sort: readSort(searchParams),
+      search: state.busca,
+      category: state.categoria,
+      status: state.status,
+      page: Math.max(1, Math.trunc(state.pagina)),
+      pageSize: Math.max(1, Math.trunc(state.por_pagina)),
+      sort: field ? { key: field, direction: state.dir === "desc" ? "desc" : "asc" } : null,
       isFiltered:
-        search !== DEFAULTS.busca || category !== DEFAULTS.categoria || status !== DEFAULTS.status,
-      key: [search, category, status].join("|"),
+        state.busca !== DEFAULTS.busca ||
+        state.categoria !== DEFAULTS.categoria ||
+        state.status !== DEFAULTS.status,
+      key: [state.busca, state.categoria, state.status].join("|"),
     };
-  }, [searchParams]);
+  }, [state]);
 
-  const update = useCallback(
-    (patch: FiltersPatch, options: { replace?: boolean } = {}) => {
-      const next = new URLSearchParams(latest.current);
-      for (const [name, value] of Object.entries(patch) as [ParamName, string | number | null][]) {
-        const text = value === null ? "" : String(value);
-        if (text === "" || text === DEFAULTS[name]) next.delete(name);
-        else next.set(name, text);
-      }
-      latest.current = next;
-      setSearchParams(next, { replace: options.replace ?? false });
-    },
-    [setSearchParams],
-  );
+  const clear = () => reset(["busca", "categoria", "status", "pagina"]);
 
-  const clear = useCallback(() => {
-    update({ busca: null, categoria: null, status: null, pagina: null });
-  }, [update]);
-
-  return { filters, update, clear };
+  return { filters, update: set, clear };
 }
 
 export function toListParams(filters: ProductFilters): GetListParams {
@@ -389,78 +356,23 @@ escrever nela.
   compartilha. `toListParams` traduz para os nomes do backend.
 - **Valor padrão sai da URL.** `pagina=1` e `categoria=all` são apagados, então a URL limpa é
   `/produtos`.
-- **URL inválida não quebra a tela.** `?pagina=abc` vira página 1; `?ordem=senha` é ignorado, porque
-  só os campos de `SORTABLE` passam.
+- **URL inválida não quebra a tela.** O `useUrlState` tipa cada parâmetro pelo default:
+  `?pagina=abc` vira página 1. `?ordem=senha` é ignorado, porque só os campos de `SORTABLE` passam.
 - **Filtro novo volta para a página 1**: quem chama `update` passa `pagina: null` junto.
 
-??? info "Por que um `useRef` com a última URL?"
-    O `setSearchParams` do React Router monta a URL nova a partir da URL **do último render**. Duas
-    chamadas no mesmo clique se atropelam: a segunda não vê a primeira.
+!!! check "Duas escritas no mesmo clique, nenhuma perdida"
+    O `DataTable` chama `onPageSizeChange(50)` e `onPageChange(1)` no mesmo clique. Com o
+    `setSearchParams` do React Router a segunda escrita partia da URL do último render e apagava o
+    `por_pagina=50`; esta receita carregava um `useRef` com a última URL para contornar isso. O
+    [`useUrlState`](../routing.md#estado-da-tela-na-url-com-useurlstate) acumula as escritas do
+    mesmo tique e navega uma vez — uma entrada no histórico por gesto.
 
-    O `DataTable` faz exatamente isso quando você troca o tamanho da página: chama
-    `onPageSizeChange(50)` e, logo em seguida, `onPageChange(1)`. Sem o ref, a segunda escrita
-    partiria da URL antiga e apagaria o `por_pagina=50`.
+### 5. A busca fica na tabela
 
-    Por isso `update` parte de `latest.current`, grava nele a URL nova na hora e só depois navega.
-    O `useEffect` ressincroniza o ref quando a URL muda por fora (botão voltar, link colado).
-
-### 5. Busca com debounce
-
-```tsx
-// src/features/products/ProductSearch.tsx
-import { useEffect, useState } from "react";
-import { SearchBar, useDebounce, useLatestRef } from "tempest-react-sdk";
-
-interface ProductSearchProps {
-  value: string;
-  onSearch: (term: string) => void;
-}
-
-export function ProductSearch({ value, onSearch }: ProductSearchProps) {
-  const [draft, setDraft] = useState(value);
-  const [lastValue, setLastValue] = useState(value);
-  const debounced = useDebounce(draft, 400);
-  const latest = useLatestRef({ value, onSearch });
-
-  if (value !== lastValue) {
-    setLastValue(value);
-    if (value !== debounced.trim()) setDraft(value);
-  }
-
-  useEffect(() => {
-    const term = debounced.trim();
-    const { value: applied, onSearch: search } = latest.current;
-    if (term !== applied) search(term);
-  }, [debounced, latest]);
-
-  return (
-    <SearchBar
-      value={draft}
-      onChange={setDraft}
-      placeholder="Buscar por nome ou SKU"
-      aria-label="Buscar produtos"
-    />
-  );
-}
-```
-
-A caixa tem o próprio estado (`draft`), que muda a cada tecla. O
-[`useDebounce`](../hooks.md#busca-com-debounce-usedebounce) entrega o texto estável 400 ms depois
-da última tecla, e só então o efeito chama `onSearch`. Digitar "café" faz **uma** requisição.
-
-O bloco `if (value !== lastValue)` cuida do caminho inverso: quando a URL muda por fora (voltar no
-navegador, "Limpar filtros"), a caixa acompanha. Ele compara com `debounced` para não confundir a
-volta da própria busca com uma mudança externa e apagar o que a pessoa ainda está digitando.
-
-O [`useLatestRef`](../hooks.md#valor-fresco-dentro-de-um-effect-que-roda-uma-vez-uselatestref)
-deixa o efeito ler o `value` e o `onSearch` mais recentes sem entrar na lista de dependências — o
-efeito roda quando o texto estabiliza, e só.
-
-!!! warning "Por que não o `searchable` do `DataTable`?"
-    O `DataTable` tem uma caixa de busca embutida (`searchable` + `onSearchChange`). Ela guarda o
-    texto em estado interno, que sempre começa vazio. Numa tela cuja busca vem da URL, abrir
-    `/produtos?busca=café` mostraria a lista filtrada com a caixa em branco. Por isso a busca fica
-    fora da tabela, controlada pela URL.
+Não há arquivo para a busca. O `DataTable` recebe o termo da URL em `search`, mostra cada tecla na
+caixa e só chama `onSearchChange` depois de `searchDebounceMs` sem digitar — digitar "café" faz
+**uma** requisição. Quando a URL muda por fora (voltar no navegador, "Limpar filtros"), a caixa
+acompanha. A busca não diferencia acento: "cafe" acha "Café".
 
 ### 6. O formulário no drawer
 
@@ -634,7 +546,6 @@ import { MoreVertical, PackagePlus, Plus, SearchX, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
-  Checkbox,
   ConfirmDialog,
   DataTable,
   DropdownMenu,
@@ -652,6 +563,7 @@ import {
   withAllOption,
   type BadgeVariant,
   type DataTableColumn,
+  type DataTableRowKey,
 } from "tempest-react-sdk";
 
 import {
@@ -661,7 +573,6 @@ import {
   type ProductStatus,
 } from "@/features/products/product";
 import { ProductFormDrawer } from "@/features/products/ProductFormDrawer";
-import { ProductSearch } from "@/features/products/ProductSearch";
 import { toListParams, useProductFilters } from "@/features/products/use-product-filters";
 
 const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
@@ -672,7 +583,7 @@ const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
 
 interface Selection {
   key: string;
-  ids: string[];
+  ids: DataTableRowKey[];
 }
 
 export function ProductsPage() {
@@ -694,20 +605,13 @@ export function ProductsPage() {
   const lastPage = products.data?.pages ?? 0;
   const selectionKey = `${filters.key}|${filters.page}|${filters.pageSize}`;
   const selectedIds = selection.key === selectionKey ? selection.ids : [];
-  const allSelected = items.length > 0 && items.every((item) => selectedIds.includes(item.id));
 
   useEffect(() => {
     if (lastPage > 0 && filters.page > lastPage) update({ pagina: lastPage }, { replace: true });
   }, [filters.page, lastPage, update]);
 
-  function setSelected(ids: string[]): void {
+  function setSelected(ids: DataTableRowKey[]): void {
     setSelection({ key: selectionKey, ids });
-  }
-
-  function toggleOne(id: string): void {
-    setSelected(
-      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id],
-    );
   }
 
   function openForm(product: Product | null): void {
@@ -733,25 +637,7 @@ export function ProductsPage() {
   }
 
   const columns: DataTableColumn<Product>[] = [
-    {
-      key: "sku",
-      header: (
-        <Checkbox
-          aria-label="Selecionar todos os produtos desta página"
-          checked={allSelected}
-          indeterminate={selectedIds.length > 0 && !allSelected}
-          onChange={() => setSelected(allSelected ? [] : items.map((item) => item.id))}
-        />
-      ),
-      render: (product) => (
-        <Checkbox
-          label={product.sku}
-          aria-label={`Selecionar ${product.name}`}
-          checked={selectedIds.includes(product.id)}
-          onChange={() => toggleOne(product.id)}
-        />
-      ),
-    },
+    { key: "sku", header: "SKU" },
     { key: "name", header: "Produto", sortable: true },
     {
       key: "category",
@@ -783,37 +669,33 @@ export function ProductsPage() {
         <Badge variant={STATUS_VARIANT[product.status]}>{STATUS_LABELS[product.status]}</Badge>
       ),
     },
-    {
-      key: "id",
-      header: "",
-      align: "right",
-      render: (product) => (
-        <DropdownMenu
-          placement="bottom-end"
-          trigger={
-            <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
-              <MoreVertical size={16} />
-            </Button>
-          }
-          items={[
-            {
-              type: "item",
-              id: "edit",
-              label: "Editar",
-              onSelect: () => openForm(product),
-            },
-            {
-              type: "item",
-              id: "delete",
-              label: "Excluir",
-              danger: true,
-              onSelect: () => setToDelete([product]),
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  const rowActions = (product: Product) => (
+      <DropdownMenu
+        placement="bottom-end"
+        trigger={
+          <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
+            <MoreVertical size={16} />
+          </Button>
+        }
+        items={[
+          {
+            type: "item",
+            id: "edit",
+            label: "Editar",
+            onSelect: () => openForm(product),
+          },
+          {
+            type: "item",
+            id: "delete",
+            label: "Excluir",
+            danger: true,
+            onSelect: () => setToDelete([product]),
+          },
+        ]}
+      />
+  );
 
   const emptyMessage = filters.isFiltered ? (
     <EmptyState
@@ -853,10 +735,6 @@ export function ProductsPage() {
       }
       toolbar={
         <Stack direction={{ mobile: "vertical", desktop: "horizontal" }} gap={3} align="stretch">
-          <ProductSearch
-            value={filters.search}
-            onSearch={(term) => update({ busca: term, pagina: null }, { replace: true })}
-          />
           <Select
             variant="chip"
             aria-label="Filtrar por categoria"
@@ -914,7 +792,7 @@ export function ProductsPage() {
           pageSize={filters.pageSize}
           pageSizeOptions={[10, 20, 50]}
           onPageSizeChange={(size) => update({ por_pagina: size, pagina: null })}
-          initialSort={filters.sort ?? undefined}
+          sort={filters.sort}
           onSortChange={(sort) =>
             update({
               ordem: sort ? String(sort.key) : null,
@@ -922,6 +800,19 @@ export function ProductsPage() {
               pagina: null,
             })
           }
+          searchable
+          search={filters.search}
+          searchDebounceMs={400}
+          searchLabel="Buscar produtos"
+          searchPlaceholder="Buscar por nome ou SKU"
+          onSearchChange={(term) => update({ busca: term, pagina: null }, { replace: true })}
+          selectable
+          selectedKeys={selectedIds}
+          onSelectionChange={setSelected}
+          selectionLabel={(product) => `Selecionar ${product.name}`}
+          rowActions={rowActions}
+          rowActionsLabel="Ações do produto"
+          stackOnMobile
           loading={products.isFetching}
           emptyMessage={emptyMessage}
         />
@@ -972,14 +863,15 @@ eventos que você trata. Cada um escreve na URL:
 | `onSortChange({ key: "price_cents", direction: "desc" })` | `ordem=price_cents&dir=desc` |
 | `onSortChange(null)` (terceiro clique) | remove `ordem` e `dir` |
 
-`initialSort={filters.sort}` faz a seta do cabeçalho abrir no lugar certo quando a tela já chega com
-`?ordem=` na URL.
+`sort={filters.sort}` mantém a seta do cabeçalho no lugar certo quando a tela chega com `?ordem=` na
+URL e quando o botão voltar muda a ordem. A busca segue o mesmo caminho: `search={filters.search}`,
+`onSearchChange` com `replace` para cada pausa na digitação não virar uma entrada no histórico.
 
 #### Seleção em lote
 
-O `DataTable` não tem seleção de linhas embutida, então ela é uma coluna: a de SKU renderiza um
-`Checkbox` por linha, e o cabeçalho dela tem o "selecionar todos desta página" com estado
-`indeterminate` quando só parte está marcada.
+`selectable` liga a coluna de checkbox do `DataTable`, controlada por `selectedKeys` e
+`onSelectionChange`. O checkbox do cabeçalho marca a página que está na tela e fica `indeterminate`
+quando só parte dela está marcada; as chaves são o retorno de `rowKey`, o id do produto.
 
 A seleção guarda junto a `key` dos filtros e da página. Mudou a busca, o filtro ou a página, a chave
 muda e a seleção some sozinha — sem `useEffect`, e sem o risco de excluir um produto que a pessoa
@@ -987,8 +879,8 @@ nem está vendo.
 
 #### Menu por linha e exclusão
 
-A última coluna usa a chave `id` para o [`DropdownMenu`](../components/actions.md#numa-linha-de-tabela)
-de "Editar" e "Excluir". O menu abre em portal, então não é cortado pela rolagem horizontal da
+`rowActions` desenha o [`DropdownMenu`](../components/actions.md#numa-linha-de-tabela) de "Editar" e
+"Excluir" numa coluna da própria tabela, sem emprestar a `key` de um campo do produto. O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.
 
 Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` manda os ids para
@@ -1012,8 +904,9 @@ backend ("Produto com pedidos em aberto").
 
 #### No celular 📱
 
-- `priority: "desktop"` esconde a categoria abaixo do desktop; `priority: "tablet"` esconde
-  estoque e situação no celular. Ficam SKU com a seleção, nome, preço e o menu.
+- `stackOnMobile` transforma cada linha num cartão abaixo de 768 px: rótulo à esquerda, valor à
+  direita, sem rolagem lateral e sem o SKU quebrando linha. `priority: "desktop"` ainda esconde a
+  categoria abaixo do desktop.
 - A barra de filtros empilha com `direction={{ mobile: "vertical", desktop: "horizontal" }}`.
 - O `Drawer` vira bottom sheet com `mobilePlacement="bottom"`, e o rodapé de paginação do
   `DataTable` fica compacto (‹ ›) abaixo de 640 px — veja
@@ -1040,9 +933,9 @@ Com o backend rodando, abra `/produtos` e confira:
 - `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` dão o CRUD inteiro sem
   uma `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
 - O `DataTable` com `totalItems` delega página, tamanho e ordenação para você; guarde os três na URL.
-- Escrever na URL várias vezes no mesmo clique pede um ref com a última URL.
-- A busca tem estado próprio e chega na URL com `useDebounce`: uma requisição por busca, não por
-  tecla.
+- `useUrlState` guarda página, filtros e ordem na URL; escritas do mesmo clique viram uma navegação.
+- A busca é a do `DataTable`, controlada pela URL e com `searchDebounceMs`: uma requisição por busca,
+  não por tecla.
 - `useZodForm` + `FormField` validam no cliente; `error.fields` e `describeApiError` levam o erro
   do servidor para o campo certo e para o toast.
 - Toda tela real tem carregando, vazio, vazio por filtro, erro e celular. Os cinco estão aqui. ✅

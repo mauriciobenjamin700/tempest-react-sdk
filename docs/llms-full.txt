@@ -7986,21 +7986,139 @@ const columns: DataTableColumn<User>[] = [
 />;
 ```
 
-| Prop           | Tipo                                  | Default | Descrição                                               |
-| -------------- | ------------------------------------- | ------- | ------------------------------------------------------- |
-| `data`         | `T[]`                                 | —       | Dataset completo; sort/filtro/paginação são client-side |
-| `columns`      | `DataTableColumn<T>[]`                | —       | Definições de coluna                                    |
-| `pageSize`     | `number`                              | `10`    | Linhas por página                                       |
-| `searchable`   | `boolean`                             | `false` | Renderiza um input de busca acima da tabela             |
-| `searchKeys`   | `(keyof T)[]`                         | —       | Chaves buscadas; default = colunas string/number        |
-| `initialSort`  | `DataTableSort<T>`                    | —       | Ordenação inicial antes de interagir com o cabeçalho    |
-| `rowKey`       | `(row: T, index) => string \| number` | índice  | Extrator de chave estável por linha                     |
-| `emptyMessage` | `ReactNode`                           | —       | Conteúdo exibido quando nenhuma linha combina           |
+| Prop                | Tipo                                  | Default              | Descrição                                                    |
+| ------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| `data`              | `T[]`                                 | —                    | Dataset completo; sort/filtro/paginação são client-side      |
+| `columns`           | `DataTableColumn<T>[]`                | —                    | Definições de coluna                                         |
+| `pageSize`          | `number`                              | `10`                 | Linhas por página                                            |
+| `searchable`        | `boolean`                             | `false`              | Renderiza um input de busca acima da tabela                  |
+| `searchKeys`        | `(keyof T)[]`                         | —                    | Chaves buscadas; default = colunas string/number             |
+| `searchPlaceholder` | `string`                              | `"Buscar..."`        | Placeholder da caixa de busca                                |
+| `searchLabel`       | `string`                              | `"Buscar na tabela"` | Nome acessível da caixa de busca                             |
+| `searchDebounceMs`  | `number`                              | `0`                  | Espera sem digitar antes de o termo valer                    |
+| `search`            | `string`                              | —                    | Termo controlado (exige `onSearchChange`)                    |
+| `initialSort`       | `DataTableSort<T>`                    | —                    | Ordenação inicial, lida **só na montagem**                   |
+| `sort`              | `DataTableSort<T> \| null`            | —                    | Ordenação controlada (exige `onSortChange`)                  |
+| `rowKey`            | `(row: T, index) => string \| number` | índice               | Extrator de chave estável por linha                          |
+| `selectable`        | `true`                                | —                    | Coluna de checkbox (com `selectedKeys` e `onSelectionChange`) |
+| `rowActions`        | `(row: T) => ReactNode`               | —                    | Coluna final de ações, sem `key` emprestada                  |
+| `rowActionsLabel`   | `string`                              | `"Ações"`            | Cabeçalho (visualmente oculto) da coluna de ações            |
+| `stackOnMobile`     | `boolean`                             | `false`              | Abaixo de 768 px, cada linha vira um cartão                  |
+| `onRowClick`        | `(row: T) => void`                    | —                    | Clique na linha                                              |
+| `scrollLabel`       | `string`                              | —                    | Nome acessível da região rolável                             |
+| `emptyMessage`      | `ReactNode`                           | —                    | Conteúdo exibido quando nenhuma linha combina                |
 
-`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
+`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number; className?: string }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
 
 !!! info "Comportamento"
-    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
+    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina trecho do texto nas `searchKeys` (ou em toda coluna string/number quando omitidas), **sem diferenciar maiúscula nem acento**: "joao" acha "João", "usuarios" acha "Usuários". A paginação some quando o resultado cabe em uma única página.
+
+### Seleção de linhas e coluna de ações
+
+`selectable` põe uma coluna de checkbox no começo; `rowActions` põe uma coluna de ações no fim. Nenhuma das duas usa um campo da linha como `key`, então não há coluna duplicada nem chave repetida.
+
+```tsx
+import { useState } from "react";
+import { Button, DataTable, type DataTableRowKey } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+}
+
+export function ProductTable({ products }: { products: Product[] }) {
+  const [selected, setSelected] = useState<DataTableRowKey[]>([]);
+
+  return (
+    <DataTable<Product>
+      data={products}
+      columns={[
+        { key: "sku", header: "SKU" },
+        { key: "name", header: "Produto", sortable: true },
+      ]}
+      rowKey={(product) => product.id}
+      selectable
+      selectedKeys={selected}
+      onSelectionChange={setSelected}
+      selectionLabel={(product) => `Selecionar ${product.name}`}
+      rowActions={(product) => (
+        <Button variant="ghost" size="sm" onClick={() => console.log("editar", product.id)}>
+          Editar
+        </Button>
+      )}
+      stackOnMobile
+    />
+  );
+}
+```
+
+- A seleção é **controlada** e guarda o retorno de `rowKey`. Passe um `rowKey` que devolva o id do registro; com o índice (default), a seleção segue a posição e muda de registro quando a página ou a ordem mudam.
+- O checkbox do cabeçalho marca e desmarca **a página que está na tela**, e fica `indeterminate` quando só parte dela está marcada. Chaves marcadas em outras páginas ficam como estão: "selecionar todos" alcançando linhas que a pessoa nunca viu é como uma exclusão em lote apaga o registro errado.
+- Clique no checkbox ou dentro da coluna de ações **não** dispara `onRowClick` — nem num `DropdownMenu` aberto em portal a partir dela.
+
+| Prop                | Tipo                                   | Default                                    | Descrição                           |
+| ------------------- | -------------------------------------- | ------------------------------------------ | ----------------------------------- |
+| `selectable`        | `true`                                 | —                                          | Liga a coluna de seleção            |
+| `selectedKeys`      | `readonly (string \| number)[]`        | —                                          | Chaves marcadas, de todas as páginas |
+| `onSelectionChange` | `(keys: (string \| number)[]) => void` | —                                          | Recebe a seleção inteira nova       |
+| `selectionLabel`    | `(row: T) => string`                   | `"Selecionar linha N"`                     | Nome acessível do checkbox da linha |
+| `selectAllLabel`    | `string`                               | `"Selecionar todas as linhas desta página"` | Nome acessível do checkbox do cabeçalho |
+
+!!! check "O tipo recusa a seleção pela metade"
+    `selectable` sem `selectedKeys` seria uma coluna de checkbox que nunca marca. Os três vêm juntos, ou o `tsc` reprova na chamada.
+
+### Busca e ordenação controladas
+
+Quando a busca e a ordenação moram fora da tabela — na URL, por exemplo —, passe `search` e `sort`. A caixa abre com o termo e acompanha quando ele muda por fora (botão voltar, link "Limpar filtros"); a seta do cabeçalho segue `sort` a cada render. `initialSort` continua existindo, mas é lido uma vez só, na montagem.
+
+```tsx
+import { DataTable, useUrlState, type DataTableSort } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+  city: string;
+}
+
+export function Members({ members }: { members: Member[] }) {
+  const { state, set } = useUrlState({ busca: "", ordem: "", dir: "" });
+  const sort: DataTableSort<Member> | null =
+    state.ordem === "name" || state.ordem === "city"
+      ? { key: state.ordem, direction: state.dir === "desc" ? "desc" : "asc" }
+      : null;
+
+  return (
+    <DataTable<Member>
+      data={members}
+      columns={[
+        { key: "name", header: "Nome", sortable: true },
+        { key: "city", header: "Cidade", sortable: true },
+      ]}
+      rowKey={(member) => member.id}
+      searchable
+      searchLabel="Buscar membros"
+      searchPlaceholder="Nome ou cidade"
+      search={state.busca}
+      searchDebounceMs={300}
+      onSearchChange={(busca) => set({ busca }, { replace: true })}
+      sort={sort}
+      onSortChange={(next) =>
+        set({ ordem: next ? String(next.key) : null, dir: next?.direction ?? null })
+      }
+    />
+  );
+}
+```
+
+`searchDebounceMs` deixa a caixa mostrar cada tecla e só publica o termo depois da pausa. No modo servidor, é o que faz uma busca custar **uma** requisição, e não uma por letra.
+
+!!! check "Par controlado sem destino não compila"
+    `sort` sem `onSortChange` (ou `search` sem `onSearchChange`) seria uma seta ou uma caixa que nunca mudam. Os dois tipos recusam.
+
+### No celular 📱
+
+`stackOnMobile` é repassado ao [`Table`](./data.md#tablet): abaixo de 768 px cada linha vira um cartão com rótulo e valor, em vez de uma tabela que rola para o lado. O rótulo vem do `header` quando ele é texto, inclusive em coluna `sortable` (cujo cabeçalho vira botão). A coluna de seleção e a de ações não ganham rótulo — o checkbox e o botão já dizem o que fazem. No modo cartão o cabeçalho fica visualmente oculto, então o "selecionar todos" da página só é alcançável por leitor de tela; ponha um botão próprio se a tela de celular precisa dele.
 
 ## `Wizard`
 
@@ -8899,7 +9017,7 @@ import { HoverCard } from "tempest-react-sdk";
 
 ## `Command` (paleta ⌘K)
 
-Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por substring (label + keywords), agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.
+Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por trecho do texto (label + keywords), sem diferenciar maiúscula nem acento — "usuarios" acha "Usuários" —, agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.
 
 ```tsx
 import { Command } from "tempest-react-sdk";
@@ -8930,14 +9048,18 @@ const [open, setOpen] = useState(false);
 | `open`         | `boolean`                 | —                   | Se a paleta está visível                             |
 | `onOpenChange` | `(open: boolean) => void` | —                   | Próximo estado (Escape, seleção, clique no backdrop) |
 | `items`        | `CommandItem[]`           | —                   | Candidatos a filtrar e exibir                        |
-| `placeholder`  | `string`                  | `"Type a command…"` | Placeholder do input de busca                        |
-| `emptyMessage` | `ReactNode`               | `"No results"`      | Exibido quando nada combina com a busca              |
+| `placeholder`  | `string`                  | `"Digite um comando…"` | Placeholder do input de busca                     |
+| `emptyMessage` | `ReactNode`               | `"Nenhum resultado"`   | Exibido quando nada combina com a busca           |
+| `label`        | `string`                  | `"Paleta de comandos"` | Nome acessível do diálogo e do input de busca     |
 | `className`    | `string`                  | —                   | Repassado ao elemento de diálogo                     |
 
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Gatilho global"
     Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
+
+!!! note "Textos padrão em PT-BR"
+    Até a versão anterior, `placeholder`, `emptyMessage` e o nome acessível vinham fixos em inglês (`"Type a command…"`, `"No results"`, `"Command palette"`). Um leitor de tela em PT-BR anunciava o diálogo em outra língua. Os três agora têm default em PT-BR e aceitam prop.
 
 ## Recap
 
@@ -9991,6 +10113,7 @@ export function Orders({
 | `render`    | `(row: T, index: number) => ReactNode`        | Default = `row[key]`                                       |
 | `align`     | `"left" \| "right" \| "center"`               | Default `"left"`                                           |
 | `priority`  | `"always" \| "tablet" \| "desktop"`           | `tablet`: escondida em < md. `desktop`: escondida em < lg. |
+| `label`     | `string`                                      | Rótulo do cartão empilhado no celular; default = `header` quando é texto. |
 | `width`     | `string \| number`                            | CSS width (`120px`, `20%`, `auto`)                         |
 | `className` | `string`                                      | Classe extra aplicada às células daquela coluna            |
 
@@ -10340,7 +10463,7 @@ export function Pessoas() {
 | `manualSort` | `boolean` | Delega a ordenação. Implícito com `totalItems`. |
 | `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
 | `manualSearch` | `boolean` | Delega a busca. Implícito com `totalItems`. |
-| `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
+| `onSearchChange` | `(term: string) => void` | Termo digitado, depois de `searchDebounceMs` quando definido. |
 | `loading` | `boolean` | Requisição em voo. |
 | `pageSize` | `number` | Linhas por página; obrigatório com `onPageSizeChange`. |
 | `onPageSizeChange` | `(size: number) => void` | Liga o seletor de itens por página ([abaixo](#itens-por-pagina)). |
@@ -25885,6 +26008,9 @@ O hook **controla o estado de página** internamente, envia `page` + `size` para
 !!! check "Filtro novo começa da página 1"
     Ponha os filtros aplicados na `queryKey` (`["users", filtros]`). Quando ela muda estruturalmente, a página volta para 1 **no mesmo render** — sem a requisição intermediária da página antiga. Até a 0.68.0 a página sobrevivia: filtrar na página 7 pedia a página 7 de um resultado de duas. Para separar rascunho de aplicado, veja [`useDraftFilters`](./hooks.md#rascunho-aplicado-usedraftfilters).
 
+!!! tip "Página na URL: `page` + `onPageChange`"
+    Passe `page` e o hook deixa de guardar a página: `setPage`, `next` e `prev` viram chamadas a `onPageChange`, e quem lê a URL decide. Nesse modo uma `queryKey` nova **não** volta a página para 1 — quem é dono da página escreve o filtro e `pagina: null` na mesma atualização, que o [`useUrlState`](./routing.md#estado-da-tela-na-url-com-useurlstate) transforma numa navegação só.
+
 !!! tip "`size` vs `page_size`"
     O default segue o `fastapi-pagination` (`?size=`). Se o seu backend usa `page_size`, passe `sizeParam: "page_size"`. O `order_by`/`ascending` só são enviados quando você define `orderBy`.
 
@@ -30376,7 +30502,6 @@ src/
 └── features/products/
     ├── product.ts
     ├── use-product-filters.ts
-    ├── ProductSearch.tsx
     ├── ProductFormDrawer.tsx
     └── ProductsPage.tsx
 ```
@@ -30551,12 +30676,14 @@ formulário vazio de cadastro.
 
 ```ts
 // src/features/products/use-product-filters.ts
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   ALL_OPTION_VALUE,
-  useSearchParams,
+  useUrlState,
   type DataTableSort,
   type GetListParams,
+  type UrlStatePatch,
+  type UrlStateWriteOptions,
 } from "tempest-react-sdk";
 
 import type { Product } from "@/features/products/product";
@@ -30567,15 +30694,13 @@ const DEFAULTS = {
   busca: "",
   categoria: ALL_OPTION_VALUE,
   status: ALL_OPTION_VALUE,
-  pagina: "1",
-  por_pagina: "20",
+  pagina: 1,
+  por_pagina: 20,
   ordem: "",
   dir: "",
 };
 
-type ParamName = keyof typeof DEFAULTS;
-
-export type FiltersPatch = Partial<Record<ParamName, string | number | null>>;
+export type FiltersPatch = UrlStatePatch<typeof DEFAULTS>;
 
 export interface ProductFilters {
   search: string;
@@ -30588,65 +30713,33 @@ export interface ProductFilters {
   key: string;
 }
 
-function readPositiveInt(raw: string | null, fallback: number): number {
-  const value = Number(raw);
-  return Number.isInteger(value) && value > 0 ? value : fallback;
-}
-
-function readSort(params: URLSearchParams): DataTableSort<Product> | null {
-  const field = SORTABLE.find((name) => name === params.get("ordem"));
-  if (!field) return null;
-  return { key: field, direction: params.get("dir") === "desc" ? "desc" : "asc" };
-}
-
 export function useProductFilters(): {
   filters: ProductFilters;
-  update: (patch: FiltersPatch, options?: { replace?: boolean }) => void;
+  update: (patch: FiltersPatch, options?: UrlStateWriteOptions) => void;
   clear: () => void;
 } {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const latest = useRef(searchParams);
-
-  useEffect(() => {
-    latest.current = searchParams;
-  }, [searchParams]);
+  const { state, set, reset } = useUrlState(DEFAULTS);
 
   const filters = useMemo<ProductFilters>(() => {
-    const search = searchParams.get("busca") ?? DEFAULTS.busca;
-    const category = searchParams.get("categoria") ?? DEFAULTS.categoria;
-    const status = searchParams.get("status") ?? DEFAULTS.status;
+    const field = SORTABLE.find((name) => name === state.ordem);
     return {
-      search,
-      category,
-      status,
-      page: readPositiveInt(searchParams.get("pagina"), 1),
-      pageSize: readPositiveInt(searchParams.get("por_pagina"), Number(DEFAULTS.por_pagina)),
-      sort: readSort(searchParams),
+      search: state.busca,
+      category: state.categoria,
+      status: state.status,
+      page: Math.max(1, Math.trunc(state.pagina)),
+      pageSize: Math.max(1, Math.trunc(state.por_pagina)),
+      sort: field ? { key: field, direction: state.dir === "desc" ? "desc" : "asc" } : null,
       isFiltered:
-        search !== DEFAULTS.busca || category !== DEFAULTS.categoria || status !== DEFAULTS.status,
-      key: [search, category, status].join("|"),
+        state.busca !== DEFAULTS.busca ||
+        state.categoria !== DEFAULTS.categoria ||
+        state.status !== DEFAULTS.status,
+      key: [state.busca, state.categoria, state.status].join("|"),
     };
-  }, [searchParams]);
+  }, [state]);
 
-  const update = useCallback(
-    (patch: FiltersPatch, options: { replace?: boolean } = {}) => {
-      const next = new URLSearchParams(latest.current);
-      for (const [name, value] of Object.entries(patch) as [ParamName, string | number | null][]) {
-        const text = value === null ? "" : String(value);
-        if (text === "" || text === DEFAULTS[name]) next.delete(name);
-        else next.set(name, text);
-      }
-      latest.current = next;
-      setSearchParams(next, { replace: options.replace ?? false });
-    },
-    [setSearchParams],
-  );
+  const clear = () => reset(["busca", "categoria", "status", "pagina"]);
 
-  const clear = useCallback(() => {
-    update({ busca: null, categoria: null, status: null, pagina: null });
-  }, [update]);
-
-  return { filters, update, clear };
+  return { filters, update: set, clear };
 }
 
 export function toListParams(filters: ProductFilters): GetListParams {
@@ -30671,78 +30764,23 @@ escrever nela.
   compartilha. `toListParams` traduz para os nomes do backend.
 - **Valor padrão sai da URL.** `pagina=1` e `categoria=all` são apagados, então a URL limpa é
   `/produtos`.
-- **URL inválida não quebra a tela.** `?pagina=abc` vira página 1; `?ordem=senha` é ignorado, porque
-  só os campos de `SORTABLE` passam.
+- **URL inválida não quebra a tela.** O `useUrlState` tipa cada parâmetro pelo default:
+  `?pagina=abc` vira página 1. `?ordem=senha` é ignorado, porque só os campos de `SORTABLE` passam.
 - **Filtro novo volta para a página 1**: quem chama `update` passa `pagina: null` junto.
 
-??? info "Por que um `useRef` com a última URL?"
-    O `setSearchParams` do React Router monta a URL nova a partir da URL **do último render**. Duas
-    chamadas no mesmo clique se atropelam: a segunda não vê a primeira.
+!!! check "Duas escritas no mesmo clique, nenhuma perdida"
+    O `DataTable` chama `onPageSizeChange(50)` e `onPageChange(1)` no mesmo clique. Com o
+    `setSearchParams` do React Router a segunda escrita partia da URL do último render e apagava o
+    `por_pagina=50`; esta receita carregava um `useRef` com a última URL para contornar isso. O
+    [`useUrlState`](../routing.md#estado-da-tela-na-url-com-useurlstate) acumula as escritas do
+    mesmo tique e navega uma vez — uma entrada no histórico por gesto.
 
-    O `DataTable` faz exatamente isso quando você troca o tamanho da página: chama
-    `onPageSizeChange(50)` e, logo em seguida, `onPageChange(1)`. Sem o ref, a segunda escrita
-    partiria da URL antiga e apagaria o `por_pagina=50`.
+### 5. A busca fica na tabela
 
-    Por isso `update` parte de `latest.current`, grava nele a URL nova na hora e só depois navega.
-    O `useEffect` ressincroniza o ref quando a URL muda por fora (botão voltar, link colado).
-
-### 5. Busca com debounce
-
-```tsx
-// src/features/products/ProductSearch.tsx
-import { useEffect, useState } from "react";
-import { SearchBar, useDebounce, useLatestRef } from "tempest-react-sdk";
-
-interface ProductSearchProps {
-  value: string;
-  onSearch: (term: string) => void;
-}
-
-export function ProductSearch({ value, onSearch }: ProductSearchProps) {
-  const [draft, setDraft] = useState(value);
-  const [lastValue, setLastValue] = useState(value);
-  const debounced = useDebounce(draft, 400);
-  const latest = useLatestRef({ value, onSearch });
-
-  if (value !== lastValue) {
-    setLastValue(value);
-    if (value !== debounced.trim()) setDraft(value);
-  }
-
-  useEffect(() => {
-    const term = debounced.trim();
-    const { value: applied, onSearch: search } = latest.current;
-    if (term !== applied) search(term);
-  }, [debounced, latest]);
-
-  return (
-    <SearchBar
-      value={draft}
-      onChange={setDraft}
-      placeholder="Buscar por nome ou SKU"
-      aria-label="Buscar produtos"
-    />
-  );
-}
-```
-
-A caixa tem o próprio estado (`draft`), que muda a cada tecla. O
-[`useDebounce`](../hooks.md#busca-com-debounce-usedebounce) entrega o texto estável 400 ms depois
-da última tecla, e só então o efeito chama `onSearch`. Digitar "café" faz **uma** requisição.
-
-O bloco `if (value !== lastValue)` cuida do caminho inverso: quando a URL muda por fora (voltar no
-navegador, "Limpar filtros"), a caixa acompanha. Ele compara com `debounced` para não confundir a
-volta da própria busca com uma mudança externa e apagar o que a pessoa ainda está digitando.
-
-O [`useLatestRef`](../hooks.md#valor-fresco-dentro-de-um-effect-que-roda-uma-vez-uselatestref)
-deixa o efeito ler o `value` e o `onSearch` mais recentes sem entrar na lista de dependências — o
-efeito roda quando o texto estabiliza, e só.
-
-!!! warning "Por que não o `searchable` do `DataTable`?"
-    O `DataTable` tem uma caixa de busca embutida (`searchable` + `onSearchChange`). Ela guarda o
-    texto em estado interno, que sempre começa vazio. Numa tela cuja busca vem da URL, abrir
-    `/produtos?busca=café` mostraria a lista filtrada com a caixa em branco. Por isso a busca fica
-    fora da tabela, controlada pela URL.
+Não há arquivo para a busca. O `DataTable` recebe o termo da URL em `search`, mostra cada tecla na
+caixa e só chama `onSearchChange` depois de `searchDebounceMs` sem digitar — digitar "café" faz
+**uma** requisição. Quando a URL muda por fora (voltar no navegador, "Limpar filtros"), a caixa
+acompanha. A busca não diferencia acento: "cafe" acha "Café".
 
 ### 6. O formulário no drawer
 
@@ -30916,7 +30954,6 @@ import { MoreVertical, PackagePlus, Plus, SearchX, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
-  Checkbox,
   ConfirmDialog,
   DataTable,
   DropdownMenu,
@@ -30934,6 +30971,7 @@ import {
   withAllOption,
   type BadgeVariant,
   type DataTableColumn,
+  type DataTableRowKey,
 } from "tempest-react-sdk";
 
 import {
@@ -30943,7 +30981,6 @@ import {
   type ProductStatus,
 } from "@/features/products/product";
 import { ProductFormDrawer } from "@/features/products/ProductFormDrawer";
-import { ProductSearch } from "@/features/products/ProductSearch";
 import { toListParams, useProductFilters } from "@/features/products/use-product-filters";
 
 const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
@@ -30954,7 +30991,7 @@ const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
 
 interface Selection {
   key: string;
-  ids: string[];
+  ids: DataTableRowKey[];
 }
 
 export function ProductsPage() {
@@ -30976,20 +31013,13 @@ export function ProductsPage() {
   const lastPage = products.data?.pages ?? 0;
   const selectionKey = `${filters.key}|${filters.page}|${filters.pageSize}`;
   const selectedIds = selection.key === selectionKey ? selection.ids : [];
-  const allSelected = items.length > 0 && items.every((item) => selectedIds.includes(item.id));
 
   useEffect(() => {
     if (lastPage > 0 && filters.page > lastPage) update({ pagina: lastPage }, { replace: true });
   }, [filters.page, lastPage, update]);
 
-  function setSelected(ids: string[]): void {
+  function setSelected(ids: DataTableRowKey[]): void {
     setSelection({ key: selectionKey, ids });
-  }
-
-  function toggleOne(id: string): void {
-    setSelected(
-      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id],
-    );
   }
 
   function openForm(product: Product | null): void {
@@ -31015,25 +31045,7 @@ export function ProductsPage() {
   }
 
   const columns: DataTableColumn<Product>[] = [
-    {
-      key: "sku",
-      header: (
-        <Checkbox
-          aria-label="Selecionar todos os produtos desta página"
-          checked={allSelected}
-          indeterminate={selectedIds.length > 0 && !allSelected}
-          onChange={() => setSelected(allSelected ? [] : items.map((item) => item.id))}
-        />
-      ),
-      render: (product) => (
-        <Checkbox
-          label={product.sku}
-          aria-label={`Selecionar ${product.name}`}
-          checked={selectedIds.includes(product.id)}
-          onChange={() => toggleOne(product.id)}
-        />
-      ),
-    },
+    { key: "sku", header: "SKU" },
     { key: "name", header: "Produto", sortable: true },
     {
       key: "category",
@@ -31065,37 +31077,33 @@ export function ProductsPage() {
         <Badge variant={STATUS_VARIANT[product.status]}>{STATUS_LABELS[product.status]}</Badge>
       ),
     },
-    {
-      key: "id",
-      header: "",
-      align: "right",
-      render: (product) => (
-        <DropdownMenu
-          placement="bottom-end"
-          trigger={
-            <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
-              <MoreVertical size={16} />
-            </Button>
-          }
-          items={[
-            {
-              type: "item",
-              id: "edit",
-              label: "Editar",
-              onSelect: () => openForm(product),
-            },
-            {
-              type: "item",
-              id: "delete",
-              label: "Excluir",
-              danger: true,
-              onSelect: () => setToDelete([product]),
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  const rowActions = (product: Product) => (
+      <DropdownMenu
+        placement="bottom-end"
+        trigger={
+          <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
+            <MoreVertical size={16} />
+          </Button>
+        }
+        items={[
+          {
+            type: "item",
+            id: "edit",
+            label: "Editar",
+            onSelect: () => openForm(product),
+          },
+          {
+            type: "item",
+            id: "delete",
+            label: "Excluir",
+            danger: true,
+            onSelect: () => setToDelete([product]),
+          },
+        ]}
+      />
+  );
 
   const emptyMessage = filters.isFiltered ? (
     <EmptyState
@@ -31135,10 +31143,6 @@ export function ProductsPage() {
       }
       toolbar={
         <Stack direction={{ mobile: "vertical", desktop: "horizontal" }} gap={3} align="stretch">
-          <ProductSearch
-            value={filters.search}
-            onSearch={(term) => update({ busca: term, pagina: null }, { replace: true })}
-          />
           <Select
             variant="chip"
             aria-label="Filtrar por categoria"
@@ -31196,7 +31200,7 @@ export function ProductsPage() {
           pageSize={filters.pageSize}
           pageSizeOptions={[10, 20, 50]}
           onPageSizeChange={(size) => update({ por_pagina: size, pagina: null })}
-          initialSort={filters.sort ?? undefined}
+          sort={filters.sort}
           onSortChange={(sort) =>
             update({
               ordem: sort ? String(sort.key) : null,
@@ -31204,6 +31208,19 @@ export function ProductsPage() {
               pagina: null,
             })
           }
+          searchable
+          search={filters.search}
+          searchDebounceMs={400}
+          searchLabel="Buscar produtos"
+          searchPlaceholder="Buscar por nome ou SKU"
+          onSearchChange={(term) => update({ busca: term, pagina: null }, { replace: true })}
+          selectable
+          selectedKeys={selectedIds}
+          onSelectionChange={setSelected}
+          selectionLabel={(product) => `Selecionar ${product.name}`}
+          rowActions={rowActions}
+          rowActionsLabel="Ações do produto"
+          stackOnMobile
           loading={products.isFetching}
           emptyMessage={emptyMessage}
         />
@@ -31254,14 +31271,15 @@ eventos que você trata. Cada um escreve na URL:
 | `onSortChange({ key: "price_cents", direction: "desc" })` | `ordem=price_cents&dir=desc` |
 | `onSortChange(null)` (terceiro clique) | remove `ordem` e `dir` |
 
-`initialSort={filters.sort}` faz a seta do cabeçalho abrir no lugar certo quando a tela já chega com
-`?ordem=` na URL.
+`sort={filters.sort}` mantém a seta do cabeçalho no lugar certo quando a tela chega com `?ordem=` na
+URL e quando o botão voltar muda a ordem. A busca segue o mesmo caminho: `search={filters.search}`,
+`onSearchChange` com `replace` para cada pausa na digitação não virar uma entrada no histórico.
 
 #### Seleção em lote
 
-O `DataTable` não tem seleção de linhas embutida, então ela é uma coluna: a de SKU renderiza um
-`Checkbox` por linha, e o cabeçalho dela tem o "selecionar todos desta página" com estado
-`indeterminate` quando só parte está marcada.
+`selectable` liga a coluna de checkbox do `DataTable`, controlada por `selectedKeys` e
+`onSelectionChange`. O checkbox do cabeçalho marca a página que está na tela e fica `indeterminate`
+quando só parte dela está marcada; as chaves são o retorno de `rowKey`, o id do produto.
 
 A seleção guarda junto a `key` dos filtros e da página. Mudou a busca, o filtro ou a página, a chave
 muda e a seleção some sozinha — sem `useEffect`, e sem o risco de excluir um produto que a pessoa
@@ -31269,8 +31287,8 @@ nem está vendo.
 
 #### Menu por linha e exclusão
 
-A última coluna usa a chave `id` para o [`DropdownMenu`](../components/actions.md#numa-linha-de-tabela)
-de "Editar" e "Excluir". O menu abre em portal, então não é cortado pela rolagem horizontal da
+`rowActions` desenha o [`DropdownMenu`](../components/actions.md#numa-linha-de-tabela) de "Editar" e
+"Excluir" numa coluna da própria tabela, sem emprestar a `key` de um campo do produto. O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.
 
 Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` manda os ids para
@@ -31294,8 +31312,9 @@ backend ("Produto com pedidos em aberto").
 
 #### No celular 📱
 
-- `priority: "desktop"` esconde a categoria abaixo do desktop; `priority: "tablet"` esconde
-  estoque e situação no celular. Ficam SKU com a seleção, nome, preço e o menu.
+- `stackOnMobile` transforma cada linha num cartão abaixo de 768 px: rótulo à esquerda, valor à
+  direita, sem rolagem lateral e sem o SKU quebrando linha. `priority: "desktop"` ainda esconde a
+  categoria abaixo do desktop.
 - A barra de filtros empilha com `direction={{ mobile: "vertical", desktop: "horizontal" }}`.
 - O `Drawer` vira bottom sheet com `mobilePlacement="bottom"`, e o rodapé de paginação do
   `DataTable` fica compacto (‹ ›) abaixo de 640 px — veja
@@ -31322,9 +31341,9 @@ Com o backend rodando, abra `/produtos` e confira:
 - `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` dão o CRUD inteiro sem
   uma `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
 - O `DataTable` com `totalItems` delega página, tamanho e ordenação para você; guarde os três na URL.
-- Escrever na URL várias vezes no mesmo clique pede um ref com a última URL.
-- A busca tem estado próprio e chega na URL com `useDebounce`: uma requisição por busca, não por
-  tecla.
+- `useUrlState` guarda página, filtros e ordem na URL; escritas do mesmo clique viram uma navegação.
+- A busca é a do `DataTable`, controlada pela URL e com `searchDebounceMs`: uma requisição por busca,
+  não por tecla.
 - `useZodForm` + `FormField` validam no cliente; `error.fields` e `describeApiError` levam o erro
   do servidor para o campo certo e para o toast.
 - Toda tela real tem carregando, vazio, vazio por filtro, erro e celular. Os cinco estão aqui. ✅
@@ -33392,6 +33411,7 @@ export function CommandPalette() {
         open={open}
         onOpenChange={setOpen}
         placeholder="Ir para tela ou ação…"
+        label="Ir para tela ou ação"
         emptyMessage="Nada encontrado. Tente outro termo."
         items={items}
       />
@@ -33439,7 +33459,7 @@ Você entrega uma lista de `CommandItem` e controla `open` / `onOpenChange`. O r
 dele:
 
 - filtra os itens por trecho do texto em `label` **e** em `keywords`, sem diferenciar
-  maiúscula de minúscula;
+  maiúscula de minúscula **nem acento** — "usuarios" acha "Usuários";
 - agrupa os resultados por `group`, na ordem em que os grupos aparecem na lista;
 - navega com ↑ / ↓, executa com Enter e fecha com Escape, clique fora ou seleção;
 - prende o foco dentro da paleta enquanto ela está aberta.
@@ -33448,8 +33468,8 @@ Cada `onSelect` é a ação do item: `navigate(...)`, `toggle()` ou `logout()`.
 
 !!! tip "`keywords` é onde mora a usabilidade"
     Ninguém lembra se a tela se chama "Clientes" ou "Compradores". Ponha os sinônimos
-    em `keywords`, inclusive palavras sem acento ("usuarios") se a sua equipe digita
-    assim: a busca compara o texto como ele é, com acento.
+    em `keywords`. Versão sem acento não precisa: a busca já ignora acento nos dois
+    lados.
 
 ### O atalho funciona em qualquer sistema
 
@@ -39902,7 +39922,7 @@ export function Team() {
   paginação no navegador. As colunas com `sortable: true` ordenam ao clicar no
   cabeçalho: asc → desc → sem ordenação.
 - `searchable` coloca uma caixa de busca acima da tabela. Ela filtra por trecho do
-  texto, sem diferenciar maiúscula de minúscula. `searchKeys` limita a busca a nome e
+  texto, sem diferenciar maiúscula de minúscula nem acento ("joao" acha "João"). `searchKeys` limita a busca a nome e
   e-mail, para "gerente" não casar com a coluna de papel.
 - `loading={isLoading}` desenha linhas-esqueleto enquanto a primeira resposta não
   chega. "Estou buscando" e "não há nada" são frases diferentes, e o `emptyMessage` só
@@ -39942,7 +39962,6 @@ import {
   Page,
   formatCPF,
   formatCurrency,
-  useDebounce,
   usePaginatedQuery,
   type DataTableColumn,
   type DataTableSort,
@@ -39989,12 +40008,11 @@ const columns: DataTableColumn<Customer>[] = [
 ];
 
 export function Customers() {
-  const [term, setTerm] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
   const [sort, setSort] = useState<DataTableSort<Customer> | null>({
     key: "nome",
     direction: "asc",
   });
-  const search = useDebounce(term, 400);
 
   const customers = usePaginatedQuery<Customer>({
     queryKey: ["clientes", search, sort],
@@ -40040,7 +40058,8 @@ export function Customers() {
         initialSort={{ key: "nome", direction: "asc" }}
         onSortChange={setSort}
         searchable
-        onSearchChange={setTerm}
+        searchDebounceMs={400}
+        onSearchChange={setSearch}
         emptyMessage={`Nenhum cliente encontrado para "${search}"`}
         loading={customers.isFetching}
       />
@@ -40062,10 +40081,9 @@ props que a tabela pede. Com `orderBy` definido, ele também manda `order_by` e
 `ascending`. A página anterior fica na tela enquanto a próxima carrega, então a tabela
 não pisca.
 
-**A busca tem debounce.** A tabela avisa cada tecla em `onSearchChange`. O
-`useDebounce(term, 400)` só entrega o termo quando a pessoa para de digitar por 400 ms.
-Sem isso, "souza" viraria cinco requisições. Veja
-[`useDebounce`](../hooks.md#busca-com-debounce-usedebounce).
+**A busca tem debounce.** Com `searchDebounceMs={400}` a caixa mostra cada tecla, mas
+`onSearchChange` só é chamado quando a pessoa para de digitar por 400 ms. Sem isso,
+"souza" viraria cinco requisições. A busca também ignora acento: "joao" acha "João".
 
 **Filtro novo volta para a página 1.** `search` e `sort` estão na `queryKey`. Quando ela
 muda, o `usePaginatedQuery` volta para a página 1 no mesmo render, sem pedir antes a
@@ -40107,7 +40125,7 @@ computador, onde há espaço.
   tudo no navegador.
 - ✅ **Lista grande**: `totalItems` + `page` + `onPageChange` ligam o modo servidor, e
   o `usePaginatedQuery` entrega essas props prontas.
-- ✅ `useDebounce` segura a busca; `search` e `sort` na `queryKey` voltam para a
+- ✅ `searchDebounceMs` segura a busca; `search` e `sort` na `queryKey` voltam para a
   página 1.
 - ✅ `loading`, `EmptyState`, `emptyMessage` e `ErrorState` cobrem carregando, vazio,
   busca sem resultado e erro.
@@ -41358,6 +41376,58 @@ O `useReturnTo` cai no `fallback` (padrão `"/"`) quando a página de login é a
 !!! tip "Use o valor com `navigate`, não com `window.location`"
     O caminho vem relativo ao `basename` do router, igual ao `useLocation()`. O `navigate()` recoloca o `basename`; o `window.location` não.
 
+## Estado da tela na URL com `useUrlState`
+
+Página, tamanho da página, busca, filtros e ordenação de uma lista pertencem à URL: é o que deixa o botão voltar funcionar e um link colado abrir a mesma tela. `useUrlState` lê esses parâmetros já tipados e escreve neles sem que uma escrita apague a outra.
+
+```tsx
+// MembersPage.tsx
+import { DataTable, useUrlState } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+}
+
+export function MembersPage({ members, total }: { members: Member[]; total: number }) {
+  const { state, set, reset } = useUrlState({ busca: "", pagina: 1, por_pagina: 20 });
+
+  return (
+    <>
+      <button type="button" onClick={() => reset()}>
+        Limpar filtros
+      </button>
+      <DataTable<Member>
+        data={members}
+        columns={[{ key: "name", header: "Nome" }]}
+        rowKey={(member) => member.id}
+        totalItems={total}
+        page={state.pagina}
+        onPageChange={(pagina) => set({ pagina })}
+        pageSize={state.por_pagina}
+        pageSizeOptions={[20, 50]}
+        onPageSizeChange={(por_pagina) => set({ por_pagina })}
+        searchable
+        search={state.busca}
+        searchDebounceMs={300}
+        onSearchChange={(busca) => set({ busca }, { replace: true })}
+      />
+    </>
+  );
+}
+```
+
+- **O tipo vem do default.** `pagina: 1` faz `?pagina=3` virar o número `3`; `?pagina=abc` volta para `1` em vez de quebrar a tela. Booleano lê `"true"`/`"false"`.
+- **Default sai da URL.** `set({ pagina: 1 })` ou `set({ pagina: null })` apaga `pagina`, então a tela sem filtro é a URL limpa.
+- **Escritas do mesmo tique viram uma navegação só.** Uma entrada no histórico por gesto, e nenhuma escrita perdida.
+- **`{ replace: true }`** troca a entrada atual em vez de empilhar — o certo para busca digitada. Num lote, basta uma escrita sem `replace` para o lote empilhar.
+- Parâmetros que o hook não conhece ficam intactos.
+
+!!! info "Por que não o `setSearchParams` direto"
+    O `setSearchParams` do React Router monta a URL nova a partir dos parâmetros **do último render** — inclusive na forma de função. Quando o `DataTable` troca o tamanho da página, ele chama `onPageSizeChange(50)` e `onPageChange(1)` no mesmo clique; partindo de `?pagina=3`, a URL final era `?pagina=1` e o `por_pagina=50` sumia (medido com `react-router` 8.5.2, teste em `src/router/use-url-state.test.tsx`). `useUrlState` acumula as escritas numa cópia pendente e navega uma vez.
+
+A página controlada também existe no [`usePaginatedQuery`](./integration-fastapi.md#offset-usepaginatedquery): passe `page` e `onPageChange` e ele deixa de guardar a página sozinho.
+
 ## Escolhendo o tipo de router
 
 O `<AppRouter>` aceita três tipos via a prop `router`:
@@ -41443,6 +41513,7 @@ Os tipos mais usados também vêm junto: `Location`, `NavigateFunction`, `Naviga
 - Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.
 - Precisa de `matchPath`, `generatePath`, `useOutletContext` ou qualquer outro nome client-side do React Router? Também vem de `"tempest-react-sdk"`; o `Form` dele sai como `RouterForm`.
+- Estado de lista (página, busca, filtros, ordenação) mora na URL com `useUrlState`: tipado pelo default, e escritas do mesmo clique viram uma navegação só.
 
 ---
 

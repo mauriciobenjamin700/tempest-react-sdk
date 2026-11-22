@@ -27,6 +27,7 @@
     flex-direction: column;
     overflow: hidden;
     animation: tempest-modal-in var(--tempest-duration-base) var(--tempest-ease-emphasized);
+    font-family: var(--tempest-font-sans);
 }
 
 .inputRow {

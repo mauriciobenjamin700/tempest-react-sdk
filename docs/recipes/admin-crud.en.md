@@ -100,7 +100,6 @@ src/
 └── features/products/
     ├── product.ts
     ├── use-product-filters.ts
-    ├── ProductSearch.tsx
     ├── ProductFormDrawer.tsx
     └── ProductsPage.tsx
 ```
@@ -276,12 +275,14 @@ create form.
 
 ```ts
 // src/features/products/use-product-filters.ts
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   ALL_OPTION_VALUE,
-  useSearchParams,
+  useUrlState,
   type DataTableSort,
   type GetListParams,
+  type UrlStatePatch,
+  type UrlStateWriteOptions,
 } from "tempest-react-sdk";
 
 import type { Product } from "@/features/products/product";
@@ -292,15 +293,13 @@ const DEFAULTS = {
   busca: "",
   categoria: ALL_OPTION_VALUE,
   status: ALL_OPTION_VALUE,
-  pagina: "1",
-  por_pagina: "20",
+  pagina: 1,
+  por_pagina: 20,
   ordem: "",
   dir: "",
 };
 
-type ParamName = keyof typeof DEFAULTS;
-
-export type FiltersPatch = Partial<Record<ParamName, string | number | null>>;
+export type FiltersPatch = UrlStatePatch<typeof DEFAULTS>;
 
 export interface ProductFilters {
   search: string;
@@ -313,65 +312,33 @@ export interface ProductFilters {
   key: string;
 }
 
-function readPositiveInt(raw: string | null, fallback: number): number {
-  const value = Number(raw);
-  return Number.isInteger(value) && value > 0 ? value : fallback;
-}
-
-function readSort(params: URLSearchParams): DataTableSort<Product> | null {
-  const field = SORTABLE.find((name) => name === params.get("ordem"));
-  if (!field) return null;
-  return { key: field, direction: params.get("dir") === "desc" ? "desc" : "asc" };
-}
-
 export function useProductFilters(): {
   filters: ProductFilters;
-  update: (patch: FiltersPatch, options?: { replace?: boolean }) => void;
+  update: (patch: FiltersPatch, options?: UrlStateWriteOptions) => void;
   clear: () => void;
 } {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const latest = useRef(searchParams);
-
-  useEffect(() => {
-    latest.current = searchParams;
-  }, [searchParams]);
+  const { state, set, reset } = useUrlState(DEFAULTS);
 
   const filters = useMemo<ProductFilters>(() => {
-    const search = searchParams.get("busca") ?? DEFAULTS.busca;
-    const category = searchParams.get("categoria") ?? DEFAULTS.categoria;
-    const status = searchParams.get("status") ?? DEFAULTS.status;
+    const field = SORTABLE.find((name) => name === state.ordem);
     return {
-      search,
-      category,
-      status,
-      page: readPositiveInt(searchParams.get("pagina"), 1),
-      pageSize: readPositiveInt(searchParams.get("por_pagina"), Number(DEFAULTS.por_pagina)),
-      sort: readSort(searchParams),
+      search: state.busca,
+      category: state.categoria,
+      status: state.status,
+      page: Math.max(1, Math.trunc(state.pagina)),
+      pageSize: Math.max(1, Math.trunc(state.por_pagina)),
+      sort: field ? { key: field, direction: state.dir === "desc" ? "desc" : "asc" } : null,
       isFiltered:
-        search !== DEFAULTS.busca || category !== DEFAULTS.categoria || status !== DEFAULTS.status,
-      key: [search, category, status].join("|"),
+        state.busca !== DEFAULTS.busca ||
+        state.categoria !== DEFAULTS.categoria ||
+        state.status !== DEFAULTS.status,
+      key: [state.busca, state.categoria, state.status].join("|"),
     };
-  }, [searchParams]);
+  }, [state]);
 
-  const update = useCallback(
-    (patch: FiltersPatch, options: { replace?: boolean } = {}) => {
-      const next = new URLSearchParams(latest.current);
-      for (const [name, value] of Object.entries(patch) as [ParamName, string | number | null][]) {
-        const text = value === null ? "" : String(value);
-        if (text === "" || text === DEFAULTS[name]) next.delete(name);
-        else next.set(name, text);
-      }
-      latest.current = next;
-      setSearchParams(next, { replace: options.replace ?? false });
-    },
-    [setSearchParams],
-  );
+  const clear = () => reset(["busca", "categoria", "status", "pagina"]);
 
-  const clear = useCallback(() => {
-    update({ busca: null, categoria: null, status: null, pagina: null });
-  }, [update]);
-
-  return { filters, update, clear };
+  return { filters, update: set, clear };
 }
 
 export function toListParams(filters: ProductFilters): GetListParams {
@@ -396,81 +363,24 @@ to write to it.
   sees and shares. `toListParams` translates them into the backend names.
 - **Default values leave the URL.** `pagina=1` and `categoria=all` are removed, so the clean URL is
   `/produtos`.
-- **An invalid URL does not break the screen.** `?pagina=abc` becomes page 1; `?ordem=senha` is
-  ignored, because only the fields in `SORTABLE` get through.
+- **An invalid URL does not break the screen.** `useUrlState` types each parameter by its default:
+  `?pagina=abc` becomes page 1. `?ordem=senha` is ignored, because only the fields in `SORTABLE`
+  get through.
 - **A new filter goes back to page 1**: callers of `update` pass `pagina: null` along.
 
-??? info "Why a `useRef` holding the latest URL?"
-    React Router's `setSearchParams` builds the new URL from the URL **of the last render**. Two
-    calls in the same click trample each other: the second one doesn't see the first.
+!!! check "Two writes in one click, none lost"
+    `DataTable` calls `onPageSizeChange(50)` and `onPageChange(1)` in the same click. With React
+    Router's `setSearchParams` the second write started from the URL of the last render and wiped
+    `por_pagina=50`; this recipe used to carry a `useRef` with the latest URL to work around it.
+    [`useUrlState`](../routing.md#screen-state-in-the-url-with-useurlstate) accumulates the writes
+    of one tick and navigates once — one history entry per gesture.
 
-    `DataTable` does exactly that when you change the page size: it calls
-    `onPageSizeChange(50)` and, right after, `onPageChange(1)`. Without the ref, the second write
-    would start from the old URL and wipe `por_pagina=50`.
+### 5. The search lives in the table
 
-    That is why `update` starts from `latest.current`, stores the new URL in it right away and only
-    then navigates. The `useEffect` resyncs the ref when the URL changes from outside (back button,
-    pasted link).
-
-### 5. Debounced search
-
-```tsx
-// src/features/products/ProductSearch.tsx
-import { useEffect, useState } from "react";
-import { SearchBar, useDebounce, useLatestRef } from "tempest-react-sdk";
-
-interface ProductSearchProps {
-  value: string;
-  onSearch: (term: string) => void;
-}
-
-export function ProductSearch({ value, onSearch }: ProductSearchProps) {
-  const [draft, setDraft] = useState(value);
-  const [lastValue, setLastValue] = useState(value);
-  const debounced = useDebounce(draft, 400);
-  const latest = useLatestRef({ value, onSearch });
-
-  if (value !== lastValue) {
-    setLastValue(value);
-    if (value !== debounced.trim()) setDraft(value);
-  }
-
-  useEffect(() => {
-    const term = debounced.trim();
-    const { value: applied, onSearch: search } = latest.current;
-    if (term !== applied) search(term);
-  }, [debounced, latest]);
-
-  return (
-    <SearchBar
-      value={draft}
-      onChange={setDraft}
-      placeholder="Buscar por nome ou SKU"
-      aria-label="Buscar produtos"
-    />
-  );
-}
-```
-
-The box has its own state (`draft`), which changes on every key. The
-[`useDebounce`](../hooks.md#debounced-search-usedebounce) hook hands back the stable text 400 ms
-after the last key, and only then does the effect call `onSearch`. Typing "café" makes **one**
-request.
-
-The `if (value !== lastValue)` block handles the way back: when the URL changes from outside
-(browser back, "Limpar filtros"), the box follows. It compares against `debounced` so it doesn't
-mistake the echo of its own search for an outside change and erase what the person is still
-typing.
-
-[`useLatestRef`](../hooks.md#a-fresh-value-inside-a-run-once-effect-uselatestref) lets the effect
-read the latest `value` and `onSearch` without putting them in the dependency list — the effect runs
-when the text settles, and only then.
-
-!!! warning "Why not the `DataTable`'s `searchable`?"
-    `DataTable` has a built-in search box (`searchable` + `onSearchChange`). It keeps the text in
-    internal state, which always starts empty. On a screen whose search comes from the URL, opening
-    `/produtos?busca=café` would show the filtered list with a blank box. That is why the search
-    lives outside the table, controlled by the URL.
+There is no file for the search. `DataTable` takes the term from the URL in `search`, shows every
+keystroke in the box and only calls `onSearchChange` after `searchDebounceMs` of quiet — typing
+"café" makes **one** request. When the URL changes from outside (browser back, "Limpar filtros"),
+the box follows. The search ignores accents: "cafe" finds "Café".
 
 ### 6. The form in the drawer
 
@@ -645,7 +555,6 @@ import { MoreVertical, PackagePlus, Plus, SearchX, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
-  Checkbox,
   ConfirmDialog,
   DataTable,
   DropdownMenu,
@@ -663,6 +572,7 @@ import {
   withAllOption,
   type BadgeVariant,
   type DataTableColumn,
+  type DataTableRowKey,
 } from "tempest-react-sdk";
 
 import {
@@ -672,7 +582,6 @@ import {
   type ProductStatus,
 } from "@/features/products/product";
 import { ProductFormDrawer } from "@/features/products/ProductFormDrawer";
-import { ProductSearch } from "@/features/products/ProductSearch";
 import { toListParams, useProductFilters } from "@/features/products/use-product-filters";
 
 const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
@@ -683,7 +592,7 @@ const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
 
 interface Selection {
   key: string;
-  ids: string[];
+  ids: DataTableRowKey[];
 }
 
 export function ProductsPage() {
@@ -705,20 +614,13 @@ export function ProductsPage() {
   const lastPage = products.data?.pages ?? 0;
   const selectionKey = `${filters.key}|${filters.page}|${filters.pageSize}`;
   const selectedIds = selection.key === selectionKey ? selection.ids : [];
-  const allSelected = items.length > 0 && items.every((item) => selectedIds.includes(item.id));
 
   useEffect(() => {
     if (lastPage > 0 && filters.page > lastPage) update({ pagina: lastPage }, { replace: true });
   }, [filters.page, lastPage, update]);
 
-  function setSelected(ids: string[]): void {
+  function setSelected(ids: DataTableRowKey[]): void {
     setSelection({ key: selectionKey, ids });
-  }
-
-  function toggleOne(id: string): void {
-    setSelected(
-      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id],
-    );
   }
 
   function openForm(product: Product | null): void {
@@ -744,25 +646,7 @@ export function ProductsPage() {
   }
 
   const columns: DataTableColumn<Product>[] = [
-    {
-      key: "sku",
-      header: (
-        <Checkbox
-          aria-label="Selecionar todos os produtos desta página"
-          checked={allSelected}
-          indeterminate={selectedIds.length > 0 && !allSelected}
-          onChange={() => setSelected(allSelected ? [] : items.map((item) => item.id))}
-        />
-      ),
-      render: (product) => (
-        <Checkbox
-          label={product.sku}
-          aria-label={`Selecionar ${product.name}`}
-          checked={selectedIds.includes(product.id)}
-          onChange={() => toggleOne(product.id)}
-        />
-      ),
-    },
+    { key: "sku", header: "SKU" },
     { key: "name", header: "Produto", sortable: true },
     {
       key: "category",
@@ -794,37 +678,33 @@ export function ProductsPage() {
         <Badge variant={STATUS_VARIANT[product.status]}>{STATUS_LABELS[product.status]}</Badge>
       ),
     },
-    {
-      key: "id",
-      header: "",
-      align: "right",
-      render: (product) => (
-        <DropdownMenu
-          placement="bottom-end"
-          trigger={
-            <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
-              <MoreVertical size={16} />
-            </Button>
-          }
-          items={[
-            {
-              type: "item",
-              id: "edit",
-              label: "Editar",
-              onSelect: () => openForm(product),
-            },
-            {
-              type: "item",
-              id: "delete",
-              label: "Excluir",
-              danger: true,
-              onSelect: () => setToDelete([product]),
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  const rowActions = (product: Product) => (
+      <DropdownMenu
+        placement="bottom-end"
+        trigger={
+          <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
+            <MoreVertical size={16} />
+          </Button>
+        }
+        items={[
+          {
+            type: "item",
+            id: "edit",
+            label: "Editar",
+            onSelect: () => openForm(product),
+          },
+          {
+            type: "item",
+            id: "delete",
+            label: "Excluir",
+            danger: true,
+            onSelect: () => setToDelete([product]),
+          },
+        ]}
+      />
+  );
 
   const emptyMessage = filters.isFiltered ? (
     <EmptyState
@@ -864,10 +744,6 @@ export function ProductsPage() {
       }
       toolbar={
         <Stack direction={{ mobile: "vertical", desktop: "horizontal" }} gap={3} align="stretch">
-          <ProductSearch
-            value={filters.search}
-            onSearch={(term) => update({ busca: term, pagina: null }, { replace: true })}
-          />
           <Select
             variant="chip"
             aria-label="Filtrar por categoria"
@@ -925,7 +801,7 @@ export function ProductsPage() {
           pageSize={filters.pageSize}
           pageSizeOptions={[10, 20, 50]}
           onPageSizeChange={(size) => update({ por_pagina: size, pagina: null })}
-          initialSort={filters.sort ?? undefined}
+          sort={filters.sort}
           onSortChange={(sort) =>
             update({
               ordem: sort ? String(sort.key) : null,
@@ -933,6 +809,19 @@ export function ProductsPage() {
               pagina: null,
             })
           }
+          searchable
+          search={filters.search}
+          searchDebounceMs={400}
+          searchLabel="Buscar produtos"
+          searchPlaceholder="Buscar por nome ou SKU"
+          onSearchChange={(term) => update({ busca: term, pagina: null }, { replace: true })}
+          selectable
+          selectedKeys={selectedIds}
+          onSelectionChange={setSelected}
+          selectionLabel={(product) => `Selecionar ${product.name}`}
+          rowActions={rowActions}
+          rowActionsLabel="Ações do produto"
+          stackOnMobile
           loading={products.isFetching}
           emptyMessage={emptyMessage}
         />
@@ -983,14 +872,16 @@ pagination become events you handle. Each one writes to the URL:
 | `onSortChange({ key: "price_cents", direction: "desc" })` | `ordem=price_cents&dir=desc` |
 | `onSortChange(null)` (third click) | removes `ordem` and `dir` |
 
-`initialSort={filters.sort}` makes the header arrow start in the right place when the screen
-arrives with `?ordem=` in the URL.
+`sort={filters.sort}` keeps the header arrow in the right place when the screen arrives with
+`?ordem=` in the URL and when the back button changes the order. Search goes the same way:
+`search={filters.search}`, with `onSearchChange` writing with `replace` so each typing pause is not a
+history entry.
 
 #### Bulk selection
 
-`DataTable` has no built-in row selection, so it is a column: the SKU column renders one
-`Checkbox` per row, and its header holds "select all on this page", `indeterminate` when only some
-are checked.
+`selectable` turns on the `DataTable` checkbox column, controlled by `selectedKeys` and
+`onSelectionChange`. The header checkbox selects the page on screen and turns `indeterminate` when
+only part of it is checked; the keys are what `rowKey` returns, the product id.
 
 The selection stores the filters-and-page `key` alongside. Change the search, the filter or the
 page, the key changes and the selection is gone on its own — no `useEffect`, and no risk of deleting
@@ -998,8 +889,8 @@ a product the person isn't even looking at.
 
 #### Row menu and deletion
 
-The last column uses the `id` key for the
-[`DropdownMenu`](../components/actions.md#in-a-table-row) with "Editar" and "Excluir". The menu
+`rowActions` draws the [`DropdownMenu`](../components/actions.md#in-a-table-row) with "Editar"
+and "Excluir" in a column of the table itself, without borrowing the `key` of a product field. The menu
 opens in a portal, so the table's horizontal scroll doesn't clip it.
 
 Deleting one and deleting many go through the same `ConfirmDialog`. `confirmDelete` hands the ids to
@@ -1023,8 +914,9 @@ didn't, with the backend `detail` ("Produto com pedidos em aberto").
 
 #### On the phone 📱
 
-- `priority: "desktop"` hides the category below desktop; `priority: "tablet"` hides stock and
-  status on phones. What remains: SKU with the selection, name, price and the menu.
+- `stackOnMobile` turns each row into a card below 768 px: label on the left, value on the right,
+  no sideways scroll and no SKU wrapping. `priority: "desktop"` still hides the category below
+  desktop.
 - The filter bar stacks with `direction={{ mobile: "vertical", desktop: "horizontal" }}`.
 - The `Drawer` becomes a bottom sheet with `mobilePlacement="bottom"`, and the `DataTable`
   pagination footer goes compact (‹ ›) below 640 px — see
@@ -1051,9 +943,9 @@ With the backend running, open `/produtos` and check:
 - `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` give you the whole CRUD
   without a hand-written `queryKey`. Screen callbacks go in `mutate(…, { onSuccess, onError })`.
 - `DataTable` with `totalItems` hands page, size and sorting to you; keep all three in the URL.
-- Writing to the URL several times in one click calls for a ref holding the latest URL.
-- The search has its own state and reaches the URL through `useDebounce`: one request per search,
-  not per key.
+- `useUrlState` keeps page, filters and order in the URL; writes from one click become one navigation.
+- The search is `DataTable`'s own, controlled by the URL and with `searchDebounceMs`: one request per
+  search, not per key.
 - `useZodForm` + `FormField` validate on the client; `error.fields` and `describeApiError` take the
   server error to the right field and to the toast.
 - Every real screen has loading, empty, empty by filter, error and phone. All five are here. ✅

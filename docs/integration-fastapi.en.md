@@ -200,6 +200,9 @@ The hook **owns the page state**, sends `page` + `size` to your `queryFn`, keeps
 !!! check "A new filter starts from page 1"
     Put the applied filters in the `queryKey` (`["users", filters]`). When it changes structurally, the page goes back to 1 **in the same render** — without the in-between request for the old page. Until 0.68.0 the page survived: filtering on page 7 asked for page 7 of a two-page result. To keep a draft apart from what is applied, see [`useDraftFilters`](./hooks.md#draft-vs-applied-usedraftfilters).
 
+!!! tip "Page in the URL: `page` + `onPageChange`"
+    Pass `page` and the hook stops keeping the page: `setPage`, `next` and `prev` become calls to `onPageChange`, and whoever reads the URL decides. In this mode a new `queryKey` does **not** reset the page to 1 — whoever owns the page writes the filter and `page: null` in the same update, which [`useUrlState`](./routing.md#screen-state-in-the-url-with-useurlstate) turns into a single navigation.
+
 !!! tip "`size` vs `page_size`"
     The default follows `fastapi-pagination` (`?size=`). If your backend uses `page_size`, pass `sizeParam: "page_size"`. `order_by`/`ascending` are only sent when you set `orderBy`.
 

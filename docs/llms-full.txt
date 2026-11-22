@@ -15679,6 +15679,7 @@ export const dataProvider = createDataProvider(apiClient, {
 | `create("posts", data)`            | `POST /posts`                                                 |
 | `update("posts", id, data)`        | `PATCH /posts/{id}` (ou `PUT` com `updateMethod: "put"`)      |
 | `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                          |
+| `deleteMany("posts", ids)`         | um `DELETE /posts/{id}` por id, em paralelo, cada um com o próprio resultado |
 
 ### O `id` nunca sai do próprio segmento
 
@@ -15758,17 +15759,51 @@ Todos resolvem o provider via contexto — você só informa o nome do recurso e
 - `useCreate<T>(resource, options?)` → mutation; `mutate(data)`
 - `useUpdate<T>(resource, options?)` → mutation; `mutate({ id, data })`
 - `useDelete<T>(resource, options?)` → mutation; `mutate(id)`
+- `useDeleteMany<T>(resource, options?)` → mutation; `mutate(ids)` resolve com `{ deleted, failed }`
 
 As mutations já invalidam o cache certo no sucesso:
 
-| Hook        | Invalida no `onSuccess`                          |
-| ----------- | ----------------------------------------------- |
-| `useCreate` | a lista do recurso                              |
-| `useUpdate` | a lista **e** o registro `useOne` daquele `id`  |
-| `useDelete` | a lista do recurso                              |
+| Hook            | Invalida no `onSuccess`                          |
+| --------------- | ----------------------------------------------- |
+| `useCreate`     | a lista do recurso                              |
+| `useUpdate`     | a lista **e** o registro `useOne` daquele `id`  |
+| `useDelete`     | a lista do recurso                              |
+| `useDeleteMany` | a lista do recurso, **uma vez** para o lote todo |
 
 !!! tip "Você ainda passa opções do TanStack Query"
-    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
+    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError` e `onSuccess` funcionam normalmente. O `onSuccess` do app roda **depois** de o SDK disparar a invalidação, nunca no lugar dela: até a 0.92.0 ele substituía o do SDK, e a lista ficava velha depois de criar, editar ou excluir (#699).
+
+### Excluir uma seleção: `useDeleteMany`
+
+Excluir uma seleção chamando `useDelete().mutateAsync` para cada id invalida a lista uma vez por id, e cada invalidação refaz o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`. O `useDeleteMany` exclui o lote e invalida **uma** vez:
+
+```tsx
+import { useDeleteMany } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+}
+
+export function DeleteSelection({ ids }: { ids: string[] }) {
+  const deleteMany = useDeleteMany<Product>("products");
+
+  async function confirm(): Promise<void> {
+    const { deleted, failed } = await deleteMany.mutateAsync(ids);
+    console.log(`${deleted.length} excluídos, ${failed.length} recusados`);
+  }
+
+  return (
+    <button disabled={deleteMany.isPending} onClick={() => void confirm()}>
+      Excluir {ids.length}
+    </button>
+  );
+}
+```
+
+- **Cada id tem o próprio resultado.** Um produto que o backend recusa (pedido em aberto) vai para `failed` com o erro, e não esconde os nove que saíram. A mutation só rejeita quando a chamada do provider inteira falha — e aí nada é invalidado.
+- **A lista é invalidada mesmo quando todos falharam**: um `404` pode significar que outra sessão já excluiu o registro.
+- **Backend com rota de exclusão em lote?** Implemente `deleteMany(resource, ids)` no seu `DataProvider` e devolva o mesmo `{ deleted, failed }`. É opcional: sem ele, o hook faz um `deleteOne` por id, em paralelo.
 
 ### As chaves de cache, quando você precisa delas
 
@@ -15786,9 +15821,15 @@ queryClient.invalidateQueries({ queryKey: listQueryKey("posts") });
 queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
 ```
 
-`listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
-e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
+`listQueryKey(resource)` devolve `["data", <recurso>, "list"]`, o prefixo de
+**toda** lista do recurso, então invalida todas as páginas, ordenações e
+filtros de uma vez. Com `params`, `listQueryKey(resource, params)` devolve
+`["data", <recurso>, "list", params]`, a chave exata de uma lista. E
+`oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.
+
+!!! note "Até a 0.92.0, `listQueryKey(\"posts\")` não invalidava nada"
+    Sem `params`, a chave terminava num `undefined` literal (`["data", "posts", "list", undefined]`), e o filtro do `invalidateQueries` compara esse quarto elemento como qualquer outro: casava com **0** das listas que o `useList` monta com paginação (#700). Hoje a chave para em `"list"`.
 
 !!! warning "Paginação e ordenação ganham do filtro com o mesmo nome"
     Os `filters` entram na query **antes** de `pagination` e `sort`. Um filtro com a chave de um desses parâmetros (`page`, `size`, `order_by`, `ascending` no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: `filters: { page: 1 }` vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem `pagination`, o filtro continua indo como veio.
@@ -15933,7 +15974,9 @@ export function EditPost({ id }: { id: string }) {
 - `createDataProvider(client, options?)` transforma um `apiClient` num provider CRUD no estilo Refine, com defaults alinhados ao `tempest-fastapi-sdk` (`page`/`size`/`order_by`/`ascending`, `ascending` booleano, PATCH no update).
 - Envolva a árvore com `<TempestDataProvider provider={…}>` **abaixo** de um `<QueryProvider>`.
 - `useList` resolve um `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` busca um registro e se desabilita sem `id`.
-- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).
+- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update). O `onSuccess` do app roda depois da invalidação, não no lugar dela.
+- `useDeleteMany` exclui uma seleção e invalida a lista uma vez; cada id volta em `deleted` ou `failed`.
+- `listQueryKey(resource)` invalida todas as listas do recurso; com `params`, é a chave de uma lista só.
 - Backends fora da convenção? Ajuste `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
 - Todo `id` passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` são rejeitados antes da requisição.
 
@@ -29453,11 +29496,10 @@ Defaults aplicados quando você **não** passa um `client`:
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
-Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto (ignora os defaults do SDK):
+Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto. Um `client` feito com `new QueryClient()` ignora os defaults do SDK; feito com `createQueryClient()`, ele os mantém:
 
 ```tsx
-import { QueryClient } from "@tanstack/react-query";
-import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
+import { createQueryClient, QueryProvider, STALE_TIME } from "tempest-react-sdk";
 
 // Opção A — só ajustar alguns defaults
 <QueryProvider defaultOptions={{ queries: { staleTime: STALE_TIME.LONG } }}>
@@ -29465,7 +29507,7 @@ import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
 </QueryProvider>;
 
 // Opção B — trazer seu próprio client (compartilhar entre roots, plugar devtools, etc.)
-const client = new QueryClient();
+const client = createQueryClient();
 <QueryProvider client={client}>
   <App />
 </QueryProvider>;
@@ -29484,6 +29526,59 @@ const client = new QueryClient();
     Com o provider visivelmente montado três linhas acima. Nada nessa mensagem aponta pra duplicata, e é por isso que ela custa uma tarde.
 
     A partir da v0.52.1 o SDK detecta e avisa em desenvolvimento: um client de outra cópia faz duck-type perfeito mas falha o `instanceof`, que é a discriminação exata. O conserto é `npm dedupe`, e `npx tempest doctor` lista toda dependência duplicada.
+
+### `createQueryClient`: o client fora do React
+
+O `QueryProvider` cria o client por dentro, e ali ele fica preso. Quando o app precisa dele **fora** do React — o `queryClient.clear()` no `onSessionEnd` da sessão, o `persistQueryClientOffline({ queryClient })`, um prefetch no loader da rota —, crie-o com `createQueryClient()` e entregue-o ao provider. É o mesmo client que o provider criaria, com os mesmos defaults:
+
+```tsx
+import { createQueryClient, createTempestAuth, QueryProvider } from "tempest-react-sdk";
+import type { ReactNode } from "react";
+
+export const queryClient = createQueryClient();
+
+export const auth = createTempestAuth({
+  baseURL: "https://api.example.com",
+  onSessionEnd: () => {
+    queryClient.clear();
+  },
+});
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <QueryProvider client={queryClient}>{children}</QueryProvider>;
+}
+```
+
+- **Aceita os mesmos overrides do provider**: `createQueryClient({ queries: { staleTime: STALE_TIME.LONG } })` mescla por chave, dentro de `queries` e de `mutations`, e mantém os defaults que você não nomeou.
+- **Um client novo por chamada.** Crie uma vez, no nível do módulo, e importe onde precisar.
+- **Sem redigitar os defaults.** Antes dele, o app que precisava do client copiava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT` e `shouldRetryQuery` num `new QueryClient({ … })`, e a cópia divergia no dia em que um deles mudasse (#741). E o client sai da mesma cópia do `@tanstack/react-query` que o SDK usa, então não cai no "No QueryClient set" de cópia duplicada descrito acima.
+
+### Query que lê só o IndexedDB: `networkMode: "always"`
+
+O TanStack Query **pausa** a query quando o navegador está offline: com o `networkMode` padrão (`"online"`), a `queryFn` nem roda. Para uma query que vai à rede, é o certo — ela espera o sinal voltar em vez de queimar uma requisição que vai falhar. Para uma query cuja `queryFn` lê **só** o IndexedDB, é um skeleton eterno. Medido offline (`src/query/create-query-client.test.tsx`):
+
+| `networkMode`    | Chamadas da `queryFn` | Estado                  |
+| ---------------- | --------------------- | ----------------------- |
+| `"online"`       | 0                     | `pending` / `paused`    |
+| `"offlineFirst"` | 1                     | `success`               |
+| `"always"`       | 1                     | `success`               |
+
+Marque a query local, não o client inteiro:
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+
+export function useDrafts(readDrafts: () => Promise<string[]>) {
+  return useQuery({
+    queryKey: ["drafts"],
+    queryFn: readDrafts,
+    networkMode: "always",
+  });
+}
+```
+
+!!! note "Por que não é o default do SDK"
+    `defaultOptions={{ queries: { networkMode: "always" } }}` funciona no `QueryProvider` e no `createQueryClient` desde sempre, mas vale para **toda** query: as que vão à rede passam a disparar offline e falhar, em vez de pausar até o sinal voltar. O SDK mantém o `"online"` e a query local diz que não depende de rede.
 
 ## Presets de tempo
 
@@ -29751,6 +29846,8 @@ Dexie é peer dependency do store offline — instale (`npm i dexie`).
 ## Recap
 
 - `<QueryProvider>` na raiz — um por app — entrega defaults calibrados; sobrescreva via `defaultOptions` ou `client`.
+- `createQueryClient()` dá o mesmo client com os mesmos defaults, para usar fora do React (`clear()` no fim da sessão, persistência, prefetch).
+- Query que lê só o IndexedDB leva `networkMode: "always"`; as que vão à rede continuam pausando offline.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` substituem números mágicos por presets nomeados.
 - `createQueryKeys(scope, builders)` gera keys tipadas e consistentes, com um `all` automático pra invalidação ampla.
 - Combine `setQueryData` (resposta imediata) com `invalidateQueries` (revalidação) usando a mesma key factory.
@@ -29797,7 +29894,7 @@ As peças do SDK que entram:
 | Peça | Para quê | Doc |
 | --- | --- | --- |
 | `createApiClient` + `createDataProvider` | cliente HTTP e CRUD por recurso | [HTTP](../http.md), [Data Provider](../data-provider.md#createdataprovider) |
-| `useList` / `useCreate` / `useUpdate` / `useDelete` | cache e invalidação via TanStack Query | [Os hooks de recurso](../data-provider.md#os-hooks-de-recurso) |
+| `useList` / `useCreate` / `useUpdate` / `useDeleteMany` | cache e invalidação via TanStack Query | [Os hooks de recurso](../data-provider.md#os-hooks-de-recurso) |
 | `DataTable` | tabela com paginação, ordenação e tamanho de página no servidor | [`DataTable` no servidor](../components/data.md#datatablet-paginacao-no-servidor) |
 | `Drawer` | painel do formulário | [`Drawer`](../components/overlay.md#drawer) |
 | `useZodForm` + `FormField` + `MoneyInput` | formulário validado, preço em centavos | [Formulários](../forms.md#exemplo-completo-schema-provider-fields-submit), [`MoneyInput`](../forms-br.md#inputs-com-mascara) |
@@ -30382,8 +30479,9 @@ O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 !!! check "Callbacks na chamada, não no hook"
     `onSuccess` e `onError` vão no `mutate(values, callbacks)`, por chamada. É o lugar certo para
-    o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o `onSuccess` que o
-    `useCreate`/`useUpdate` usam para invalidar a lista.
+    o que depende da tela (fechar o drawer, mostrar o toast, e a mensagem muda entre cadastro e
+    edição). No hook também funcionaria: o `onSuccess` do app roda depois da invalidação da lista,
+    não no lugar dela. Até a 0.92.0 ele a substituía, e a lista ficava velha (#699).
 
 ### 7. A página
 
@@ -30406,7 +30504,7 @@ import {
   Select,
   Stack,
   toOptions,
-  useDelete,
+  useDeleteMany,
   useDescribeApiError,
   useList,
   useToast,
@@ -30444,12 +30542,11 @@ export function ProductsPage() {
   const products = useList<Product>("products", toListParams(filters), {
     placeholderData: keepPreviousData,
   });
-  const deleteProduct = useDelete<Product>("products");
+  const deleteProducts = useDeleteMany<Product>("products");
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Product[]>([]);
-  const [deleting, setDeleting] = useState(false);
   const [selection, setSelection] = useState<Selection>({ key: "", ids: [] });
 
   const items = products.data?.items ?? [];
@@ -30478,19 +30575,16 @@ export function ProductsPage() {
   }
 
   async function confirmDelete(): Promise<void> {
-    setDeleting(true);
-    const results = await Promise.allSettled(
-      toDelete.map((product) => deleteProduct.mutateAsync(product.id)),
+    const { deleted, failed } = await deleteProducts.mutateAsync(
+      toDelete.map((product) => product.id),
     );
-    setDeleting(false);
 
-    const removed = toDelete.filter((_, index) => results[index].status === "fulfilled");
-    const failures = results.filter((result) => result.status === "rejected");
+    const removed = toDelete.filter((product) => deleted.some((entry) => entry.id === product.id));
     if (removed.length === 1) toast.success(`${removed[0].name} excluído.`);
     if (removed.length > 1) toast.success(`${removed.length} produtos excluídos.`);
-    if (failures.length > 0) {
+    if (failed.length > 0) {
       toast.error(
-        describe(failures[0].reason, `${failures.length} produto(s) não puderam ser excluídos.`),
+        describe(failed[0].error, `${failed.length} produto(s) não puderam ser excluídos.`),
       );
     }
     setSelected([]);
@@ -30704,7 +30798,7 @@ export function ProductsPage() {
         }
         confirmLabel="Sim, excluir"
         variant="danger"
-        loading={deleting}
+        loading={deleteProducts.isPending}
         onConfirm={confirmDelete}
         onCancel={() => setToDelete([])}
       />
@@ -30756,9 +30850,11 @@ A última coluna usa a chave `id` para o [`DropdownMenu`](../components/actions.
 de "Editar" e "Excluir". O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.
 
-Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` chama
-`deleteProduct.mutateAsync` para cada produto com `Promise.allSettled`, então uma falha não cancela
-as outras: se dois de três saíram, o toast diz quais saíram e qual não saiu, com o `detail` do
+Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` manda os ids para
+o [`useDeleteMany`](../data-provider.md#excluir-uma-selecao-usedeletemany), que exclui cada um por
+conta própria e invalida a lista **uma** vez — com um `useDelete` por id, 10 produtos custavam 10
+invalidações e 10 `GET` da lista. Uma falha não cancela as outras: o resultado separa `deleted` de
+`failed`, e se dois de três saíram, o toast diz quais saíram e qual não saiu, com o `detail` do
 backend ("Produto com pedidos em aberto").
 
 !!! tip "Excluiu a última linha da última página?"
@@ -30800,8 +30896,8 @@ Com o backend rodando, abra `/produtos` e confira:
 
 ## Recap
 
-- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDelete` dão o CRUD inteiro sem uma
-  `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
+- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` dão o CRUD inteiro sem
+  uma `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
 - O `DataTable` com `totalItems` delega página, tamanho e ordenação para você; guarde os três na URL.
 - Escrever na URL várias vezes no mesmo clique pede um ref com a última URL.
 - A busca tem estado próprio e chega na URL com `useDebounce`: uma requisição por busca, não por
@@ -33370,28 +33466,11 @@ Um arquivo, espelhando o JSON do backend campo a campo. Os nomes ficam em inglê
 
 ```ts
 // src/lib/api.ts
-import { QueryClient } from "@tanstack/react-query";
-import {
-    CACHE_TIME,
-    STALE_TIME,
-    createQueryKeys,
-    createTempestAuth,
-    shouldRetryQuery,
-} from "tempest-react-sdk";
+import { createQueryClient, createQueryKeys, createTempestAuth } from "tempest-react-sdk";
 
 import type { User } from "@/types";
 
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: STALE_TIME.DEFAULT,
-            gcTime: CACHE_TIME.DEFAULT,
-            retry: shouldRetryQuery,
-            refetchOnWindowFocus: false,
-        },
-        mutations: { retry: 0 },
-    },
-});
+export const queryClient = createQueryClient();
 
 export const auth = createTempestAuth<User>({
     baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
@@ -33423,8 +33502,8 @@ Este arquivo é o coração do app. Pedaço por pedaço:
 - **`retry: true`** repete `GET` que falhou por rede ou `5xx`. Escrita nunca é repetida sozinha — um `POST` repetido poderia cadastrar o paciente duas vezes.
 - **`onSessionEnd`** limpa o cache de queries quando a sessão termina — no **Sair**, na expiração e na troca de conta. Sem isso, a recepcionista que entra depois da gestora veria, por um instante, o faturamento que ficou no cache.
 
-!!! warning "Por que criar o `QueryClient` à mão"
-    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio e o entrega ao provider. Os `defaultOptions` copiam os do SDK (`STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`, `shouldRetryQuery`), para o comportamento continuar o mesmo — veja [Query → Provider](../query.md#provider).
+!!! note "Por que o app cria o `QueryClient`"
+    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio com `createQueryClient()` e o entrega ao provider. É o mesmo client, com os mesmos defaults do SDK, sem redigitar nenhum — veja [`createQueryClient`](../query.md#createqueryclient-o-client-fora-do-react).
 
 **`createQueryKeys`** dá um prefixo comum a todas as chaves de cache. Repare na dupla `patients()` / `patientList(search)`: a lista é guardada por busca, e invalidar `patients()` derruba **todas** as buscas de uma vez depois de um cadastro.
 
@@ -35253,7 +35332,9 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     O TanStack Query **pausa** queries quando o navegador está offline — o padrão é
     `networkMode: "online"`. Aqui a `queryFn` lê o IndexedDB, que não precisa de rede
     nenhuma, mas a query nem chega a rodar: a tela fica no skeleton até o sinal voltar.
-    `networkMode: "always"` diz ao Query que essa função não depende de rede.
+    `networkMode: "always"` diz ao Query que essa função não depende de rede. A medição, e por
+    que o SDK não troca o default do client inteiro, estão em
+    [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 ### 7. Status de sync: o painel e o botão de sair
 
@@ -39297,7 +39378,8 @@ os dados vieram.
 Por padrão, o TanStack Query **pausa** uma query quando o navegador está offline: a
 `queryFn` nem roda. Num app comum, isso é bom. Aqui, seria um spinner eterno, porque é
 justamente a `queryFn` que lê o IndexedDB. `networkMode: "always"` manda a query rodar
-de qualquer jeito, e o fallback para o cache acontece.
+de qualquer jeito, e o fallback para o cache acontece. A medição, e por que não é o default
+do SDK, estão em [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 !!! tip "A volta do sinal atualiza sozinha"
     `refetchOnReconnect` vem ligado no TanStack Query. Quando o sinal volta, a query

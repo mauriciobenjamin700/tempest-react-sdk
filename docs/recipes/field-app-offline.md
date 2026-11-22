@@ -335,6 +335,7 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   databaseName: "CampoVisitasOutbox",
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
+  coalesce: true,
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -428,6 +429,13 @@ dessas três coisas precisa de rede. Sem sinal, o `flush` é pulado sozinho (`su
 e a entrada fica esperando — a tela já respondeu.
 
 O `create`/`update` é só rótulo: como a rota é upsert, os dois viram o mesmo `PUT`.
+
+E o `coalesce: true` junta as edições: o técnico que salva a mesma visita dez vezes sem
+sinal manda **um** `PUT` quando a rede volta, com a versão mais nova — não dez. As fotos
+sobem uma vez só de qualquer jeito (quem já tem `upload_url` não sobe de novo), mas sem a
+opção cada `PUT` intermediário ainda gastava um round-trip num sinal que mal se sustenta.
+Detalhes, e o que não se junta, em
+[Dez edições, um request](../offline-sync.md#o-jeito-rapido-createofflinesync).
 
 #### `deliver`: as fotos sobem antes da visita
 
@@ -1589,7 +1597,7 @@ installPrecache({
 - 🗄️ **`createOfflineDatabase`** guarda visitas e fotos (como `Blob`) na mesma base, com
   dono por técnico.
 - 📤 **`createOfflineSync`** é a outbox: `saveVisit` grava local e enfileira; o envio
-  acontece quando der.
+  acontece quando der, e `coalesce: true` junta as edições da mesma visita num `PUT` só.
 - 📸 As fotos sobem **dentro do `deliver`** com **`createResumableUpload`** e `key` por
   foto — falha retenta, queda retoma do offset, foto enviada não sobe de novo.
 - ⚖️ Conflito tem dois tipos: o que a máquina resolve (`lastWriteWins` no `applyRemote`)

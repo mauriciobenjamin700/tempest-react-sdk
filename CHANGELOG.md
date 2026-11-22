@@ -72,6 +72,26 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **JSDoc do `useOfflineSync` passava `syncing`/`phase` ao `<SyncStatusBadge>`** (#720), props que
   ele não tem (TS2322); em JS puro o badge ficava em `idle` com pendências na fila. O `@example`
   agora usa `sync={notesSync}` e o `flush` do hook.
+- **`createOfflineSync({ coalesce })`: edições do mesmo registro saem num `deliver` só** (#725).
+  Medido antes da mudança: um `create` seguido de nove `update` do mesmo registro chamava o
+  `deliver` **10 vezes** (`npx vitest run src/offline/create-offline-sync.coalesce.test.ts`, caso
+  "still delivers one request per entry when coalesce is off"). Com `coalesce: true`, cada
+  sequência de `create`/`update` de um registro (mesmo dono) vira **uma** entrega com o `op`, o
+  `id` e o `attempts` da entrada mais antiga e o `payload` da mais nova; com uma função
+  `(acumulado, proximo) => payload` o app junta patches parciais. `delete` nunca entra no fold e
+  fecha a sequência, entradas de donos diferentes não se juntam, e o fold acontece na entrega — o
+  que foi enfileirado com o registro no ar fica para o próximo flush em vez de ser apagado junto.
+  `SyncRunSummary.coalesced` conta as entradas absorvidas; na falha só a mais antiga ganha
+  `attempts` e as outras contam em `deferred`. Tipo novo `OutboxCoalesce`. Default `false`: sem a
+  opção, nada muda. A receita **App de campo offline** liga a opção.
+
+### Budgets
+
+- **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **#725, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `slice: offline + PWA surface` 5 061 → 5 298 (teto 6 kB, dentro);
+  `ceiling: full barrel ESM` 172 596 → 172 765 (teto 172,7 → 172,8 kB); `ceiling: full barrel CJS`
+  203 908 → 204 290 (teto 204 → 204,3 kB). Os bytes são o agrupamento e o fold do `coalesce`.
 
 ### Interno
 

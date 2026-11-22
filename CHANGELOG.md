@@ -129,6 +129,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a política
   `foreignEntries`.
 
+### Segurança
+
+- **`createApiClient`: 401 de request sem token cujo `refresh` falha depois de `login(B)` não
+  desloga mais B** (#696, auditoria run-18 §3.1). O `catch` em volta do `refresh()` só recusava o
+  401 quando outra sessão tinha sido instalada desde a tentativa, e essa checagem começava por
+  `sessionEndedSince`, que devolve `false` para toda tentativa sem token. Num `ApiClient` próprio
+  (sem `createTempestAuth`), uma request deslogada que levava 401 disparava o `refresh`; se o
+  `login(B)` terminava durante ele e o refresh falhava, o cliente chamava `onUnauthorized` — e o
+  `() => logout()` da doc encerrava a sessão de B por uma request anterior a ela. A checagem agora
+  usa `epochMovedSince`, que conta tentativas com e sem token: a request rejeita com
+  `SessionSupersededError` e `onUnauthorized` não roda. O refresh que falha sem ninguém entrar
+  continua deixando o 401 e chamando `onUnauthorized` (#646). O preset `createTempestAuth` não era
+  afetado.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O
@@ -159,6 +173,17 @@ PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a 
   `DataProvider.deleteMany` e o `createQueryClient` (`npm run build && npx size-limit --json`):
   204 232 B neste branch, contra 203 908 B medidos na `main` ao mergear o #693 (+324 B). O barrel
   ESM mede 172 671 B, dentro do teto de 172,7 kB; nenhuma fatia mudou de teto.
+
+### Budgets
+
+- **#696, medido com `npm run build && npx size-limit --json` sobre `origin/main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `slice: typical app (shell + 5 components + http + auth + hook)`
+  12 842 → 12 945 (teto 12,94 → 12,95 kB); `ceiling: full barrel ESM` 172 596 → 172 788 (teto
+  172,7 → 172,8 kB); `ceiling: full barrel CJS` 203 908 → 204 026 (teto 204 → 204,1 kB);
+  `slice: http client` 5 922 → 5 926, dentro do teto. O `dist` difere em **um** identificador
+  minificado (`D(e)` → `O(e)` em `dist/http/api-client.js`); trocar só esse arquivo no `dist` da
+  `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
+  não código novo.
 
 ## [0.92.0] — 2026-11-21
 

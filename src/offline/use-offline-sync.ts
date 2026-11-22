@@ -59,11 +59,18 @@ export interface UseOfflineSyncResult<TPayload> extends SyncState {
  * @returns The reactive state merged with `enqueue`/`flush` actions.
  *
  * @example
- * const { pending, syncing, phase, flush } = useOfflineSync(notesSync, {
+ * const { syncing, flush } = useOfflineSync(notesSync, {
  *     flushOnMount: true,
  *     intervalMs: 30_000,
  * });
- * return <SyncStatusBadge pending={pending} syncing={syncing} phase={phase} />;
+ * return (
+ *     <>
+ *         <SyncStatusBadge sync={notesSync} />
+ *         <Button onClick={() => void flush()} disabled={syncing}>
+ *             Sync now
+ *         </Button>
+ *     </>
+ * );
  */
 export function useOfflineSync<TPayload>(
     sync: OfflineSync<TPayload>,
@@ -146,15 +153,29 @@ function toneFromState(state: SyncState): SyncTone {
 }
 
 /**
+ * The slice of an {@link OfflineSync} engine that a status display reads: the
+ * snapshot and the change subscription, nothing that carries the payload type.
+ *
+ * Why it exists: `OfflineSync<TPayload>` is invariant in `TPayload`, because
+ * `enqueue` takes the payload as a parameter. Under `strict` an
+ * `OfflineSync<Visit>` is therefore not assignable to `OfflineSync<unknown>`
+ * (TS2322), so a prop typed as the whole engine rejects every engine an app
+ * actually creates. Every `OfflineSync<T>` satisfies this type, whatever `T` is.
+ */
+export type SyncStatusSource = Pick<OfflineSync<unknown>, "getState" | "subscribe">;
+
+/**
  * Subscribe to an {@link OfflineSync} engine and return a display-only
  * {@link SyncStatus}. A thin read-only companion to {@link useOfflineSync},
  * intended to feed a `<SyncStatusBadge>` without exposing flush actions.
  *
- * @typeParam TPayload - Record snapshot carried by outbox entries.
+ * Takes a {@link SyncStatusSource}, so an engine typed with any payload is
+ * accepted, as is any object exposing `getState` and `subscribe`.
+ *
  * @param sync - The engine returned by `createOfflineSync`.
  * @returns The compact status snapshot.
  */
-export function useSyncStatus<TPayload>(sync: OfflineSync<TPayload>): SyncStatus {
+export function useSyncStatus(sync: SyncStatusSource): SyncStatus {
     const state = useSyncExternalStore(sync.subscribe, sync.getState, sync.getState);
     return {
         tone: toneFromState(state),

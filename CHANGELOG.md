@@ -4,6 +4,29 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`<SyncStatusBadge sync={...}>` aceita o motor tipado** (#718). A prop era
+  `OfflineSync<unknown>`, e o motor é invariante no payload (o `enqueue` o recebe como parâmetro):
+  com `strict`, todo `OfflineSync<Visit>` reprovava com TS2322 em `sync={...}` — reproduzido com
+  `npx tsc --noEmit -p tsconfig.json` sobre um arquivo com `createOfflineSync<Visit>`. A prop passa a
+  ser `SyncStatusSource` (`Pick<OfflineSync<unknown>, "getState" | "subscribe">`, exportado da
+  raiz), só o que o badge lê. `useSyncStatus` recebe o mesmo tipo e **perde o parâmetro de tipo**
+  `TPayload`, que nada lia: quem escrevia `useSyncStatus<Visit>(sync)` tira o `<Visit>`. A receita
+  **App de campo offline** troca o contorno (`useSyncStatus` + `tone`/`pending`) por
+  `sync={visitSync}`. O exemplo de `docs/components/feedback.md` com `OfflineSync<Nota>` passava no
+  guard só porque o `@/` não resolve lá (#691); agora ele compila de verdade.
+- **Doc: `store.save(...)` não existe** (#719). Os exemplos de conflito em `docs/offline-sync.md`
+  e `docs/pwa.md` (PT e EN) e o JSDoc de `lastWriteWins`/`higherVersionWins`/`createOfflineSync`
+  chamavam `save`/`remove`, que o `OfflineStore` não tem — é `put`/`delete`. A issue dizia que os
+  blocos não tinham `import`; tinham. O guard os compilava, mas `store`/`analyses` não estavam
+  declarados, e o "Cannot find name" (TS2552) e o `dto` implícito (TS7006) caem no filtro de
+  fragmento — o `.save` nunca era checado. Os blocos agora criam o store com `createOfflineStore`, e
+  o guard reprova `save` (TS2339) se ele voltar.
+- **JSDoc do `useOfflineSync` passava `syncing`/`phase` ao `<SyncStatusBadge>`** (#720), props que
+  ele não tem (TS2322); em JS puro o badge ficava em `idle` com pendências na fila. O `@example`
+  agora usa `sync={notesSync}` e o `flush` do hook.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

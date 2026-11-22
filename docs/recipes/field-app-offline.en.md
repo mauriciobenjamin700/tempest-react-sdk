@@ -334,6 +334,7 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
   foreignEntries: "hold",
+  coalesce: true,
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -428,6 +429,13 @@ None of those three things needs a network. Without signal, the `flush` skips it
 
 `create`/`update` is just a label: since the route is an upsert, both become the same
 `PUT`.
+
+And `coalesce: true` folds the edits: a technician who saves the same visit ten times
+without signal sends **one** `PUT` when the network returns, with the newest version — not
+ten. The photos go up once either way (one that already has an `upload_url` is not sent
+again), but without the option every intermediate `PUT` still spent a round-trip on a
+signal that barely holds. Details, and what is not folded, in
+[Ten edits, one request](../offline-sync.md#the-fast-path-createofflinesync).
 
 #### `deliver`: the photos go up before the visit
 
@@ -633,6 +641,8 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     `networkMode: "online"`. Here the `queryFn` reads IndexedDB, which needs no network at
     all, but the query never even runs: the screen sits on the skeleton until signal comes
     back. `networkMode: "always"` tells Query this function does not depend on the network.
+    The measurement, and why the SDK does not change the default for the whole client, are in
+    [Query → `networkMode`](../query.md#a-query-that-reads-only-indexeddb-networkmode-always).
 
 ### 7. Sync status: the panel and the sign-out button
 
@@ -1205,7 +1215,6 @@ import {
   Skeleton,
   SyncStatusBadge,
   formatDateTime,
-  useSyncStatus,
 } from "tempest-react-sdk";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SyncPanel } from "@/components/SyncPanel";
@@ -1231,7 +1240,6 @@ const SYNC_BADGE: Record<
 export function VisitListPage() {
   const navigate = useNavigate();
   const list = useVisitList();
-  const status = useSyncStatus(visitSync);
 
   return (
     <>
@@ -1241,7 +1249,7 @@ export function VisitListPage() {
         safeArea
         actions={
           <>
-            <SyncStatusBadge tone={status.tone} pending={status.pending} />
+            <SyncStatusBadge sync={visitSync} />
             <LogoutButton />
           </>
         }
@@ -1306,15 +1314,10 @@ The four states, each with the right component:
 | empty | [`EmptyState`](../components/feedback.md#emptystate) saying what to do — and that it works without signal |
 | with data | one [`ListTile`](../components/data.md#listtile) per visit, each with its own upload badge |
 
-At the top, [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) takes `tone`
-and `pending` from `useSyncStatus(visitSync)` and shows the overall state: synced, syncing,
-pending, offline or error. The **per-row** badge says which visit, specifically, has not
-gone yet.
-
-!!! note "Why not `sync={visitSync}`"
-    The badge also accepts the engine directly, but the prop is typed
-    `OfflineSync<unknown>`, and an engine with a typed payload (`OfflineSync<Visit>`) does
-    not fit it under `strict`. `useSyncStatus` is generic and accepts your engine as it is.
+At the top, [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) takes the engine
+as `sync={visitSync}`, subscribes to it on its own and shows the overall state: synced,
+syncing, pending, offline or error. The **per-row** badge says which visit, specifically,
+has not gone yet.
 
 [`FloatingActionButton`](../components/actions.md#floatingactionbutton) sits in the bottom
 right corner, within thumb reach. The list's `paddingBottom: 96` keeps it from covering the
@@ -1596,7 +1599,8 @@ installPrecache({
 - 🗄️ **`createOfflineDatabase`** keeps visits and photos (as `Blob`s) in the same database,
   owned per technician.
 - 📤 **`createOfflineSync`** is the outbox: `saveVisit` writes locally and enqueues; the
-  upload happens whenever it can.
+  upload happens whenever it can, and `coalesce: true` folds the edits of one visit into a
+  single `PUT`.
 - 📸 Photos go up **inside `deliver`** with **`createResumableUpload`** and a per-photo
   `key` — a failure retries, a drop resumes from the offset, a sent photo does not go up
   again.

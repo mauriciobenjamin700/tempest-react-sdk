@@ -350,12 +350,33 @@ For **optimistic** mutations that write to the outbox and patch the TanStack Que
 The pull overwrites the local record with the server version. When you need an explicit policy inside `applyRemote`, the helpers cover the two common cases (ties → remote wins):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
-  const local = await store.get(dto.id);
-  await store.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-};
+interface Note {
+  id: string;
+  updatedAt: string;
+  version: number;
+}
+
+// the local store the engine feeds
+const notes = createOfflineStore<Note, string>({
+  databaseName: "NotesOffline",
+  version: 1,
+  tableName: "notes",
+  indexes: "&id, updatedAt",
+});
+
+// pass it as `applyRemote` to `createOfflineSync`
+export async function applyRemote(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(lastWriteWins(local, dto, (r) => r.updatedAt));
+}
+
+// or, with a version counter on the record
+export async function applyRemoteByVersion(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap

@@ -235,3 +235,42 @@ describe('createOfflineSync — foreignEntries: "hold" on a shared device (#724)
         sync.dispose();
     });
 });
+
+/**
+ * `coalesce` (#725) and `foreignEntries: "hold"` (#724) landed in parallel and meet
+ * in the same loop: a held group must count every folded entry as held, and still
+ * hold back the later entries of its record, as a single held entry does.
+ */
+describe('createOfflineSync — foreignEntries: "hold" with coalesce', () => {
+    it("counts every folded entry of a held group and holds the record's later entries", async () => {
+        const principal = { current: "user-a" as unknown };
+        const deliver = vi.fn(async (_entry: OutboxEntry<Note>) => undefined);
+        const sync = createOfflineSync<Note, unknown>({
+            databaseName: `sync-owner-coalesce-${Math.random().toString(36).slice(2)}`,
+            watermark: { get: () => null, set: () => undefined, clear: () => undefined },
+            deliver,
+            pullPage: async (): Promise<PullPage<unknown>> => ({
+                items: [],
+                nextCursor: null,
+                serverTime: null,
+            }),
+            applyRemote: async () => undefined,
+            isOnline: () => true,
+            getPrincipal: () => principal.current as string | null,
+            foreignEntries: "hold",
+            coalesce: true,
+        });
+        await sync.enqueue("update", "n1", { text: "A first" });
+        await sync.enqueue("update", "n1", { text: "A second" });
+        principal.current = "user-b";
+        await sync.enqueue("update", "n1", { text: "B edit" });
+
+        const summary = await sync.flush();
+
+        expect(deliver).not.toHaveBeenCalled();
+        expect(summary.held).toBe(2);
+        expect(summary.deferred).toBe(1);
+        expect(await sync.pendingCount()).toBe(3);
+        sync.dispose();
+    });
+});

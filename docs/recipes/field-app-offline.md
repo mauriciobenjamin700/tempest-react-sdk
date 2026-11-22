@@ -333,6 +333,7 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
   foreignEntries: "hold",
+  coalesce: true,
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -426,6 +427,13 @@ dessas três coisas precisa de rede. Sem sinal, o `flush` é pulado sozinho (`su
 e a entrada fica esperando — a tela já respondeu.
 
 O `create`/`update` é só rótulo: como a rota é upsert, os dois viram o mesmo `PUT`.
+
+E o `coalesce: true` junta as edições: o técnico que salva a mesma visita dez vezes sem
+sinal manda **um** `PUT` quando a rede volta, com a versão mais nova — não dez. As fotos
+sobem uma vez só de qualquer jeito (quem já tem `upload_url` não sobe de novo), mas sem a
+opção cada `PUT` intermediário ainda gastava um round-trip num sinal que mal se sustenta.
+Detalhes, e o que não se junta, em
+[Dez edições, um request](../offline-sync.md#o-jeito-rapido-createofflinesync).
 
 #### `deliver`: as fotos sobem antes da visita
 
@@ -628,7 +636,9 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     O TanStack Query **pausa** queries quando o navegador está offline — o padrão é
     `networkMode: "online"`. Aqui a `queryFn` lê o IndexedDB, que não precisa de rede
     nenhuma, mas a query nem chega a rodar: a tela fica no skeleton até o sinal voltar.
-    `networkMode: "always"` diz ao Query que essa função não depende de rede.
+    `networkMode: "always"` diz ao Query que essa função não depende de rede. A medição, e por
+    que o SDK não troca o default do client inteiro, estão em
+    [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 ### 7. Status de sync: o painel e o botão de sair
 
@@ -1198,7 +1208,6 @@ import {
   Skeleton,
   SyncStatusBadge,
   formatDateTime,
-  useSyncStatus,
 } from "tempest-react-sdk";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SyncPanel } from "@/components/SyncPanel";
@@ -1224,7 +1233,6 @@ const SYNC_BADGE: Record<
 export function VisitListPage() {
   const navigate = useNavigate();
   const list = useVisitList();
-  const status = useSyncStatus(visitSync);
 
   return (
     <>
@@ -1234,7 +1242,7 @@ export function VisitListPage() {
         safeArea
         actions={
           <>
-            <SyncStatusBadge tone={status.tone} pending={status.pending} />
+            <SyncStatusBadge sync={visitSync} />
             <LogoutButton />
           </>
         }
@@ -1299,14 +1307,9 @@ Os quatro estados, cada um com o componente certo:
 | vazio | [`EmptyState`](../components/feedback.md#emptystate) dizendo o que fazer — e que funciona sem sinal |
 | com dados | [`ListTile`](../components/data.md#listtile) por visita, com o badge de envio de cada uma |
 
-No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o `tone`
-e o `pending` do `useSyncStatus(visitSync)` e mostra o estado geral: sincronizado,
+No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o motor
+em `sync={visitSync}`, se inscreve nele sozinho e mostra o estado geral: sincronizado,
 sincronizando, pendente, offline ou erro. O badge **por linha** diz qual visita, especificamente, ainda não foi.
-
-!!! note "Por que não `sync={visitSync}`"
-    O badge também aceita o motor direto, mas a prop é tipada como `OfflineSync<unknown>`,
-    e um motor com payload tipado (`OfflineSync<Visit>`) não passa nela com `strict`
-    ligado. O `useSyncStatus` é genérico e aceita o seu motor como ele é.
 
 O [`FloatingActionButton`](../components/actions.md#floatingactionbutton) fica no canto inferior direito, ao
 alcance do polegar. O `paddingBottom: 96` da lista garante que ele não cubra a última visita.
@@ -1584,7 +1587,7 @@ installPrecache({
 - 🗄️ **`createOfflineDatabase`** guarda visitas e fotos (como `Blob`) na mesma base, com
   dono por técnico.
 - 📤 **`createOfflineSync`** é a outbox: `saveVisit` grava local e enfileira; o envio
-  acontece quando der.
+  acontece quando der, e `coalesce: true` junta as edições da mesma visita num `PUT` só.
 - 📸 As fotos sobem **dentro do `deliver`** com **`createResumableUpload`** e `key` por
   foto — falha retenta, queda retoma do offset, foto enviada não sobe de novo.
 - ⚖️ Conflito tem dois tipos: o que a máquina resolve (`lastWriteWins` no `applyRemote`)

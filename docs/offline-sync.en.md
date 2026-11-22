@@ -190,6 +190,73 @@ sync.clearOutbox();
     The block is **per record, not per pass**: a record the server keeps rejecting
     does not hold up any other record's changes.
 
+!!! tip "Ten edits, one request: `coalesce`"
+    Offline, the technician edits the same visit ten times. By default that is
+    **ten** `deliver` calls when the signal comes back — nine of them sending a
+    snapshot the tenth overwrites. With `coalesce: true`, each run of
+    `create`/`update` entries of a record becomes **one** `deliver`:
+
+    | What `deliver` receives | Where it comes from |
+    | --- | --- |
+    | `op` | the **oldest** entry — `create` followed by `update`s is still `create` |
+    | `payload` | the **newest** one (`true`) or the fold of all of them, oldest first (function) |
+    | `id`, `attempts`, `lastError` | the oldest entry — an idempotency key taken from `entry.id` does not change between retries |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    interface Note {
+        id: string;
+        text?: string;
+        pinned?: boolean;
+    }
+
+    const sync = createOfflineSync<Note, never>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: entry.op === "delete" ? "DELETE" : "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        coalesce: true,
+    });
+
+    await sync.enqueue("create", "n1", { id: "n1", text: "a" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "b" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "c" });
+    const summary = await sync.flush();
+    console.log(summary.succeeded, summary.coalesced); // 1 2 — one PUT with text "c"
+    ```
+
+    If the queue holds **patches** instead of snapshots, pass a merge function:
+    `coalesce: (folded, next) => ({ ...folded, ...next })`.
+
+    What is **not** folded, on purpose:
+
+    - **A `delete` never joins the fold** and closes the run: `create`, `update`,
+      `delete` becomes `create` (newest payload) then `delete`, two requests in
+      order. Dropping the pair would orphan the record on the server whenever the
+      `create` had landed and only its response was lost.
+    - **Entries of different owners** (`getPrincipal`) are not folded together.
+    - **Whatever is queued during the delivery** waits for the next flush. Folding
+      happens when the run delivers, not when `enqueue` writes — so
+      `pendingCount()` still counts every entry until the flush. Rewriting the
+      entry in `enqueue` would risk deleting, along with the rest, an edit that
+      arrived while that record was in flight.
+
+    On failure the folded entries stay queued: only the oldest one gets `attempts`
+    bumped, and the rest count in `summary.deferred`. On success they all leave,
+    and the absorbed ones count in `summary.coalesced`.
+
+    The folded delivery goes out **at the oldest entry's position**, carrying the
+    newest state. If a recent edit of record A points at a record B created
+    **after** A was queued, A may reach the server before B. Leave the option off
+    when the server validates that kind of reference on write.
+
 The sections below show **what the engine does under the hood** (and how to wire it by hand when you need fine-grained control — multiple stores, per-field merges, etc.).
 
 ## Prerequisites
@@ -404,13 +471,35 @@ The backend resolves by `updated_at` (the most recent write wins). On the client
 For the two common cases, the SDK exports ready-made resolvers to use inside `applyRemote` (ties → remote wins):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
+interface Analysis {
+  id: string;
+  user_id: string;
+  updated_at: string;
+  version: number;
+}
+
+// the same store as section 2
+const analyses = createOfflineStore<Analysis, string>({
+  databaseName: "FamachaOffline",
+  version: 1,
+  tableName: "analyses",
+  indexes: "&id, user_id, updated_at",
+  ownerField: "user_id",
+});
+
+// pass it as `applyRemote` to `createOfflineSync`
+export async function applyRemote(dto: Analysis): Promise<void> {
   const local = await analyses.get(dto.id);
-  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-  // or: higherVersionWins(local, dto, (r) => r.version)
-};
+  await analyses.put(lastWriteWins(local, dto, (r) => r.updated_at));
+}
+
+// or, with a version counter on the record
+export async function applyRemoteByVersion(dto: Analysis): Promise<void> {
+  const local = await analyses.get(dto.id);
+  await analyses.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap

@@ -28,6 +28,11 @@
  *    the way the bin runs (issue #485). This script is itself plain Node, so it
  *    calls the CLI's own `loadIconTables`: an import that reaches a stylesheet
  *    fails here with `ERR_UNKNOWN_FILE_EXTENSION`, not in a consumer's app.
+ * 6. The root entry reaches no module that imports `onnxruntime-web` (issue #721).
+ *    The ONNX Runtime is an optional peer that only `/vision` and `/tabular` need;
+ *    one root module importing a vendored vision file would make every bundler that
+ *    is not Vite fail with `Could not resolve "onnxruntime-web"` in apps that never
+ *    run a model. `/vision` must still reach it, or the check proves nothing.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -206,6 +211,54 @@ if (namingGraph.has(SHARD_INDEX)) {
             "slug is what a form does before submitting, and it must not depend on the " +
             "45 shard modules that exist to *render* one. Keep alias resolution in " +
             "icons/alias.js, which is why that module was split out of shard-cache.",
+    );
+}
+
+/**
+ * Optional peer that only the `/vision` and `/tabular` subpaths may reach.
+ *
+ * Matched as a bare specifier in the static imports of each module of a graph:
+ * `staticGraph` follows relative specifiers only, so the peer itself never enters
+ * the set — the modules that import it do.
+ */
+const ONNX_PEER = "onnxruntime-web";
+
+/**
+ * Modules of a static graph that import the ONNX Runtime peer.
+ *
+ * @param {Set<string>} graph - Dist-relative paths, as `staticGraph` returns them.
+ * @returns {string[]} The members whose own static imports name `onnxruntime-web`.
+ */
+function importersOfOnnx(graph) {
+    return [...graph].filter((key) => {
+        let source;
+        try {
+            source = readFileSync(join(DIST, key), "utf8");
+        } catch {
+            return false;
+        }
+        return [...source.matchAll(STATIC_IMPORT)].some(
+            (match) => (match[1] ?? match[2]) === ONNX_PEER,
+        );
+    });
+}
+
+const rootOnnx = importersOfOnnx(staticGraph(join(DIST, "tempest-react-sdk.js")));
+const visionOnnx = importersOfOnnx(staticGraph(join(DIST, "vision.js")));
+
+if (rootOnnx.length > 0) {
+    problems.push(
+        `dist/tempest-react-sdk.js reaches ${rootOnnx.join(", ")}, which import ` +
+            `${ONNX_PEER}. It is an optional peer: every app built with esbuild, webpack ` +
+            "or Node would fail to resolve it without running a model (issue #721). Move " +
+            "the shared code out of the vendored vision tree, the way useCameraStream lives in capture.",
+    );
+}
+
+if (visionOnnx.length === 0) {
+    problems.push(
+        `dist/vision.js no longer reaches any module importing ${ONNX_PEER}, so the ` +
+            "root-entry check above proves nothing. Update ONNX_PEER or the import form.",
     );
 }
 
@@ -389,5 +442,6 @@ console.log(
     "check-dist-guards: ok (live dev guard present, no ungated console calls, " +
         `Icon reaches ${iconGraph.size} modules and none is the slug list, ` +
         `${cssModuleLookups} CSS-module lookups in ${cssModuleImports} imports all resolve, ` +
-        `gen icons reads ${iconTableSize} slugs in plain Node)`,
+        `gen icons reads ${iconTableSize} slugs in plain Node, ` +
+        `root reaches no ${ONNX_PEER} importer while /vision reaches ${visionOnnx.length})`,
 );

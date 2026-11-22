@@ -864,9 +864,8 @@ O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no un
 
     ```tsx
     // src/components/InlineCamera.tsx
-    import { Button } from "tempest-react-sdk";
+    import { Button, useCameraStream } from "tempest-react-sdk";
     import { captureFrame, type CapturedFrame } from "tempest-react-sdk/imaging";
-    import { useCameraStream } from "tempest-react-sdk/vision";
 
     export function InlineCamera({ onShot }: { onShot: (frame: CapturedFrame) => void }) {
       const camera = useCameraStream({
@@ -899,11 +898,9 @@ O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no un
     }
     ```
 
-    O preço: o `useCameraStream` mora no subpath `/vision`, que exige o
-    `onnxruntime-web` instalado mesmo sem modelo nenhum (veja
-    [Vision](../vision.md#onnxruntime-web-e-peer-dependency-opcional)). E o frame sai na
-    resolução do stream de vídeo, normalmente menor que a da câmera nativa. Para foto de
-    vistoria, o `<input capture>` costuma ser a escolha melhor.
+    O `useCameraStream` vem da raiz, que não exige o `onnxruntime-web`. O preço é outro: o
+    frame sai na resolução do stream de vídeo, normalmente menor que a da câmera nativa.
+    Para foto de vistoria, o `<input capture>` costuma ser a escolha melhor.
 
 ### 9. A tela da visita
 

@@ -4,6 +4,31 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`useCameraStream` sai na raiz e não exige mais o `onnxruntime-web` (#721).** O hook só existia
+  no `/vision`, que importa o ONNX Runtime estaticamente: quem só queria a câmera precisava instalar
+  o peer. Medido num consumidor limpo (tarball da `main` em `71727a7`, npm 11, sem
+  `onnxruntime-web`; `import { useCameraStream } from "tempest-react-sdk/vision"`): o esbuild
+  (`--bundle --loader:.css=empty`) falha com 2× `Could not resolve "onnxruntime-web"`, o Node cru com
+  `--import tempest-react-sdk/node-css-loader` e o Vitest do app (config do `createViteConfig`)
+  falham ao carregar o módulo; o `vite build` 8 passa, mas com 4 avisos `IMPORT_IS_UNDEFINED`. Com
+  `import { useCameraStream } from "tempest-react-sdk"` e o tarball deste branch, os quatro passam
+  sem aviso. O módulo mudou de `src/vision/` para `src/capture/` (o `useBarcodeScanner` já o usava
+  de lá); o `/vision` reexporta **a mesma função**, então quem importa dele não muda nada. Novo
+  invariante no `scripts/check-dist-guards.mjs`: a entrada raiz não alcança módulo que importe
+  `onnxruntime-web` (e o `/vision` precisa alcançar, para o guard não ficar vazio); o
+  `smoke-imports.mjs` do tarball passa a exigir `useCameraStream` na raiz. A receita
+  [App de campo offline](docs/recipes/field-app-offline.md) importa o hook da raiz.
+
+### Budgets
+
+- **#721, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `ceiling: full barrel CJS` 203 908 → 204 132 (teto 204 →
+  204,2 kB), pelo `useCameraStream` e seus tipos no barrel; `slice: createZip + writeXlsx` 6 938 →
+  6 943 (teto 6,94 → 6,95 kB) sem código novo na fatia — a ordem dos módulos no barrel mudou e o
+  minificador renomeou diferente. `slice: device capture` 5 735 → 5 744 (teto 5,75 kB, dentro).
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

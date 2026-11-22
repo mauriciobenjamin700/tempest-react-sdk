@@ -19180,6 +19180,8 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
   quem não tem, e `detector` aceita um polyfill.
 - `useBarcodeScanner` — a metade de decodificação, sobre `useCameraStream`; loop que não se
   sobrepõe, `formats` resolvidos pela interseção com o motor.
+- `useCameraStream` — a câmera crua, na raiz: abre, classifica o erro e libera no unmount,
+  sem exigir o `onnxruntime-web`.
 - `useTorch` — a lanterna é constraint de track viva, não dispositivo; `supported` só vale
   depois do stream.
 - `useVideoRecorder` — mesmo motor do áudio: relógio que desconta pausa, `stop()` com todos
@@ -19194,7 +19196,8 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
 
 - [Áudio](./audio.md) — microfone, gravação de voz, WAV, saída de som
 - [Componentes utilitários](./components/utility.md) — o `QRCode`, que codifica
-- [Vision (ONNX)](./vision.md) — o `useCameraStream` que este módulo reaproveita
+- [Vision (ONNX)](./vision.md#usecamerastream-abrir-a-camera) — o `useCameraStream`, exportado
+  na raiz por este módulo e documentado junto da luminância
 
 ---
 
@@ -35499,9 +35502,8 @@ O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no un
 
     ```tsx
     // src/components/InlineCamera.tsx
-    import { Button } from "tempest-react-sdk";
+    import { Button, useCameraStream } from "tempest-react-sdk";
     import { captureFrame, type CapturedFrame } from "tempest-react-sdk/imaging";
-    import { useCameraStream } from "tempest-react-sdk/vision";
 
     export function InlineCamera({ onShot }: { onShot: (frame: CapturedFrame) => void }) {
       const camera = useCameraStream({
@@ -35534,11 +35536,9 @@ O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no un
     }
     ```
 
-    O preço: o `useCameraStream` mora no subpath `/vision`, que exige o
-    `onnxruntime-web` instalado mesmo sem modelo nenhum (veja
-    [Vision](../vision.md#onnxruntime-web-e-peer-dependency-opcional)). E o frame sai na
-    resolução do stream de vídeo, normalmente menor que a da câmera nativa. Para foto de
-    vistoria, o `<input capture>` costuma ser a escolha melhor.
+    O `useCameraStream` vem da raiz, que não exige o `onnxruntime-web`. O preço é outro: o
+    frame sai na resolução do stream de vídeo, normalmente menor que a da câmera nativa.
+    Para foto de vistoria, o `<input capture>` costuma ser a escolha melhor.
 
 ### 9. A tela da visita
 
@@ -48761,8 +48761,15 @@ COCO_CLASSES; // o array readonly das 80 classes, em ordem canônica
 Antes de rodar qualquer modelo você precisa de um **frame** — e de um frame que
 preste. O subpath `/vision` traz três primitivas de navegador pra isso: abrir a
 câmera, medir o brilho ao vivo e rejeitar capturas escuras demais. Elas são
-genéricas (não dependem de nenhum modelo), mas moram no `/vision` porque é ali
-que a captura acontece.
+genéricas (não dependem de nenhum modelo).
+
+!!! tip "Só quer a câmera? Importe o `useCameraStream` da raiz"
+    O `useCameraStream` mora no módulo de [captura](./device-capture.md) e sai na raiz
+    (`import { useCameraStream } from "tempest-react-sdk"`). O `/vision` reexporta a
+    mesma função, mas importa o `onnxruntime-web` estaticamente: sem o peer instalado,
+    o esbuild falha com `Could not resolve "onnxruntime-web"`, e o Node cru e o Vitest do
+    app com `ERR_MODULE_NOT_FOUND`. Pela raiz nada disso acontece — um guard do build
+    reprova se a raiz alcançar um módulo que importa o ONNX Runtime.
 
 ### `useCameraStream` — abrir a câmera
 
@@ -48772,7 +48779,7 @@ erro sem decorar os nomes de `DOMException`. O stream é liberado sozinho no
 unmount e no `retry()`.
 
 ```tsx
-import { useCameraStream } from "tempest-react-sdk/vision";
+import { useCameraStream } from "tempest-react-sdk";
 
 function CameraView() {
   const { status, error, videoRef, retry } = useCameraStream();
@@ -48824,7 +48831,7 @@ O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra l
 embrulhar o hook, passe `messages` — um texto por `kind`:
 
 ```tsx
-import { useCameraStream } from "tempest-react-sdk/vision";
+import { useCameraStream } from "tempest-react-sdk";
 
 const MENSAGENS_DA_CAMERA = {
   unsupported: "Este navegador não dá acesso à câmera.",

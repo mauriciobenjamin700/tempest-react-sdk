@@ -671,6 +671,40 @@ export function Anexos() {
 }
 ```
 
+### Opening the phone camera: `capture`
+
+`capture` goes straight to the `<input type="file">` and, on a phone, skips the file picker
+and opens the camera app: `"environment"` is the rear one, `"user"` the front one, `true`
+lets the browser choose. You get focus, flash and the camera's full resolution without
+asking for any permission — the system app takes the shot. The same prop exists on
+[`Dropzone`](#dropzone).
+
+```tsx
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function DocumentPhoto() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Document photo"
+            accept="image/*"
+            capture="environment"
+            value={files}
+            onChange={setFiles}
+            title="Tap to take a photo"
+        />
+    );
+}
+```
+
+!!! note "On desktop, `capture` does nothing"
+    Desktop browsers ignore the attribute and open the usual file picker — the component
+    keeps working, just without the camera shortcut. Pair it with `accept="image/*"` (or
+    `video/*`): the attribute only means something for media. And expect **one photo per
+    opening**, even with `multiple`; for more photos, the user taps again.
+
 ## `Slider`
 
 **When to use:** picking a single value on a continuous range (volume,
@@ -760,6 +794,7 @@ function Uploader() {
 | `onDrop`    | `(files: File[]) => void` | —              |
 | `accept`    | `string`                  | —              |
 | `multiple`  | `boolean`                 | `true`         |
+| `capture`   | `boolean \| "user" \| "environment"` | — ([opens the camera](#opening-the-phone-camera-capture)) |
 | `maxSize`   | `number` (bytes)          | —              |
 | `onReject`  | `(files: File[]) => void` | —              |
 | `disabled`  | `boolean`                 | `false`        |

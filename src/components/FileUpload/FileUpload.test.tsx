@@ -147,3 +147,19 @@ describe("FileUpload — accept filter, size labels and interaction", () => {
         expect(screen.getByText("até 5 MB")).toBeInTheDocument();
     });
 });
+
+describe("FileUpload — camera capture (#722)", () => {
+    it("forwards capture to the file input so a phone opens the front camera", () => {
+        const { container } = render(
+            <FileUpload value={[]} onChange={() => {}} accept="image/*" capture="user" />,
+        );
+        const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+        expect(input.getAttribute("capture")).toBe("user");
+    });
+
+    it("leaves the capture attribute out by default, keeping the file picker", () => {
+        const { container } = render(<FileUpload value={[]} onChange={() => {}} />);
+        const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+        expect(input.hasAttribute("capture")).toBe(false);
+    });
+});

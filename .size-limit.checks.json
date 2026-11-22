@@ -93,7 +93,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createApiClient, parseResponse, uploadWithProgress, retry, usePoll }"
     },
-    "limit": "5.95 kB",
+    "limit": "6.05 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -247,7 +247,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ LiveRouteMap }"
     },
-    "limit": "9.2 kB",
+    "limit": "9.4 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -510,7 +510,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createZip, writeXlsx }"
     },
-    "limit": "6.94 KB",
+    "limit": "6.95 KB",
     "ignore": [
       "react",
       "react-dom",
@@ -559,7 +559,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "173.1 kB",
+    "limit": "173.9 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -578,7 +578,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "204.7 kB",
+    "limit": "205.6 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -888,7 +888,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "32.6 kB"
+    "limit": "32.7 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

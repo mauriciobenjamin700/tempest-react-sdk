@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from "react";
 import { AlertTriangle, Check, CloudOff, RefreshCw, UploadCloud } from "lucide-react";
 import { cn } from "@/utils/cn";
-import type { OfflineSync, SyncTone } from "@/offline";
+import type { SyncStatusSource, SyncTone } from "@/offline";
 import { useSyncStatus } from "@/offline/use-offline-sync";
 import { VisuallyHidden } from "../VisuallyHidden";
 import styles from "./SyncStatusBadge.module.css";
@@ -31,8 +31,13 @@ export interface SyncStatusBadgeProps extends Omit<HTMLAttributes<HTMLSpanElemen
     /**
      * An `OfflineSync` engine to observe directly. When set, the badge wires
      * `useSyncStatus` internally, so `tone` and `pending` come from the engine.
+     *
+     * Typed as {@link SyncStatusSource} — only what the badge reads — rather
+     * than `OfflineSync<unknown>`: the engine is invariant in its payload type,
+     * so the wider type rejected every `OfflineSync<T>` an app creates (TS2322
+     * under `strict`).
      */
-    sync?: OfflineSync<unknown>;
+    sync?: SyncStatusSource;
     /** Number of queued mutations, appended to the label when `> 0`. */
     pending?: number;
     /** Override the per-tone label text. */
@@ -94,7 +99,7 @@ function PresentationalBadge({
     );
 }
 
-function ConnectedBadge({ sync, ...rest }: PresentationalProps & { sync: OfflineSync<unknown> }) {
+function ConnectedBadge({ sync, ...rest }: PresentationalProps & { sync: SyncStatusSource }) {
     const { tone, pending } = useSyncStatus(sync);
     return <PresentationalBadge {...rest} tone={tone} pending={pending} />;
 }

@@ -325,6 +325,11 @@ All options are optional.
     `tempestCsp()` lives in the same subpath and derives `connect-src` from the
     `VITE_*` variables the app reads at runtime. See [Content-Security-Policy](csp.md).
 
+!!! tip "Theme without a flash"
+    `tempestThemeInit()` lives here too: it injects `themeInitScript()` at the top of
+    `<head>`, and `tempestCsp()` allows it by hash. See
+    [No-flash](theme.md#no-flash-avoiding-the-wrong-theme-flash).
+
 ## Recap
 
 - Import `createViteConfig` from **`tempest-react-sdk/vite`** — the dedicated Node

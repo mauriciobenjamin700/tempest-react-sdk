@@ -1,7 +1,7 @@
 # Tutorial — State
 
 On the previous page, the dashboard guard read
-`useAuth.getState().isAuthenticated` — but the `useAuth` store doesn't exist yet.
+`useAuth.use.isAuthenticated()` — but the `useAuth` store doesn't exist yet.
 Let's create it now. Along the way, you'll learn the SDK's two state pieces:
 `createStore` (a generic store) and `createAuthStore` (the ready-made auth store),
 both on top of [Zustand](https://github.com/pmndrs/zustand), with
@@ -195,21 +195,25 @@ export function RootLayout() {
 
 ## Reading the store outside React — `getState()`
 
-Not all code that needs state is a component. The route guard from the previous
-page runs **outside** the React tree and can't call hooks. For those cases, use
+Not all code that needs state is a component. The HTTP client, which you set up
+later, runs **outside** the React tree and can't call hooks. For those cases, use
 `getState()` on the bound hook — a one-off snapshot, no subscription:
 
 ```ts
-// guard excerpt, from the routing page
-guard: () => useAuth.getState().isAuthenticated,
+// HTTP client excerpt, from the data page
+onUnauthorized: () => useAuth.getState().logout(),
 ```
+
+The guard from the previous page is **not** that case: it runs during the route's
+render and has to react to logout, so it reads through the
+`useAuth.use.isAuthenticated()` hook.
 
 !!! warning "`getState()` doesn't subscribe — use it only outside React"
 
     `getState()` reads once and does **not** re-render anything when state changes
     later. Inside components, always prefer the hook (`useAuth.use.field()`) so the
-    UI stays in sync. Reserve `getState()` for route guards, HTTP interceptors and
-    other code outside the React tree.
+    UI stays in sync. Reserve `getState()` for HTTP interceptors and other code
+    outside the React tree.
 
 ## Recap
 

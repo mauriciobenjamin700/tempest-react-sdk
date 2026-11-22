@@ -66,7 +66,20 @@ O que cada campo significa:
 
 Há um problema clássico: o HTML pinta antes do React montar, então por um instante o usuário vê o tema padrão antes de o `ThemeProvider` corrigir. A solução é um script síncrono inline no `<head>`, **antes de qualquer CSS**, que aplica o atributo na primeira pintura.
 
-`themeInitScript()` devolve exatamente esse trecho. Em um `index.html` Vite:
+`themeInitScript()` devolve exatamente esse trecho. Num app Vite, o plugin `tempestThemeInit()` o injeta no topo do `<head>`, no `vite dev` e no build — o app do `create-tempest-app` já vem com ele:
+
+```ts
+// vite.config.ts
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+  plugins: [tempestThemeInit(), tempestCsp()],
+});
+```
+
+Passe ao plugin o mesmo `storageKey`/`defaultTheme` do `ThemeProvider` (`tempestThemeInit({ storageKey: "aurora-theme" })`). Com o `tempestCsp()`, o script entra na política pelo hash, sem `'unsafe-inline'`. Medido no app gerado pela 0.92.0 (`vite build` + `vite preview`, Chromium, `localStorage["tempest-theme"] = "dark"`, 5 cargas): sem o script, no primeiro `requestAnimationFrame` o atributo não existia e o `body` pintava `rgb(255, 255, 255)` nas 5.
+
+Sem o plugin, o mesmo trecho colado à mão num `index.html`:
 
 ```html
 <!doctype html>
@@ -593,7 +606,7 @@ Os componentes do SDK leem `data-tempest-theme`. Se o **CSS próprio do seu app*
 </ThemeProvider>
 ```
 
-Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (a meta tag precisa existir no `<head>`):
+Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (e cria a tag no `<head>` quando a página não tem):
 
 ```tsx
 <ThemeProvider themeColor={{ light: "#1f7a3f", dark: "#0f1411" }}>
@@ -619,7 +632,7 @@ Passe `target` para aplicar o tema em uma subárvore específica em vez de `<htm
 - `ThemeProvider` escreve `data-tempest-theme` no `<html>` (ou no elemento de `target`); os tokens `--tempest-*` reagem sozinhos.
 - Modos: `"light"`, `"dark"`, `"system"` — o último segue `prefers-color-scheme` ao vivo. A escolha persiste em `localStorage["tempest-theme"]`.
 - `useTheme()` dá `theme` (preferência crua), `resolvedTheme` (sempre `light`/`dark`), `setTheme` e `toggle`.
-- Inline o `themeInitScript()` **síncrono no `<head>`, antes do CSS**, para eliminar o flash do tema errado.
+- Ligue o `tempestThemeInit()` no `vite.config.ts` (ou inline o `themeInitScript()` **síncrono no `<head>`, antes do CSS**) para eliminar o flash do tema errado.
 - Customize o visual sobrescrevendo os tokens `--tempest-*`; use `target` para tema em subárvore.
 
 ## Veja também

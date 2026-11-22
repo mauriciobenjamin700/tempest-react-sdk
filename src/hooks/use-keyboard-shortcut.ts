@@ -16,8 +16,28 @@ export interface UseKeyboardShortcutOptions {
     disabled?: boolean;
     /** Listen to the entire window. Pass `false` to scope to a specific element via the handler. Default: true. */
     global?: boolean;
-    /** Suppress the event from firing inside `<input>`/`<textarea>`/`[contenteditable]`. Default: true. */
+    /**
+     * Suppress the event from firing inside `<input>`/`<textarea>`/`<select>`/
+     * `[contenteditable]`. Default: `true` for a shortcut without `ctrl`, `meta`
+     * or `mod`, `false` for one with them.
+     *
+     * A plain key (`"/"`, `"?"`, `"Escape"`) typed in a field belongs to the
+     * field. A Ctrl/Cmd combination does not type anything, and a ⌘K that only
+     * worked outside the search box is the opposite of what a palette wants.
+     * Binding an editing combination the field itself handles (`mod+z`, `mod+a`,
+     * `mod+c`), pass `true` to keep the field's own behavior.
+     */
     ignoreInput?: boolean;
+    /**
+     * Call `event.preventDefault()` on a match, before the handler. Default:
+     * `true` for a shortcut with `ctrl`, `meta`, `mod` or `alt`, `false` otherwise.
+     *
+     * Ctrl+K focuses the browser's search box in Chrome and Firefox, Ctrl+P
+     * prints, Ctrl+S saves the page: without this the app and the browser both
+     * act on the key. A plain key stays untouched by default, so binding `"/"`
+     * does not stop it from being typed elsewhere.
+     */
+    preventDefault?: boolean;
 }
 
 function matches(event: KeyboardEvent, shortcut: KeyboardShortcut): boolean {
@@ -37,6 +57,17 @@ function matches(event: KeyboardEvent, shortcut: KeyboardShortcut): boolean {
     return true;
 }
 
+/**
+ * Whether a shortcut carries a command modifier (Ctrl, Cmd or the cross-OS
+ * `mod`), the modifiers that never type a character.
+ *
+ * @param shortcut - The shortcut to inspect.
+ * @returns `true` when `ctrl`, `meta` or `mod` is set.
+ */
+function hasCommandModifier(shortcut: KeyboardShortcut): boolean {
+    return !!(shortcut.ctrl || shortcut.meta || shortcut.mod);
+}
+
 function isEditable(target: EventTarget | null): boolean {
     if (!(target instanceof HTMLElement)) return false;
     const tag = target.tagName.toLowerCase();
@@ -54,6 +85,12 @@ function isEditable(target: EventTarget | null): boolean {
  * re-add the listener each time. `exhaustive-deps` is silenced for that line
  * because the destructured fields are the complete dependency set.
  *
+ * A shortcut with Ctrl/Cmd fires with the focus in a field and cancels the
+ * browser's own action for the key by default (#729); see
+ * {@link UseKeyboardShortcutOptions.ignoreInput} and
+ * {@link UseKeyboardShortcutOptions.preventDefault}. To show the shortcut to the
+ * user with the right key for the platform, use `formatShortcut`.
+ *
  * @example
  * useKeyboardShortcut({ key: "k", mod: true }, () => openSearch());
  */
@@ -62,13 +99,20 @@ export function useKeyboardShortcut(
     handler: (event: KeyboardEvent) => void,
     options: UseKeyboardShortcutOptions = {},
 ): void {
-    const { disabled = false, ignoreInput = true } = options;
+    const command = hasCommandModifier(shortcut);
+    const {
+        disabled = false,
+        ignoreInput = !command,
+        preventDefault = command || !!shortcut.alt,
+    } = options;
 
     useEffect(() => {
         if (disabled || typeof window === "undefined") return;
         const listener = (event: KeyboardEvent): void => {
             if (ignoreInput && isEditable(event.target)) return;
-            if (matches(event, shortcut)) handler(event);
+            if (!matches(event, shortcut)) return;
+            if (preventDefault) event.preventDefault();
+            handler(event);
         };
         window.addEventListener("keydown", listener);
         return () => window.removeEventListener("keydown", listener);
@@ -76,6 +120,7 @@ export function useKeyboardShortcut(
     }, [
         disabled,
         ignoreInput,
+        preventDefault,
         shortcut.key,
         shortcut.ctrl,
         shortcut.meta,

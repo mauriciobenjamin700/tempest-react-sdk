@@ -31,7 +31,7 @@ The SDK pieces involved:
 | Piece | What for | Docs |
 | --- | --- | --- |
 | `createApiClient` + `createDataProvider` | HTTP client and per-resource CRUD | [HTTP](../http.md), [Data Provider](../data-provider.md#createdataprovider) |
-| `useList` / `useCreate` / `useUpdate` / `useDelete` | cache and invalidation via TanStack Query | [The resource hooks](../data-provider.md#the-resource-hooks) |
+| `useList` / `useCreate` / `useUpdate` / `useDeleteMany` | cache and invalidation via TanStack Query | [The resource hooks](../data-provider.md#the-resource-hooks) |
 | `DataTable` | table with server-side pagination, sorting and page size | [Server-side `DataTable`](../components/data.md#datatablet-server-side-pagination) |
 | `Drawer` | the form panel | [`Drawer`](../components/overlay.md#drawer) |
 | `useZodForm` + `FormField` + `MoneyInput` | validated form, price in cents | [Forms](../forms.md#end-to-end-example-schema-provider-fields-submit), [`MoneyInput`](../forms-br.md#masked-inputs) |
@@ -630,8 +630,10 @@ Error handling is what separates a demo screen from a production one:
 
 !!! check "Callbacks on the call, not on the hook"
     `onSuccess` and `onError` go in `mutate(values, callbacks)`, per call. That is the right place
-    for what depends on the screen (closing the drawer, showing the toast), and it leaves untouched
-    the `onSuccess` that `useCreate`/`useUpdate` use to invalidate the list.
+    for what depends on the screen (closing the drawer, showing the toast, and the message differs
+    between create and edit). On the hook it would work too: the app's `onSuccess` runs after the
+    list invalidation, not instead of it. Up to 0.92.0 it replaced it, and the list went stale
+    (#699).
 
 ### 7. The page
 
@@ -654,7 +656,7 @@ import {
   Select,
   Stack,
   toOptions,
-  useDelete,
+  useDeleteMany,
   useDescribeApiError,
   useList,
   useToast,
@@ -692,12 +694,11 @@ export function ProductsPage() {
   const products = useList<Product>("products", toListParams(filters), {
     placeholderData: keepPreviousData,
   });
-  const deleteProduct = useDelete<Product>("products");
+  const deleteProducts = useDeleteMany<Product>("products");
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Product[]>([]);
-  const [deleting, setDeleting] = useState(false);
   const [selection, setSelection] = useState<Selection>({ key: "", ids: [] });
 
   const items = products.data?.items ?? [];
@@ -726,19 +727,16 @@ export function ProductsPage() {
   }
 
   async function confirmDelete(): Promise<void> {
-    setDeleting(true);
-    const results = await Promise.allSettled(
-      toDelete.map((product) => deleteProduct.mutateAsync(product.id)),
+    const { deleted, failed } = await deleteProducts.mutateAsync(
+      toDelete.map((product) => product.id),
     );
-    setDeleting(false);
 
-    const removed = toDelete.filter((_, index) => results[index].status === "fulfilled");
-    const failures = results.filter((result) => result.status === "rejected");
+    const removed = toDelete.filter((product) => deleted.some((entry) => entry.id === product.id));
     if (removed.length === 1) toast.success(`${removed[0].name} excluído.`);
     if (removed.length > 1) toast.success(`${removed.length} produtos excluídos.`);
-    if (failures.length > 0) {
+    if (failed.length > 0) {
       toast.error(
-        describe(failures[0].reason, `${failures.length} produto(s) não puderam ser excluídos.`),
+        describe(failed[0].error, `${failed.length} produto(s) não puderam ser excluídos.`),
       );
     }
     setSelected([]);
@@ -952,7 +950,7 @@ export function ProductsPage() {
         }
         confirmLabel="Sim, excluir"
         variant="danger"
-        loading={deleting}
+        loading={deleteProducts.isPending}
         onConfirm={confirmDelete}
         onCancel={() => setToDelete([])}
       />
@@ -1004,9 +1002,11 @@ The last column uses the `id` key for the
 [`DropdownMenu`](../components/actions.md#in-a-table-row) with "Editar" and "Excluir". The menu
 opens in a portal, so the table's horizontal scroll doesn't clip it.
 
-Deleting one and deleting many go through the same `ConfirmDialog`. `confirmDelete` calls
-`deleteProduct.mutateAsync` for each product with `Promise.allSettled`, so one failure doesn't
-cancel the others: if two out of three went through, the toast says which ones did and which one
+Deleting one and deleting many go through the same `ConfirmDialog`. `confirmDelete` hands the ids to
+[`useDeleteMany`](../data-provider.md#deleting-a-selection-usedeletemany), which deletes each one on
+its own and invalidates the list **once** — with one `useDelete` per id, 10 products cost 10
+invalidations and 10 list `GET`s. One failure doesn't cancel the others: the result splits `deleted`
+from `failed`, and if two out of three went through, the toast says which ones did and which one
 didn't, with the backend `detail` ("Produto com pedidos em aberto").
 
 !!! tip "Deleted the last row of the last page?"
@@ -1048,7 +1048,7 @@ With the backend running, open `/produtos` and check:
 
 ## Recap
 
-- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDelete` give you the whole CRUD
+- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` give you the whole CRUD
   without a hand-written `queryKey`. Screen callbacks go in `mutate(…, { onSuccess, onError })`.
 - `DataTable` with `totalItems` hands page, size and sorting to you; keep all three in the URL.
 - Writing to the URL several times in one click calls for a ref holding the latest URL.

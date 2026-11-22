@@ -644,6 +644,40 @@ export function Anexos() {
 }
 ```
 
+### Abrir a câmera do celular: `capture`
+
+`capture` vai direto para o `<input type="file">` e, no celular, pula o seletor de arquivos
+e abre o app de câmera: `"environment"` é a traseira, `"user"` a frontal, `true` deixa o
+navegador escolher. Você ganha foco, flash e a resolução total da câmera sem pedir permissão
+nenhuma — quem fotografa é o app do sistema. O mesmo prop existe no [`Dropzone`](#dropzone).
+
+```tsx
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function FotoDoDocumento() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Foto do documento"
+            accept="image/*"
+            capture="environment"
+            value={files}
+            onChange={setFiles}
+            title="Toque para fotografar"
+        />
+    );
+}
+```
+
+!!! note "No desktop, `capture` não faz nada"
+    O navegador de desktop ignora o atributo e abre o seletor de arquivos de sempre — o
+    componente continua funcionando, só sem o atalho para a câmera. Combine com
+    `accept="image/*"` (ou `video/*`): o atributo só tem sentido para mídia. E conte com
+    **uma foto por abertura**, mesmo com `multiple`; para várias fotos, o usuário toca de
+    novo.
+
 ## `Slider`
 
 **Quando usar:** escolher um único valor numa faixa contínua (volume, brilho, etc.). Para uma faixa de dois valores use `RangeSlider`.
@@ -734,6 +768,7 @@ function Uploader() {
 | `onDrop`    | `(files: File[]) => void`  | —       |
 | `accept`    | `string`                   | —       |
 | `multiple`  | `boolean`                  | `true`  |
+| `capture`   | `boolean \| "user" \| "environment"` | — ([abre a câmera](#abrir-a-camera-do-celular-capture)) |
 | `maxSize`   | `number` (bytes)           | —       |
 | `onReject`  | `(files: File[]) => void`  | —       |
 | `disabled`  | `boolean`                  | `false` |

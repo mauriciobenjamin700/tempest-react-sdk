@@ -87,6 +87,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #763** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 758 B (teto 173.7 kB → 173.9 kB); `ceiling: full barrel CJS` 205 543 B (teto 205.4 kB → 205.6 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #762** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 559 B (teto 173.3 kB → 173.7 kB); `ceiling: full barrel CJS` 205 275 B (teto 204.9 kB → 205.4 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
@@ -307,6 +308,69 @@ useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/ru
 - Receitas `command-palette.md` e `dark-mode.md` (PT e EN) sem os contornos: nem
   `preventDefault`/`ignoreInput` à mão, nem detecção de plataforma, nem script colado no
   `index.html`, nem meta `theme-color` obrigatória.
+- **`LiveRouteMap`: `vehicle.stale` para posição velha** (#702). A van com quatro minutos de idade
+  era desenhada igual à ao vivo — mesma cor, mesmo halo, mesmo nome falado. Com `stale: true` o
+  veículo fica onde foi visto por último, em `--tempest-live-route-stale` (padrão
+  `--tempest-text-muted`), sem halo, e o nome acessível ganha `staleLabel` (padrão
+  `"posição desatualizada"`). O mapa não ganhou relógio: quem decide "velho" é o app, que já tem o
+  `timestamp` e um `now`. Medido no Chromium headless (Playwright isolado sobre a gallery buildada,
+  390 e 1280 px, ida-e-volta claro → escuro → claro igual): corpo contra o fundo do mapa 6,92:1
+  (claro) / 7,43:1 (escuro), seta sobre o corpo 7,30 / 8,39:1.
+- **`LiveRouteMarker.visited` e `visitedLabel` no mapa** (#703). Parada já atendida ficava idêntica
+  à que vem pela frente; a receita escrevia "(já atendida)" no `label`. Agora o marcador mantém o
+  tipo e é pintado em `--tempest-live-route-visited` (padrão `--tempest-text-muted`), com
+  `glyphText`/`icon` em `--tempest-live-route-visited-ink` (padrão `--tempest-surface`), e o nome
+  falado ganha `visitedLabel` (padrão `"visita concluída"`). Mesmas medidas do item acima (6,92 /
+  7,43:1 contra o fundo, 7,30 / 8,39:1 do número). A separação da parada pendente é de matiz
+  (azul × cinza, 1,49 / 1,72:1 de luminância) e o estado também vai no nome falado.
+- **`LiveRouteMapLegend`: símbolo `"badge"`, e `visited`/`stale` nos itens** (#707). A legenda não
+  tinha como explicar o número sobre a parada. O selo da legenda e o do mapa saem do mesmo
+  `BadgeShape` (mesmo token, mesma largura de `"99+"`; medido no browser: mesmo `fill`, texto
+  10,46:1). `visited` vale para os tipos de marcador e `stale` para o veículo.
+- **`RelativeTime`: `now` e `updateEvery`** (#705). Sem nada que re-renderizasse, o texto ficava
+  parado — medido com timers falsos: 5 min depois, ainda "agora há pouco". `now` usa o relógio do
+  app; `updateEvery` (ms) liga um intervalo interno, opt-in para uma lista não acordar a página
+  uma vez por linha. No Chromium, `updateEvery={1000}` foi de "51 s atrás" a "54 s atrás" em 3 s.
+- **`ApiClient.wsUrl(path, params?)`** (#706): o `url()` com `http:` → `ws:` e `https:` → `wss:`,
+  mesmo `baseURL`, `prefix` e query; lança `TypeError` na chamada para esquema sem par de
+  WebSocket (`blob:`, `data:`), que o `.replace(/^http/, "ws")` à mão deixava passar. É método
+  obrigatório da interface: um mock de `ApiClient` escrito à mão precisa ganhar `wsUrl`, como
+  precisou de `url` na 0.80.0 (`docs/http.md`).
+- **`usePositionTracker`/`createPositionTracker`: `onPoint(point)`** (#708), chamado uma vez por
+  ponto aceito, na ordem. Um `useEffect` sobre `lastPoint` perde pontos: com duas leituras no
+  mesmo `act`, o efeito viu `[2, 3]` de `[1, 2, 3]` e o `onPoint` viu os três
+  (`src/geo/use-position-tracker.test.tsx`).
+
+### Corrigido
+
+- **`createWebSocket`/`useWebSocket`: o ping do servidor recusado pelo `schema` não dispara mais
+  `onValidationError`** (#704). Reproduzido: com um schema sem o ping, cada `{"type":"ping"}`
+  chamava o `onValidationError` uma vez (e o aviso de desenvolvimento, sem ele) — um falso "o
+  backend mudou o contrato" a cada heartbeat do `tempest-fastapi-sdk`. Com `respondToPing` ligado,
+  o ping é reconhecido antes da validação e a recusa é silenciosa; o `pong` sai como antes, um ping
+  que o schema declara continua chegando no `onMessage`, e com `respondToPing: false` a recusa
+  volta a ser reportada.
+
+### Documentação
+
+- Receita **Viagem ao vivo** (PT e EN) sem os contornos: o ping saiu do schema, `liveTripUrl` usa
+  `api.wsUrl()`, as paradas atendidas usam `visited` (o "(já atendida)" saiu do `label`), o mapa do
+  passageiro recebe `stale`, o `SignalStatus` usa `<RelativeTime now>`, a tela do motorista
+  transmite pelo `onPoint` e as legendas ganharam `badge`, `visited` e `stale`.
+
+### Budgets
+
+Medido com `npm run build && npx size-limit --json` na `main` (`71727a7`) e no branch, mesma
+máquina:
+
+| Check                    | `main`    | branch                                         | Teto              |
+| ------------------------ | --------- | ---------------------------------------------- | ----------------- |
+| slice: typical app       | 12 842 B  | 13 006 B (+164)                                | 12,94 → 13,1 kB   |
+| slice: http client       | 5 922 B   | 5 995 B (+73, `wsUrl`)                         | 5,95 → 6,05 kB    |
+| slice: LiveRouteMap      | 9 083 B   | 9 309 B (+226, `stale`/`visited`/`BadgeShape`) | 9,2 → 9,4 kB      |
+| ceiling: full barrel ESM | 172 596 B | 172 947 B (+351)                               | 172,7 → 173,05 kB |
+| ceiling: full barrel CJS | 203 908 B | 204 635 B (+727)                               | 204 → 204,75 kB   |
+| styles.css               | 32 526 B  | 32 620 B (+94, `.visited`/`.vehicleStale`)     | 32,6 → 32,7 kB    |
 
 ### Interno
 

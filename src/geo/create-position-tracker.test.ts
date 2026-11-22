@@ -94,6 +94,23 @@ describe("createPositionTracker", () => {
         expect(tracker.distanceKm).toBeGreaterThan(200);
     });
 
+    it("hands onPoint every kept reading once, in order, and none of the jitter", () => {
+        const geo = installGeolocation();
+        const onPoint = vi.fn();
+        const tracker = createPositionTracker({ minDistanceKm: 0.005, maxPoints: 1, onPoint });
+        tracker.start();
+
+        geo.emit(0, 0, 1);
+        geo.emit(0, 0.000001, 2);
+        geo.emit(0, 1, 3);
+        geo.emit(0, 2, 4);
+
+        expect(
+            onPoint.mock.calls.map(([point]) => (point as { timestamp: number }).timestamp),
+        ).toEqual([1, 3, 4]);
+        expect(tracker.points).toHaveLength(1);
+    });
+
     it("stop() clears the watch; clear() resets the trajectory", () => {
         const geo = installGeolocation();
         const tracker = createPositionTracker({ minDistanceKm: 0 });

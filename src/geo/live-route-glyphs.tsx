@@ -11,6 +11,7 @@ import type { LiveRouteMarker, LiveRouteMarkerKind, LiveVehicle } from "./LiveRo
 import {
     EMPHASIS_FACTOR,
     MARKER_HIT_RADIUS,
+    formatBadge,
     hasInnerMark,
     markerGeometry,
 } from "./live-route-symbols";
@@ -109,6 +110,9 @@ export interface VehicleGlyphProps {
     roadMatch?: "snapped" | "raw";
 }
 
+/** Spoken suffix of a stale vehicle when `LiveVehicle.staleLabel` is absent. */
+export const DEFAULT_STALE_LABEL = "posição desatualizada";
+
 export interface VehicleShapeProps {
     /** Heading in degrees, or `null` for the plain dot. */
     heading: number | null;
@@ -141,6 +145,10 @@ export function VehicleShape({ heading }: VehicleShapeProps): ReactElement {
  * The vehicle: an arrow rotated to its heading, or a dot when the heading is
  * unknown. Off every road of the graph, the halo turns into a dashed ring — the
  * position is shown as reported, and the ring says it is not on the network.
+ *
+ * With `vehicle.stale` the body turns neutral and the halo goes away, and the
+ * accessible name gains `staleLabel`: an old position drawn exactly like a live
+ * one is read as live, by eye and by screen reader alike.
  */
 export function VehicleGlyph({
     vehicle,
@@ -154,14 +162,21 @@ export function VehicleGlyph({
         animationMs,
     );
     const p = projectLive(view, viewport, shown.position);
+    const stale = vehicle.stale === true;
+    const name = vehicle.label ?? "Veículo";
     return (
         <g
-            className={cn(styles.vehicle, roadMatch === "raw" && styles.offRoad)}
+            className={cn(
+                styles.vehicle,
+                roadMatch === "raw" && styles.offRoad,
+                stale && styles.vehicleStale,
+            )}
             transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`}
             role="img"
-            aria-label={vehicle.label ?? "Veículo"}
+            aria-label={stale ? `${name}, ${vehicle.staleLabel ?? DEFAULT_STALE_LABEL}` : name}
             data-testid="live-route-vehicle"
             data-road-match={roadMatch}
+            data-stale={stale ? "" : undefined}
             data-heading={shown.heading === null ? undefined : shown.heading.toFixed(0)}
         >
             <VehicleShape heading={shown.heading} />
@@ -250,6 +265,34 @@ export function MarkerShape({
     );
 }
 
+export interface BadgeShapeProps {
+    /** The count to draw; past 99 it reads `"99+"`. */
+    count: number;
+}
+
+/**
+ * The count pill drawn at the origin, without the offset that places it on a
+ * marker's corner. Shared by the map and by `LiveRouteMapLegend`, so the
+ * legend entry cannot drift from the badge it explains.
+ */
+export function BadgeShape({ count }: BadgeShapeProps): ReactElement {
+    const text = formatBadge(count);
+    return (
+        <g className={styles.badge}>
+            <rect
+                x={text.length > 1 ? -4 - text.length * 3.5 : -9}
+                y={-9}
+                width={text.length > 1 ? 8 + text.length * 7 : 18}
+                height={18}
+                rx={9}
+            />
+            <text y={4} textAnchor="middle">
+                {text}
+            </text>
+        </g>
+    );
+}
+
 export interface MarkerGlyphProps {
     marker: LiveRouteMarker;
     x: number;
@@ -257,6 +300,7 @@ export interface MarkerGlyphProps {
     open: boolean;
     panelId: string;
     kindLabel: string;
+    visitedLabel: string;
     scale: number;
     onToggle: (marker: LiveRouteMarker) => void;
     markerRef: (id: string, node: SVGGElement | null) => void;
@@ -282,6 +326,7 @@ export function MarkerGlyph({
     open,
     panelId,
     kindLabel,
+    visitedLabel,
     scale,
     onToggle,
     markerRef,
@@ -292,15 +337,17 @@ export function MarkerGlyph({
     const hasInner = hasInnerMark(marker.glyphText, marker.icon);
     const { outer, focus } = markerGeometry(kind, emphasis, hasInner);
     const badgeOffset = Math.max(11, outer * 0.75 + 3.5);
-    const badgeText =
-        marker.badge === undefined ? null : marker.badge > 99 ? "99+" : String(marker.badge);
-    const name = `${marker.label}, ${kindLabel}${badgeText === null ? "" : `, ${badgeText}`}`;
+    const visited = marker.visited === true;
+    const badge = marker.badge === undefined ? null : formatBadge(marker.badge);
+    const name = [marker.label, kindLabel, visited ? visitedLabel : null, badge]
+        .filter((part) => part !== null)
+        .join(", ");
     const place = `translate(${x.toFixed(1)} ${y.toFixed(1)})`;
     return (
         <>
             <g
                 ref={(node) => markerRef(marker.id, node)}
-                className={cn(styles.marker, styles[kind])}
+                className={cn(styles.marker, styles[kind], visited && styles.visited)}
                 transform={place}
                 role="button"
                 tabIndex={0}
@@ -310,6 +357,7 @@ export function MarkerGlyph({
                 data-marker-id={marker.id}
                 data-kind={kind}
                 data-emphasis={emphasis ? "" : undefined}
+                data-visited={visited ? "" : undefined}
                 onClick={(event) => {
                     event.stopPropagation();
                     onToggle(marker);
@@ -339,23 +387,13 @@ export function MarkerGlyph({
                     />
                 </g>
             </g>
-            {badgeText !== null ? (
+            {marker.badge !== undefined ? (
                 <g transform={place} aria-hidden="true" data-marker-badge={marker.id}>
                     <g transform={scale === 1 ? undefined : `scale(${scale})`}>
                         <g
-                            className={styles.badge}
                             transform={`translate(${badgeOffset.toFixed(1)} ${(-badgeOffset).toFixed(1)})`}
                         >
-                            <rect
-                                x={badgeText.length > 1 ? -4 - badgeText.length * 3.5 : -9}
-                                y={-9}
-                                width={badgeText.length > 1 ? 8 + badgeText.length * 7 : 18}
-                                height={18}
-                                rx={9}
-                            />
-                            <text y={4} textAnchor="middle">
-                                {badgeText}
-                            </text>
+                            <BadgeShape count={marker.badge} />
                         </g>
                     </g>
                 </g>

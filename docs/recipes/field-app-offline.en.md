@@ -780,8 +780,7 @@ what you want to see is a `401` or a `413` that will not go away on its own.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
 import {
   bestSupportedType,
   resizeImage,
@@ -816,15 +815,12 @@ function PhotoThumb({ photo }: { photo: VisitPhoto }) {
 }
 
 export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
   const toast = useToast();
   const list = useVisitPhotos(visitId);
   const { compress, isWorking } = useImageProcessing();
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  async function handleFiles(files: File[]): Promise<void> {
     const type = await bestSupportedType(["image/webp", "image/jpeg"]);
 
     for (const file of files) {
@@ -848,25 +844,14 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 
   return (
     <section>
-      <input
-        ref={input}
-        type="file"
+      <Dropzone
         accept="image/*"
         capture="environment"
-        multiple
-        hidden
-        onChange={(event) => void handleFiles(event)}
-      />
-      <Button
-        variant="soft"
-        fullWidth
-        leftIcon={<Camera size={18} />}
-        loading={isWorking}
-        disabled={disabled}
-        onClick={() => input.current?.click()}
+        disabled={disabled || isWorking}
+        onDrop={(files) => void handleFiles(files)}
       >
-        Tirar foto
-      </Button>
+        <Camera size={18} aria-hidden /> {isWorking ? "Processando a foto…" : "Tirar foto"}
+      </Dropzone>
 
       {list.isPending ? (
         <Skeleton height={96} style={{ marginTop: 12 }} />
@@ -896,9 +881,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 }
 ```
 
-`<input type="file" capture="environment">` opens **the phone's own camera app**, on the
-rear camera. You get focus, flash and full resolution without asking for any permission —
-and it works on the iPhone, where not every browser opens the camera inside the page.
+The `Dropzone`'s [`capture="environment"`](../components/inputs.en.md#opening-the-phone-camera-capture)
+opens **the phone's own camera app**, on the rear camera. You get focus, flash and full
+resolution without asking for any permission — and it works on the iPhone, where not every
+browser opens the camera inside the page. On desktop the same tap opens the file picker, and
+dragging a photo onto the area works too.
 
 A photo from a current phone is several MB. Storing that raw would fill the device in a few
 days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:

@@ -12432,6 +12432,40 @@ export function Anexos() {
 }
 ```
 
+### Abrir a câmera do celular: `capture`
+
+`capture` vai direto para o `<input type="file">` e, no celular, pula o seletor de arquivos
+e abre o app de câmera: `"environment"` é a traseira, `"user"` a frontal, `true` deixa o
+navegador escolher. Você ganha foco, flash e a resolução total da câmera sem pedir permissão
+nenhuma — quem fotografa é o app do sistema. O mesmo prop existe no [`Dropzone`](#dropzone).
+
+```tsx
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function FotoDoDocumento() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Foto do documento"
+            accept="image/*"
+            capture="environment"
+            value={files}
+            onChange={setFiles}
+            title="Toque para fotografar"
+        />
+    );
+}
+```
+
+!!! note "No desktop, `capture` não faz nada"
+    O navegador de desktop ignora o atributo e abre o seletor de arquivos de sempre — o
+    componente continua funcionando, só sem o atalho para a câmera. Combine com
+    `accept="image/*"` (ou `video/*`): o atributo só tem sentido para mídia. E conte com
+    **uma foto por abertura**, mesmo com `multiple`; para várias fotos, o usuário toca de
+    novo.
+
 ## `Slider`
 
 **Quando usar:** escolher um único valor numa faixa contínua (volume, brilho, etc.). Para uma faixa de dois valores use `RangeSlider`.
@@ -12522,6 +12556,7 @@ function Uploader() {
 | `onDrop`    | `(files: File[]) => void`  | —       |
 | `accept`    | `string`                   | —       |
 | `multiple`  | `boolean`                  | `true`  |
+| `capture`   | `boolean \| "user" \| "environment"` | — ([abre a câmera](#abrir-a-camera-do-celular-capture)) |
 | `maxSize`   | `number` (bytes)           | —       |
 | `onReject`  | `(files: File[]) => void`  | —       |
 | `disabled`  | `boolean`                  | `false` |
@@ -35777,8 +35812,7 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
 import {
   bestSupportedType,
   resizeImage,
@@ -35813,15 +35847,12 @@ function PhotoThumb({ photo }: { photo: VisitPhoto }) {
 }
 
 export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
   const toast = useToast();
   const list = useVisitPhotos(visitId);
   const { compress, isWorking } = useImageProcessing();
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  async function handleFiles(files: File[]): Promise<void> {
     const type = await bestSupportedType(["image/webp", "image/jpeg"]);
 
     for (const file of files) {
@@ -35845,25 +35876,14 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 
   return (
     <section>
-      <input
-        ref={input}
-        type="file"
+      <Dropzone
         accept="image/*"
         capture="environment"
-        multiple
-        hidden
-        onChange={(event) => void handleFiles(event)}
-      />
-      <Button
-        variant="soft"
-        fullWidth
-        leftIcon={<Camera size={18} />}
-        loading={isWorking}
-        disabled={disabled}
-        onClick={() => input.current?.click()}
+        disabled={disabled || isWorking}
+        onDrop={(files) => void handleFiles(files)}
       >
-        Tirar foto
-      </Button>
+        <Camera size={18} aria-hidden /> {isWorking ? "Processando a foto…" : "Tirar foto"}
+      </Dropzone>
 
       {list.isPending ? (
         <Skeleton height={96} style={{ marginTop: 12 }} />
@@ -35893,9 +35913,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 }
 ```
 
-O `<input type="file" capture="environment">` abre **o app de câmera do próprio celular**,
-na câmera traseira. Você ganha foco, flash e resolução total sem pedir permissão nenhuma —
-e funciona no iPhone, onde nem todo navegador abre câmera dentro da página.
+O [`capture="environment"`](../components/inputs.md#abrir-a-camera-do-celular-capture) do
+`Dropzone` abre **o app de câmera do próprio celular**, na câmera traseira. Você ganha foco,
+flash e resolução total sem pedir permissão nenhuma — e funciona no iPhone, onde nem todo
+navegador abre câmera dentro da página. No desktop o mesmo toque abre o seletor de arquivos,
+e arrastar uma foto para a área também vale.
 
 A foto de um celular atual tem vários MB. Guardar isso cru encheria o aparelho em poucos
 dias. Então ela passa pelo [`useImageProcessing`](../imaging.md#no-react) antes:
@@ -41535,8 +41557,8 @@ my-app/
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakeia uma sessão via useAuth.use.setSession() e navigate("/dashboard")
     ├── pages/Dashboard.tsx      # export default (lazy), rota protegida
-    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 ```
 
 ### Cada arquivo → o recurso do SDK que ele mostra
@@ -41584,6 +41606,7 @@ export function App() {
 
 ```ts
 import { createAuthStore, createSelectors } from "tempest-react-sdk";
+import { configureApiAuth } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -41592,12 +41615,19 @@ export interface User {
 }
 
 export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" }));
+
+configureApiAuth({
+  getToken: () => useAuth.getState().token,
+  onUnauthorized: () => useAuth.getState().logout(),
+});
 ```
 
 `createAuthStore<User>` cria uma store Zustand de autenticação persistida (`name: "app-auth"` é a chave de storage). `createSelectors` te dá acesso atômico via `useAuth.use.<campo>()` — é assim que `RootLayout.tsx` lê `useAuth.use.isAuthenticated()` e `Login.tsx` chama `useAuth.use.setSession()`. Mais padrões em [State](./state.md).
 
+O `configureApiAuth` no fim liga a store ao cliente HTTP: o `lib/api.ts` não importa nada de auth, então um projeto sem login apaga `stores/auth.ts` e o cliente segue funcionando sem token.
+
 !!! note "O resto se explica sozinho"
-    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` com `baseURL`/`getToken`/`onUnauthorized` e exporta `createQueryKeys` pra você organizar as chaves de cache.
+    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` lendo o token pelo que o `configureApiAuth` registrou e exporta `queryKeys = createQueryKeys("app", { me })` pra você organizar as chaves de cache.
 
 ## Modo PWA (`--pwa`)
 
@@ -41838,7 +41868,16 @@ export const useCounter = createStore<{ count: number; inc: () => void }>((set) 
 
 ### 3. Busque dados com React Query + queryKeys + api
 
-Combine o cliente HTTP, as query keys e o `useQuery` (já disponível pelo `AppProviders`):
+O template só declara a chave `me`. Acrescente a sua em `src/lib/api.ts`:
+
+```ts
+export const queryKeys = createQueryKeys("app", {
+  me: () => ["me"],
+  users: () => ["users"],
+});
+```
+
+E combine o cliente HTTP, a chave e o `useQuery` (já disponível pelo `AppProviders`):
 
 ```tsx
 import { useQuery } from "@tanstack/react-query";
@@ -41846,7 +41885,7 @@ import { api, queryKeys } from "@/lib/api";
 
 export function UserList() {
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.users.all,
+    queryKey: queryKeys.users(),
     queryFn: () => api.get("/users"),
   });
 

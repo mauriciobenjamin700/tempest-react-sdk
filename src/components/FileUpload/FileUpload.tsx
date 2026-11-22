@@ -1,11 +1,11 @@
 /**
  * @tempest-limits file-lines, props-count, function-lines — the picker (accept,
- * multiple, maxSize, onReject) and the list of chosen files (value, onChange,
+ * multiple, capture, maxSize, onReject) and the list of chosen files (value, onChange,
  * disabled) are one control, and title/subtitle/label exist because the empty state
  * is the biggest part of the surface.
  */
 import { useRef, useState } from "react";
-import type { DragEvent } from "react";
+import type { DragEvent, InputHTMLAttributes } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./FileUpload.module.css";
 
@@ -19,6 +19,14 @@ export interface FileUploadProps {
     accept?: string;
     /** Allow multiple files. Default: false. */
     multiple?: boolean;
+    /**
+     * `capture` attribute forwarded to the file `<input>`: on a phone it skips the picker
+     * and opens the camera (`"environment"` the rear one, `"user"` the front one; `true`
+     * leaves the choice to the browser). Desktop browsers ignore it and open the file
+     * dialog. Pair it with `accept="image/*"` (or `video/*`) — the attribute only means
+     * something for media — and expect one shot per opening even with `multiple`.
+     */
+    capture?: InputHTMLAttributes<HTMLInputElement>["capture"];
     /** Max file size in bytes. Files above are rejected via `onReject`. */
     maxSize?: number;
     /** Called with rejected files when they exceed `maxSize` or fail the `accept` filter. */
@@ -59,6 +67,7 @@ export function FileUpload({
     label,
     accept,
     multiple = false,
+    capture,
     maxSize,
     onReject,
     disabled,
@@ -141,6 +150,7 @@ export function FileUpload({
                     type="file"
                     accept={accept}
                     multiple={multiple}
+                    capture={capture}
                     disabled={disabled}
                     className={styles.hidden}
                     onChange={(event) => {

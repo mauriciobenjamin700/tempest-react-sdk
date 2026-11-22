@@ -87,7 +87,9 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #765** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 424 B (teto 175.1 kB → 175.5 kB); `ceiling: full barrel CJS` 207 557 B (teto 207 kB → 207.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #764** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 039 B (teto 173.9 kB → 175.1 kB); `ceiling: full barrel CJS` 206 910 B (teto 205.6 kB → 207 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #765** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 174 283 B (teto 173.9 kB → 174.4 kB); `ceiling: full barrel CJS` 206 043 B (teto 205.6 kB → 206.1 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #763** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 758 B (teto 173.7 kB → 173.9 kB); `ceiling: full barrel CJS` 205 543 B (teto 205.4 kB → 205.6 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #762** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 559 B (teto 173.3 kB → 173.7 kB); `ceiling: full barrel CJS` 205 275 B (teto 204.9 kB → 205.4 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
@@ -428,6 +430,81 @@ máquina:
   também não aplica, o título do `Drawer` saía em `"Times New Roman"` (medido no Chromium, com a
   fonte do `body` da gallery removida). O `BottomSheet` já declarava; os três agora também, e
   `test/portal-inheritance.test.ts` guarda os quatro.
+- **`applyApiFieldErrors(form, error, options?)`** — copia o `error.fields` de um `422` para os
+  campos de qualquer formulário (`useZodForm` ou `useForm`), não só do `AuthForm` (#742). Marca só
+  nomes que o formulário tem (por padrão, os que `getValues` não devolve `undefined`; ou a lista
+  de `fields`), foca o primeiro (`focus: false` desliga) e devolve `{ marked, unmatched }`, com
+  as mensagens que não casaram chaveadas pelo nome. É a regra que era privada do `AuthForm`, que
+  agora usa o helper sem mudar de comportamento. Medido: três receitas reescreviam o laço de
+  `setError`, e discordavam — `br-signup-checkout` marcava todo nome (inclusive input que não
+  existe), `example-management-app` filtrava por uma lista fixa à parte do schema,
+  `admin-crud` por `field in EMPTY_PRODUCT`; nenhuma focava. As três (PT e EN) e
+  `integration-fastapi` passam a usar o helper.
+- **`formatTime(value, options?)`** — `HH:mm` em pt-BR, ao lado de `formatDate` e
+  `formatDateTime`, no mesmo cache de `Intl` (#709). Lê três formas: instante (`Date` ou ISO com
+  hora, convertido para o fuso local), hora do dia de uma coluna `time` (`"14:30:00"` →
+  `"14:30"`, sem conversão — `new Date("14:30:00")` é `Invalid Date`, então o formatador que a
+  receita montava à mão nem servia para esse campo) e data sem hora, que responde `""` em vez de
+  inventar `"00:00"`. Ausente responde `"—"`, como os irmãos. A receita **Viagem ao vivo** (PT e
+  EN) troca o `Intl.DateTimeFormat` próprio (`formatClock`) por ele.
+- **`Select` ganha `clearable`** (#743): a entrada do `placeholder` fica habilitada e visível no
+  topo da lista, e um campo opcional volta a `""` depois de escolhido. Sem `clearable` a entrada
+  continua `disabled hidden`, o certo para campo obrigatório. Medição: a issue pedia "não precisar
+  declarar uma opção com valor vazio", mas essa opção já existe (`withEmptyOption`) e é a certa
+  quando o vazio tem nome — o "Particular" da receita **Exemplo integrado: app de gestão**, que
+  passa a usá-la (PT e EN). O que faltava era o vazio que só quer dizer "não escolhido". Validado
+  no Chromium headless (Playwright, gallery em `:5183`, 390 e 1280 px): escolher a entrada do
+  placeholder devolve `""` e o controle volta a mostrar o placeholder. Gallery ganhou o exemplo
+  "Select — placeholder que volta ao vazio".
+
+### Mudado
+
+- **`useZodForm` tipa os campos pela entrada do schema e o submit pela saída** (#717). Campos,
+  `defaultValues`, `watch`, `setValue` e `setError` usam `z.input`; o `handleSubmit` recebe
+  `z.output` (o que o resolver já entregava em runtime). Select obrigatório que abre vazio vira
+  `z.union([z.enum(X), z.literal("")]).refine((value) => value !== "", msg)`: a entrada aceita o
+  `""` e a saída fica só com o enum. Medição: a issue dizia que o predicado de tipo "quebrava o
+  default"; o que quebrava era o tipo do formulário ser a **saída**. O contorno da receita
+  (`value.length > 0`, sem predicado) compilava, mas deixava `""` no tipo que o `save` recebia. E
+  havia um defeito maior: o tipo do formulário era **inferido do `defaultValues`** —
+  `{ status: "" }` tipava o campo como `string` e perdia o enum. `options` agora é `NoInfer`, e o
+  tipo vem só do schema. **Mudança de tipo:** valor inicial anotado com `z.infer` num schema com
+  `z.coerce`, `.default()` ou refine com predicado passa a pedir `z.input`; campo de
+  `z.coerce.number()` é `unknown` no `watch` (é o texto do input). A receita **Painel CRUD
+  (admin)** (PT e EN) troca `value.length > 0` por `value !== ""` e anota os iniciais com
+  `z.input`.
+
+### Corrigido
+
+- **`Select` não controlado com `placeholder` abria na primeira opção** (#743, achado ao medir). O
+  algoritmo de seleção do HTML pula a entrada `disabled` do placeholder e seleciona a primeira
+  opção habilitada: medido no Chromium (Playwright headless, a marcação antiga) e no jsdom,
+  `select.value === "a"`. `<Select placeholder="Selecione" options={…} />` sem `value` nem
+  `defaultValue` mostrava a primeira opção, e o submit mandava um valor que ninguém escolheu.
+  Agora começa em `""`; `value`/`defaultValue` explícitos continuam valendo.
+- **`formatDate`, `formatDateTime` e o `formatDate` do `createI18n`/`useI18n` mostravam o dia
+  anterior para data sem hora no Brasil** (#701). `"2026-11-16"` passava por `new Date`, que lê
+  meia-noite **UTC**; medido com `TZ=America/Sao_Paulo`: `formatDate` → `15/11/2026`,
+  `formatDateTime` → `15/11/2026, 21:00`, `i18n.formatDate` → `15/11/2026`. A issue citava só os
+  dois `formatDate`; o `formatDateTime` errava igual, e ainda mostrava uma hora que não existia.
+  Agora `yyyy-MM-dd` é dia do calendário: é montado em UTC e formatado com `timeZone: "UTC"`, o
+  mesmo dia em qualquer fuso (testado em `America/Sao_Paulo` e `Asia/Tokyo`). A correção proposta
+  na issue (`new Date(ano, mês - 1, dia)`, meia-noite local) foi descartada porque o
+  `formatDate` do i18n aceita `timeZone`: com um fuso a leste de UTC, a meia-noite local voltaria
+  um dia de novo. Por isso o `timeZone` do chamador é ignorado só para data sem hora; instante
+  continua no fuso pedido. Dia que o mês não tem (`"2026-02-30"`) passa a responder `""` em vez
+  de virar `01/03/2026`. A receita **Exemplo integrado: app de gestão** (PT e EN) perde o
+  `timeZone: "UTC"` que contornava o defeito.
+
+### Budgets
+
+- **#701, #742 e #743, medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `71727a7` e sobre este branch**, em bytes brotli: `slice: typical app (shell + 5 components +
+http + auth + hook)` 12 842 → 13 097 (teto 12,94 → 13,1 kB) — o `AppProviders` alcança o
+  `createI18n`, e o `formatDate` dele agora carrega `utils/calendar-date.js` (401 B minificados,
+  medido com o metafile do esbuild: é o único módulo que muda na fatia); `ceiling: full barrel
+ESM` 172 596 → 173 069 (teto 172,7 → 173,1 kB); `ceiling: full barrel CJS` 203 908 → 204 687
+  (teto 204 → 204,7 kB). `slice: auth screens` 8 947 → 9 030, dentro do teto.
 
 ### Interno
 
@@ -470,6 +547,9 @@ máquina:
   minificado (`D(e)` → `O(e)` em `dist/http/api-client.js`); trocar só esse arquivo no `dist` da
   `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
   não código novo.
+- **Soma de #765 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` em
+  `12a29a8` + este branch, bytes brotli): `slice: typical app` 13 192 B (teto 13,1 → 13,2 kB);
+  `slice: device capture` 5 757 B (teto 5,75 → 5,8 kB). Nenhum dos dois estourava sozinho.
 
 ### Budgets
 

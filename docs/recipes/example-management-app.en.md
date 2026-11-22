@@ -694,7 +694,7 @@ function RevenueChart(): ReactNode {
 
     const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         [series]: point.total,
     }));
 
@@ -731,7 +731,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const patients = t("dashboard.series.patients");
 
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         [done]: day.done,
         [noShow]: day.no_show,
     }));
@@ -853,8 +853,8 @@ Both use the same `useRevenue()`, with the same query key. React Query makes **o
 !!! warning "The series name is the object key"
     The chart uses each series' key as the text of the legend and the tooltip. That is why the data is rebuilt with the **translated sentence** as the key: `[done]: day.done`, where `done` is `"Realizadas"` or `"Attended"`. Switching the language rebuilds the data and the legend follows.
 
-!!! warning "`timeZone: \"UTC\"` on a date without a time"
-    JavaScript reads `"2026-11-16"` as **UTC** midnight, which in Brasília is still the 15th at 9 p.m. Formatted in the local time zone, Monday becomes Sunday. Since the date came without a time, format it in UTC — it goes back to being the 16th the backend sent.
+!!! info "A date without a time stays on the day the backend sent"
+    JavaScript reads `"2026-11-16"` as **UTC** midnight, which in Brasília is still the 15th at 9 p.m. The `formatDate` from `useI18n` treats a date without a time as a calendar day and formats it in UTC, so Monday stays Monday in every time zone — no `timeZone` in your code.
 
 !!! tip "Money on an axis: compact notation"
     On the revenue chart, `valueFormatter` uses `notation: "compact"`. `R$ 186,430` becomes `R$186K`, which fits the Y axis width on a phone. The month card still shows the full value.
@@ -1125,13 +1125,14 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -1149,14 +1150,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -1196,11 +1189,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -1236,10 +1225,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -1260,8 +1249,8 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **One zod schema** is the source of truth: type, validation and messages. CPF goes through `validateCPF` from [Forms BR](../forms-br.md); the phone needs at least 10 digits.
 - **`CPFInput` and `PhoneInput`** mask while the person types. Before sending, `unmask` strips the punctuation: the backend stores digits only.
 - **An optional field becomes `null`.** Empty email and health plan go out as `null`, which is what the backend expects for "not provided".
-- **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value. A `placeholder` would be disabled, and the receptionist could not move a patient back to self-pay.
-- **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `onError` copies each message to the field of the same name with `form.setError`, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
+- **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value (`withEmptyOption`): it is a value with a name, not a "nothing chosen" prompt. When empty just means "not chosen", `placeholder` with `clearable` lets the field go back to empty — see [Select](../components/inputs.md#select-placeholder).
+- **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `applyApiFieldErrors` in `onError` puts each message on the field of the same name and focuses the first, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
 - **`key` on the modal.** The page mounts the modal with `key={patient.id}`. Opening another patient creates a new form, with the right values — no manual `reset()`.
 - **`fullscreenOnMobile`**: on phones, the form takes the whole screen instead of a cramped dialog.
 

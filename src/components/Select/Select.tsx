@@ -13,7 +13,28 @@ export interface SelectOption {
 /** What every variant of {@link Select} accepts. */
 export interface SelectBaseProps extends SelectHTMLAttributes<HTMLSelectElement> {
     options?: SelectOption[];
+    /**
+     * Text shown while the value is `""`. Without `clearable` its entry is
+     * `disabled hidden`: it reads as "nothing chosen yet" and cannot be picked
+     * again, which is right for a required field.
+     *
+     * An uncontrolled `Select` with a placeholder and neither `value` nor
+     * `defaultValue` starts on `""`. HTML's selectedness algorithm otherwise
+     * skips the disabled entry and selects the **first option** (measured in
+     * Chromium and jsdom: `select.value === "a"`), so the placeholder never
+     * showed and a submit sent a value nobody chose.
+     */
     placeholder?: string;
+    /**
+     * Keep the placeholder entry selectable, so an optional field can go back to
+     * empty (`""`) after something was picked. The entry is listed first with
+     * the placeholder's text (an empty label without one). Default `false`.
+     *
+     * For an empty choice that carries meaning of its own — "Particular",
+     * "Nenhum" — use a real option (`withEmptyOption`) instead: that label is
+     * the value, not a prompt.
+     */
+    clearable?: boolean;
     /**
      * Class for the outermost element. On `"bare"` that element is the shell
      * holding the `<select>` and the caret, which is where the app's own look goes.
@@ -110,6 +131,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
         helperText,
         error,
         caretIcon,
+        clearable = false,
         ...rest
     } = props as SelectBaseProps & {
         variant?: SelectProps["variant"];
@@ -121,6 +143,10 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     const isBare = variant === "bare";
     const generatedId = useId();
     const selectId = id ?? generatedId;
+    const startsEmpty =
+        (placeholder !== undefined || clearable) &&
+        rest.value === undefined &&
+        rest.defaultValue === undefined;
 
     const control = (
         <div
@@ -138,11 +164,16 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
                 required={required}
                 className={cn(styles.select, className)}
                 {...rest}
+                defaultValue={startsEmpty ? "" : rest.defaultValue}
             >
-                {placeholder && (
-                    <option value="" disabled hidden>
-                        {placeholder}
-                    </option>
+                {clearable ? (
+                    <option value="">{placeholder ?? ""}</option>
+                ) : (
+                    placeholder && (
+                        <option value="" disabled hidden>
+                            {placeholder}
+                        </option>
+                    )
                 )}
                 {options?.map((opt) => (
                     <option key={opt.value} value={opt.value} disabled={opt.disabled}>

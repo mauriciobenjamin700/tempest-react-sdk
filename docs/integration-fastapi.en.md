@@ -84,7 +84,7 @@ The backend **knows** which field brought the request down — it says the name.
 Now the three singular keys `tempest-fastapi-sdk` uses land on the same `error.fields`:
 
 ```tsx
-import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+import { applyApiFieldErrors, createApiClient, describeApiError } from "tempest-react-sdk";
 
 const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -92,17 +92,13 @@ async function saveAddress(values: { city: string; phone: string }): Promise<voi
     try {
         await api.post("/api/addresses", { body: values });
     } catch (err) {
-        if (isApiError(err) && err.fields) {
-            for (const [field, message] of Object.entries(err.fields)) {
-                setError(field, { message });
-            }
-        }
+        applyApiFieldErrors(form, err);
         toast.error(describeApiError(err, "Could not save the address"));
     }
 }
 ```
 
-With the body `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, `err.fields` is `{ city: "Cidade não encontrada para o estado informado." }` — and `setError("city", …)` sticks the sentence on the right input.
+With the body `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, `err.fields` is `{ city: "Cidade não encontrada para o estado informado." }` — and `applyApiFieldErrors(form, err)` sticks the sentence on the right input (a name the form does not have comes back in `unmatched` instead of marking an input that does not exist).
 
 !!! note "The precedence order"
     `detail[].loc` (FastAPI's list) → `detail.field` → `field` → `details.field`. The list wins because a `tempest-fastapi-sdk` app with no `RequestValidationError` handler still answers with FastAPI's default 422. `details` answers last: it is `AppException`'s generic context bag, and its `field` may be about something that is no input at all — a rejected sort column, say.

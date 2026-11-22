@@ -694,7 +694,7 @@ function RevenueChart(): ReactNode {
 
     const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         [series]: point.total,
     }));
 
@@ -731,7 +731,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const patients = t("dashboard.series.patients");
 
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         [done]: day.done,
         [noShow]: day.no_show,
     }));
@@ -853,8 +853,8 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 !!! warning "O nome da série é a chave do objeto"
     O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a **frase traduzida** como chave: `[done]: day.done`, onde `done` vale `"Realizadas"` ou `"Attended"`. Trocar o idioma refaz os dados e a legenda acompanha.
 
-!!! warning "`timeZone: \"UTC\"` em data sem hora"
-    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. Formatada no fuso local, a segunda-feira vira domingo. Como a data veio sem hora, formate em UTC — ela volta a ser o dia 16 que o backend mandou.
+!!! info "Data sem hora fica no dia que o backend mandou"
+    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
 !!! tip "Eixo com dinheiro: notação compacta"
     No gráfico de faturamento, o `valueFormatter` usa `notation: "compact"`. `R$ 186.430` vira `R$ 186 mil`, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.
@@ -1125,13 +1125,14 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -1149,14 +1150,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -1196,11 +1189,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -1236,10 +1225,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -1260,8 +1249,8 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **Um schema zod** é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo `validateCPF` de [Forms BR](../forms-br.md); o telefone precisa de pelo menos 10 dígitos.
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
-- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
-- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `onError` copia cada mensagem para o campo do mesmo nome com `form.setError`, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
+- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio (`withEmptyOption`): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", `placeholder` com `clearable` deixa voltar ao vazio — veja [Select](../components/inputs.md#select-placeholder).
+- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.
 

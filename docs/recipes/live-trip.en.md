@@ -375,16 +375,10 @@ Piece by piece:
 // src/trips/trip-markers.tsx
 import type { ReactElement } from "react";
 import { Flag } from "lucide-react";
-import type { LiveRouteMarker } from "tempest-react-sdk";
+import { formatTime, type LiveRouteMarker } from "tempest-react-sdk";
 import type { Trip, TripStop } from "@/trips/contract";
 
 export type TripViewer = "passenger" | "driver";
-
-const clock = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-export function formatClock(value: string | Date): string {
-  return clock.format(typeof value === "string" ? new Date(value) : value);
-}
 
 function stopLabel(stop: TripStop, isMine: boolean): string {
   const mine = isMine ? "Seu embarque — " : "";
@@ -398,7 +392,7 @@ function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): 
         {stop.order}. {stop.name}
       </strong>
       <p>{stop.address}</p>
-      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatClock(stop.eta_at)}</p>}
+      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatTime(stop.eta_at)}</p>}
       {viewer === "driver" && stop.passengers.length > 0 && (
         <ul>
           {stop.passengers.map((passenger) => (
@@ -638,12 +632,13 @@ import {
   Stat,
   Timeline,
   estimateTravel,
+  formatTime,
   type TimelineItem,
   type TimelineMarker,
   type TrackPoint,
 } from "tempest-react-sdk";
 import type { StopStatus, Trip, TripStop } from "@/trips/contract";
-import { formatClock, type TripViewer } from "@/trips/trip-markers";
+import type { TripViewer } from "@/trips/trip-markers";
 
 export interface StopEta {
   stop: TripStop;
@@ -705,7 +700,7 @@ function timelineItems(trip: Trip): TimelineItem[] {
       description: stop.address,
       meta:
         stop.status === "pending" && stop.eta_at
-          ? formatClock(stop.eta_at)
+          ? formatTime(stop.eta_at)
           : STATUS_TEXT[stop.status],
       marker: stop.id === trip.my_stop_id ? "primary" : MARKER[stop.status],
     }));
@@ -735,7 +730,7 @@ export function NextStopPanel({ trip, viewer, eta }: NextStopPanelProps): ReactE
   const value = !eta ? "—" : eta.minutes <= 1 ? "Chegando" : `${eta.minutes} min`;
   const hint = !eta
     ? "Aguardando a posição da van"
-    : `Previsão ${formatClock(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
+    : `Previsão ${formatTime(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
 
   return (
     <Card title={title}>
@@ -767,6 +762,7 @@ import {
   OfflineIndicator,
   Skeleton,
   describeApiError,
+  formatTime,
   useMediaQuery,
 } from "tempest-react-sdk";
 import { useTrip } from "@/trips/api";
@@ -774,7 +770,6 @@ import type { Trip } from "@/trips/contract";
 import { NextStopPanel, etaAnnouncement, nextStop, stopEta } from "@/trips/NextStopPanel";
 import { SignalStatus } from "@/trips/SignalStatus";
 import { TripMap } from "@/trips/TripMap";
-import { formatClock } from "@/trips/trip-markers";
 import { useLiveVehicle } from "@/trips/use-live-vehicle";
 
 function LiveTrip({ trip }: { trip: Trip }): ReactElement {
@@ -845,7 +840,7 @@ export function PassengerTripPage(): ReactElement {
       <EmptyState
         icon={<BusFront />}
         title="A viagem ainda não começou"
-        description={`Saída prevista às ${formatClock(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
+        description={`Saída prevista às ${formatTime(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
       />
     );
   }

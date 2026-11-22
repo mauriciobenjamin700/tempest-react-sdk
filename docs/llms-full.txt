@@ -12036,6 +12036,43 @@ export function Estado() {
 | `variant`   | `"field" \| "chip" \| "bare"` | `"field"` |
 | `caretIcon` | `ReactNode`           | chevron do SDK |
 | `wrapperClassName` | `string`       | —         |
+| `placeholder` | `string`             | —         |
+| `clearable` | `boolean`             | `false`   |
+
+### Placeholder e campo opcional — `placeholder`, `clearable` {#select-placeholder}
+
+O `placeholder` é o texto do estado vazio (`""`). Por padrão a entrada dele é `disabled hidden`: lê como "nada escolhido ainda" e não volta a ser escolhida — certo para campo obrigatório. Num campo **opcional**, `clearable` deixa a entrada selecionável, e a pessoa volta ao vazio depois de ter escolhido:
+
+```tsx
+import { useState } from "react";
+import { Select, toOptions } from "tempest-react-sdk";
+
+const SALAS = { a: "Sala A", b: "Sala B" };
+
+export function Consulta() {
+    const [sala, setSala] = useState("a");
+    return (
+        <>
+            <Select
+                label="Sala (opcional)"
+                placeholder="Nenhuma"
+                clearable
+                value={sala}
+                onChange={(e) => setSala(e.target.value)}
+                options={toOptions(SALAS)}
+            />
+            <Select label="Sala" placeholder="Selecione a sala" options={toOptions(SALAS)} required />
+        </>
+    );
+}
+```
+
+- **`clearable`** põe uma entrada `""` com o texto do `placeholder` no topo da lista, habilitada e visível.
+- **Sem `value` nem `defaultValue`**, um `Select` com `placeholder` começa vazio, mostrando o placeholder.
+- Quando o vazio **tem nome** no domínio — "Particular", "Nenhum convênio" —, ele é um valor, não um aviso: use uma opção de verdade com `withEmptyOption(options, "Particular")`.
+
+!!! danger "Até a 0.92.0, `placeholder` sem `value` mostrava a primeira opção"
+    O algoritmo de seleção do HTML pula a entrada `disabled` e seleciona **a primeira opção** habilitada. Medido no Chromium (Playwright headless, `<select><option value="" disabled hidden>Selecione</option><option value="a">A</option>…`): `select.value === "a"` — e no jsdom, o mesmo. Um `<Select label="UF" placeholder="Selecione" options={ufs} />` não controlado abria em "São Paulo", e o submit mandava um valor que ninguém escolheu. Agora ele começa em `""`.
 
 ### Variante `chip` — linha de configurações
 
@@ -12119,7 +12156,7 @@ export function Filtros() {
 - Nenhuma das duas muta a lista recebida.
 
 !!! danger "Sem entrada vazia, salvar o formulário grava um valor que ninguém escolheu"
-    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. O `placeholder` do `Select` não resolve: a entrada dele é `disabled hidden`, então depois de escolher algo o campo **nunca mais volta a vazio**. Campo anulável usa `withEmptyOption`.
+    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. Campo anulável usa `withEmptyOption` — ou, quando o vazio é só "não escolhido", `placeholder` com [`clearable`](#select-placeholder).
 
 !!! warning "Objeto reordena chave numérica — use `Map` para escala"
     `toOptions` preserva a ordem de um `Map` sempre, e a de um objeto **exceto nas chaves inteiras**, que o JavaScript enumera primeiro e em ordem crescente (`OrdinaryOwnPropertyKeys`). Medido no Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` é `["1", "3", "5"]`. Uma escala de humor não é crescente por acaso — passe um `Map`.
@@ -20515,6 +20552,101 @@ const form = useZodForm(loginSchema, { defaultValues: { email: "", password: "" 
 </Form>;
 ```
 
+#### Entrada e saída — select obrigatório que começa vazio
+
+O `useZodForm` tipa o formulário pelos **dois lados** do schema: os campos, `defaultValues`, `watch` e `setValue` pela **entrada** (`z.input`, o que o input guarda enquanto a pessoa edita), e o `handleSubmit` pela **saída** (`z.output`, o que o parse devolve). É o que deixa um select obrigatório abrir vazio sem mentir para o tipo do submit:
+
+```tsx
+import { FormField, FormProvider, Select, toOptions, useZodForm } from "tempest-react-sdk";
+import { z } from "zod";
+
+const STATUS = { active: "Ativo", paused: "Pausado" };
+
+const schema = z.object({
+    status: z
+        .union([z.enum(["active", "paused"]), z.literal("")])
+        .refine((value) => value !== "", "Escolha um status"),
+    stock: z.coerce.number().int().min(0),
+});
+
+export function StatusForm({ onSave }: { onSave: (values: z.output<typeof schema>) => void }) {
+    const form = useZodForm(schema, { defaultValues: { status: "", stock: "" } });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} noValidate>
+                <FormField name="status" label="Status" required>
+                    <Select placeholder="Selecione" options={toOptions(STATUS)} />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **`status: ""`** compila como valor inicial porque a entrada do schema aceita `""`.
+- **`value !== ""`** é um predicado de tipo: a saída fica só com `"active" | "paused"`, e o `onSave` nunca recebe `""`.
+- **`stock`** guarda o texto que o input digitou (`unknown` na entrada) e chega ao submit como `number`.
+
+!!! danger "Até a 0.92.0, os dois lados eram a saída"
+    Com os campos tipados pela saída, `defaultValues: { status: "" }` não compilava, e o contorno (`refine((value) => value.length > 0)`, sem predicado) deixava o `""` vazar para o tipo que o submit recebe. E o tipo do formulário era **inferido do `defaultValues`**: `{ status: "" }` tipava o campo como `string` e perdia o enum do schema. Hoje o `defaultValues` é `NoInfer` — o tipo vem só do schema. Quem anotava os valores iniciais com `z.infer` passa a anotar com `z.input`.
+
+### 4. Erro do servidor nos campos — `applyApiFieldErrors`
+
+O `422` do FastAPI (ou o erro do `tempest-fastapi-sdk` que nomeia `field`) chega como `error.fields`, `{ nome: mensagem }`. `applyApiFieldErrors` põe cada mensagem no campo do formulário com aquele nome e foca o primeiro:
+
+```tsx
+import { useMutation } from "@tanstack/react-query";
+import {
+    FormField,
+    FormProvider,
+    Input,
+    applyApiFieldErrors,
+    createApiClient,
+    useDescribeApiError,
+    useToast,
+    useZodForm,
+} from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({ baseURL: "/api" });
+const schema = z.object({ name: z.string().min(3), email: z.email() });
+
+export function ClienteForm() {
+    const toast = useToast();
+    const describe = useDescribeApiError();
+    const form = useZodForm(schema, { defaultValues: { name: "", email: "" } });
+    const save = useMutation({
+        mutationFn: (values: z.output<typeof schema>) => api.post("/clientes", { body: values }),
+        onError: (error) => {
+            const { marked, unmatched } = applyApiFieldErrors(form, error);
+            const outros = Object.values(unmatched);
+            if (marked.length === 0) toast.error(describe(error, "Não foi possível salvar."));
+            else if (outros.length > 0) toast.error(outros.join(" "));
+        },
+    });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit((values) => save.mutate(values))} noValidate>
+                <FormField name="name" label="Nome">
+                    <Input />
+                </FormField>
+                <FormField name="email" label="E-mail">
+                    <Input type="email" />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **Só nomes do formulário são marcados.** Por padrão, um nome conta quando `form.getValues(nome)` não é `undefined` — todo campo com valor inicial, que é como o `useZodForm` se usa. Passe `{ fields: [...] }` para decidir a lista à mão.
+- **O resto volta em `unmatched`**, chaveado pelo nome: um input que não existe nunca mostraria a mensagem, e ela ficaria presa num erro que ninguém consegue limpar.
+- **`{ focus: false }`** marca sem mover o foco.
+- Qualquer outro erro — rede, `500`, `Error` comum — não marca nada e devolve `{ marked: [], unmatched: {} }`.
+
+!!! info "É o mesmo código do `AuthForm`"
+    A regra (marcar só o que existe, focar o primeiro, devolver o resto) era privada do `AuthForm`; cada formulário fora dele reescrevia o laço de `setError` — e as três receitas que o reescreviam discordavam entre si. O `AuthForm` agora usa o `applyApiFieldErrors`.
+
 ## Exemplo completo — schema → provider → fields → submit
 
 Os três trechos acima são fatias da mesma história. Aqui está um form ponta-a-ponta
@@ -20680,6 +20812,8 @@ Mantenha schemas em `src/schemas/<dominio>.ts`, exporte o `z.infer` em `src/type
 
 - O SDK separa **layout** (`Form`/`FormSection`/`FormRow`/`FormActions`) de **validação** (zod) — adote um sem o outro.
 - A validação tem três degraus: `validateForm` (agnóstico), `zodResolver` (RHF), `useZodForm` (tudo-em-um).
+- `useZodForm` tipa os campos pela **entrada** do schema e o `handleSubmit` pela **saída**: select obrigatório abre com `""` e o submit só vê o enum.
+- `applyApiFieldErrors(form, error)` põe o `error.fields` de um `422` nos campos certos e devolve o que não casou em `unmatched`.
 - Um único **schema zod** dirige tipo (`z.infer`), validação e mensagens de erro.
 - `<FormProvider>` + `<FormField>` removem o `<Controller>` repetido e propagam `error` + `aria-invalid` pros controles.
 - `handleSubmit` só chama seu `onSubmit` com valores já validados.
@@ -24280,6 +24414,7 @@ const i18n = createI18n({ locale: "pt-BR", fallbackLocale: "en", messages });
 
 i18n.t("greet", { name: "Mau" }); // "Olá, Mau"
 i18n.formatDate(new Date(), { dateStyle: "long" });
+i18n.formatDate("2026-11-16", { weekday: "short", day: "2-digit" }); // "seg., 16" — data sem hora mantém o dia em qualquer fuso
 
 const en = i18n.withLocale("en"); // novo I18n, mesmo catálogo
 en.t("greet", { name: "Mau" }); // "Hi, Mau"
@@ -25757,7 +25892,7 @@ O backend **sabe** qual campo derrubou a requisição — ele diz o nome. O que 
 Agora as três chaves singulares que o `tempest-fastapi-sdk` usa entram no mesmo `error.fields`:
 
 ```tsx
-import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+import { applyApiFieldErrors, createApiClient, describeApiError } from "tempest-react-sdk";
 
 const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -25765,17 +25900,13 @@ async function salvarEndereco(values: { city: string; phone: string }): Promise<
     try {
         await api.post("/api/enderecos", { body: values });
     } catch (err) {
-        if (isApiError(err) && err.fields) {
-            for (const [field, message] of Object.entries(err.fields)) {
-                setError(field, { message });
-            }
-        }
+        applyApiFieldErrors(form, err);
         toast.error(describeApiError(err, "Não foi possível salvar o endereço"));
     }
 }
 ```
 
-Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `setError("city", …)` cola a frase no input certo.
+Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `applyApiFieldErrors(form, err)` cola a frase no input certo (um nome que o formulário não tem volta em `unmatched`, em vez de marcar um input que não existe).
 
 !!! note "A ordem de precedência"
     `detail[].loc` (lista do FastAPI) → `detail.field` → `field` → `details.field`. A lista ganha porque um app `tempest-fastapi-sdk` sem handler de `RequestValidationError` continua respondendo o 422 padrão do FastAPI. O `details` responde por último: ele é o saco de contexto genérico do `AppException`, e o `field` dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.
@@ -30489,7 +30620,7 @@ export const productSchema = z.object({
     .regex(/^[A-Z0-9-]{4,20}$/, "De 4 a 20 caracteres: letras, números e hífen"),
   category: z
     .union([z.enum(CATEGORIES), z.literal("")])
-    .refine((value) => value.length > 0, "Escolha uma categoria"),
+    .refine((value) => value !== "", "Escolha uma categoria"),
   price_cents: z.number().int().min(1, "Informe o preço"),
   stock: z.coerce
     .number()
@@ -30498,9 +30629,10 @@ export const productSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export type ProductFormValues = z.infer<typeof productSchema>;
+export type ProductFormInput = z.input<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productSchema>;
 
-export const EMPTY_PRODUCT: ProductFormValues = {
+export const EMPTY_PRODUCT: ProductFormInput = {
   name: "",
   sku: "",
   category: "",
@@ -30509,7 +30641,7 @@ export const EMPTY_PRODUCT: ProductFormValues = {
   status: "draft",
 };
 
-export function toFormValues(product: Product | null): ProductFormValues {
+export function toFormValues(product: Product | null): ProductFormInput {
   if (!product) return EMPTY_PRODUCT;
   return {
     name: product.name,
@@ -30530,7 +30662,11 @@ O schema zod é a fonte de verdade do formulário. Três detalhes:
 - **`sku`** passa por `toUpperCase()` antes do `regex`: a pessoa digita `mer-cafe-500` e o backend
   recebe `MER-CAFE-500`.
 - **`category`** aceita `""` na entrada e recusa no `refine`. Assim o formulário de cadastro abre
-  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido.
+  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido. O
+  `value !== ""` é um predicado de tipo: a **saída** do schema (`ProductFormValues`, o que o
+  `save` recebe) fica só com as categorias, enquanto a **entrada** (`ProductFormInput`, o tipo dos
+  valores iniciais) aceita o `""`. O `useZodForm` tipa os campos pela entrada e o `handleSubmit`
+  pela saída, então os dois lados batem sem cast.
 - **`stock`** usa `z.coerce.number()`, porque um `<input type="number">` entrega texto.
 
 `toFormValues` converte um produto da API nos valores do formulário. Sem produto, devolve o
@@ -30661,6 +30797,7 @@ import {
   Input,
   MoneyInput,
   Select,
+  applyApiFieldErrors,
   isApiError,
   toOptions,
   useCreate,
@@ -30707,10 +30844,8 @@ export function ProductFormDrawer({ open, product, onClose }: ProductFormDrawerP
   }, [open, product, reset]);
 
   function handleError(error: unknown): void {
+    applyApiFieldErrors(form, error);
     if (isApiError(error)) {
-      for (const [field, message] of Object.entries(error.fields ?? {})) {
-        if (field in EMPTY_PRODUCT) setError(field as keyof ProductFormValues, { message });
-      }
       if (error.code === "PRODUCT_SKU_TAKEN") {
         setError("sku", { message: ERROR_CODES.PRODUCT_SKU_TAKEN });
       }
@@ -30795,7 +30930,9 @@ O mesmo componente cadastra e edita: `product === null` é cadastro.
 O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 1. `error.fields` traz o campo culpado, venha ele da lista de validação do FastAPI ou da chave
-   `field` do `tempest-fastapi-sdk`. Cada mensagem vai para o seu input com `setError`.
+   `field` do `tempest-fastapi-sdk`. O `applyApiFieldErrors` põe cada mensagem no seu input e
+   foca o primeiro; um nome que o formulário não tem volta em `unmatched`, em vez de marcar um
+   input que não existe.
 2. `PRODUCT_SKU_TAKEN` ganha uma frase escrita por você, no campo SKU.
 3. [`describeApiError`](../http.md#do-erro-tipado-para-a-frase-na-tela-describeapierror) monta a
    frase do toast: a sua frase para o código, "sem conexão" para `status: 0`, o `detail` do
@@ -32094,14 +32231,13 @@ import {
   Input,
   PhoneInput,
   SegmentedControl,
+  applyApiFieldErrors,
   describeApiError,
-  isApiError,
   unmask,
   useBreakpoint,
   useViaCEP,
   useWatch,
   useZodForm,
-  type Path,
   type SubmitHandler,
 } from "tempest-react-sdk";
 import { EMPTY_SIGNUP, signupSchema, type SignupValues } from "@/checkout/signup-schema";
@@ -32173,11 +32309,7 @@ export function SignupStep({ onCreated }: SignupStepProps) {
       });
       onCreated(customer);
     } catch (error) {
-      if (isApiError(error) && error.fields) {
-        for (const [field, message] of Object.entries(error.fields)) {
-          setError(field as Path<SignupValues>, { message });
-        }
-      }
+      applyApiFieldErrors(form, error);
       setSubmitError(
         describeApiError(error, "Não foi possível criar sua conta", { codes: SIGNUP_ERRORS }),
       );
@@ -32285,7 +32417,7 @@ Peça por peça:
    livres para digitar.
 5. **`unmask` antes de enviar.** A tela mostra `529.982.247-25`; o backend recebe `52998224725`.
 6. **Erro do backend em dois lugares.** O que nomeia um campo (`error.fields`) vai para o input
-   certo com `setError`. A frase geral vai para o `<Alert>` do topo, montada pelo
+   certo com `applyApiFieldErrors`. A frase geral vai para o `<Alert>` do topo, montada pelo
    `describeApiError` com o `code` `DOCUMENT_TAKEN` traduzido.
 
 !!! tip "CEP de cidade pequena não tem rua"
@@ -34311,7 +34443,7 @@ function RevenueChart(): ReactNode {
 
     const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
+        month: formatDate(`${point.month}-01`, { month: "short" }),
         [series]: point.total,
     }));
 
@@ -34348,7 +34480,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const patients = t("dashboard.series.patients");
 
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
         [done]: day.done,
         [noShow]: day.no_show,
     }));
@@ -34470,8 +34602,8 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 !!! warning "O nome da série é a chave do objeto"
     O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a **frase traduzida** como chave: `[done]: day.done`, onde `done` vale `"Realizadas"` ou `"Attended"`. Trocar o idioma refaz os dados e a legenda acompanha.
 
-!!! warning "`timeZone: \"UTC\"` em data sem hora"
-    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. Formatada no fuso local, a segunda-feira vira domingo. Como a data veio sem hora, formate em UTC — ela volta a ser o dia 16 que o backend mandou.
+!!! info "Data sem hora fica no dia que o backend mandou"
+    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
 !!! tip "Eixo com dinheiro: notação compacta"
     No gráfico de faturamento, o `valueFormatter` usa `notation: "compact"`. `R$ 186.430` vira `R$ 186 mil`, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.
@@ -34742,13 +34874,14 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -34766,14 +34899,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -34813,11 +34938,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -34853,10 +34974,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -34877,8 +34998,8 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **Um schema zod** é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo `validateCPF` de [Forms BR](../forms-br.md); o telefone precisa de pelo menos 10 dígitos.
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
-- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
-- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `onError` copia cada mensagem para o campo do mesmo nome com `form.setError`, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
+- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio (`withEmptyOption`): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", `placeholder` com `clearable` deixa voltar ao vazio — veja [Select](../components/inputs.md#select-placeholder).
+- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.
 
@@ -37084,16 +37205,10 @@ Pedaço por pedaço:
 // src/trips/trip-markers.tsx
 import type { ReactElement } from "react";
 import { Flag } from "lucide-react";
-import type { LiveRouteMarker } from "tempest-react-sdk";
+import { formatTime, type LiveRouteMarker } from "tempest-react-sdk";
 import type { Trip, TripStop } from "@/trips/contract";
 
 export type TripViewer = "passenger" | "driver";
-
-const clock = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-export function formatClock(value: string | Date): string {
-  return clock.format(typeof value === "string" ? new Date(value) : value);
-}
 
 function stopLabel(stop: TripStop, isMine: boolean): string {
   const mine = isMine ? "Seu embarque — " : "";
@@ -37107,7 +37222,7 @@ function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): 
         {stop.order}. {stop.name}
       </strong>
       <p>{stop.address}</p>
-      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatClock(stop.eta_at)}</p>}
+      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatTime(stop.eta_at)}</p>}
       {viewer === "driver" && stop.passengers.length > 0 && (
         <ul>
           {stop.passengers.map((passenger) => (
@@ -37347,12 +37462,13 @@ import {
   Stat,
   Timeline,
   estimateTravel,
+  formatTime,
   type TimelineItem,
   type TimelineMarker,
   type TrackPoint,
 } from "tempest-react-sdk";
 import type { StopStatus, Trip, TripStop } from "@/trips/contract";
-import { formatClock, type TripViewer } from "@/trips/trip-markers";
+import type { TripViewer } from "@/trips/trip-markers";
 
 export interface StopEta {
   stop: TripStop;
@@ -37414,7 +37530,7 @@ function timelineItems(trip: Trip): TimelineItem[] {
       description: stop.address,
       meta:
         stop.status === "pending" && stop.eta_at
-          ? formatClock(stop.eta_at)
+          ? formatTime(stop.eta_at)
           : STATUS_TEXT[stop.status],
       marker: stop.id === trip.my_stop_id ? "primary" : MARKER[stop.status],
     }));
@@ -37444,7 +37560,7 @@ export function NextStopPanel({ trip, viewer, eta }: NextStopPanelProps): ReactE
   const value = !eta ? "—" : eta.minutes <= 1 ? "Chegando" : `${eta.minutes} min`;
   const hint = !eta
     ? "Aguardando a posição da van"
-    : `Previsão ${formatClock(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
+    : `Previsão ${formatTime(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
 
   return (
     <Card title={title}>
@@ -37476,6 +37592,7 @@ import {
   OfflineIndicator,
   Skeleton,
   describeApiError,
+  formatTime,
   useMediaQuery,
 } from "tempest-react-sdk";
 import { useTrip } from "@/trips/api";
@@ -37483,7 +37600,6 @@ import type { Trip } from "@/trips/contract";
 import { NextStopPanel, etaAnnouncement, nextStop, stopEta } from "@/trips/NextStopPanel";
 import { SignalStatus } from "@/trips/SignalStatus";
 import { TripMap } from "@/trips/TripMap";
-import { formatClock } from "@/trips/trip-markers";
 import { useLiveVehicle } from "@/trips/use-live-vehicle";
 
 function LiveTrip({ trip }: { trip: Trip }): ReactElement {
@@ -37554,7 +37670,7 @@ export function PassengerTripPage(): ReactElement {
       <EmptyState
         icon={<BusFront />}
         title="A viagem ainda não começou"
-        description={`Saída prevista às ${formatClock(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
+        description={`Saída prevista às ${formatTime(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
       />
     );
   }
@@ -48133,7 +48249,7 @@ formatDate(pedido.entregueEm, { fallback: "pendente" }); // o texto é seu
 ABSENT_TEXT; // "—", para quando a sua própria célula precisa combinar
 ```
 
-Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate` e `formatDateTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
+Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate`, `formatDateTime` e `formatTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
 
 !!! danger "Antes da 0.66.0, ausente virava número plausível"
     Medido na 0.65.0, com o que chegava à tela para uma coluna que o backend deixou nula:
@@ -48149,6 +48265,29 @@ Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent
 
 !!! tip "Ausente e inválido não são a mesma coisa"
     Valor presente que não dá para interpretar — um ISO corrompido — continua respondendo **`""`**, e isso é de propósito. Lendo um log, "ninguém preencheu" e "o que preencheram está quebrado" são achados diferentes, e o segundo é o que vale investigar. Uma célula vazia e uma com `—` param de significar a mesma coisa.
+
+---
+
+## Data sem hora e hora do dia — `formatDate`, `formatDateTime`, `formatTime` {#data-sem-hora}
+
+O backend manda três formas diferentes, e cada formatador lê as três pelo que elas são:
+
+```ts
+import { formatDate, formatDateTime, formatTime } from "tempest-react-sdk";
+
+formatDate("2026-11-16"); // "16/11/2026" — coluna `date`, em qualquer fuso
+formatDateTime("2026-11-16T20:30:00Z"); // "16/11/2026, 17:30" em America/Sao_Paulo
+formatTime("2026-11-16T20:30:00Z"); // "17:30" em America/Sao_Paulo
+formatTime("08:05:00"); // "08:05" — coluna `time`, sem conversão de fuso
+formatTime("2026-11-16"); // "" — data sem hora não tem hora para mostrar
+```
+
+- **Data sem hora** (`yyyy-MM-dd`) é um dia do calendário, não um instante: sai como o dia que ela nomeia, em qualquer fuso. Um dia que o mês não tem (`"2026-02-30"`) responde `""`.
+- **Instante** (`Date`, ou string com data **e** hora) é convertido para o fuso de quem está vendo.
+- **Hora do dia** (`HH:mm`, `HH:mm:ss`) só existe no `formatTime`, e sai como veio.
+
+!!! danger "Até a 0.92.0, toda coluna `date` aparecia um dia antes no Brasil"
+    `new Date("2026-11-16")` é meia-noite **UTC**, que em UTC-3 é dia 15 às 21:00. Medido com `TZ=America/Sao_Paulo node -e 'console.log(new Intl.DateTimeFormat("pt-BR").format(new Date("2026-11-16")))'`: `15/11/2026`. O `formatDate` mostrava `15/11/2026`, o `formatDateTime` mostrava `15/11/2026, 21:00`, e o `formatDate` do `createI18n`/`useI18n` errava igual. Agora a data sem hora é formatada em UTC — o mesmo dia em todo fuso —, e um `timeZone` passado ao `formatDate` do i18n não a move.
 
 ---
 
@@ -48530,7 +48669,7 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 - **ZIP**: `createZip(entries, { onProgress })` monta planilha + fotos em fatias de ~8 ms, sem travar a tela, e guarda sem recomprimir o que já é comprimido.
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
 - **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
+- **Datas e percentuais**: `formatDate("2026-11-16")` mostra o dia 16 em qualquer fuso e `formatTime` dá `HH:mm` de um instante ou de uma coluna `time`; `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.

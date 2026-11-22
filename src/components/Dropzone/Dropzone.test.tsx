@@ -161,3 +161,19 @@ describe("Dropzone — drag states and file filtering", () => {
         expect(screen.getByText(/Arraste arquivos aqui/)).toBeInTheDocument();
     });
 });
+
+describe("Dropzone — camera capture (#722)", () => {
+    it("forwards capture to the file input so a phone opens the rear camera", () => {
+        const { container } = render(
+            <Dropzone onDrop={() => {}} accept="image/*" capture="environment" />,
+        );
+        const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+        expect(input.getAttribute("capture")).toBe("environment");
+    });
+
+    it("leaves the capture attribute out by default, keeping the file picker", () => {
+        const { container } = render(<Dropzone onDrop={() => {}} />);
+        const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+        expect(input.hasAttribute("capture")).toBe(false);
+    });
+});

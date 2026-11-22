@@ -173,7 +173,7 @@ Cada campo do estado de auth (`user`, `token`, `isAuthenticated`, `logout`, ...)
 
 ## Lendo estado fora do React — `getState()`
 
-Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um guard de rota, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use `getState()` no hook ligado:
+Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um callback de `onUnauthorized`, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use `getState()` no hook ligado:
 
 ```ts
 import { useAuth } from "./auth-store";
@@ -184,7 +184,9 @@ function requireAuth(): boolean {
 }
 ```
 
-É exatamente assim que um guard de rota lê a sessão de auth: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
+É assim que o cliente HTTP lê o token a cada requisição: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
+
+O guard de rota **não** é esse caso: ele roda durante a renderização da rota e precisa reagir ao logout, então lê a store por hook — veja [Roteamento](routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
 !!! warning "`getState()` não assina"
     `getState()` lê uma vez e não re-renderiza nada quando o estado muda depois. Dentro de componentes, prefira sempre o hook (`useStore(...)` ou `useStore.use.campo()`) para que a UI se mantenha em sincronia. Reserve `getState()` para o código fora do React.

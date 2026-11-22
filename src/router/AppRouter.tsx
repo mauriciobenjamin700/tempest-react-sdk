@@ -14,7 +14,8 @@ import type { RouteGuardResult, RouterKind, TempestRouteObject } from "./types";
  *     { path: "/", element: <Layout />, children: [
  *         { index: true, lazy: () => import("./pages/Home") },
  *         { path: "settings", lazy: () => import("./pages/Settings"),
- *           guard: () => useAuth.getState().isAuthenticated, redirectTo: "/login" },
+ *           guard: function useSignedIn() { return useAuth.use.isAuthenticated(); },
+ *           redirectTo: "/login" },
  *     ] },
  * ]);
  */

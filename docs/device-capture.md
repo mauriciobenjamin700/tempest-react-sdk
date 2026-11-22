@@ -588,6 +588,8 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
   quem não tem, e `detector` aceita um polyfill.
 - `useBarcodeScanner` — a metade de decodificação, sobre `useCameraStream`; loop que não se
   sobrepõe, `formats` resolvidos pela interseção com o motor.
+- `useCameraStream` — a câmera crua, na raiz: abre, classifica o erro e libera no unmount,
+  sem exigir o `onnxruntime-web`.
 - `useTorch` — a lanterna é constraint de track viva, não dispositivo; `supported` só vale
   depois do stream.
 - `useVideoRecorder` — mesmo motor do áudio: relógio que desconta pausa, `stop()` com todos
@@ -602,4 +604,5 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
 
 - [Áudio](./audio.md) — microfone, gravação de voz, WAV, saída de som
 - [Componentes utilitários](./components/utility.md) — o `QRCode`, que codifica
-- [Vision (ONNX)](./vision.md) — o `useCameraStream` que este módulo reaproveita
+- [Vision (ONNX)](./vision.md#usecamerastream-abrir-a-camera) — o `useCameraStream`, exportado
+  na raiz por este módulo e documentado junto da luminância

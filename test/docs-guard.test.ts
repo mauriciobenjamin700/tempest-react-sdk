@@ -337,7 +337,9 @@ describe("docs examples", () => {
                 join(ROOT, "src/components/SyncStatusBadge/SyncStatusBadge.tsx"),
                 "utf8",
             );
-            expect(source).toMatch(/import type \{[^}]*\bOfflineSync\b[^}]*\} from "@\/offline"/);
+            expect(source).toMatch(
+                /import type \{[^}]*\bSyncStatusSource\b[^}]*\} from "@\/offline"/,
+            );
 
             const failures = compileBlocks([
                 {

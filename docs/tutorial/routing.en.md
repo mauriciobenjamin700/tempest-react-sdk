@@ -208,7 +208,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -220,13 +222,15 @@ A non-authenticated user who tries to open `/dashboard` lands on `/login`. The
 `useAuth` store doesn't exist yet — you'll create it on the next page. For now,
 focus on **how** the guard reads state.
 
-!!! warning "The guard runs on render — read the store via `getState()`"
+!!! warning "The guard runs on render — read the store through a hook"
 
-    The `guard` function is evaluated **during the route's render**, outside the
-    hooks cycle. That's why it reads the value _at that instant_ with
-    `useAuth.getState().isAuthenticated`. Do **not** capture the value outside the
-    function (`const ok = useAuth.getState().isAuthenticated` at the top of the
-    file) — you'd freeze the auth state at initial load.
+    The `guard` function is evaluated **during the route's render**, so it can call
+    hooks. `useAuth.use.isAuthenticated()` **subscribes** the route: when the session
+    ends, it re-renders and sends you to `/login`, from any protected screen.
+    `useAuth.getState().isAuthenticated` reads the value once and does not subscribe
+    — after a logout, the screen would stay up until the next navigation. The name
+    `useSignedIn` is not decoration: ESLint only accepts a hook inside a `use…`
+    function.
 
 ## Programmatic navigation
 

@@ -92,6 +92,12 @@ The generated `package.json` ships these scripts:
 | `npm run lint`      | `eslint .` — ESLint 9 flat config (react-hooks + refresh) |
 | `npm run lint:fix`  | `eslint . --fix` — auto-fix what it can                   |
 
+### Dependencies the app imports directly
+
+Besides the peers (`react`, `react-dom`, `react-router`), the generated `package.json` declares `@tanstack/react-query`, `react-hook-form` and `zod`. All three already come with the SDK, but the docs import them from app code (`useQuery`, `useForm`, `z.object`), and importing what you do not declare only works by accident: npm and yarn resolve it through the copy the SDK leaves at the root of `node_modules`; **pnpm**, which only exposes what the app declares, fails `tsc` with `Cannot find module`. The declared range is **the SDK's own**, so every manager installs a single copy — which matters for `@tanstack/react-query` and `react-hook-form`, which carry React context. When you upgrade the SDK, run `npx tempest doctor`: it warns when one of the app's ranges fell behind and npm nested a second copy.
+
+`lucide-react` is left out on purpose — see [Icons](icons.md#do-not-install-lucide-react-yourself).
+
 ## Tour of what gets generated
 
 The generated project is lean on purpose: each file exists to **demonstrate an SDK feature** you'll reuse. Here's the full structure:
@@ -209,6 +215,7 @@ my-app/
 │   └── icon.svg                # source icon (swap for yours — the PNGs come from it)
 └── src/
     ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── sw-sync-scope.ts        # what background sync queues (and what stays with the page)
     ├── main.tsx                # (overwritten) registers /sw.js in dev and prod
     ├── vite-env.d.ts           # (overwritten) types VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (overwritten) Install button + notifications toggle
@@ -351,6 +358,12 @@ installBackgroundSync({
 ```
 
 The original fetch still **rejects** for now (your app shows an offline state), but the request is replayed later. `maxRetentionMinutes` drops stale entries; 4xx responses are discarded (a client error won't fix itself).
+
+!!! warning "One queue per mutation: the scaffold leaves to the page what it already resends"
+    The worker does not know what the page does after the rejection. If the page resends too, the same mutation goes out of **both** queues: the outbox (`createOfflineSync`) sends the newest version of the record when the network returns, and the worker later replays, in its own order, every attempt made offline — including versions the outbox has already superseded, overriding its conflict policy. That is why `--pwa` does not use the `match` above: the generated `src/sw.ts` calls `queuesInTheWorker` (`src/sw-sync-scope.ts`), which only queues this origin's `/api/` and **never**:
+
+    - a **tus** request (the `Tus-Resumable` header, which `createResumableUpload` sends on every request): the upload client already resumes by itself, re-reading the offset with `HEAD`; a `PATCH` kept by the worker comes back with the `Upload-Offset` it failed at and with the whole chunk (5 MiB by default) stored in IndexedDB for every attempt;
+    - a prefix in `RETRIED_BY_THE_PAGE`, which ships empty. **When the app gains an outbox, add the prefix it delivers there** (`"/api/visits/"`).
 
 #### Range requests — offline audio/video seeking
 

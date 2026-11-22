@@ -664,7 +664,7 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
     return (
         <>
-            <SyncStatusBadge sync={notesSync as OfflineSync<unknown>} />
+            <SyncStatusBadge sync={notesSync} />
             <SyncStatusBadge tone={tone} pending={pending} />
         </>
     );
@@ -673,7 +673,7 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` hides the label; `labels` overrides the per-tone text.
 
-The `as OfflineSync<unknown>` works around the typing of the `sync` prop, which does not accept a typed engine yet ([#718](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/718)); `useSyncStatus` does.
+`sync` accepts the engine with whatever payload it carries (`OfflineSync<Nota>` above): the prop is typed `SyncStatusSource`, just the `getState` and `subscribe` the badge reads. Up to 0.92.0 it was `OfflineSync<unknown>`, and every typed engine failed with TS2322 under `strict` — `enqueue` takes the payload, so the engine is not covariant in it.
 
 ## `UpdatePrompt`
 

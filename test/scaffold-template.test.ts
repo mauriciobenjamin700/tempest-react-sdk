@@ -22,7 +22,7 @@
  * final case for why it must stay absent.
  */
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -102,6 +102,22 @@ describe("scaffold Content-Security-Policy", () => {
             ).toMatch(/plugins:\s*\[[\s\S]*tempestCsp\(\)[\s\S]*\]/);
         },
     );
+});
+
+describe("scaffold route guard (#738)", () => {
+    it("reads the auth store through a hook, so a logout redirects the open protected screen", () => {
+        const routes = readFileSync(join(ROOT, "template", "src", "routes.tsx"), "utf8");
+
+        expect(
+            routes,
+            "template/src/routes.tsx must not read the store with getState() inside a guard: " +
+                "it does not subscribe, and after logout the protected screen stays up until " +
+                "the next navigation (src/router/guard-reactivity.test.tsx shows both cases).",
+        ).not.toMatch(/guard:[^,]*getState\(\)/);
+        expect(routes).toMatch(
+            /guard: function use\w+\(\) \{\s*return useAuth\.use\.isAuthenticated\(\);/,
+        );
+    });
 });
 
 describe("scaffold session teardown (#531)", () => {
@@ -219,6 +235,113 @@ describe("scaffold npm audit (GHSA-g3hv-75wg-m249)", () => {
             const merged = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
             expect(merged.name).toBe("existing-app");
             expect(merged.overrides).toEqual({ ...overrides, "some-pkg": "1.0.0" });
+        } finally {
+            rmSync(dir, { recursive: true, force: true });
+        }
+    });
+});
+
+/**
+ * #747: the docs import `zod`, `@tanstack/react-query` and `react-hook-form`
+ * straight from the app, and the template did not declare them. Under npm and
+ * yarn the import resolved anyway, through the copy the SDK hoists to the app's
+ * root `node_modules`; under pnpm, which only exposes what the app declares, a
+ * fresh scaffold failed `tsc` with `TS2307: Cannot find module` on all four
+ * packages below (measured on 22/11/2026 with `npx pnpm@9 install` over a
+ * scaffold of the 0.92.0 tarball).
+ *
+ * The template declares them with **the SDK's own range**, so every manager
+ * resolves one copy: `@tanstack/react-query` and `react-hook-form` carry React
+ * context, and a second copy splits provider and consumer.
+ *
+ * `lucide-react` is the one deliberate exception: `docs/icons.md` tells npm/yarn
+ * apps not to declare it (a declaration that drifts from the SDK's range pulls a
+ * second copy, which the generated icon slug tables may not match) and covers
+ * pnpm there, and `tempest doctor` audits it.
+ */
+const UNDECLARED_ON_PURPOSE: ReadonlySet<string> = new Set(["lucide-react"]);
+
+/**
+ * SDK dependencies that some documentation page imports directly, i.e. that an
+ * app following the docs imports from its own code.
+ *
+ * @returns Package names, sorted.
+ */
+function dependenciesImportedByTheDocs(): string[] {
+    const sdkDeps = Object.keys(sdk.dependencies ?? {});
+    const found = new Set<string>();
+    const walk = (dir: string): void => {
+        for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const path = join(dir, entry.name);
+            if (entry.isDirectory()) {
+                if (entry.name !== "internal") walk(path);
+            } else if (entry.name.endsWith(".md")) {
+                const text = readFileSync(path, "utf8");
+                for (const name of sdkDeps) {
+                    if (text.includes(`from "${name}"`)) found.add(name);
+                }
+            }
+        }
+    };
+    walk(join(ROOT, "docs"));
+    return [...found].sort();
+}
+
+describe("scaffold declares what the docs import (#747)", () => {
+    const declared = manifest("template").dependencies ?? {};
+
+    it("declares every SDK dependency the docs import from app code", () => {
+        const imported = dependenciesImportedByTheDocs();
+        expect(imported).toEqual(
+            expect.arrayContaining(["@tanstack/react-query", "react-hook-form", "zod"]),
+        );
+
+        const missing = imported.filter(
+            (name) => !UNDECLARED_ON_PURPOSE.has(name) && declared[name] === undefined,
+        );
+        expect(
+            missing,
+            `template/package.json does not declare ${missing.join(", ")}, which the docs ` +
+                "import directly: a pnpm scaffold cannot resolve them.",
+        ).toEqual([]);
+    });
+
+    it("declares them with the SDK's own range, so a single copy installs", () => {
+        const drifted = Object.keys(sdk.dependencies ?? {})
+            .filter((name) => declared[name] !== undefined)
+            .filter((name) => declared[name] !== sdk.dependencies[name])
+            .map((name) => `${name}: template ${declared[name]} vs SDK ${sdk.dependencies[name]}`);
+
+        expect(drifted, drifted.join("\n")).toEqual([]);
+    });
+
+    it("leaves lucide-react to the SDK, as docs/icons.md prescribes", () => {
+        expect(declared["lucide-react"]).toBeUndefined();
+    });
+
+    it("merge mode keeps a dependency the project already declares", () => {
+        const dir = mkdtempSync(join(tmpdir(), "tempest-merge-deps-"));
+        try {
+            writeFileSync(
+                join(dir, "package.json"),
+                JSON.stringify({ name: "existing-app", dependencies: { zod: "^3.23.0" } }),
+            );
+            const run = spawnSync(
+                process.execPath,
+                [join(ROOT, "bin", "create-tempest-app.mjs"), "."],
+                { cwd: dir, encoding: "utf8" },
+            );
+            expect(run.status, run.stderr).toBe(0);
+
+            const merged = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
+            expect(
+                merged.dependencies.zod,
+                "the merge used to let the template win, which rewrote a project's zod 3 " +
+                    "to zod 4 without a word, against what docs/scaffold.md promises",
+            ).toBe("^3.23.0");
+            expect(merged.dependencies["@tanstack/react-query"]).toBe(
+                sdk.dependencies["@tanstack/react-query"],
+            );
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }

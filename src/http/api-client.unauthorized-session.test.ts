@@ -162,3 +162,63 @@ describe("createApiClient — 401 handling for a session that ended before it la
         expect(session).toEqual({ token: null, epoch: 1 });
     });
 });
+
+/**
+ * Security audit run-18 §3.1 (#696): the `catch` around a failing `refresh()`
+ * refused only through `sessionReplacedSince`, whose gate was
+ * `sessionEndedSince` — `false` for every attempt sent without a token. So a
+ * tokenless `401` whose refresh failed after `login(B)` ran during it called
+ * `onUnauthorized`, and the documented `() => logout()` signed B out for a
+ * request older than B's session. The gate is now `epochMovedSince`, which
+ * counts tokenless attempts too. The first test failed on 71727a7; the
+ * second pins that a refresh failing with nobody signed in meanwhile keeps
+ * the `401` (#646).
+ */
+describe("createApiClient — tokenless 401 whose refresh fails after login(B) (#696)", () => {
+    it("rejects with SessionSupersededError and leaves B signed in when B logged in during the failing refresh", async () => {
+        let session: StandaloneSession = { token: null, epoch: 0 };
+        const notified: unknown[] = [];
+        const { fetcher, sentWith } = unauthorizedFetcher(() => undefined);
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => session.token,
+            getSessionEpoch: () => session.epoch,
+            refresh: async () => {
+                await Promise.resolve();
+                session = { token: "B-token", epoch: 1 };
+                throw new Error("no refresh cookie");
+            },
+            onUnauthorized: (_response, context) => {
+                notified.push(context);
+                session = { token: null, epoch: session.epoch + 1 };
+            },
+        });
+
+        await expect(api.get("/poll")).rejects.toBeInstanceOf(SessionSupersededError);
+        expect(sentWith).toEqual([null]);
+        expect(notified).toEqual([]);
+        expect(session).toEqual({ token: "B-token", epoch: 1 });
+    });
+
+    it("keeps the 401 and runs onUnauthorized when the refresh fails with nobody signed in meanwhile", async () => {
+        const session: StandaloneSession = { token: null, epoch: 0 };
+        const notified: unknown[] = [];
+        const { fetcher } = unauthorizedFetcher(() => undefined);
+        const api = createApiClient({
+            baseURL: "https://api.example.test",
+            fetcher,
+            getToken: () => session.token,
+            getSessionEpoch: () => session.epoch,
+            refresh: async () => {
+                throw new Error("no refresh cookie");
+            },
+            onUnauthorized: (_response, context) => {
+                notified.push(context);
+            },
+        });
+
+        await expect(api.get("/poll")).rejects.toMatchObject({ status: 401 });
+        expect(notified).toEqual([{ token: null, epoch: 0 }]);
+    });
+});

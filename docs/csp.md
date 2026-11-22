@@ -190,8 +190,8 @@ export default createViteConfig({
 
 ## Script inline entra por hash
 
-Um `<script>` inline no `index.html` — o anti-flash do `themeInitScript()`, por
-exemplo — é liberado pelo **SHA-256 do conteúdo**, nunca por `'unsafe-inline'`. O
+Um `<script>` inline no `index.html` — o anti-flash do `themeInitScript()`, colado à
+mão ou injetado pelo `tempestThemeInit()`, por exemplo — é liberado pelo **SHA-256 do conteúdo**, nunca por `'unsafe-inline'`. O
 plugin roda como transform `post`, então enxerga o HTML final. No dev, o preâmbulo
 do React Refresh entra do mesmo jeito.
 

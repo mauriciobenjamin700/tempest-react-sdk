@@ -97,6 +97,23 @@ plugins:
                     Fluxo de autenticação: Auth flow
                     Receitas: Recipes
                     Cookbook: Cookbook
+                    Casos de uso: Use cases
+                    Painel CRUD (admin): CRUD admin panel
+                    Cadastro BR + checkout: BR sign-up + checkout
+                    Viagem ao vivo (mapa + WebSocket): Live trip (map + WebSocket)
+                    Mensageiro em tempo real: Real-time messenger
+                    App de campo offline: Offline field app
+                    Exemplo integrado: Integrated example
+                    App de gestão: Management app
+                    Receitas rápidas: Quick recipes
+                    Fluxo de autenticação completo: Complete authentication flow
+                    Lista paginada com busca: Paginated list with search
+                    Formulário com validação zod: Form with zod validation
+                    Dark mode sem flash: Dark mode without flash
+                    Offline-first: Offline-first
+                    Paleta de comandos ⌘K: ⌘K command palette
+                    App do zero em 1 minuto: App from scratch in 1 minute
+                    Cookbook (índice antigo): Cookbook (old index)
                     Integração FastAPI (full-stack): FastAPI integration (full-stack)
                     Offline Sync (FastAPI): Offline Sync (FastAPI)
                     Guia: Guide
@@ -339,7 +356,24 @@ nav:
                 - Logger: logger.md
                 - Error Boundary: error-boundary.md
     - Receitas:
-          - Cookbook: cookbook.md
+          - recipes/index.md
+          - Casos de uso:
+                - Painel CRUD (admin): recipes/admin-crud.md
+                - Cadastro BR + checkout: recipes/br-signup-checkout.md
+                - Viagem ao vivo (mapa + WebSocket): recipes/live-trip.md
+                - Mensageiro em tempo real: recipes/messenger.md
+                - App de campo offline: recipes/field-app-offline.md
+          - Exemplo integrado:
+                - App de gestão: recipes/example-management-app.md
+          - Receitas rápidas:
+                - Fluxo de autenticação completo: recipes/auth-flow.md
+                - Lista paginada com busca: recipes/search-list.md
+                - Formulário com validação zod: recipes/zod-form.md
+                - Dark mode sem flash: recipes/dark-mode.md
+                - Offline-first: recipes/offline-first.md
+                - Paleta de comandos ⌘K: recipes/command-palette.md
+                - App do zero em 1 minuto: recipes/app-from-scratch.md
+          - Cookbook (índice antigo): cookbook.md
           - Integração FastAPI (full-stack): integration-fastapi.md
           - Offline Sync (FastAPI): offline-sync.md
           - Utilitários: utilities.md

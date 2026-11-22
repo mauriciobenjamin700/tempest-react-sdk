@@ -22,13 +22,13 @@ They open the app on the front-desk computer and on their phones, between appoin
 Every screen covers the five states of a real screen: **loading**, **empty**, **error**, **success** and **mobile**.
 
 !!! info "What you need"
-    A project created with [`create-tempest-app`](../scaffold.md). The files on this page **replace** the ones the scaffold generated and add the missing ones. Also install `recharts` (the optional dependency of [`/charts`](../charts.md)) and `zod`:
+    A project created with [`create-tempest-app`](../scaffold.md). The files on this page **replace** the ones the scaffold generated and add the missing ones. Also install `recharts` (the optional dependency of [`/charts`](../charts.md)):
 
     ```bash
-    npm install recharts zod @tanstack/react-query
+    npm install recharts
     ```
 
-    `@tanstack/react-query` already comes with the SDK; declaring it in your `package.json` makes it explicit that the app imports from it. Run `npx tempest doctor` afterwards: it warns when npm nested a second copy.
+    The `zod` and `@tanstack/react-query` this page imports are already declared in the scaffold's `package.json`, with the SDK's own range — see [Dependencies the app imports directly](../scaffold.md#dependencies-the-app-imports-directly).
 
 ## The backend contract
 

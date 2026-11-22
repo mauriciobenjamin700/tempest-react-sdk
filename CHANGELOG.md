@@ -490,6 +490,9 @@ ESM` 172 596 → 173 069 (teto 172,7 → 173,1 kB); `ceiling: full barrel CJS` 2
   minificado (`D(e)` → `O(e)` em `dist/http/api-client.js`); trocar só esse arquivo no `dist` da
   `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
   não código novo.
+- **Soma de #765 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` em
+  `12a29a8` + este branch, bytes brotli): `slice: typical app` 13 192 B (teto 13,1 → 13,2 kB);
+  `slice: device capture` 5 757 B (teto 5,75 → 5,8 kB). Nenhum dos dois estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

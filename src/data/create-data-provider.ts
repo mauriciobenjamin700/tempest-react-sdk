@@ -78,6 +78,57 @@ export interface DataProvider {
      * @returns The delete response (often the deleted record).
      */
     deleteOne<T>(resource: string, id: string | number): Promise<T>;
+    /**
+     * Delete many records by id, settling each one on its own.
+     *
+     * Optional so a hand-written provider keeps compiling: when it is absent,
+     * `useDeleteMany` falls back to one {@link DataProvider.deleteOne} per id,
+     * settled the same way. Implement it when the backend has a bulk
+     * endpoint, and map that endpoint's answer to a {@link DeleteManyResult}.
+     *
+     * @param resource - The resource name.
+     * @param ids - The record ids.
+     * @returns Which ids were deleted and which failed, each with its own outcome.
+     */
+    deleteMany?<T>(resource: string, ids: (string | number)[]): Promise<DeleteManyResult<T>>;
+}
+
+/** Outcome of {@link DataProvider.deleteMany}: one entry per id, in the order of `ids`. */
+export interface DeleteManyResult<T> {
+    /** The ids the backend deleted, each with the delete response. */
+    deleted: { id: string | number; data: T }[];
+    /** The ids that failed, each with the error the request rejected with. */
+    failed: { id: string | number; error: unknown }[];
+}
+
+/**
+ * Delete each id through {@link DataProvider.deleteOne}, in parallel, and settle
+ * every request instead of stopping at the first failure.
+ *
+ * A bulk delete from a table selection is the case: one record the backend
+ * refuses (open orders, a foreign key) must not hide that the other nine went
+ * through, so a rejection is reported in `failed` rather than thrown.
+ *
+ * @param provider - The provider whose `deleteOne` runs per id.
+ * @param resource - The resource name.
+ * @param ids - The record ids.
+ * @returns The deleted and failed ids, each in the order of `ids`.
+ */
+export async function deleteEach<T>(
+    provider: Pick<DataProvider, "deleteOne">,
+    resource: string,
+    ids: (string | number)[],
+): Promise<DeleteManyResult<T>> {
+    const settled: PromiseSettledResult<T>[] = await Promise.allSettled(
+        ids.map((id) => provider.deleteOne<T>(resource, id)),
+    );
+    const result: DeleteManyResult<T> = { deleted: [], failed: [] };
+    settled.forEach((outcome, index) => {
+        const id: string | number = ids[index];
+        if (outcome.status === "fulfilled") result.deleted.push({ id, data: outcome.value });
+        else result.failed.push({ id, error: outcome.reason });
+    });
+    return result;
 }
 
 /** Options to tailor {@link createDataProvider} to a backend's conventions. */
@@ -159,7 +210,7 @@ const defaultBuildPath = (resource: string, id?: string | number): string =>
  * Maps Refine-style calls to the Tempest FastAPI SDK conventions: list →
  * `GET /{resource}?page=&size=&order_by=&ascending=&...filters`, one →
  * `GET /{resource}/{id}`, create → `POST`, update → `PATCH`/`PUT`,
- * delete → `DELETE`.
+ * delete → `DELETE`, deleteMany → one `DELETE` per id, settled independently.
  *
  * Every id goes through {@link encodeIdSegment} before reaching `buildPath`, so
  * an id can never leave its own path segment — not with the default builder,
@@ -231,6 +282,10 @@ export function createDataProvider(
 
         async deleteOne<T>(resource: string, id: string | number): Promise<T> {
             return client.delete<T>(buildPath(resource, encodeIdSegment(id)));
+        },
+
+        deleteMany<T>(resource: string, ids: (string | number)[]): Promise<DeleteManyResult<T>> {
+            return deleteEach<T>(provider, resource, ids);
         },
     };
 

@@ -11558,6 +11558,8 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
 
+`sync` aceita o motor com o payload que ele tiver (`OfflineSync<Nota>` acima): a prop é tipada como `SyncStatusSource`, só o `getState` e o `subscribe` que o badge lê. Até a 0.92.0 ela era `OfflineSync<unknown>`, e todo motor tipado reprovava com TS2322 sob `strict` — o `enqueue` recebe o payload, então o motor não é covariante nele.
+
 ## `UpdatePrompt`
 
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
@@ -15679,6 +15681,7 @@ export const dataProvider = createDataProvider(apiClient, {
 | `create("posts", data)`            | `POST /posts`                                                 |
 | `update("posts", id, data)`        | `PATCH /posts/{id}` (ou `PUT` com `updateMethod: "put"`)      |
 | `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                          |
+| `deleteMany("posts", ids)`         | um `DELETE /posts/{id}` por id, em paralelo, cada um com o próprio resultado |
 
 ### O `id` nunca sai do próprio segmento
 
@@ -15758,17 +15761,51 @@ Todos resolvem o provider via contexto — você só informa o nome do recurso e
 - `useCreate<T>(resource, options?)` → mutation; `mutate(data)`
 - `useUpdate<T>(resource, options?)` → mutation; `mutate({ id, data })`
 - `useDelete<T>(resource, options?)` → mutation; `mutate(id)`
+- `useDeleteMany<T>(resource, options?)` → mutation; `mutate(ids)` resolve com `{ deleted, failed }`
 
 As mutations já invalidam o cache certo no sucesso:
 
-| Hook        | Invalida no `onSuccess`                          |
-| ----------- | ----------------------------------------------- |
-| `useCreate` | a lista do recurso                              |
-| `useUpdate` | a lista **e** o registro `useOne` daquele `id`  |
-| `useDelete` | a lista do recurso                              |
+| Hook            | Invalida no `onSuccess`                          |
+| --------------- | ----------------------------------------------- |
+| `useCreate`     | a lista do recurso                              |
+| `useUpdate`     | a lista **e** o registro `useOne` daquele `id`  |
+| `useDelete`     | a lista do recurso                              |
+| `useDeleteMany` | a lista do recurso, **uma vez** para o lote todo |
 
 !!! tip "Você ainda passa opções do TanStack Query"
-    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
+    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError` e `onSuccess` funcionam normalmente. O `onSuccess` do app roda **depois** de o SDK disparar a invalidação, nunca no lugar dela: até a 0.92.0 ele substituía o do SDK, e a lista ficava velha depois de criar, editar ou excluir (#699).
+
+### Excluir uma seleção: `useDeleteMany`
+
+Excluir uma seleção chamando `useDelete().mutateAsync` para cada id invalida a lista uma vez por id, e cada invalidação refaz o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`. O `useDeleteMany` exclui o lote e invalida **uma** vez:
+
+```tsx
+import { useDeleteMany } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+}
+
+export function DeleteSelection({ ids }: { ids: string[] }) {
+  const deleteMany = useDeleteMany<Product>("products");
+
+  async function confirm(): Promise<void> {
+    const { deleted, failed } = await deleteMany.mutateAsync(ids);
+    console.log(`${deleted.length} excluídos, ${failed.length} recusados`);
+  }
+
+  return (
+    <button disabled={deleteMany.isPending} onClick={() => void confirm()}>
+      Excluir {ids.length}
+    </button>
+  );
+}
+```
+
+- **Cada id tem o próprio resultado.** Um produto que o backend recusa (pedido em aberto) vai para `failed` com o erro, e não esconde os nove que saíram. A mutation só rejeita quando a chamada do provider inteira falha — e aí nada é invalidado.
+- **A lista é invalidada mesmo quando todos falharam**: um `404` pode significar que outra sessão já excluiu o registro.
+- **Backend com rota de exclusão em lote?** Implemente `deleteMany(resource, ids)` no seu `DataProvider` e devolva o mesmo `{ deleted, failed }`. É opcional: sem ele, o hook faz um `deleteOne` por id, em paralelo.
 
 ### As chaves de cache, quando você precisa delas
 
@@ -15786,9 +15823,15 @@ queryClient.invalidateQueries({ queryKey: listQueryKey("posts") });
 queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
 ```
 
-`listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
-e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
+`listQueryKey(resource)` devolve `["data", <recurso>, "list"]`, o prefixo de
+**toda** lista do recurso, então invalida todas as páginas, ordenações e
+filtros de uma vez. Com `params`, `listQueryKey(resource, params)` devolve
+`["data", <recurso>, "list", params]`, a chave exata de uma lista. E
+`oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.
+
+!!! note "Até a 0.92.0, `listQueryKey(\"posts\")` não invalidava nada"
+    Sem `params`, a chave terminava num `undefined` literal (`["data", "posts", "list", undefined]`), e o filtro do `invalidateQueries` compara esse quarto elemento como qualquer outro: casava com **0** das listas que o `useList` monta com paginação (#700). Hoje a chave para em `"list"`.
 
 !!! warning "Paginação e ordenação ganham do filtro com o mesmo nome"
     Os `filters` entram na query **antes** de `pagination` e `sort`. Um filtro com a chave de um desses parâmetros (`page`, `size`, `order_by`, `ascending` no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: `filters: { page: 1 }` vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem `pagination`, o filtro continua indo como veio.
@@ -15933,7 +15976,9 @@ export function EditPost({ id }: { id: string }) {
 - `createDataProvider(client, options?)` transforma um `apiClient` num provider CRUD no estilo Refine, com defaults alinhados ao `tempest-fastapi-sdk` (`page`/`size`/`order_by`/`ascending`, `ascending` booleano, PATCH no update).
 - Envolva a árvore com `<TempestDataProvider provider={…}>` **abaixo** de um `<QueryProvider>`.
 - `useList` resolve um `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` busca um registro e se desabilita sem `id`.
-- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).
+- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update). O `onSuccess` do app roda depois da invalidação, não no lugar dela.
+- `useDeleteMany` exclui uma seleção e invalida a lista uma vez; cada id volta em `deleted` ou `failed`.
+- `listQueryKey(resource)` invalida todas as listas do recurso; com `params`, é a chave de uma lista só.
 - Backends fora da convenção? Ajuste `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
 - Todo `id` passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` são rejeitados antes da requisição.
 
@@ -26502,7 +26547,7 @@ sync.clearOutbox();
     | --- | --- |
     | o mesmo dono | entregue |
     | ninguém | fica na fila (`summary.held`) e sai quando o dono voltar |
-    | outra pessoa | apagada sem envio (`summary.dropped`) |
+    | outra pessoa | apagada sem envio (`summary.dropped`) — ou, com `foreignEntries: "hold"`, fica na fila (`summary.held`) |
 
     ```ts
     import { createOfflineSync } from "tempest-react-sdk";
@@ -26531,6 +26576,42 @@ sync.clearOutbox();
 
     Entrada enfileirada antes de você ligar a opção não tem carimbo e é entregue como antes: são edições do próprio usuário, e segurá-las travaria toda fila no upgrade.
 
+!!! tip "Aparelho compartilhado: `foreignEntries: \"hold\"`"
+    O padrão `"drop"` serve ao aparelho pessoal: a fila da conta anterior só acumularia. No **tablet compartilhado** ele apaga trabalho — o Carlos sai sem sinal com três vistorias na fila, a Ana entra, sincroniza, e as três somem sem envio (#724). Com `foreignEntries: "hold"`, a entrada de outra pessoa **fica na fila** e sai quando o dono entrar de novo, com a sessão dele:
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let technicianId: string | null = "carlos";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "VisitsOutbox",
+        watermark: { storageKey: "visits.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/visits/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => technicianId,
+        foreignEntries: "hold",
+    });
+
+    await sync.enqueue("update", "v1", { text: "vistoria do Carlos" });
+    technicianId = "ana";
+    console.log((await sync.flush()).held); // 1 — fica na fila, não sai com a sessão da Ana
+    technicianId = "carlos";
+    console.log((await sync.flush()).succeeded); // 1 — sai quando o Carlos volta
+    ```
+
+    Em nenhuma das duas políticas a entrada sai com a sessão de outra pessoa. O que muda:
+
+    - **A ordem por registro continua valendo.** Uma entrada segurada segura também as seguintes **do mesmo registro** (`summary.deferred`), como uma falha: se a edição mais nova da Ana saísse antes, a do Carlos, mais velha, a sobrescreveria quando ele voltasse. Vale também no padrão: uma edição feita deslogado não passa mais na frente da edição segurada do dono.
+    - **`pendingCount()` e o `pending` do `useOfflineSync` contam as entradas seguradas** — o badge da Ana mostra que há trabalho do Carlos no aparelho. `clearOutbox()` continua sendo o que esvazia a fila.
+    - Com `"hold"`, entrada enfileirada **deslogado** também fica segurada (no padrão, é apagada), e só sai de novo com ninguém logado.
+
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
     sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas
@@ -26545,6 +26626,73 @@ sync.clearOutbox();
 
     O bloqueio é **por registro, não por passada**: um registro que o servidor está
     recusando não segura as mutações de nenhum outro.
+
+!!! tip "Dez edições, um request: `coalesce`"
+    Sem rede, o técnico edita a mesma visita dez vezes. Por padrão isso vira **dez**
+    `deliver` quando o sinal volta — nove deles mandando um snapshot que o décimo
+    sobrescreve. Com `coalesce: true`, cada sequência de `create`/`update` do mesmo
+    registro vira **um** `deliver`:
+
+    | O que vai para o `deliver` | De onde vem |
+    | --- | --- |
+    | `op` | da entrada **mais antiga** — `create` seguido de `update`s continua `create` |
+    | `payload` | da **mais nova** (`true`) ou o fold de todas, da mais antiga para a mais nova (função) |
+    | `id`, `attempts`, `lastError` | da mais antiga — uma chave de idempotência tirada de `entry.id` não muda entre tentativas |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    interface Note {
+        id: string;
+        text?: string;
+        pinned?: boolean;
+    }
+
+    const sync = createOfflineSync<Note, never>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: entry.op === "delete" ? "DELETE" : "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        coalesce: true,
+    });
+
+    await sync.enqueue("create", "n1", { id: "n1", text: "a" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "b" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "c" });
+    const summary = await sync.flush();
+    console.log(summary.succeeded, summary.coalesced); // 1 2 — um PUT com o texto "c"
+    ```
+
+    Se a fila guarda **patch** em vez de snapshot, passe uma função de merge:
+    `coalesce: (acumulado, proximo) => ({ ...acumulado, ...proximo })`.
+
+    O que **não** se junta, de propósito:
+
+    - **`delete` nunca entra no fold** e fecha a sequência: `create`, `update`,
+      `delete` vira `create` (payload mais novo) e depois `delete`, dois requests em
+      ordem. Descartar o par deixaria o registro órfão no servidor sempre que o
+      `create` tivesse chegado e só a resposta tivesse se perdido.
+    - **Entradas de donos diferentes** (`getPrincipal`) não se juntam.
+    - **O que foi enfileirado durante o envio** fica para o próximo flush. O fold
+      acontece quando o run entrega, não quando o `enqueue` grava — por isso
+      `pendingCount()` ainda conta cada entrada até o flush. Reescrever a entrada no
+      `enqueue` arriscaria apagar, junto com as outras, uma edição que chegou
+      enquanto aquele registro estava no ar.
+
+    Na falha, as entradas juntadas continuam na fila: só a mais antiga ganha
+    `attempts`, e as outras contam em `summary.deferred`. No sucesso, todas saem e
+    as absorvidas contam em `summary.coalesced`.
+
+    O envio juntado sai **na posição da entrada mais antiga**, levando o estado mais
+    novo. Se uma edição recente do registro A aponta para um registro B criado
+    **depois** que A entrou na fila, A pode chegar ao servidor antes de B. Deixe a
+    opção desligada quando o servidor valida esse tipo de referência na escrita.
 
 As seções abaixo mostram **o que o motor faz por baixo** (e como montar à mão quando você precisa de controle fino — múltiplos stores, merge por campo, etc.).
 
@@ -26760,13 +26908,35 @@ O backend resolve por `updated_at` (a escrita mais recente vence). No cliente, o
 Para os dois casos comuns, o SDK exporta resolvedores prontos pra usar dentro do `applyRemote` (empate → remoto vence):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
+interface Analysis {
+  id: string;
+  user_id: string;
+  updated_at: string;
+  version: number;
+}
+
+// o mesmo store da seção 2
+const analyses = createOfflineStore<Analysis, string>({
+  databaseName: "FamachaOffline",
+  version: 1,
+  tableName: "analyses",
+  indexes: "&id, user_id, updated_at",
+  ownerField: "user_id",
+});
+
+// passe como `applyRemote` no `createOfflineSync`
+export async function applyRemote(dto: Analysis): Promise<void> {
   const local = await analyses.get(dto.id);
-  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-  // ou: higherVersionWins(local, dto, (r) => r.version)
-};
+  await analyses.put(lastWriteWins(local, dto, (r) => r.updated_at));
+}
+
+// ou, com contador de versão no registro
+export async function applyRemoteByVersion(dto: Analysis): Promise<void> {
+  const local = await analyses.get(dto.id);
+  await analyses.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap
@@ -26883,6 +27053,43 @@ await notificationsStore.delete("m-1"); // por key
 await notificationsStore.clear(ownerId); // todos do owner
 ```
 
+### Listar por outro índice: `listBy`
+
+O `list` filtra pelo dono. Para listar por **outro** campo indexado — as fotos de uma visita, as mensagens de um chat — use `listBy(índice, valor, owner?, options?)`. Ele vai pelo índice do IndexedDB e continua respeitando o dono:
+
+```ts
+import { createOfflineStore } from "tempest-react-sdk";
+
+interface VisitPhoto {
+  id: string;
+  technician_id: string;
+  visit_id: string;
+  taken_at: string;
+}
+
+const photos = createOfflineStore<VisitPhoto, string>({
+  databaseName: "CampoFotos",
+  version: 1,
+  tableName: "photos",
+  indexes: "&id, technician_id, visit_id, taken_at",
+  ownerField: "technician_id",
+});
+
+const daVisita = await photos.listBy("visit_id", "visita-7", "tec-ana", {
+  orderBy: "taken_at",
+});
+```
+
+Os dois atalhos que ele substitui erram cada um de um jeito:
+
+| Chamada | Usa o índice? | Respeita o dono? |
+| --- | --- | --- |
+| `list(owner, { filter: (p) => p.visit_id === id })` | não — lê **todo** registro do dono | sim |
+| `raw.where("visit_id").equals(id)` | sim | **não** — devolve foto de outro técnico |
+| `listBy("visit_id", id, owner)` | sim | sim |
+
+Medido no teste `create-offline-store.list-by.test.ts` (`npx vitest run src/offline/create-offline-store.list-by.test.ts`): dois donos, 20 fotos cada, 4 por visita — o `filter` do `list` é chamado 20 vezes para achar 4; o do `listBy` só vê as 4 que o índice e o dono já separaram. O índice precisa estar declarado em `indexes`; um campo não indexado rejeita com o `SchemaError` do Dexie em vez de varrer a tabela. Sem `owner` (ou sem `ownerField`), volta o resultado de todos os donos, como no `list`.
+
 `raw` (a `Table` do Dexie) e `db` (a instância Dexie) ficam expostos pra queries avançadas — transações multi-tabela, `where().and()` complexos:
 
 ```ts
@@ -26978,6 +27185,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `createOfflineStore({ databaseName, version, tableName, indexes, keyPath, ownerField })` devolve um CRUD tipado sobre IndexedDB via Dexie (dependência direta do SDK).
 - `ownerField` ativa scoping multi-tenant: `put`/`list`/`count`/`clear`/`updateMany` respeitam o `owner` e isolam dados por usuário.
 - CRUD: `put`/`bulkPut`, `get`/`list` (com `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
+- `listBy(índice, valor, owner)` lista por outro campo indexado pelo índice, sem perder o dono.
 - `raw` e `db` abrem a porta pra queries Dexie avançadas.
 - Bump `version` ao mudar `indexes`; use `db.version(N).upgrade(...)` pra migrações de dados.
 
@@ -29382,12 +29590,33 @@ Para mutações **otimistas** que gravam no outbox e atualizam o cache do TanSta
 O pull sobrescreve o registro local pela versão do servidor. Quando precisar de uma política explícita dentro do `applyRemote`, os helpers cobrem os dois casos comuns (empate → remoto vence):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
-  const local = await store.get(dto.id);
-  await store.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-};
+interface Note {
+  id: string;
+  updatedAt: string;
+  version: number;
+}
+
+// o store local que o motor alimenta
+const notes = createOfflineStore<Note, string>({
+  databaseName: "NotesOffline",
+  version: 1,
+  tableName: "notes",
+  indexes: "&id, updatedAt",
+});
+
+// passe como `applyRemote` no `createOfflineSync`
+export async function applyRemote(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(lastWriteWins(local, dto, (r) => r.updatedAt));
+}
+
+// ou, com contador de versão no registro
+export async function applyRemoteByVersion(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap
@@ -29453,11 +29682,10 @@ Defaults aplicados quando você **não** passa um `client`:
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
-Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto (ignora os defaults do SDK):
+Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto. Um `client` feito com `new QueryClient()` ignora os defaults do SDK; feito com `createQueryClient()`, ele os mantém:
 
 ```tsx
-import { QueryClient } from "@tanstack/react-query";
-import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
+import { createQueryClient, QueryProvider, STALE_TIME } from "tempest-react-sdk";
 
 // Opção A — só ajustar alguns defaults
 <QueryProvider defaultOptions={{ queries: { staleTime: STALE_TIME.LONG } }}>
@@ -29465,7 +29693,7 @@ import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
 </QueryProvider>;
 
 // Opção B — trazer seu próprio client (compartilhar entre roots, plugar devtools, etc.)
-const client = new QueryClient();
+const client = createQueryClient();
 <QueryProvider client={client}>
   <App />
 </QueryProvider>;
@@ -29484,6 +29712,59 @@ const client = new QueryClient();
     Com o provider visivelmente montado três linhas acima. Nada nessa mensagem aponta pra duplicata, e é por isso que ela custa uma tarde.
 
     A partir da v0.52.1 o SDK detecta e avisa em desenvolvimento: um client de outra cópia faz duck-type perfeito mas falha o `instanceof`, que é a discriminação exata. O conserto é `npm dedupe`, e `npx tempest doctor` lista toda dependência duplicada.
+
+### `createQueryClient`: o client fora do React
+
+O `QueryProvider` cria o client por dentro, e ali ele fica preso. Quando o app precisa dele **fora** do React — o `queryClient.clear()` no `onSessionEnd` da sessão, o `persistQueryClientOffline({ queryClient })`, um prefetch no loader da rota —, crie-o com `createQueryClient()` e entregue-o ao provider. É o mesmo client que o provider criaria, com os mesmos defaults:
+
+```tsx
+import { createQueryClient, createTempestAuth, QueryProvider } from "tempest-react-sdk";
+import type { ReactNode } from "react";
+
+export const queryClient = createQueryClient();
+
+export const auth = createTempestAuth({
+  baseURL: "https://api.example.com",
+  onSessionEnd: () => {
+    queryClient.clear();
+  },
+});
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <QueryProvider client={queryClient}>{children}</QueryProvider>;
+}
+```
+
+- **Aceita os mesmos overrides do provider**: `createQueryClient({ queries: { staleTime: STALE_TIME.LONG } })` mescla por chave, dentro de `queries` e de `mutations`, e mantém os defaults que você não nomeou.
+- **Um client novo por chamada.** Crie uma vez, no nível do módulo, e importe onde precisar.
+- **Sem redigitar os defaults.** Antes dele, o app que precisava do client copiava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT` e `shouldRetryQuery` num `new QueryClient({ … })`, e a cópia divergia no dia em que um deles mudasse (#741). E o client sai da mesma cópia do `@tanstack/react-query` que o SDK usa, então não cai no "No QueryClient set" de cópia duplicada descrito acima.
+
+### Query que lê só o IndexedDB: `networkMode: "always"`
+
+O TanStack Query **pausa** a query quando o navegador está offline: com o `networkMode` padrão (`"online"`), a `queryFn` nem roda. Para uma query que vai à rede, é o certo — ela espera o sinal voltar em vez de queimar uma requisição que vai falhar. Para uma query cuja `queryFn` lê **só** o IndexedDB, é um skeleton eterno. Medido offline (`src/query/create-query-client.test.tsx`):
+
+| `networkMode`    | Chamadas da `queryFn` | Estado                  |
+| ---------------- | --------------------- | ----------------------- |
+| `"online"`       | 0                     | `pending` / `paused`    |
+| `"offlineFirst"` | 1                     | `success`               |
+| `"always"`       | 1                     | `success`               |
+
+Marque a query local, não o client inteiro:
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+
+export function useDrafts(readDrafts: () => Promise<string[]>) {
+  return useQuery({
+    queryKey: ["drafts"],
+    queryFn: readDrafts,
+    networkMode: "always",
+  });
+}
+```
+
+!!! note "Por que não é o default do SDK"
+    `defaultOptions={{ queries: { networkMode: "always" } }}` funciona no `QueryProvider` e no `createQueryClient` desde sempre, mas vale para **toda** query: as que vão à rede passam a disparar offline e falhar, em vez de pausar até o sinal voltar. O SDK mantém o `"online"` e a query local diz que não depende de rede.
 
 ## Presets de tempo
 
@@ -29751,6 +30032,8 @@ Dexie é peer dependency do store offline — instale (`npm i dexie`).
 ## Recap
 
 - `<QueryProvider>` na raiz — um por app — entrega defaults calibrados; sobrescreva via `defaultOptions` ou `client`.
+- `createQueryClient()` dá o mesmo client com os mesmos defaults, para usar fora do React (`clear()` no fim da sessão, persistência, prefetch).
+- Query que lê só o IndexedDB leva `networkMode: "always"`; as que vão à rede continuam pausando offline.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` substituem números mágicos por presets nomeados.
 - `createQueryKeys(scope, builders)` gera keys tipadas e consistentes, com um `all` automático pra invalidação ampla.
 - Combine `setQueryData` (resposta imediata) com `invalidateQueries` (revalidação) usando a mesma key factory.
@@ -29797,7 +30080,7 @@ As peças do SDK que entram:
 | Peça | Para quê | Doc |
 | --- | --- | --- |
 | `createApiClient` + `createDataProvider` | cliente HTTP e CRUD por recurso | [HTTP](../http.md), [Data Provider](../data-provider.md#createdataprovider) |
-| `useList` / `useCreate` / `useUpdate` / `useDelete` | cache e invalidação via TanStack Query | [Os hooks de recurso](../data-provider.md#os-hooks-de-recurso) |
+| `useList` / `useCreate` / `useUpdate` / `useDeleteMany` | cache e invalidação via TanStack Query | [Os hooks de recurso](../data-provider.md#os-hooks-de-recurso) |
 | `DataTable` | tabela com paginação, ordenação e tamanho de página no servidor | [`DataTable` no servidor](../components/data.md#datatablet-paginacao-no-servidor) |
 | `Drawer` | painel do formulário | [`Drawer`](../components/overlay.md#drawer) |
 | `useZodForm` + `FormField` + `MoneyInput` | formulário validado, preço em centavos | [Formulários](../forms.md#exemplo-completo-schema-provider-fields-submit), [`MoneyInput`](../forms-br.md#inputs-com-mascara) |
@@ -30382,8 +30665,9 @@ O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 !!! check "Callbacks na chamada, não no hook"
     `onSuccess` e `onError` vão no `mutate(values, callbacks)`, por chamada. É o lugar certo para
-    o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o `onSuccess` que o
-    `useCreate`/`useUpdate` usam para invalidar a lista.
+    o que depende da tela (fechar o drawer, mostrar o toast, e a mensagem muda entre cadastro e
+    edição). No hook também funcionaria: o `onSuccess` do app roda depois da invalidação da lista,
+    não no lugar dela. Até a 0.92.0 ele a substituía, e a lista ficava velha (#699).
 
 ### 7. A página
 
@@ -30406,7 +30690,7 @@ import {
   Select,
   Stack,
   toOptions,
-  useDelete,
+  useDeleteMany,
   useDescribeApiError,
   useList,
   useToast,
@@ -30444,12 +30728,11 @@ export function ProductsPage() {
   const products = useList<Product>("products", toListParams(filters), {
     placeholderData: keepPreviousData,
   });
-  const deleteProduct = useDelete<Product>("products");
+  const deleteProducts = useDeleteMany<Product>("products");
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Product[]>([]);
-  const [deleting, setDeleting] = useState(false);
   const [selection, setSelection] = useState<Selection>({ key: "", ids: [] });
 
   const items = products.data?.items ?? [];
@@ -30478,19 +30761,16 @@ export function ProductsPage() {
   }
 
   async function confirmDelete(): Promise<void> {
-    setDeleting(true);
-    const results = await Promise.allSettled(
-      toDelete.map((product) => deleteProduct.mutateAsync(product.id)),
+    const { deleted, failed } = await deleteProducts.mutateAsync(
+      toDelete.map((product) => product.id),
     );
-    setDeleting(false);
 
-    const removed = toDelete.filter((_, index) => results[index].status === "fulfilled");
-    const failures = results.filter((result) => result.status === "rejected");
+    const removed = toDelete.filter((product) => deleted.some((entry) => entry.id === product.id));
     if (removed.length === 1) toast.success(`${removed[0].name} excluído.`);
     if (removed.length > 1) toast.success(`${removed.length} produtos excluídos.`);
-    if (failures.length > 0) {
+    if (failed.length > 0) {
       toast.error(
-        describe(failures[0].reason, `${failures.length} produto(s) não puderam ser excluídos.`),
+        describe(failed[0].error, `${failed.length} produto(s) não puderam ser excluídos.`),
       );
     }
     setSelected([]);
@@ -30704,7 +30984,7 @@ export function ProductsPage() {
         }
         confirmLabel="Sim, excluir"
         variant="danger"
-        loading={deleting}
+        loading={deleteProducts.isPending}
         onConfirm={confirmDelete}
         onCancel={() => setToDelete([])}
       />
@@ -30756,9 +31036,11 @@ A última coluna usa a chave `id` para o [`DropdownMenu`](../components/actions.
 de "Editar" e "Excluir". O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.
 
-Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` chama
-`deleteProduct.mutateAsync` para cada produto com `Promise.allSettled`, então uma falha não cancela
-as outras: se dois de três saíram, o toast diz quais saíram e qual não saiu, com o `detail` do
+Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` manda os ids para
+o [`useDeleteMany`](../data-provider.md#excluir-uma-selecao-usedeletemany), que exclui cada um por
+conta própria e invalida a lista **uma** vez — com um `useDelete` por id, 10 produtos custavam 10
+invalidações e 10 `GET` da lista. Uma falha não cancela as outras: o resultado separa `deleted` de
+`failed`, e se dois de três saíram, o toast diz quais saíram e qual não saiu, com o `detail` do
 backend ("Produto com pedidos em aberto").
 
 !!! tip "Excluiu a última linha da última página?"
@@ -30800,8 +31082,8 @@ Com o backend rodando, abra `/produtos` e confira:
 
 ## Recap
 
-- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDelete` dão o CRUD inteiro sem uma
-  `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
+- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` dão o CRUD inteiro sem
+  uma `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
 - O `DataTable` com `totalItems` delega página, tamanho e ordenação para você; guarde os três na URL.
 - Escrever na URL várias vezes no mesmo clique pede um ref com a última URL.
 - A busca tem estado próprio e chega na URL com `useDebounce`: uma requisição por busca, não por
@@ -33365,28 +33647,11 @@ Um arquivo, espelhando o JSON do backend campo a campo. Os nomes ficam em inglê
 
 ```ts
 // src/lib/api.ts
-import { QueryClient } from "@tanstack/react-query";
-import {
-    CACHE_TIME,
-    STALE_TIME,
-    createQueryKeys,
-    createTempestAuth,
-    shouldRetryQuery,
-} from "tempest-react-sdk";
+import { createQueryClient, createQueryKeys, createTempestAuth } from "tempest-react-sdk";
 
 import type { User } from "@/types";
 
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: STALE_TIME.DEFAULT,
-            gcTime: CACHE_TIME.DEFAULT,
-            retry: shouldRetryQuery,
-            refetchOnWindowFocus: false,
-        },
-        mutations: { retry: 0 },
-    },
-});
+export const queryClient = createQueryClient();
 
 export const auth = createTempestAuth<User>({
     baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
@@ -33418,8 +33683,8 @@ Este arquivo é o coração do app. Pedaço por pedaço:
 - **`retry: true`** repete `GET` que falhou por rede ou `5xx`. Escrita nunca é repetida sozinha — um `POST` repetido poderia cadastrar o paciente duas vezes.
 - **`onSessionEnd`** limpa o cache de queries quando a sessão termina — no **Sair**, na expiração e na troca de conta. Sem isso, a recepcionista que entra depois da gestora veria, por um instante, o faturamento que ficou no cache.
 
-!!! warning "Por que criar o `QueryClient` à mão"
-    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio e o entrega ao provider. Os `defaultOptions` copiam os do SDK (`STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`, `shouldRetryQuery`), para o comportamento continuar o mesmo — veja [Query → Provider](../query.md#provider).
+!!! note "Por que o app cria o `QueryClient`"
+    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio com `createQueryClient()` e o entrega ao provider. É o mesmo client, com os mesmos defaults do SDK, sem redigitar nenhum — veja [`createQueryClient`](../query.md#createqueryclient-o-client-fora-do-react).
 
 **`createQueryKeys`** dá um prefixo comum a todas as chaves de cache. Repare na dupla `patients()` / `patientList(search)`: a lista é guardada por busca, e invalidar `patients()` derruba **todas** as buscas de uma vez depois de um cadastro.
 
@@ -34922,6 +35187,7 @@ import {
 } from "tempest-react-sdk";
 import { auth, currentTechnicianId } from "@/lib/auth";
 import { photos, visits } from "@/visits/db";
+import { listPhotos } from "@/visits/photos";
 import {
   fromDto,
   toPayload,
@@ -34929,16 +35195,12 @@ import {
   type Visit,
   type VisitChangesPage,
   type VisitDto,
-  type VisitPhoto,
 } from "@/visits/types";
 
 const PHOTO_CHUNK_SIZE = 256 * 1024;
 
 async function uploadPendingPhotos(visitId: string): Promise<PhotoRef[]> {
-  const list: VisitPhoto[] = await photos.raw
-    .where("visit_id")
-    .equals(visitId)
-    .sortBy("taken_at");
+  const list = await listPhotos(visitId);
   const refs: PhotoRef[] = [];
 
   for (const photo of list) {
@@ -34965,6 +35227,8 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   databaseName: "CampoVisitasOutbox",
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
+  foreignEntries: "hold",
+  coalesce: true,
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -35059,6 +35323,13 @@ e a entrada fica esperando — a tela já respondeu.
 
 O `create`/`update` é só rótulo: como a rota é upsert, os dois viram o mesmo `PUT`.
 
+E o `coalesce: true` junta as edições: o técnico que salva a mesma visita dez vezes sem
+sinal manda **um** `PUT` quando a rede volta, com a versão mais nova — não dez. As fotos
+sobem uma vez só de qualquer jeito (quem já tem `upload_url` não sobe de novo), mas sem a
+opção cada `PUT` intermediário ainda gastava um round-trip num sinal que mal se sustenta.
+Detalhes, e o que não se junta, em
+[Dez edições, um request](../offline-sync.md#o-jeito-rapido-createofflinesync).
+
 #### `deliver`: as fotos sobem antes da visita
 
 O [`createOfflineSync`](../offline-sync.md#o-jeito-rapido-createofflinesync) chama o
@@ -35104,12 +35375,17 @@ envio o motor confere de novo:
 | --- | --- |
 | o mesmo técnico | entregue |
 | ninguém | fica na fila até ele voltar |
-| outro técnico | **descartada sem envio** |
+| outro técnico | **fica na fila**, sem envio, até o dono voltar |
 
-A terceira linha protege o servidor de receber a vistoria do Carlos com o token da Ana.
-Mas ela também quer dizer: se o Carlos sair com visitas pendentes e a Ana entrar e
-sincronizar, as visitas do Carlos se perdem. Por isso o botão de sair (mais abaixo)
-**avisa** antes. 👇
+A terceira linha é o `foreignEntries: "hold"`. Ela protege o servidor de receber a
+vistoria do Carlos com o token da Ana **e** protege o trabalho do Carlos: se ele sair com
+visitas pendentes e a Ana entrar e sincronizar, as visitas dele continuam no tablet e saem
+quando ele entrar de novo. O padrão do motor (`"drop"`) as apagaria — serve ao aparelho
+pessoal, não ao tablet da cooperativa. Detalhes em
+[Offline Sync › Aparelho compartilhado](../offline-sync.md#o-jeito-rapido-createofflinesync).
+
+Uma visita **do Carlos** que a Ana editar espera a edição dele sair primeiro: a ordem por
+registro vale também para entrada segurada.
 
 #### `pullPage` e `applyRemote`: o que vem do escritório
 
@@ -35198,9 +35474,16 @@ export async function addPhoto(visitId: string, image: CompressedImage): Promise
 }
 
 export function listPhotos(visitId: string): Promise<VisitPhoto[]> {
-  return photos.raw.where("visit_id").equals(visitId).sortBy("taken_at");
+  const owner = currentTechnicianId();
+  if (owner === null) throw new Error("Sua sessão expirou. Entre de novo para ver as fotos.");
+  return photos.listBy("visit_id", visitId, owner, { orderBy: "taken_at" });
 }
 ```
+
+O [`listBy`](../offline.md#listar-por-outro-indice-listby) vai pelo índice `visit_id` e
+continua preso ao dono: o `photos.raw.where("visit_id")` direto no Dexie também usava o
+índice, mas devolvia a foto de outro técnico com a mesma visita. Sem ninguém logado, a
+função lança em vez de chamar `listBy` sem dono — que listaria as fotos de todos.
 
 A foto entra no banco com `upload_url: null`. Quem a manda para o servidor é o `deliver`,
 na próxima vez que a visita sincronizar.
@@ -35248,7 +35531,9 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     O TanStack Query **pausa** queries quando o navegador está offline — o padrão é
     `networkMode: "online"`. Aqui a `queryFn` lê o IndexedDB, que não precisa de rede
     nenhuma, mas a query nem chega a rodar: a tela fica no skeleton até o sinal voltar.
-    `networkMode: "always"` diz ao Query que essa função não depende de rede.
+    `networkMode: "always"` diz ao Query que essa função não depende de rede. A medição, e por
+    que o SDK não troca o default do client inteiro, estão em
+    [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 ### 7. Status de sync: o painel e o botão de sair
 
@@ -35299,58 +35584,38 @@ export function SyncPanel() {
 ```tsx
 // src/components/LogoutButton.tsx
 import { LogOut } from "lucide-react";
-import { useState } from "react";
-import { Button, ConfirmDialog, useOfflineSync } from "tempest-react-sdk";
+import { Button } from "tempest-react-sdk";
 import { auth } from "@/lib/auth";
 import { visitSync } from "@/visits/sync";
 
 export function LogoutButton() {
-  const { pending } = useOfflineSync(visitSync, { flushOnOnline: false });
-  const [asking, setAsking] = useState(false);
-
   async function signOut(): Promise<void> {
     visitSync.resetWatermark();
     await auth.logout();
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        iconOnly
-        aria-label="Sair"
-        onClick={() => (pending > 0 ? setAsking(true) : void signOut())}
-      >
-        <LogOut size={18} />
-      </Button>
-      <ConfirmDialog
-        open={asking}
-        variant="danger"
-        title={`${pending} alterações ainda não foram enviadas`}
-        description="Elas ficam guardadas neste aparelho e saem quando você entrar de novo. Se outro técnico entrar aqui antes disso, elas são descartadas."
-        confirmLabel="Sair mesmo assim"
-        cancelLabel="Ficar e esperar o sinal"
-        onConfirm={signOut}
-        onCancel={() => setAsking(false)}
-      />
-    </>
+    <Button variant="ghost" iconOnly aria-label="Sair" onClick={() => void signOut()}>
+      <LogOut size={18} />
+    </Button>
   );
 }
 ```
 
 O [`useOfflineSync`](../offline-sync.md#ui-reativa-e-flush-automatico) inscreve o componente
 no motor: `pending`, `syncing`, `lastSyncedAt` e `lastError` mudam sozinhos a cada envio.
-Os dois componentes passam `flushOnOnline: false` porque quem dispara o envio é um só — o
-`SyncRunner`, no `App`.
+O painel passa `flushOnOnline: false` porque quem dispara o envio é um só — o
+`SyncRunner`, no `App`. O `pending` conta também as entradas seguradas de outro técnico: a
+Ana vê que há trabalho do Carlos esperando no tablet.
 
 O `lastError` mostra o motivo da última falha. "Failed to fetch" no pasto é rotina; o que
 você quer ver é um `401` ou um `413` que não vai passar sozinho.
 
 !!! warning "Sair não apaga a outbox — e de propósito"
     O logout chama `resetWatermark()`, não `clearOutbox()`. Apagar a fila perderia o dia de
-    trabalho de quem saiu sem sinal. Com o `getPrincipal`, as entradas do técnico ficam
-    **seguras** até ele voltar — o `ConfirmDialog` só deixa claro o único caso em que elas
-    se perdem.
+    trabalho de quem saiu sem sinal. Com `getPrincipal` + `foreignEntries: "hold"`, as
+    entradas do técnico ficam **seguras** até ele voltar, mesmo que outro técnico entre e
+    sincronize antes — por isso o botão de sair não precisa perguntar nada.
 
 ### 8. A câmera
 
@@ -35838,7 +36103,6 @@ import {
   Skeleton,
   SyncStatusBadge,
   formatDateTime,
-  useSyncStatus,
 } from "tempest-react-sdk";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SyncPanel } from "@/components/SyncPanel";
@@ -35864,7 +36128,6 @@ const SYNC_BADGE: Record<
 export function VisitListPage() {
   const navigate = useNavigate();
   const list = useVisitList();
-  const status = useSyncStatus(visitSync);
 
   return (
     <>
@@ -35874,7 +36137,7 @@ export function VisitListPage() {
         safeArea
         actions={
           <>
-            <SyncStatusBadge tone={status.tone} pending={status.pending} />
+            <SyncStatusBadge sync={visitSync} />
             <LogoutButton />
           </>
         }
@@ -35939,14 +36202,9 @@ Os quatro estados, cada um com o componente certo:
 | vazio | [`EmptyState`](../components/feedback.md#emptystate) dizendo o que fazer — e que funciona sem sinal |
 | com dados | [`ListTile`](../components/data.md#listtile) por visita, com o badge de envio de cada uma |
 
-No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o `tone`
-e o `pending` do `useSyncStatus(visitSync)` e mostra o estado geral: sincronizado,
+No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o motor
+em `sync={visitSync}`, se inscreve nele sozinho e mostra o estado geral: sincronizado,
 sincronizando, pendente, offline ou erro. O badge **por linha** diz qual visita, especificamente, ainda não foi.
-
-!!! note "Por que não `sync={visitSync}`"
-    O badge também aceita o motor direto, mas a prop é tipada como `OfflineSync<unknown>`,
-    e um motor com payload tipado (`OfflineSync<Visit>`) não passa nela com `strict`
-    ligado. O `useSyncStatus` é genérico e aceita o seu motor como ele é.
 
 O [`FloatingActionButton`](../components/actions.md#floatingactionbutton) fica no canto inferior direito, ao
 alcance do polegar. O `paddingBottom: 96` da lista garante que ele não cubra a última visita.
@@ -36224,7 +36482,7 @@ installPrecache({
 - 🗄️ **`createOfflineDatabase`** guarda visitas e fotos (como `Blob`) na mesma base, com
   dono por técnico.
 - 📤 **`createOfflineSync`** é a outbox: `saveVisit` grava local e enfileira; o envio
-  acontece quando der.
+  acontece quando der, e `coalesce: true` junta as edições da mesma visita num `PUT` só.
 - 📸 As fotos sobem **dentro do `deliver`** com **`createResumableUpload`** e `key` por
   foto — falha retenta, queda retoma do offset, foto enviada não sobe de novo.
 - ⚖️ Conflito tem dois tipos: o que a máquina resolve (`lastWriteWins` no `applyRemote`)
@@ -36232,7 +36490,7 @@ installPrecache({
 - 🗜️ **`useImageProcessing` + `bestSupportedType`** reduzem a foto no aparelho; o GPS vai
   no registro, porque o reencode apaga o EXIF.
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
-  o que está acontecendo; o logout avisa antes de arriscar a fila.
+  o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
 - 🔒 **`useStorageEstimate`** pede armazenamento persistente; o `UpdatePrompt` não troca
   de versão no meio da vistoria; o service worker só faz precache.
@@ -39292,7 +39550,8 @@ os dados vieram.
 Por padrão, o TanStack Query **pausa** uma query quando o navegador está offline: a
 `queryFn` nem roda. Num app comum, isso é bom. Aqui, seria um spinner eterno, porque é
 justamente a `queryFn` que lê o IndexedDB. `networkMode: "always"` manda a query rodar
-de qualquer jeito, e o fallback para o cache acontece.
+de qualquer jeito, e o fallback para o cache acontece. A medição, e por que não é o default
+do SDK, estão em [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 !!! tip "A volta do sinal atualiza sozinha"
     `refetchOnReconnect` vem ligado no TanStack Query. Quando o sinal volta, a query

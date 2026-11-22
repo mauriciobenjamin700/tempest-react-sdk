@@ -621,6 +621,8 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     `networkMode: "online"`. Here the `queryFn` reads IndexedDB, which needs no network at
     all, but the query never even runs: the screen sits on the skeleton until signal comes
     back. `networkMode: "always"` tells Query this function does not depend on the network.
+    The measurement, and why the SDK does not change the default for the whole client, are in
+    [Query → `networkMode`](../query.md#a-query-that-reads-only-indexeddb-networkmode-always).
 
 ### 7. Sync status: the panel and the sign-out button
 

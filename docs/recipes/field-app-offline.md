@@ -618,7 +618,9 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     O TanStack Query **pausa** queries quando o navegador está offline — o padrão é
     `networkMode: "online"`. Aqui a `queryFn` lê o IndexedDB, que não precisa de rede
     nenhuma, mas a query nem chega a rodar: a tela fica no skeleton até o sinal voltar.
-    `networkMode: "always"` diz ao Query que essa função não depende de rede.
+    `networkMode: "always"` diz ao Query que essa função não depende de rede. A medição, e por
+    que o SDK não troca o default do client inteiro, estão em
+    [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 ### 7. Status de sync: o painel e o botão de sair
 

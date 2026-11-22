@@ -4,6 +4,52 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
+  React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
+  precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num
+  prefetch fazia `new QueryClient({ … })` e redigitava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`,
+  `shouldRetryQuery`, `refetchOnWindowFocus: false` e `mutations.retry: 0` — a receita
+  [app de gestão](docs/recipes/example-management-app.md) fazia exatamente isso. O `QueryProvider`
+  passa a criar o seu client por ela, então os dois não divergem. O `networkMode` continua o
+  `"online"` do TanStack, de propósito (abaixo).
+- **`useDeleteMany(resource, options?)` e `DataProvider.deleteMany` (opcional)** (#715). Excluir uma
+  seleção com um `useDelete().mutateAsync` por id custava uma invalidação por id, e cada uma refazia
+  o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`
+  (`npx vitest run src/data/use-resource.test.tsx -t "ten ids"` fixa o depois: 1 e 1). O hook
+  invalida a lista uma vez e resolve com `{ deleted, failed }`, cada id com o próprio resultado; só
+  rejeita quando a chamada do provider inteira falha. `createDataProvider` implementa `deleteMany`
+  como um `DELETE` por id em paralelo; provider escrito à mão sem ele continua compilando, e o hook
+  cai no mesmo `deleteOne` por id. A receita [Painel CRUD](docs/recipes/admin-crud.md) troca o
+  `Promise.allSettled` sobre `mutateAsync` pelo hook.
+- **Doc: query que lê só o IndexedDB leva `networkMode: "always"`** (#723), com a medição. Offline,
+  no `networkMode` padrão a `queryFn` rodou **0** vezes (`pending`/`paused`); com `"always"` ou
+  `"offlineFirst"`, 1 vez e `success` (`npx vitest run src/query/create-query-client.test.tsx`). A
+  issue estava certa sobre a causa; a proposta de expor a opção no `QueryProvider` já estava
+  atendida (`defaultOptions.queries.networkMode` sempre funcionou), e trocar o default do client
+  inteiro faria as queries que vão à rede dispararem offline e falharem em vez de pausar. O SDK não
+  tem hook de leitura do IndexedDB em que a opção pudesse morar; as receitas offline apontam para a
+  seção nova de [Query](docs/query.md).
+
+### Corrigido
+
+- **`useCreate`/`useUpdate`/`useDelete`: o `onSuccess` do app não anula mais a invalidação do
+  cache** (#699). Os hooks montavam o próprio `onSuccess` e espalhavam `...options` **por cima**:
+  com `onSuccess` do app, medido **0** chamadas a `invalidateQueries` nos três, e a lista ficava
+  velha depois de criar, editar ou excluir — contra a doc, que prometia o callback "depois da
+  invalidação". Agora o `onSuccess` do app é separado das opções e roda depois de o SDK disparar a
+  invalidação; o valor que ele devolve volta ao TanStack, então um `onSuccess` assíncrono ainda
+  segura o `isPending`. A receita [Painel CRUD](docs/recipes/admin-crud.md) deixa de apresentar o
+  `mutate(vars, callbacks)` como contorno.
+- **`listQueryKey(resource)` sem `params` invalida todas as listas do recurso** (#700). Devolvia
+  `["data", resource, "list", undefined]`, e o quarto elemento `undefined` não casa por prefixo:
+  `invalidateQueries({ queryKey: listQueryKey("posts") })` — o exemplo da doc — alcançava **0** das
+  listas montadas com paginação. Agora devolve `["data", resource, "list"]`; com `params`, a chave
+  não muda. Os hooks passam a invalidar por `listQueryKey(resource)` em vez do literal. Efeito
+  colateral: a chave do `useList(resource)` **sem** params muda de hash, então essa entrada de um
+  cache persistido pela versão anterior não é reaproveitada (um fetch, uma vez).
+
 ### Corrigido
 
 - **`<SyncStatusBadge sync={...}>` aceita o motor tipado** (#718). A prop era
@@ -37,6 +83,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   com `allowed_actions=selected` só para as actions da GitHub, e mostra o comando que corrige cada
   item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
   Actions") pela exceção do Pages. Sem mudança no pacote publicado.
+
+### Budgets
+
+- **`ceiling: full barrel CJS` sobe de 204 kB para 204,3 kB** pelo `useDeleteMany`, o
+  `DataProvider.deleteMany` e o `createQueryClient` (`npm run build && npx size-limit --json`):
+  204 232 B neste branch, contra 203 908 B medidos na `main` ao mergear o #693 (+324 B). O barrel
+  ESM mede 172 671 B, dentro do teto de 172,7 kB; nenhuma fatia mudou de teto.
 
 ## [0.92.0] — 2026-11-21
 

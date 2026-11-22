@@ -8,6 +8,8 @@ import {
     installSkipWaitingListener,
 } from "tempest-react-sdk/sw";
 
+import { queuesInTheWorker } from "./sw-sync-scope";
+
 /**
  * Service worker. Bundled to `dist/sw.js` by `vite.sw.config.ts` (see the
  * `build:sw` script) and registered from `src/main.tsx`.
@@ -15,7 +17,10 @@ import {
  * Layers, in order:
  *  1. Push + notifications + skip-waiting (the SDK push helpers).
  *  2. Background sync — failed POST/PUT/PATCH/DELETE to this origin's `/api`
- *     are queued and replayed online. Credential headers are never stored; on
+ *     are queued and replayed online, except what the page already retries:
+ *     tus uploads, and the prefixes in `RETRIED_BY_THE_PAGE`
+ *     (`src/sw-sync-scope.ts`) — add the ones an outbox (`createOfflineSync`)
+ *     delivers, or the same mutation goes out from both queues. Credential headers are never stored; on
  *     replay the worker asks the open pages for the current ones and for who
  *     is signed in, which `src/pwa.tsx` answers from the auth store
  *     (`provideBackgroundSyncCredentials`). Remove that and queued
@@ -57,7 +62,7 @@ installNotificationClickHandler();
 installSkipWaitingListener();
 
 installBackgroundSync({
-    match: (url) => url.origin === self.location.origin && url.pathname.startsWith("/api/"),
+    match: (url, request) => queuesInTheWorker(url, request, self.location.origin),
 });
 
 installRuntimeCache([

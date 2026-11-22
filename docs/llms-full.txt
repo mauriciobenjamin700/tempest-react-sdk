@@ -36198,12 +36198,12 @@ installPrecache({
 - **`sw.ts`** só faz precache do app shell, para o app abrir sem rede. Veja
   [PWA](../pwa.md#2-precache-cache-runtime-navigation-preload).
 
-!!! warning "Não ligue o `installBackgroundSync` nas rotas que a outbox já cuida"
-    O template `--pwa` vem com `installBackgroundSync` casando **todo** `/api/`. Neste app,
-    quem reenvia é a outbox. Com os dois ligados, um `PUT /api/visits/…` que falhou offline
-    sai duas vezes — e um `PATCH` do tus guardado pelo worker é reenviado depois, com um
-    `Upload-Offset` velho, e leva `409`. Remova o `installBackgroundSync` (como acima) ou
-    tire `/api/visits` e `/api/uploads` do `match` dele.
+!!! info "Por que este `sw.ts` não tem `installBackgroundSync`"
+    Neste app, quem reenvia é a outbox, e o upload tus retoma sozinho. O template `--pwa`
+    já deixa o tus fora do background sync; se você mantiver o `installBackgroundSync` do
+    scaffold, acrescente `"/api/visits/"` ao `RETRIED_BY_THE_PAGE` do
+    `src/sw-sync-scope.ts`, senão um `PUT /api/visits/…` que falhou offline sai pelas duas
+    filas. Veja [Uma fila por mutação](../scaffold.md#background-sync-mutacoes-offline-que-reenviam-sozinhas).
 
 ## Testando no campo (sem ir ao campo)
 
@@ -41187,6 +41187,7 @@ my-app/
 │   └── icon.svg                # ícone-fonte (troque pelo seu — os PNGs saem daqui)
 └── src/
     ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── sw-sync-scope.ts        # o que o background sync enfileira (e o que fica com a página)
     ├── main.tsx                # (sobrescrito) registra /sw.js em dev e produção
     ├── vite-env.d.ts           # (sobrescrito) tipa VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (sobrescrito) botão Instalar + toggle de notificações
@@ -41329,6 +41330,12 @@ installBackgroundSync({
 ```
 
 O fetch original ainda **rejeita** no momento (seu app mostra estado offline), mas a requisição é replayada depois. `maxRetentionMinutes` descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).
+
+!!! warning "Uma fila por mutação: o scaffold deixa para a página o que ela já reenvia"
+    O worker não sabe o que a página faz depois da rejeição. Se a página também reenvia, a mesma mutação sai das **duas** filas: a outbox (`createOfflineSync`) manda a versão mais nova do registro quando a rede volta, e o worker reenvia depois, na ordem dele, cada tentativa feita offline — inclusive versões que a outbox já superou, passando por cima da política de conflito dela. Por isso o `--pwa` não usa o `match` acima: o `src/sw.ts` gerado chama `queuesInTheWorker` (`src/sw-sync-scope.ts`), que só enfileira o `/api/` da própria origem e **nunca**:
+
+    - requisição **tus** (cabeçalho `Tus-Resumable`, que o `createResumableUpload` manda em todas): o cliente de upload já retoma sozinho, relendo o offset com `HEAD`; o `PATCH` guardado pelo worker volta com o `Upload-Offset` de quando falhou e com o chunk inteiro (5 MiB por padrão) salvo no IndexedDB a cada tentativa;
+    - um prefixo de `RETRIED_BY_THE_PAGE`, que nasce vazio. **Quando o app ganhar uma outbox, acrescente ali o prefixo que ela entrega** (`"/api/visitas/"`).
 
 #### Range requests — seek de áudio/vídeo offline
 

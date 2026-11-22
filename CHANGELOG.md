@@ -4,6 +4,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`createTempestAuth`: `login()` cujo `mePath` falha não deixa mais token instalado com usuário
+  `null`** (#748). O `login()` instalava o token e o refresh token e só então buscava o usuário; se
+  o `GET` do `mePath` falhava, ele rejeitava com o erro, mas a sessão ficava — medido na 71727a7
+  com um `/me` respondendo 500: `token: "tok-B"`, `user: null`, `isAuthenticated: true` e
+  `tempest-auth-refresh` guardado. Um guard que olha só o token (ou o `isAuthenticated`) deixava
+  entrar uma sessão sem usuário. Agora a entrada é desfeita antes de o `login()` rejeitar: o refresh
+  token novo é revogado (`logoutPath`, modo body), store e refresh token são limpos e o
+  `onSessionEnd` roda com `"expired"` para ela. Vale para `restore()` e para a troca de conta que um
+  `refresh()` detecta, que passam pelo mesmo caminho. Um `SessionSupersededError` no `/me` continua
+  sem mexer na sessão instalada por quem a moveu. A receita "Exemplo integrado: app de gestão" (PT
+  e EN) explica que o guard de token e usuário cobre só o instante antes do `/me` responder.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

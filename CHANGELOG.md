@@ -139,6 +139,19 @@ PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a 
   com `allowed_actions=selected` só para as actions da GitHub, e mostra o comando que corrige cada
   item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
   Actions") pela exceção do Pages. Sem mudança no pacote publicado.
+- **`offline-persistence.lifetime.test.ts` deixa de estourar 5 s sob carga (#692).** Não era
+  lentidão: o teste passa em ~150–350 ms ou trava em 5 000 ms, nada entre os dois. A replay que os
+  casos run-12 C1 fixam exige que o `401` do pedido sem token chegue **enquanto** o `login()`/
+  `refresh()` está pendente, e o backend falso garantia isso só pelo relógio (`401` em 15 ms,
+  sign-in em 30 ms; ~20 ms de folga medidos em máquina ociosa). Sob carga a ordem invertia, o
+  client recusava a replay como deve (run-17) e o `vi.waitFor` esperava até o timeout do teste. O
+  backend agora ordena os dois — o `401` espera um sign-in ter chegado e o sign-in só responde
+  depois do `401` — e o `waitFor` desce para 2 s, então uma replay que não sai reprova com
+  `expected [ 'none' ] to have a length of 2` em vez de `TestTimeoutError`. Medido com 12 cópias
+  do arquivo da `main` e 12 do branch em paralelo (`npx vitest run <arquivo>`), por rodada, quatro
+  rodadas: na `main`, 32 de 48 execuções falharam (em três casos); no branch, 0 de 48. Forçando a ordem (`401`
+  em 0 ms ou em 60 ms), a `main` reprova 2 e 5 casos; o branch passa os 17. Sem mudança no pacote
+  publicado.
 
 ### Budgets
 

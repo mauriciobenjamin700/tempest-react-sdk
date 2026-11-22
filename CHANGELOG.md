@@ -334,6 +334,23 @@ useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/ru
   334 KB com `resizeImage({ width: 1600, type: "image/webp" })` e 343 / 388 / 393 KB com o
   `compress` da receita — o `compress` fica porque garante o teto de bytes. Método no PR.
 
+### Budgets
+
+- **#726, medido com `npm run build && npx size-limit --json` sobre a `main` em `6a716c5` e sobre
+  este branch mergeado com ela**, em bytes brotli: `slice: offline + PWA surface` 5 366 → 5 869
+  (teto 6 kB, dentro); `ceiling: full barrel ESM` 173 112 → 173 443 (teto 173,3 → 173,5 kB);
+  `ceiling: full barrel CJS` 204 565 → 205 063 (teto 204,9 → 205,1 kB). Os bytes são o
+  `outbox-attachments` e os quatro campos novos do `SyncState`.
+- **O `.size-limit.js` marca como externo o `import()` do tus client feito pela outbox.** Sem
+  isso o esbuild, que não divide o bundle, embutia o `http/resumable-upload` com cada módulo que
+  ele alcança embrulhado num init preguiçoso — o núcleo de `http/` perdia o tree-shaking e
+  fatias que nem tocam a outbox subiam: `slice: http client` +139 B (estourava o teto),
+  `slice: resumable upload (tus client)` +152 B, `slice: offline + PWA surface` +5,1 kB. Num app
+  Vite 8 que importa só `{ createOfflineSync }`, o tus client sai num chunk preguiçoso de
+  5 179 B br e o chunk de entrada cresce 1 063 B br contra a `main` (build de produção, brotli
+  do `node:zlib`). O tus client segue orçado pela fatia `resumable upload`, que o importa
+  estático.
+
 ## [0.92.0] — 2026-11-21
 
 ### Corrigido

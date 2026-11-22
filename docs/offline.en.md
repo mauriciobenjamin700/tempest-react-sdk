@@ -99,6 +99,43 @@ await notificationsStore.delete("m-1"); // by key
 await notificationsStore.clear(ownerId); // all of the owner
 ```
 
+### Listing by another index: `listBy`
+
+`list` filters by owner. To list by **another** indexed field — a visit's photos, a chat's messages — use `listBy(index, value, owner?, options?)`. It goes through the IndexedDB index and still honors the owner:
+
+```ts
+import { createOfflineStore } from "tempest-react-sdk";
+
+interface VisitPhoto {
+  id: string;
+  technician_id: string;
+  visit_id: string;
+  taken_at: string;
+}
+
+const photos = createOfflineStore<VisitPhoto, string>({
+  databaseName: "FieldPhotos",
+  version: 1,
+  tableName: "photos",
+  indexes: "&id, technician_id, visit_id, taken_at",
+  ownerField: "technician_id",
+});
+
+const visitPhotos = await photos.listBy("visit_id", "visit-7", "tech-ana", {
+  orderBy: "taken_at",
+});
+```
+
+The two shortcuts it replaces each get one thing wrong:
+
+| Call | Uses the index? | Honors the owner? |
+| --- | --- | --- |
+| `list(owner, { filter: (p) => p.visit_id === id })` | no — reads **every** record of the owner | yes |
+| `raw.where("visit_id").equals(id)` | yes | **no** — returns another technician's photos |
+| `listBy("visit_id", id, owner)` | yes | yes |
+
+Measured in the `create-offline-store.list-by.test.ts` test (`npx vitest run src/offline/create-offline-store.list-by.test.ts`): two owners, 20 photos each, 4 per visit — the `list` `filter` runs 20 times to find 4; the `listBy` one only sees the 4 the index and the owner already selected. The index must be declared in `indexes`; an unindexed field rejects with Dexie's `SchemaError` instead of scanning the table. Without `owner` (or without `ownerField`), every owner's matches come back, as with `list`.
+
 `raw` (Dexie's `Table`) and `db` (the Dexie instance) are exposed for advanced queries — multi-table transactions, complex `where().and()`:
 
 ```ts
@@ -194,6 +231,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `createOfflineStore({ databaseName, version, tableName, indexes, keyPath, ownerField })` returns a typed CRUD over IndexedDB via Dexie (a direct SDK dependency).
 - `ownerField` enables multi-tenant scoping: `put`/`list`/`count`/`clear`/`updateMany` respect `owner` and isolate data per user.
 - CRUD: `put`/`bulkPut`, `get`/`list` (with `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
+- `listBy(index, value, owner)` lists by another indexed field through the index, keeping the owner scope.
 - `raw` and `db` open the door to advanced Dexie queries.
 - Bump `version` when changing `indexes`; use `db.version(N).upgrade(...)` for data migrations.
 

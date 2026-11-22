@@ -4,6 +4,131 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
+  React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
+  precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num
+  prefetch fazia `new QueryClient({ … })` e redigitava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`,
+  `shouldRetryQuery`, `refetchOnWindowFocus: false` e `mutations.retry: 0` — a receita
+  [app de gestão](docs/recipes/example-management-app.md) fazia exatamente isso. O `QueryProvider`
+  passa a criar o seu client por ela, então os dois não divergem. O `networkMode` continua o
+  `"online"` do TanStack, de propósito (abaixo).
+- **`useDeleteMany(resource, options?)` e `DataProvider.deleteMany` (opcional)** (#715). Excluir uma
+  seleção com um `useDelete().mutateAsync` por id custava uma invalidação por id, e cada uma refazia
+  o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`
+  (`npx vitest run src/data/use-resource.test.tsx -t "ten ids"` fixa o depois: 1 e 1). O hook
+  invalida a lista uma vez e resolve com `{ deleted, failed }`, cada id com o próprio resultado; só
+  rejeita quando a chamada do provider inteira falha. `createDataProvider` implementa `deleteMany`
+  como um `DELETE` por id em paralelo; provider escrito à mão sem ele continua compilando, e o hook
+  cai no mesmo `deleteOne` por id. A receita [Painel CRUD](docs/recipes/admin-crud.md) troca o
+  `Promise.allSettled` sobre `mutateAsync` pelo hook.
+- **Doc: query que lê só o IndexedDB leva `networkMode: "always"`** (#723), com a medição. Offline,
+  no `networkMode` padrão a `queryFn` rodou **0** vezes (`pending`/`paused`); com `"always"` ou
+  `"offlineFirst"`, 1 vez e `success` (`npx vitest run src/query/create-query-client.test.tsx`). A
+  issue estava certa sobre a causa; a proposta de expor a opção no `QueryProvider` já estava
+  atendida (`defaultOptions.queries.networkMode` sempre funcionou), e trocar o default do client
+  inteiro faria as queries que vão à rede dispararem offline e falharem em vez de pausar. O SDK não
+  tem hook de leitura do IndexedDB em que a opção pudesse morar; as receitas offline apontam para a
+  seção nova de [Query](docs/query.md).
+
+### Corrigido
+
+- **`useCreate`/`useUpdate`/`useDelete`: o `onSuccess` do app não anula mais a invalidação do
+  cache** (#699). Os hooks montavam o próprio `onSuccess` e espalhavam `...options` **por cima**:
+  com `onSuccess` do app, medido **0** chamadas a `invalidateQueries` nos três, e a lista ficava
+  velha depois de criar, editar ou excluir — contra a doc, que prometia o callback "depois da
+  invalidação". Agora o `onSuccess` do app é separado das opções e roda depois de o SDK disparar a
+  invalidação; o valor que ele devolve volta ao TanStack, então um `onSuccess` assíncrono ainda
+  segura o `isPending`. A receita [Painel CRUD](docs/recipes/admin-crud.md) deixa de apresentar o
+  `mutate(vars, callbacks)` como contorno.
+- **`listQueryKey(resource)` sem `params` invalida todas as listas do recurso** (#700). Devolvia
+  `["data", resource, "list", undefined]`, e o quarto elemento `undefined` não casa por prefixo:
+  `invalidateQueries({ queryKey: listQueryKey("posts") })` — o exemplo da doc — alcançava **0** das
+  listas montadas com paginação. Agora devolve `["data", resource, "list"]`; com `params`, a chave
+  não muda. Os hooks passam a invalidar por `listQueryKey(resource)` em vez do literal. Efeito
+  colateral: a chave do `useList(resource)` **sem** params muda de hash, então essa entrada de um
+  cache persistido pela versão anterior não é reaproveitada (um fetch, uma vez).
+
+### Corrigido
+
+- **`<SyncStatusBadge sync={...}>` aceita o motor tipado** (#718). A prop era
+  `OfflineSync<unknown>`, e o motor é invariante no payload (o `enqueue` o recebe como parâmetro):
+  com `strict`, todo `OfflineSync<Visit>` reprovava com TS2322 em `sync={...}` — reproduzido com
+  `npx tsc --noEmit -p tsconfig.json` sobre um arquivo com `createOfflineSync<Visit>`. A prop passa a
+  ser `SyncStatusSource` (`Pick<OfflineSync<unknown>, "getState" | "subscribe">`, exportado da
+  raiz), só o que o badge lê. `useSyncStatus` recebe o mesmo tipo e **perde o parâmetro de tipo**
+  `TPayload`, que nada lia: quem escrevia `useSyncStatus<Visit>(sync)` tira o `<Visit>`. A receita
+  **App de campo offline** troca o contorno (`useSyncStatus` + `tone`/`pending`) por
+  `sync={visitSync}`. O exemplo de `docs/components/feedback.md` com `OfflineSync<Nota>` passava no
+  guard só porque o `@/` não resolve lá (#691); agora ele compila de verdade.
+- **Doc: `store.save(...)` não existe** (#719). Os exemplos de conflito em `docs/offline-sync.md`
+  e `docs/pwa.md` (PT e EN) e o JSDoc de `lastWriteWins`/`higherVersionWins`/`createOfflineSync`
+  chamavam `save`/`remove`, que o `OfflineStore` não tem — é `put`/`delete`. A issue dizia que os
+  blocos não tinham `import`; tinham. O guard os compilava, mas `store`/`analyses` não estavam
+  declarados, e o "Cannot find name" (TS2552) e o `dto` implícito (TS7006) caem no filtro de
+  fragmento — o `.save` nunca era checado. Os blocos agora criam o store com `createOfflineStore`, e
+  o guard reprova `save` (TS2339) se ele voltar.
+- **JSDoc do `useOfflineSync` passava `syncing`/`phase` ao `<SyncStatusBadge>`** (#720), props que
+  ele não tem (TS2322); em JS puro o badge ficava em `idle` com pendências na fila. O `@example`
+  agora usa `sync={notesSync}` e o `flush` do hook.
+- **`createOfflineSync({ coalesce })`: edições do mesmo registro saem num `deliver` só** (#725).
+  Medido antes da mudança: um `create` seguido de nove `update` do mesmo registro chamava o
+  `deliver` **10 vezes** (`npx vitest run src/offline/create-offline-sync.coalesce.test.ts`, caso
+  "still delivers one request per entry when coalesce is off"). Com `coalesce: true`, cada
+  sequência de `create`/`update` de um registro (mesmo dono) vira **uma** entrega com o `op`, o
+  `id` e o `attempts` da entrada mais antiga e o `payload` da mais nova; com uma função
+  `(acumulado, proximo) => payload` o app junta patches parciais. `delete` nunca entra no fold e
+  fecha a sequência, entradas de donos diferentes não se juntam, e o fold acontece na entrega — o
+  que foi enfileirado com o registro no ar fica para o próximo flush em vez de ser apagado junto.
+  `SyncRunSummary.coalesced` conta as entradas absorvidas; na falha só a mais antiga ganha
+  `attempts` e as outras contam em `deferred`. Tipo novo `OutboxCoalesce`. Default `false`: sem a
+  opção, nada muda. A receita **App de campo offline** liga a opção.
+
+### Budgets
+
+- **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **#725, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
+  este branch**, em bytes brotli: `slice: offline + PWA surface` 5 061 → 5 298 (teto 6 kB, dentro);
+  `ceiling: full barrel ESM` 172 596 → 172 765 (teto 172,7 → 172,8 kB); `ceiling: full barrel CJS`
+  203 908 → 204 290 (teto 204 → 204,3 kB). Os bytes são o agrupamento e o fold do `coalesce`.
+- **`createOfflineSync`: `foreignEntries: "hold"` para aparelho compartilhado** (#724). Com
+  `getPrincipal`, a entrada de outro dono era sempre apagada sem envio (`summary.dropped`):
+  reproduzido em 22/11/2026 (`npx vitest run src/offline/create-offline-sync.owner.test.ts`), o
+  técnico A enfileira 3 vistorias e sai (`held: 3`), B entra e sincroniza (`dropped: 3`), A volta e
+  nada é entregue — fila zerada. Com `foreignEntries: "hold"` a entrada de outro dono fica na fila
+  (`summary.held`) e sai quando ele entrar de novo, com a sessão dele; o padrão continua `"drop"`.
+  Em nenhuma das duas ela sai com a sessão de outra pessoa. `pendingCount()`/`SyncState.pending`
+  contam as seguradas. A receita **App de campo offline** liga a opção e troca o `ConfirmDialog` do
+  logout por um botão simples.
+- **`OfflineStore.listBy(índice, valor, owner?, options?)`** (#728). Lista por outro campo indexado
+  pelo índice do IndexedDB, ainda presa ao dono, com as mesmas `ListOptions` do `list`. A issue dizia
+  que o store "não lista por outro índice"; listava, por `list(owner, { filter })`, mas lendo todo
+  registro do dono — medido em 22/11/2026 com 2000 fotos de 2 donos, o predicado rodou 1000 vezes
+  para achar 20. E o contorno da receita, `photos.raw.where("visit_id")`, usava o índice mas **não**
+  o dono: devolvia as fotos de outro técnico com a mesma visita. Índice não declarado rejeita com o
+  `SchemaError` do Dexie. Disponível também nos stores do `createOfflineDatabase`.
+
+### Corrigido
+
+- **`createOfflineSync`: uma entrada segurada segura as seguintes do mesmo registro.** Com
+  `getPrincipal`, a entrada do dono segurada enquanto ninguém está logado não bloqueava as
+  seguintes do mesmo registro: uma edição feita deslogado era entregue **antes** da do dono, e a
+  dele, mais velha, a sobrescrevia no servidor quando ele voltasse — a mesma perda silenciosa que a
+  ordem por registro existe para evitar. Agora a entrada segurada bloqueia o registro como uma
+  falha, e as seguintes contam em `summary.deferred`. Fixado em
+  `create-offline-sync.owner.test.ts` ("does not deliver a signed-out edit ahead of the owner's held
+  edit of the same record"), que falha sem a correção.
+
+### Budgets
+
+- **#724 + #728, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e
+  sobre este branch**, bytes brotli: `ceiling: full barrel CJS` 203 908 → 204 155 (teto 204 →
+  204,2 kB); `ceiling: full barrel ESM` 172 596 → 172 695 (teto 172,7 kB, dentro); `slice: offline +
+PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a política
+  `foreignEntries`.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O
@@ -27,6 +152,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   rodadas: na `main`, 32 de 48 execuções falharam (em três casos); no branch, 0 de 48. Forçando a ordem (`401`
   em 0 ms ou em 60 ms), a `main` reprova 2 e 5 casos; o branch passa os 17. Sem mudança no pacote
   publicado.
+
+### Budgets
+
+- **`ceiling: full barrel CJS` sobe de 204 kB para 204,3 kB** pelo `useDeleteMany`, o
+  `DataProvider.deleteMany` e o `createQueryClient` (`npm run build && npx size-limit --json`):
+  204 232 B neste branch, contra 203 908 B medidos na `main` ao mergear o #693 (+324 B). O barrel
+  ESM mede 172 671 B, dentro do teto de 172,7 kB; nenhuma fatia mudou de teto.
 
 ## [0.92.0] — 2026-11-21
 

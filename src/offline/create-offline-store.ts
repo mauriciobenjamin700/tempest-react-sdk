@@ -1,4 +1,4 @@
-import Dexie, { type Table, type UpdateSpec } from "dexie";
+import Dexie, { type Collection, type IndexableType, type Table, type UpdateSpec } from "dexie";
 
 export interface OfflineStoreConfig<TItem> {
     /** IndexedDB database name. */
@@ -45,6 +45,30 @@ export interface OfflineStore<TItem, TKey extends string | number> {
     get: (key: TKey) => Promise<TItem | undefined>;
     /** List records, optionally scoped to `owner` when `ownerField` is configured. */
     list: (owner?: string, options?: ListOptions<TItem>) => Promise<TItem[]>;
+    /**
+     * List the records whose `index` equals `value`, through the IndexedDB index
+     * rather than a scan, and still scoped to `owner` when `ownerField` is set.
+     *
+     * `list(owner, { filter })` reaches the same records, but it reads and
+     * deserializes **every** record of the owner to keep the matching ones — 1000
+     * predicate calls for 20 photos of one visit, in the measurement of #728. The
+     * other shortcut, `raw.where(index).equals(value)`, uses the index but drops
+     * the owner scope, so it returns another user's records on a shared device.
+     * This method takes the index and then applies the owner check to the hits.
+     *
+     * @param index - A property declared as an index in the store's `indexes`;
+     *   an undeclared one rejects with Dexie's `SchemaError`.
+     * @param value - The value the index must equal.
+     * @param owner - Owner to scope to; ignored when `ownerField` is not set.
+     * @param options - Ordering, paging and an extra predicate, as in `list`.
+     * @returns The matching records; `[]` when none match.
+     */
+    listBy: <TIndex extends keyof TItem & string>(
+        index: TIndex,
+        value: TItem[TIndex],
+        owner?: string,
+        options?: ListOptions<TItem>,
+    ) => Promise<TItem[]>;
     /** Partial update by primary key. Returns the number of records changed. */
     update: (key: TKey, changes: Partial<TItem>) => Promise<number>;
     /** Apply a modification to every record matching `owner`. */
@@ -123,13 +147,20 @@ export function buildStore<TItem, TKey extends string | number = string>(
         return { ...item, [ownerField]: owner } as TItem;
     }
 
-    async function list(owner?: string, options: ListOptions<TItem> = {}): Promise<TItem[]> {
+    /**
+     * Apply the {@link ListOptions} to a collection already narrowed by an index.
+     *
+     * @param base - The collection to read.
+     * @param options - Ordering, paging and the extra predicate.
+     * @returns The records, ordered and paged.
+     */
+    async function read(
+        base: Collection<TItem, TKey>,
+        options: ListOptions<TItem>,
+    ): Promise<TItem[]> {
         const { orderBy = keyPath, reverse = false, limit, offset, filter } = options;
 
-        let collection =
-            ownerField && owner ? table.where(ownerField).equals(owner) : table.toCollection();
-
-        if (filter) collection = collection.filter(filter);
+        const collection = filter ? base.filter(filter) : base;
 
         let items =
             orderBy === keyPath ? await collection.toArray() : await collection.sortBy(orderBy);
@@ -140,12 +171,33 @@ export function buildStore<TItem, TKey extends string | number = string>(
         return items;
     }
 
+    function list(owner?: string, options: ListOptions<TItem> = {}): Promise<TItem[]> {
+        const base =
+            ownerField && owner ? table.where(ownerField).equals(owner) : table.toCollection();
+        return read(base, options);
+    }
+
+    function listBy<TIndex extends keyof TItem & string>(
+        index: TIndex,
+        value: TItem[TIndex],
+        owner?: string,
+        options: ListOptions<TItem> = {},
+    ): Promise<TItem[]> {
+        const hits = table.where(index).equals(value as IndexableType);
+        const base =
+            ownerField && owner
+                ? hits.filter((item) => (item as Record<string, unknown>)[ownerField] === owner)
+                : hits;
+        return read(base, options);
+    }
+
     return {
         put: (item, owner) => table.put(withOwner(item, owner)) as Promise<TKey>,
         bulkPut: (items, owner) =>
             table.bulkPut(items.map((item) => withOwner(item, owner))) as Promise<TKey>,
         get: (key) => table.get(key),
         list,
+        listBy,
         update: (key, changes) => table.update(key, changes as UpdateSpec<TItem>),
         updateMany: async (owner, changes) => {
             const spec = changes as UpdateSpec<TItem>;

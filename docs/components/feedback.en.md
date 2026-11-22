@@ -707,6 +707,8 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` hides the label; `labels` overrides the per-tone text.
 
+`sync` accepts the engine with whatever payload it carries (`OfflineSync<Nota>` above): the prop is typed `SyncStatusSource`, just the `getState` and `subscribe` the badge reads. Up to 0.92.0 it was `OfflineSync<unknown>`, and every typed engine failed with TS2322 under `strict` — `enqueue` takes the payload, so the engine is not covariant in it.
+
 ## `UpdatePrompt`
 
 **When to use:** announce a new app version (service worker) and let the user reload. Pairs with `useServiceWorkerUpdate`.

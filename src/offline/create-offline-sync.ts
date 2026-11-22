@@ -363,8 +363,8 @@ function localStorageWatermark(key: string): WatermarkStore {
  *         return { items: page.items, nextCursor: page.next, serverTime: page.now };
  *     },
  *     applyRemote: async (dto) => {
- *         if (dto.deleted) return localStore.remove(dto.id);
- *         await localStore.save(fromDto(dto));
+ *         if (dto.deleted) return localStore.delete(dto.id);
+ *         await localStore.put(fromDto(dto));
  *     },
  * });
  * await sync.enqueue("create", note.id, note);

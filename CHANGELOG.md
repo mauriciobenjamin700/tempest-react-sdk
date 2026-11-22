@@ -6,6 +6,75 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
+  React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
+  precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num
+  prefetch fazia `new QueryClient({ … })` e redigitava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`,
+  `shouldRetryQuery`, `refetchOnWindowFocus: false` e `mutations.retry: 0` — a receita
+  [app de gestão](docs/recipes/example-management-app.md) fazia exatamente isso. O `QueryProvider`
+  passa a criar o seu client por ela, então os dois não divergem. O `networkMode` continua o
+  `"online"` do TanStack, de propósito (abaixo).
+- **`useDeleteMany(resource, options?)` e `DataProvider.deleteMany` (opcional)** (#715). Excluir uma
+  seleção com um `useDelete().mutateAsync` por id custava uma invalidação por id, e cada uma refazia
+  o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`
+  (`npx vitest run src/data/use-resource.test.tsx -t "ten ids"` fixa o depois: 1 e 1). O hook
+  invalida a lista uma vez e resolve com `{ deleted, failed }`, cada id com o próprio resultado; só
+  rejeita quando a chamada do provider inteira falha. `createDataProvider` implementa `deleteMany`
+  como um `DELETE` por id em paralelo; provider escrito à mão sem ele continua compilando, e o hook
+  cai no mesmo `deleteOne` por id. A receita [Painel CRUD](docs/recipes/admin-crud.md) troca o
+  `Promise.allSettled` sobre `mutateAsync` pelo hook.
+- **Doc: query que lê só o IndexedDB leva `networkMode: "always"`** (#723), com a medição. Offline,
+  no `networkMode` padrão a `queryFn` rodou **0** vezes (`pending`/`paused`); com `"always"` ou
+  `"offlineFirst"`, 1 vez e `success` (`npx vitest run src/query/create-query-client.test.tsx`). A
+  issue estava certa sobre a causa; a proposta de expor a opção no `QueryProvider` já estava
+  atendida (`defaultOptions.queries.networkMode` sempre funcionou), e trocar o default do client
+  inteiro faria as queries que vão à rede dispararem offline e falharem em vez de pausar. O SDK não
+  tem hook de leitura do IndexedDB em que a opção pudesse morar; as receitas offline apontam para a
+  seção nova de [Query](docs/query.md).
+
+### Corrigido
+
+- **`useCreate`/`useUpdate`/`useDelete`: o `onSuccess` do app não anula mais a invalidação do
+  cache** (#699). Os hooks montavam o próprio `onSuccess` e espalhavam `...options` **por cima**:
+  com `onSuccess` do app, medido **0** chamadas a `invalidateQueries` nos três, e a lista ficava
+  velha depois de criar, editar ou excluir — contra a doc, que prometia o callback "depois da
+  invalidação". Agora o `onSuccess` do app é separado das opções e roda depois de o SDK disparar a
+  invalidação; o valor que ele devolve volta ao TanStack, então um `onSuccess` assíncrono ainda
+  segura o `isPending`. A receita [Painel CRUD](docs/recipes/admin-crud.md) deixa de apresentar o
+  `mutate(vars, callbacks)` como contorno.
+- **`listQueryKey(resource)` sem `params` invalida todas as listas do recurso** (#700). Devolvia
+  `["data", resource, "list", undefined]`, e o quarto elemento `undefined` não casa por prefixo:
+  `invalidateQueries({ queryKey: listQueryKey("posts") })` — o exemplo da doc — alcançava **0** das
+  listas montadas com paginação. Agora devolve `["data", resource, "list"]`; com `params`, a chave
+  não muda. Os hooks passam a invalidar por `listQueryKey(resource)` em vez do literal. Efeito
+  colateral: a chave do `useList(resource)` **sem** params muda de hash, então essa entrada de um
+  cache persistido pela versão anterior não é reaproveitada (um fetch, uma vez).
+
+### Corrigido
+
+- **`<SyncStatusBadge sync={...}>` aceita o motor tipado** (#718). A prop era
+  `OfflineSync<unknown>`, e o motor é invariante no payload (o `enqueue` o recebe como parâmetro):
+  com `strict`, todo `OfflineSync<Visit>` reprovava com TS2322 em `sync={...}` — reproduzido com
+  `npx tsc --noEmit -p tsconfig.json` sobre um arquivo com `createOfflineSync<Visit>`. A prop passa a
+  ser `SyncStatusSource` (`Pick<OfflineSync<unknown>, "getState" | "subscribe">`, exportado da
+  raiz), só o que o badge lê. `useSyncStatus` recebe o mesmo tipo e **perde o parâmetro de tipo**
+  `TPayload`, que nada lia: quem escrevia `useSyncStatus<Visit>(sync)` tira o `<Visit>`. A receita
+  **App de campo offline** troca o contorno (`useSyncStatus` + `tone`/`pending`) por
+  `sync={visitSync}`. O exemplo de `docs/components/feedback.md` com `OfflineSync<Nota>` passava no
+  guard só porque o `@/` não resolve lá (#691); agora ele compila de verdade.
+- **Doc: `store.save(...)` não existe** (#719). Os exemplos de conflito em `docs/offline-sync.md`
+  e `docs/pwa.md` (PT e EN) e o JSDoc de `lastWriteWins`/`higherVersionWins`/`createOfflineSync`
+  chamavam `save`/`remove`, que o `OfflineStore` não tem — é `put`/`delete`. A issue dizia que os
+  blocos não tinham `import`; tinham. O guard os compilava, mas `store`/`analyses` não estavam
+  declarados, e o "Cannot find name" (TS2552) e o `dto` implícito (TS7006) caem no filtro de
+  fragmento — o `.save` nunca era checado. Os blocos agora criam o store com `createOfflineStore`, e
+  o guard reprova `save` (TS2339) se ele voltar.
+- **JSDoc do `useOfflineSync` passava `syncing`/`phase` ao `<SyncStatusBadge>`** (#720), props que
+  ele não tem (TS2322); em JS puro o badge ficava em `idle` com pendências na fila. O `@example`
+  agora usa `sync={notesSync}` e o `flush` do hook.
+
+### Adicionado
+
 - **`/charts`: `labels` separa o nome da série da chave do dado** (#739). A legenda e o tooltip
   mostravam a própria chave de `categories`, e para traduzir a receita do app de gestão remontava cada
   linha com a frase traduzida como chave (`[t("…")]: day.done`). Agora
@@ -72,6 +141,9 @@ checkout screen` 6 280 → 6 550 (teto 6,4 → 6,6 kB); `slice: DataTable with i
   (teto 3 kB, dentro). O custo é o contexto do i18n e as frases em dois idiomas de cada componente
   da fatia (a `Pagination`, no `DataTable`, leva sete). A primeira versão, com uma tabela única,
   custava +656 B na fatia `typical app`; separar por componente baixou para +297 B.
+- **Tetos do barrel remedidos sobre a soma com a `main` em `50a4572`** (`npm run build && npx size-limit --json`):
+  `ceiling: full barrel ESM` 173 520 B (teto 173,5 → 173,6 kB); `ceiling: full barrel CJS` 205 729 B
+  (teto 205,5 → 205,8 kB). Só os tetos do barrel; as fatias seguem dentro dos tetos acima.
 
 ### Interno
 
@@ -91,6 +163,13 @@ color-contrast` em 19–22 nós por célula (98 → 117 em 1280, 112 → 132/134
   com `allowed_actions=selected` só para as actions da GitHub, e mostra o comando que corrige cada
   item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
   Actions") pela exceção do Pages. Sem mudança no pacote publicado.
+
+### Budgets
+
+- **`ceiling: full barrel CJS` sobe de 204 kB para 204,3 kB** pelo `useDeleteMany`, o
+  `DataProvider.deleteMany` e o `createQueryClient` (`npm run build && npx size-limit --json`):
+  204 232 B neste branch, contra 203 908 B medidos na `main` ao mergear o #693 (+324 B). O barrel
+  ESM mede 172 671 B, dentro do teto de 172,7 kB; nenhuma fatia mudou de teto.
 
 ## [0.92.0] — 2026-11-21
 

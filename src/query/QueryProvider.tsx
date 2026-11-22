@@ -1,14 +1,16 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { DefaultOptions } from "@tanstack/react-query";
-import { STALE_TIME, CACHE_TIME } from "./constants";
-import { shouldRetryQuery } from "./retry-policy";
+import { QueryClientProvider } from "@tanstack/react-query";
+import type { DefaultOptions, QueryClient } from "@tanstack/react-query";
+import { createQueryClient } from "./create-query-client";
 import { warnOnForeignClient } from "./foreign-client-warning";
 
 export interface QueryProviderProps {
     children: ReactNode;
-    /** Pass an existing client to share it across roots. */
+    /**
+     * Pass an existing client to share it across roots, or to reach it outside
+     * React. Build it with {@link createQueryClient} to keep the SDK defaults.
+     */
     client?: QueryClient;
     /** Overrides for the default options applied when no `client` is provided. */
     defaultOptions?: DefaultOptions;
@@ -17,7 +19,7 @@ export interface QueryProviderProps {
 /**
  * Wrapper around `QueryClientProvider` that bootstraps a `QueryClient` with
  * sane SDK defaults (5-minute stale time, 30-minute gc time, one retry for
- * failures worth replaying).
+ * failures worth replaying), via {@link createQueryClient}.
  *
  * Retries follow {@link shouldRetryQuery} rather than a flat count: a 4xx other
  * than 408/429 is the server refusing on purpose, and replaying it only doubles
@@ -27,23 +29,7 @@ export function QueryProvider({ children, client, defaultOptions }: QueryProvide
     warnOnForeignClient(client);
 
     const [internalClient] = useState<QueryClient>(
-        () =>
-            client ??
-            new QueryClient({
-                defaultOptions: {
-                    queries: {
-                        staleTime: STALE_TIME.DEFAULT,
-                        gcTime: CACHE_TIME.DEFAULT,
-                        retry: shouldRetryQuery,
-                        refetchOnWindowFocus: false,
-                        ...(defaultOptions?.queries ?? {}),
-                    },
-                    mutations: {
-                        retry: 0,
-                        ...(defaultOptions?.mutations ?? {}),
-                    },
-                },
-            }),
+        () => client ?? createQueryClient(defaultOptions),
     );
 
     return <QueryClientProvider client={internalClient}>{children}</QueryClientProvider>;

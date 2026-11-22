@@ -150,28 +150,11 @@ One file, mirroring the backend JSON field by field. The names stay in English a
 
 ```ts
 // src/lib/api.ts
-import { QueryClient } from "@tanstack/react-query";
-import {
-    CACHE_TIME,
-    STALE_TIME,
-    createQueryKeys,
-    createTempestAuth,
-    shouldRetryQuery,
-} from "tempest-react-sdk";
+import { createQueryClient, createQueryKeys, createTempestAuth } from "tempest-react-sdk";
 
 import type { User } from "@/types";
 
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: STALE_TIME.DEFAULT,
-            gcTime: CACHE_TIME.DEFAULT,
-            retry: shouldRetryQuery,
-            refetchOnWindowFocus: false,
-        },
-        mutations: { retry: 0 },
-    },
-});
+export const queryClient = createQueryClient();
 
 export const auth = createTempestAuth<User>({
     baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
@@ -203,8 +186,8 @@ This file is the heart of the app. Piece by piece:
 - **`retry: true`** retries a `GET` that failed on the network or with a `5xx`. A write is never retried on its own — a replayed `POST` could register the patient twice.
 - **`onSessionEnd`** clears the query cache when the session ends — on **Sign out**, on expiry and on account switch. Without it, the receptionist who signs in after the manager would see, for a moment, the revenue left in the cache.
 
-!!! warning "Why create the `QueryClient` by hand"
-    `AppProviders` creates a `QueryClient` on its own, but it stays locked inside, and `onSessionEnd` needs to call `clear()` on it. So the app creates its own and hands it to the provider. The `defaultOptions` copy the SDK's (`STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`, `shouldRetryQuery`), so the behaviour stays the same — see [Query → Provider](../query.md#provider).
+!!! note "Why the app creates the `QueryClient`"
+    `AppProviders` creates a `QueryClient` on its own, but it stays locked inside, and `onSessionEnd` needs to call `clear()` on it. So the app creates its own with `createQueryClient()` and hands it to the provider. It is the same client, with the same SDK defaults, none of them retyped — see [`createQueryClient`](../query.md#createqueryclient-the-client-outside-react).
 
 **`createQueryKeys`** gives every cache key a common prefix. Note the `patients()` / `patientList(search)` pair: the list is cached per search, and invalidating `patients()` drops **every** search at once after a registration.
 

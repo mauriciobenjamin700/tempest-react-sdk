@@ -25,6 +25,7 @@ export { higherVersionWins, lastWriteWins } from "./conflict";
 export { useOfflineSync, useSyncStatus } from "./use-offline-sync";
 export type {
     SyncStatus,
+    SyncStatusSource,
     SyncTone,
     UseOfflineSyncOptions,
     UseOfflineSyncResult,

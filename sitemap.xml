@@ -666,6 +666,104 @@
         <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/design/typing/"/>
     </url>
     <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/admin-crud/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/admin-crud/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/admin-crud/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/app-from-scratch/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/app-from-scratch/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/app-from-scratch/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/auth-flow/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/auth-flow/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/auth-flow/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/br-signup-checkout/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/br-signup-checkout/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/br-signup-checkout/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/command-palette/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/command-palette/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/command-palette/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/dark-mode/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/dark-mode/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/dark-mode/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/example-management-app/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/example-management-app/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/example-management-app/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/field-app-offline/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/field-app-offline/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/field-app-offline/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/live-trip/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/live-trip/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/live-trip/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/messenger/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/messenger/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/messenger/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/offline-first/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/offline-first/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/offline-first/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/search-list/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/search-list/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/search-list/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/zod-form/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/zod-form/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/zod-form/"/>
+    </url>
+    <url>
         <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/tutorial/</loc>
         <lastmod>2026-11-22</lastmod>
         <changefreq>daily</changefreq>
@@ -1371,6 +1469,104 @@
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/design/typing/"/>
         <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/design/typing/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/admin-crud/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/admin-crud/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/admin-crud/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/app-from-scratch/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/app-from-scratch/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/app-from-scratch/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/auth-flow/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/auth-flow/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/auth-flow/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/br-signup-checkout/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/br-signup-checkout/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/br-signup-checkout/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/command-palette/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/command-palette/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/command-palette/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/dark-mode/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/dark-mode/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/dark-mode/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/example-management-app/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/example-management-app/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/example-management-app/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/field-app-offline/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/field-app-offline/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/field-app-offline/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/live-trip/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/live-trip/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/live-trip/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/messenger/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/messenger/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/messenger/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/offline-first/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/offline-first/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/offline-first/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/search-list/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/search-list/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/search-list/"/>
+    </url>
+    <url>
+        <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/zod-form/</loc>
+        <lastmod>2026-11-22</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/zod-form/"/>
+        <xhtml:link rel="alternate" hreflang="pt" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/recipes/zod-form/"/>
     </url>
     <url>
         <loc>https://mauriciobenjamin700.github.io/tempest-react-sdk/en/tutorial/</loc>

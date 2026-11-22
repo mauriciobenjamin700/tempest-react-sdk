@@ -213,7 +213,7 @@ export const productSchema = z.object({
     .regex(/^[A-Z0-9-]{4,20}$/, "De 4 a 20 caracteres: letras, números e hífen"),
   category: z
     .union([z.enum(CATEGORIES), z.literal("")])
-    .refine((value) => value.length > 0, "Escolha uma categoria"),
+    .refine((value) => value !== "", "Escolha uma categoria"),
   price_cents: z.number().int().min(1, "Informe o preço"),
   stock: z.coerce
     .number()
@@ -222,9 +222,10 @@ export const productSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export type ProductFormValues = z.infer<typeof productSchema>;
+export type ProductFormInput = z.input<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productSchema>;
 
-export const EMPTY_PRODUCT: ProductFormValues = {
+export const EMPTY_PRODUCT: ProductFormInput = {
   name: "",
   sku: "",
   category: "",
@@ -233,7 +234,7 @@ export const EMPTY_PRODUCT: ProductFormValues = {
   status: "draft",
 };
 
-export function toFormValues(product: Product | null): ProductFormValues {
+export function toFormValues(product: Product | null): ProductFormInput {
   if (!product) return EMPTY_PRODUCT;
   return {
     name: product.name,
@@ -254,7 +255,11 @@ O schema zod é a fonte de verdade do formulário. Três detalhes:
 - **`sku`** passa por `toUpperCase()` antes do `regex`: a pessoa digita `mer-cafe-500` e o backend
   recebe `MER-CAFE-500`.
 - **`category`** aceita `""` na entrada e recusa no `refine`. Assim o formulário de cadastro abre
-  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido.
+  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido. O
+  `value !== ""` é um predicado de tipo: a **saída** do schema (`ProductFormValues`, o que o
+  `save` recebe) fica só com as categorias, enquanto a **entrada** (`ProductFormInput`, o tipo dos
+  valores iniciais) aceita o `""`. O `useZodForm` tipa os campos pela entrada e o `handleSubmit`
+  pela saída, então os dois lados batem sem cast.
 - **`stock`** usa `z.coerce.number()`, porque um `<input type="number">` entrega texto.
 
 `toFormValues` converte um produto da API nos valores do formulário. Sem produto, devolve o
@@ -472,6 +477,7 @@ import {
   Input,
   MoneyInput,
   Select,
+  applyApiFieldErrors,
   isApiError,
   toOptions,
   useCreate,
@@ -518,10 +524,8 @@ export function ProductFormDrawer({ open, product, onClose }: ProductFormDrawerP
   }, [open, product, reset]);
 
   function handleError(error: unknown): void {
+    applyApiFieldErrors(form, error);
     if (isApiError(error)) {
-      for (const [field, message] of Object.entries(error.fields ?? {})) {
-        if (field in EMPTY_PRODUCT) setError(field as keyof ProductFormValues, { message });
-      }
       if (error.code === "PRODUCT_SKU_TAKEN") {
         setError("sku", { message: ERROR_CODES.PRODUCT_SKU_TAKEN });
       }
@@ -606,7 +610,9 @@ O mesmo componente cadastra e edita: `product === null` é cadastro.
 O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 1. `error.fields` traz o campo culpado, venha ele da lista de validação do FastAPI ou da chave
-   `field` do `tempest-fastapi-sdk`. Cada mensagem vai para o seu input com `setError`.
+   `field` do `tempest-fastapi-sdk`. O `applyApiFieldErrors` põe cada mensagem no seu input e
+   foca o primeiro; um nome que o formulário não tem volta em `unmatched`, em vez de marcar um
+   input que não existe.
 2. `PRODUCT_SKU_TAKEN` ganha uma frase escrita por você, no campo SKU.
 3. [`describeApiError`](../http.md#do-erro-tipado-para-a-frase-na-tela-describeapierror) monta a
    frase do toast: a sua frase para o código, "sem conexão" para `status: 0`, o `detail` do

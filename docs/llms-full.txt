@@ -20303,6 +20303,101 @@ const form = useZodForm(loginSchema, { defaultValues: { email: "", password: "" 
 </Form>;
 ```
 
+#### Entrada e saída — select obrigatório que começa vazio
+
+O `useZodForm` tipa o formulário pelos **dois lados** do schema: os campos, `defaultValues`, `watch` e `setValue` pela **entrada** (`z.input`, o que o input guarda enquanto a pessoa edita), e o `handleSubmit` pela **saída** (`z.output`, o que o parse devolve). É o que deixa um select obrigatório abrir vazio sem mentir para o tipo do submit:
+
+```tsx
+import { FormField, FormProvider, Select, toOptions, useZodForm } from "tempest-react-sdk";
+import { z } from "zod";
+
+const STATUS = { active: "Ativo", paused: "Pausado" };
+
+const schema = z.object({
+    status: z
+        .union([z.enum(["active", "paused"]), z.literal("")])
+        .refine((value) => value !== "", "Escolha um status"),
+    stock: z.coerce.number().int().min(0),
+});
+
+export function StatusForm({ onSave }: { onSave: (values: z.output<typeof schema>) => void }) {
+    const form = useZodForm(schema, { defaultValues: { status: "", stock: "" } });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} noValidate>
+                <FormField name="status" label="Status" required>
+                    <Select placeholder="Selecione" options={toOptions(STATUS)} />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **`status: ""`** compila como valor inicial porque a entrada do schema aceita `""`.
+- **`value !== ""`** é um predicado de tipo: a saída fica só com `"active" | "paused"`, e o `onSave` nunca recebe `""`.
+- **`stock`** guarda o texto que o input digitou (`unknown` na entrada) e chega ao submit como `number`.
+
+!!! danger "Até a 0.92.0, os dois lados eram a saída"
+    Com os campos tipados pela saída, `defaultValues: { status: "" }` não compilava, e o contorno (`refine((value) => value.length > 0)`, sem predicado) deixava o `""` vazar para o tipo que o submit recebe. E o tipo do formulário era **inferido do `defaultValues`**: `{ status: "" }` tipava o campo como `string` e perdia o enum do schema. Hoje o `defaultValues` é `NoInfer` — o tipo vem só do schema. Quem anotava os valores iniciais com `z.infer` passa a anotar com `z.input`.
+
+### 4. Erro do servidor nos campos — `applyApiFieldErrors`
+
+O `422` do FastAPI (ou o erro do `tempest-fastapi-sdk` que nomeia `field`) chega como `error.fields`, `{ nome: mensagem }`. `applyApiFieldErrors` põe cada mensagem no campo do formulário com aquele nome e foca o primeiro:
+
+```tsx
+import { useMutation } from "@tanstack/react-query";
+import {
+    FormField,
+    FormProvider,
+    Input,
+    applyApiFieldErrors,
+    createApiClient,
+    useDescribeApiError,
+    useToast,
+    useZodForm,
+} from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({ baseURL: "/api" });
+const schema = z.object({ name: z.string().min(3), email: z.email() });
+
+export function ClienteForm() {
+    const toast = useToast();
+    const describe = useDescribeApiError();
+    const form = useZodForm(schema, { defaultValues: { name: "", email: "" } });
+    const save = useMutation({
+        mutationFn: (values: z.output<typeof schema>) => api.post("/clientes", { body: values }),
+        onError: (error) => {
+            const { marked, unmatched } = applyApiFieldErrors(form, error);
+            const outros = Object.values(unmatched);
+            if (marked.length === 0) toast.error(describe(error, "Não foi possível salvar."));
+            else if (outros.length > 0) toast.error(outros.join(" "));
+        },
+    });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit((values) => save.mutate(values))} noValidate>
+                <FormField name="name" label="Nome">
+                    <Input />
+                </FormField>
+                <FormField name="email" label="E-mail">
+                    <Input type="email" />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **Só nomes do formulário são marcados.** Por padrão, um nome conta quando `form.getValues(nome)` não é `undefined` — todo campo com valor inicial, que é como o `useZodForm` se usa. Passe `{ fields: [...] }` para decidir a lista à mão.
+- **O resto volta em `unmatched`**, chaveado pelo nome: um input que não existe nunca mostraria a mensagem, e ela ficaria presa num erro que ninguém consegue limpar.
+- **`{ focus: false }`** marca sem mover o foco.
+- Qualquer outro erro — rede, `500`, `Error` comum — não marca nada e devolve `{ marked: [], unmatched: {} }`.
+
+!!! info "É o mesmo código do `AuthForm`"
+    A regra (marcar só o que existe, focar o primeiro, devolver o resto) era privada do `AuthForm`; cada formulário fora dele reescrevia o laço de `setError` — e as três receitas que o reescreviam discordavam entre si. O `AuthForm` agora usa o `applyApiFieldErrors`.
+
 ## Exemplo completo — schema → provider → fields → submit
 
 Os três trechos acima são fatias da mesma história. Aqui está um form ponta-a-ponta
@@ -20468,6 +20563,8 @@ Mantenha schemas em `src/schemas/<dominio>.ts`, exporte o `z.infer` em `src/type
 
 - O SDK separa **layout** (`Form`/`FormSection`/`FormRow`/`FormActions`) de **validação** (zod) — adote um sem o outro.
 - A validação tem três degraus: `validateForm` (agnóstico), `zodResolver` (RHF), `useZodForm` (tudo-em-um).
+- `useZodForm` tipa os campos pela **entrada** do schema e o `handleSubmit` pela **saída**: select obrigatório abre com `""` e o submit só vê o enum.
+- `applyApiFieldErrors(form, error)` põe o `error.fields` de um `422` nos campos certos e devolve o que não casou em `unmatched`.
 - Um único **schema zod** dirige tipo (`z.infer`), validação e mensagens de erro.
 - `<FormProvider>` + `<FormField>` removem o `<Controller>` repetido e propagam `error` + `aria-invalid` pros controles.
 - `handleSubmit` só chama seu `onSubmit` com valores já validados.
@@ -25490,7 +25587,7 @@ O backend **sabe** qual campo derrubou a requisição — ele diz o nome. O que 
 Agora as três chaves singulares que o `tempest-fastapi-sdk` usa entram no mesmo `error.fields`:
 
 ```tsx
-import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+import { applyApiFieldErrors, createApiClient, describeApiError } from "tempest-react-sdk";
 
 const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -25498,17 +25595,13 @@ async function salvarEndereco(values: { city: string; phone: string }): Promise<
     try {
         await api.post("/api/enderecos", { body: values });
     } catch (err) {
-        if (isApiError(err) && err.fields) {
-            for (const [field, message] of Object.entries(err.fields)) {
-                setError(field, { message });
-            }
-        }
+        applyApiFieldErrors(form, err);
         toast.error(describeApiError(err, "Não foi possível salvar o endereço"));
     }
 }
 ```
 
-Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `setError("city", …)` cola a frase no input certo.
+Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `applyApiFieldErrors(form, err)` cola a frase no input certo (um nome que o formulário não tem volta em `unmatched`, em vez de marcar um input que não existe).
 
 !!! note "A ordem de precedência"
     `detail[].loc` (lista do FastAPI) → `detail.field` → `field` → `details.field`. A lista ganha porque um app `tempest-fastapi-sdk` sem handler de `RequestValidationError` continua respondendo o 422 padrão do FastAPI. O `details` responde por último: ele é o saco de contexto genérico do `AppException`, e o `field` dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.
@@ -29982,7 +30075,7 @@ export const productSchema = z.object({
     .regex(/^[A-Z0-9-]{4,20}$/, "De 4 a 20 caracteres: letras, números e hífen"),
   category: z
     .union([z.enum(CATEGORIES), z.literal("")])
-    .refine((value) => value.length > 0, "Escolha uma categoria"),
+    .refine((value) => value !== "", "Escolha uma categoria"),
   price_cents: z.number().int().min(1, "Informe o preço"),
   stock: z.coerce
     .number()
@@ -29991,9 +30084,10 @@ export const productSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export type ProductFormValues = z.infer<typeof productSchema>;
+export type ProductFormInput = z.input<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productSchema>;
 
-export const EMPTY_PRODUCT: ProductFormValues = {
+export const EMPTY_PRODUCT: ProductFormInput = {
   name: "",
   sku: "",
   category: "",
@@ -30002,7 +30096,7 @@ export const EMPTY_PRODUCT: ProductFormValues = {
   status: "draft",
 };
 
-export function toFormValues(product: Product | null): ProductFormValues {
+export function toFormValues(product: Product | null): ProductFormInput {
   if (!product) return EMPTY_PRODUCT;
   return {
     name: product.name,
@@ -30023,7 +30117,11 @@ O schema zod é a fonte de verdade do formulário. Três detalhes:
 - **`sku`** passa por `toUpperCase()` antes do `regex`: a pessoa digita `mer-cafe-500` e o backend
   recebe `MER-CAFE-500`.
 - **`category`** aceita `""` na entrada e recusa no `refine`. Assim o formulário de cadastro abre
-  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido.
+  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido. O
+  `value !== ""` é um predicado de tipo: a **saída** do schema (`ProductFormValues`, o que o
+  `save` recebe) fica só com as categorias, enquanto a **entrada** (`ProductFormInput`, o tipo dos
+  valores iniciais) aceita o `""`. O `useZodForm` tipa os campos pela entrada e o `handleSubmit`
+  pela saída, então os dois lados batem sem cast.
 - **`stock`** usa `z.coerce.number()`, porque um `<input type="number">` entrega texto.
 
 `toFormValues` converte um produto da API nos valores do formulário. Sem produto, devolve o
@@ -30241,6 +30339,7 @@ import {
   Input,
   MoneyInput,
   Select,
+  applyApiFieldErrors,
   isApiError,
   toOptions,
   useCreate,
@@ -30287,10 +30386,8 @@ export function ProductFormDrawer({ open, product, onClose }: ProductFormDrawerP
   }, [open, product, reset]);
 
   function handleError(error: unknown): void {
+    applyApiFieldErrors(form, error);
     if (isApiError(error)) {
-      for (const [field, message] of Object.entries(error.fields ?? {})) {
-        if (field in EMPTY_PRODUCT) setError(field as keyof ProductFormValues, { message });
-      }
       if (error.code === "PRODUCT_SKU_TAKEN") {
         setError("sku", { message: ERROR_CODES.PRODUCT_SKU_TAKEN });
       }
@@ -30375,7 +30472,9 @@ O mesmo componente cadastra e edita: `product === null` é cadastro.
 O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 1. `error.fields` traz o campo culpado, venha ele da lista de validação do FastAPI ou da chave
-   `field` do `tempest-fastapi-sdk`. Cada mensagem vai para o seu input com `setError`.
+   `field` do `tempest-fastapi-sdk`. O `applyApiFieldErrors` põe cada mensagem no seu input e
+   foca o primeiro; um nome que o formulário não tem volta em `unmatched`, em vez de marcar um
+   input que não existe.
 2. `PRODUCT_SKU_TAKEN` ganha uma frase escrita por você, no campo SKU.
 3. [`describeApiError`](../http.md#do-erro-tipado-para-a-frase-na-tela-describeapierror) monta a
    frase do toast: a sua frase para o código, "sem conexão" para `status: 0`, o `detail` do
@@ -31699,14 +31798,13 @@ import {
   Input,
   PhoneInput,
   SegmentedControl,
+  applyApiFieldErrors,
   describeApiError,
-  isApiError,
   unmask,
   useBreakpoint,
   useViaCEP,
   useWatch,
   useZodForm,
-  type Path,
   type SubmitHandler,
 } from "tempest-react-sdk";
 import { EMPTY_SIGNUP, signupSchema, type SignupValues } from "@/checkout/signup-schema";
@@ -31778,11 +31876,7 @@ export function SignupStep({ onCreated }: SignupStepProps) {
       });
       onCreated(customer);
     } catch (error) {
-      if (isApiError(error) && error.fields) {
-        for (const [field, message] of Object.entries(error.fields)) {
-          setError(field as Path<SignupValues>, { message });
-        }
-      }
+      applyApiFieldErrors(form, error);
       setSubmitError(
         describeApiError(error, "Não foi possível criar sua conta", { codes: SIGNUP_ERRORS }),
       );
@@ -31890,7 +31984,7 @@ Peça por peça:
    livres para digitar.
 5. **`unmask` antes de enviar.** A tela mostra `529.982.247-25`; o backend recebe `52998224725`.
 6. **Erro do backend em dois lugares.** O que nomeia um campo (`error.fields`) vai para o input
-   certo com `setError`. A frase geral vai para o `<Alert>` do topo, montada pelo
+   certo com `applyApiFieldErrors`. A frase geral vai para o `<Alert>` do topo, montada pelo
    `describeApiError` com o `code` `DOCUMENT_TAKEN` traduzido.
 
 !!! tip "CEP de cidade pequena não tem rua"
@@ -34363,8 +34457,8 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
@@ -34387,14 +34481,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -34434,11 +34520,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -34499,7 +34581,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
 - **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
-- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `onError` copia cada mensagem para o campo do mesmo nome com `form.setError`, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
+- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.
 

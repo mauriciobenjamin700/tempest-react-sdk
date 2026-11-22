@@ -1142,8 +1142,8 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
@@ -1166,14 +1166,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -1213,11 +1205,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -1278,7 +1266,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **`CPFInput` and `PhoneInput`** mask while the person types. Before sending, `unmask` strips the punctuation: the backend stores digits only.
 - **An optional field becomes `null`.** Empty email and health plan go out as `null`, which is what the backend expects for "not provided".
 - **The health plan `Select`** has "Particular" (self-pay) as a real option, with an empty value. A `placeholder` would be disabled, and the receptionist could not move a patient back to self-pay.
-- **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `onError` copies each message to the field of the same name with `form.setError`, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
+- **Server errors on the right field.** FastAPI's `422` arrives with `error.fields`. `applyApiFieldErrors` in `onError` puts each message on the field of the same name and focuses the first, and `PATIENT_CPF_TAKEN` becomes "Já existe um paciente com este CPF.".
 - **`key` on the modal.** The page mounts the modal with `key={patient.id}`. Opening another patient creates a new form, with the right values — no manual `reset()`.
 - **`fullscreenOnMobile`**: on phones, the form takes the whole screen instead of a cramped dialog.
 

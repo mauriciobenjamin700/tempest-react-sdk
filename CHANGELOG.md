@@ -6,6 +6,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`applyApiFieldErrors(form, error, options?)`** — copia o `error.fields` de um `422` para os
+  campos de qualquer formulário (`useZodForm` ou `useForm`), não só do `AuthForm` (#742). Marca só
+  nomes que o formulário tem (por padrão, os que `getValues` não devolve `undefined`; ou a lista
+  de `fields`), foca o primeiro (`focus: false` desliga) e devolve `{ marked, unmatched }`, com
+  as mensagens que não casaram chaveadas pelo nome. É a regra que era privada do `AuthForm`, que
+  agora usa o helper sem mudar de comportamento. Medido: três receitas reescreviam o laço de
+  `setError`, e discordavam — `br-signup-checkout` marcava todo nome (inclusive input que não
+  existe), `example-management-app` filtrava por uma lista fixa à parte do schema,
+  `admin-crud` por `field in EMPTY_PRODUCT`; nenhuma focava. As três (PT e EN) e
+  `integration-fastapi` passam a usar o helper.
 - **`formatTime(value, options?)`** — `HH:mm` em pt-BR, ao lado de `formatDate` e
   `formatDateTime`, no mesmo cache de `Intl` (#709). Lê três formas: instante (`Date` ou ISO com
   hora, convertido para o fuso local), hora do dia de uma coluna `time` (`"14:30:00"` →
@@ -13,6 +23,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   receita montava à mão nem servia para esse campo) e data sem hora, que responde `""` em vez de
   inventar `"00:00"`. Ausente responde `"—"`, como os irmãos. A receita **Viagem ao vivo** (PT e
   EN) troca o `Intl.DateTimeFormat` próprio (`formatClock`) por ele.
+
+### Mudado
+
+- **`useZodForm` tipa os campos pela entrada do schema e o submit pela saída** (#717). Campos,
+  `defaultValues`, `watch`, `setValue` e `setError` usam `z.input`; o `handleSubmit` recebe
+  `z.output` (o que o resolver já entregava em runtime). Select obrigatório que abre vazio vira
+  `z.union([z.enum(X), z.literal("")]).refine((value) => value !== "", msg)`: a entrada aceita o
+  `""` e a saída fica só com o enum. Medição: a issue dizia que o predicado de tipo "quebrava o
+  default"; o que quebrava era o tipo do formulário ser a **saída**. O contorno da receita
+  (`value.length > 0`, sem predicado) compilava, mas deixava `""` no tipo que o `save` recebia. E
+  havia um defeito maior: o tipo do formulário era **inferido do `defaultValues`** —
+  `{ status: "" }` tipava o campo como `string` e perdia o enum. `options` agora é `NoInfer`, e o
+  tipo vem só do schema. **Mudança de tipo:** valor inicial anotado com `z.infer` num schema com
+  `z.coerce`, `.default()` ou refine com predicado passa a pedir `z.input`; campo de
+  `z.coerce.number()` é `unknown` no `watch` (é o texto do input). A receita **Painel CRUD
+  (admin)** (PT e EN) troca `value.length > 0` por `value !== ""` e anota os iniciais com
+  `z.input`.
 
 ### Corrigido
 

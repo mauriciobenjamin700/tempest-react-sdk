@@ -220,7 +220,7 @@ export const productSchema = z.object({
     .regex(/^[A-Z0-9-]{4,20}$/, "De 4 a 20 caracteres: letras, números e hífen"),
   category: z
     .union([z.enum(CATEGORIES), z.literal("")])
-    .refine((value) => value.length > 0, "Escolha uma categoria"),
+    .refine((value) => value !== "", "Escolha uma categoria"),
   price_cents: z.number().int().min(1, "Informe o preço"),
   stock: z.coerce
     .number()
@@ -229,9 +229,10 @@ export const productSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export type ProductFormValues = z.infer<typeof productSchema>;
+export type ProductFormInput = z.input<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productSchema>;
 
-export const EMPTY_PRODUCT: ProductFormValues = {
+export const EMPTY_PRODUCT: ProductFormInput = {
   name: "",
   sku: "",
   category: "",
@@ -240,7 +241,7 @@ export const EMPTY_PRODUCT: ProductFormValues = {
   status: "draft",
 };
 
-export function toFormValues(product: Product | null): ProductFormValues {
+export function toFormValues(product: Product | null): ProductFormInput {
   if (!product) return EMPTY_PRODUCT;
   return {
     name: product.name,
@@ -261,7 +262,11 @@ The zod schema is the form's source of truth. Three details:
 - **`sku`** goes through `toUpperCase()` before the `regex`: the person types `mer-cafe-500` and
   the backend receives `MER-CAFE-500`.
 - **`category`** accepts `""` as input and rejects it in the `refine`. That way the create form
-  opens **without** a category, instead of saving the first option nobody picked.
+  opens **without** a category, instead of saving the first option nobody picked. `value !== ""`
+  is a type predicate: the schema's **output** (`ProductFormValues`, what `save` receives) keeps
+  only the categories, while its **input** (`ProductFormInput`, the type of the initial values)
+  accepts `""`. `useZodForm` types the fields by the input and `handleSubmit` by the output, so
+  both sides line up without a cast.
 - **`stock`** uses `z.coerce.number()`, because an `<input type="number">` hands you text.
 
 `toFormValues` turns an API product into form values. Without a product, it returns the empty
@@ -482,6 +487,7 @@ import {
   Input,
   MoneyInput,
   Select,
+  applyApiFieldErrors,
   isApiError,
   toOptions,
   useCreate,
@@ -528,10 +534,8 @@ export function ProductFormDrawer({ open, product, onClose }: ProductFormDrawerP
   }, [open, product, reset]);
 
   function handleError(error: unknown): void {
+    applyApiFieldErrors(form, error);
     if (isApiError(error)) {
-      for (const [field, message] of Object.entries(error.fields ?? {})) {
-        if (field in EMPTY_PRODUCT) setError(field as keyof ProductFormValues, { message });
-      }
       if (error.code === "PRODUCT_SKU_TAKEN") {
         setError("sku", { message: ERROR_CODES.PRODUCT_SKU_TAKEN });
       }
@@ -616,7 +620,9 @@ The same component creates and edits: `product === null` means create.
 Error handling is what separates a demo screen from a production one:
 
 1. `error.fields` carries the offending field, whether it came from FastAPI's validation list or
-   from `tempest-fastapi-sdk`'s `field` key. Each message goes to its input with `setError`.
+   from `tempest-fastapi-sdk`'s `field` key. `applyApiFieldErrors` puts each message on its input
+   and focuses the first; a name the form does not have comes back in `unmatched` instead of
+   marking an input that does not exist.
 2. `PRODUCT_SKU_TAKEN` gets a sentence you wrote, on the SKU field.
 3. [`describeApiError`](../http.md#from-a-typed-error-to-the-sentence-on-screen-describeapierror)
    builds the toast sentence: your sentence for the code, "offline" for `status: 0`, the backend

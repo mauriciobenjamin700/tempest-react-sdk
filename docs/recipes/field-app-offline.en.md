@@ -293,6 +293,7 @@ import {
 } from "tempest-react-sdk";
 import { auth, currentTechnicianId } from "@/lib/auth";
 import { photos, visits } from "@/visits/db";
+import { listPhotos } from "@/visits/photos";
 import {
   fromDto,
   toPayload,
@@ -300,16 +301,12 @@ import {
   type Visit,
   type VisitChangesPage,
   type VisitDto,
-  type VisitPhoto,
 } from "@/visits/types";
 
 const PHOTO_CHUNK_SIZE = 256 * 1024;
 
 async function uploadPendingPhotos(visitId: string): Promise<PhotoRef[]> {
-  const list: VisitPhoto[] = await photos.raw
-    .where("visit_id")
-    .equals(visitId)
-    .sortBy("taken_at");
+  const list = await listPhotos(visitId);
   const refs: PhotoRef[] = [];
 
   for (const photo of list) {
@@ -336,6 +333,7 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   databaseName: "CampoVisitasOutbox",
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
+  foreignEntries: "hold",
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -476,11 +474,17 @@ delivery the engine checks again:
 | --- | --- |
 | the same technician | delivered |
 | nobody | stays queued until they come back |
-| another technician | **dropped unsent** |
+| another technician | **stays queued**, unsent, until its owner is back |
 
-The third row keeps the server from receiving Carlos's inspection with Ana's token. But it
-also means: if Carlos signs out with pending visits and Ana signs in and syncs, Carlos's
-visits are lost. That is why the sign-out button (further down) **warns** first. 👇
+The third row is `foreignEntries: "hold"`. It keeps the server from receiving Carlos's
+inspection with Ana's token **and** keeps Carlos's work: if he signs out with pending
+visits and Ana signs in and syncs, his visits stay on the tablet and go out when he signs
+back in. The engine default (`"drop"`) would delete them — it suits a personal device, not
+the cooperative's tablet. Details in
+[Offline Sync › Shared device](../offline-sync.md#the-fast-path-createofflinesync).
+
+A visit **of Carlos's** that Ana edits waits for his edit to go out first: per-record order
+holds for held entries too.
 
 #### `pullPage` and `applyRemote`: what comes from the office
 
@@ -570,9 +574,17 @@ export async function addPhoto(visitId: string, image: CompressedImage): Promise
 }
 
 export function listPhotos(visitId: string): Promise<VisitPhoto[]> {
-  return photos.raw.where("visit_id").equals(visitId).sortBy("taken_at");
+  const owner = currentTechnicianId();
+  if (owner === null) throw new Error("Your session expired. Sign in again to see the photos.");
+  return photos.listBy("visit_id", visitId, owner, { orderBy: "taken_at" });
 }
 ```
+
+[`listBy`](../offline.md#listing-by-another-index-listby) goes through the `visit_id` index
+and stays bound to the owner: calling `photos.raw.where("visit_id")` on Dexie directly also
+used the index, but returned another technician's photo for the same visit. With nobody
+signed in, the function throws instead of calling `listBy` without an owner — which would
+list everyone's photos.
 
 The photo enters the database with `upload_url: null`. Whoever sends it to the server is
 `deliver`, the next time the visit syncs.
@@ -671,58 +683,39 @@ export function SyncPanel() {
 ```tsx
 // src/components/LogoutButton.tsx
 import { LogOut } from "lucide-react";
-import { useState } from "react";
-import { Button, ConfirmDialog, useOfflineSync } from "tempest-react-sdk";
+import { Button } from "tempest-react-sdk";
 import { auth } from "@/lib/auth";
 import { visitSync } from "@/visits/sync";
 
 export function LogoutButton() {
-  const { pending } = useOfflineSync(visitSync, { flushOnOnline: false });
-  const [asking, setAsking] = useState(false);
-
   async function signOut(): Promise<void> {
     visitSync.resetWatermark();
     await auth.logout();
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        iconOnly
-        aria-label="Sair"
-        onClick={() => (pending > 0 ? setAsking(true) : void signOut())}
-      >
-        <LogOut size={18} />
-      </Button>
-      <ConfirmDialog
-        open={asking}
-        variant="danger"
-        title={`${pending} alterações ainda não foram enviadas`}
-        description="Elas ficam guardadas neste aparelho e saem quando você entrar de novo. Se outro técnico entrar aqui antes disso, elas são descartadas."
-        confirmLabel="Sair mesmo assim"
-        cancelLabel="Ficar e esperar o sinal"
-        onConfirm={signOut}
-        onCancel={() => setAsking(false)}
-      />
-    </>
+    <Button variant="ghost" iconOnly aria-label="Sair" onClick={() => void signOut()}>
+      <LogOut size={18} />
+    </Button>
   );
 }
 ```
 
 [`useOfflineSync`](../offline-sync.md#reactive-ui-and-auto-flush) subscribes the component
 to the engine: `pending`, `syncing`, `lastSyncedAt` and `lastError` change on their own on
-every run. Both components pass `flushOnOnline: false` because only one thing triggers the
-upload — the `SyncRunner`, in `App`.
+every run. The panel passes `flushOnOnline: false` because only one thing triggers the
+upload — the `SyncRunner`, in `App`. `pending` also counts another technician's held
+entries: Ana sees that Carlos's work is waiting on the tablet.
 
 `lastError` shows why the last run failed. "Failed to fetch" in the pasture is routine;
 what you want to see is a `401` or a `413` that will not go away on its own.
 
 !!! warning "Signing out does not clear the outbox — on purpose"
     Logout calls `resetWatermark()`, not `clearOutbox()`. Clearing the queue would lose
-    the day's work of someone who signed out without signal. With `getPrincipal`, the
-    technician's entries stay **safe** until they come back — the `ConfirmDialog` only
-    makes the one case where they are lost explicit.
+    the day's work of someone who signed out without signal. With `getPrincipal` +
+    `foreignEntries: "hold"`, the technician's entries stay **safe** until they come back,
+    even if another technician signs in and syncs first — so the sign-out button has
+    nothing to ask.
 
 ### 8. The camera
 
@@ -1613,7 +1606,8 @@ installPrecache({
 - 🗜️ **`useImageProcessing` + `bestSupportedType`** shrink the photo on the device; GPS
   goes in the record, because the re-encode drops EXIF.
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** and **`OfflineIndicator`** tell the
-  technician what is going on; sign-out warns before risking the queue.
+  technician what is going on; with `foreignEntries: "hold"`, signing out never risks the
+  queue.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** deliver the report without a
   network.
 - 🔒 **`useStorageEstimate`** asks for persistent storage; `UpdatePrompt` does not swap

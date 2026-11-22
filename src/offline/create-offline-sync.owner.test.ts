@@ -10,7 +10,11 @@ interface Note {
     text: string;
 }
 
-function makeSync(principal: { current: unknown }, databaseName?: string) {
+function makeSync(
+    principal: { current: unknown },
+    databaseName?: string,
+    foreignEntries?: OfflineSyncConfig<Note, unknown>["foreignEntries"],
+) {
     const deliver = vi.fn(async (_entry: OutboxEntry<Note>) => undefined);
     const config: OfflineSyncConfig<Note, unknown> = {
         databaseName: databaseName ?? `sync-owner-${Math.random().toString(36).slice(2)}`,
@@ -28,6 +32,7 @@ function makeSync(principal: { current: unknown }, databaseName?: string) {
         applyRemote: async () => undefined,
         isOnline: () => true,
         getPrincipal: () => principal.current as string | null,
+        foreignEntries,
     };
     return { sync: createOfflineSync(config), deliver, databaseName: config.databaseName };
 }
@@ -121,6 +126,112 @@ describe("createOfflineSync — outbox bound to its owner", () => {
         expect(summary.succeeded).toBe(1);
         expect(summary).not.toHaveProperty("held");
         expect(summary).not.toHaveProperty("dropped");
+        sync.dispose();
+    });
+
+    it("does not deliver a signed-out edit ahead of the owner's held edit of the same record", async () => {
+        const principal = { current: "user-a" as unknown };
+        const { sync, deliver } = makeSync(principal);
+        await sync.enqueue("update", "n1", { text: "A's edit" });
+        principal.current = null;
+        await sync.enqueue("update", "n1", { text: "edited while signed out" });
+
+        const summary = await sync.flush();
+
+        expect(deliver).not.toHaveBeenCalled();
+        expect(summary.held).toBe(1);
+        expect(summary.deferred).toBe(1);
+        expect(await sync.pendingCount()).toBe(2);
+        sync.dispose();
+    });
+});
+
+describe('createOfflineSync — foreignEntries: "hold" on a shared device (#724)', () => {
+    it("keeps the previous user's mutations when the next one syncs, and delivers them on their return", async () => {
+        const principal = { current: "carlos" as unknown };
+        const { sync, deliver } = makeSync(principal, undefined, "hold");
+        for (const id of ["v1", "v2", "v3"]) await sync.enqueue("update", id, { text: "carlos" });
+
+        principal.current = "ana";
+        const ana = await sync.flush();
+        expect(deliver).not.toHaveBeenCalled();
+        expect(ana.held).toBe(3);
+        expect(ana).not.toHaveProperty("dropped");
+        expect(await sync.pendingCount()).toBe(3);
+
+        principal.current = "carlos";
+        const back = await sync.flush();
+        expect(back.succeeded).toBe(3);
+        expect(deliver.mock.calls.map(([entry]) => entry.recordId)).toEqual(["v1", "v2", "v3"]);
+        expect(await sync.pendingCount()).toBe(0);
+        sync.dispose();
+    });
+
+    it("delivers the signed-in user's own mutations while holding another user's", async () => {
+        const principal = { current: "carlos" as unknown };
+        const { sync, deliver } = makeSync(principal, undefined, "hold");
+        await sync.enqueue("update", "v1", { text: "carlos" });
+        principal.current = "ana";
+        await sync.enqueue("update", "v2", { text: "ana" });
+
+        const summary = await sync.flush();
+
+        expect(summary.succeeded).toBe(1);
+        expect(summary.held).toBe(1);
+        expect(deliver.mock.calls.map(([entry]) => entry.payload?.text)).toEqual(["ana"]);
+        sync.dispose();
+    });
+
+    it("keeps the per-record order: a later edit of a held record waits for the held one", async () => {
+        const principal = { current: "carlos" as unknown };
+        const { sync, deliver } = makeSync(principal, undefined, "hold");
+        await sync.enqueue("update", "shared", { text: "carlos, older" });
+        principal.current = "ana";
+        await sync.enqueue("update", "shared", { text: "ana, newer" });
+
+        const ana = await sync.flush();
+        expect(deliver).not.toHaveBeenCalled();
+        expect(ana.held).toBe(1);
+        expect(ana.deferred).toBe(1);
+
+        principal.current = "carlos";
+        await sync.flush();
+        principal.current = "ana";
+        await sync.flush();
+
+        expect(deliver.mock.calls.map(([entry]) => entry.payload?.text)).toEqual([
+            "carlos, older",
+            "ana, newer",
+        ]);
+        sync.dispose();
+    });
+
+    it("never delivers a held entry under another session, whichever user flushes", async () => {
+        const principal = { current: "carlos" as unknown };
+        const { sync, deliver } = makeSync(principal, undefined, "hold");
+        await sync.enqueue("update", "v1", { text: "carlos" });
+
+        for (const who of ["ana", null, "bia", "ana"]) {
+            principal.current = who;
+            await sync.flush();
+        }
+
+        expect(deliver).not.toHaveBeenCalled();
+        expect(await sync.pendingCount()).toBe(1);
+        sync.dispose();
+    });
+
+    it("holds an entry queued while signed out once somebody signs in", async () => {
+        const principal = { current: null as unknown };
+        const { sync, deliver } = makeSync(principal, undefined, "hold");
+        await sync.enqueue("create", "n1", { text: "anonymous" });
+
+        principal.current = "ana";
+        const summary = await sync.flush();
+
+        expect(deliver).not.toHaveBeenCalled();
+        expect(summary.held).toBe(1);
+        expect(await sync.pendingCount()).toBe(1);
         sync.dispose();
     });
 });

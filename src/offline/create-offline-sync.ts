@@ -88,7 +88,7 @@ export interface SyncRunSummary {
     failed: number;
     /**
      * Entries left untried because an earlier entry for the **same record**
-     * failed this run.
+     * failed this run, or was held (see {@link SyncRunSummary.held}).
      *
      * They stay queued and are attempted next run, in order. Counted apart from
      * `failed` because they were never sent: reporting them as failures would
@@ -113,13 +113,16 @@ export interface SyncRunSummary {
      */
     interrupted?: true;
     /**
-     * Entries left queued because nobody is signed in and they belong to
-     * somebody (see {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
+     * Entries left queued unsent because they belong to somebody other than who
+     * is signed in: to anybody while nobody is, or — with
+     * {@link OfflineSyncConfig.foreignEntries} `"hold"` — to another principal
+     * (see {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
      */
     held?: number;
     /**
      * Entries deleted unsent because they were queued under another principal —
-     * or while signed out — and somebody else is signed in now (see
+     * or while signed out — and somebody else is signed in now, under the default
+     * {@link OfflineSyncConfig.foreignEntries} `"drop"` (see
      * {@link OfflineSyncConfig.getPrincipal}). Absent when zero.
      */
     dropped?: number;
@@ -249,8 +252,32 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
      *
      * A non-string, non-number value (the `Promise` of an `async` getter) or a
      * getter that throws reads as nobody. Default: no owner binding.
+     *
+     * What happens to another principal's entry is {@link OfflineSyncConfig.foreignEntries}.
      */
     getPrincipal?: () => string | number | null | undefined;
+    /**
+     * What a flush does with an entry stamped by somebody other than who is
+     * signed in now. Only read with {@link OfflineSyncConfig.getPrincipal}.
+     *
+     * - `"drop"` (default) — delete it unsent and count it in `summary.dropped`.
+     *   Right for a personal device, where the other account's queue would only
+     *   pile up.
+     * - `"hold"` — leave it queued, counted in `summary.held`, until its owner
+     *   signs back in and a flush delivers it with their session. Right for a
+     *   shared device (one tablet, several technicians): under `"drop"`, the next
+     *   person to sign in and sync erased the previous one's unsent work (#724).
+     *   An entry queued while signed out is held too, and goes out only while
+     *   nobody is signed in again.
+     *
+     * Either way the entry never goes out under another session. A held entry —
+     * for nobody or for another principal — also holds back the later entries of
+     * the **same record**, counted in `summary.deferred`: delivering the next
+     * person's edit first would let the held, older snapshot overwrite it on the
+     * server when its owner returns. `pendingCount()` and `SyncState.pending`
+     * count held entries too; `clearOutbox()` is still what empties the queue.
+     */
+    foreignEntries?: "drop" | "hold";
 }
 
 /**
@@ -390,7 +417,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     const isOnline =
         config.isOnline ?? (() => (typeof navigator !== "undefined" ? navigator.onLine : true));
 
-    const { getPrincipal } = config;
+    const { getPrincipal, foreignEntries = "drop" } = config;
 
     /**
      * Fingerprint whoever `getPrincipal` says is signed in.
@@ -411,13 +438,14 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * What the current session may do with an entry, by its owner stamp.
      *
      * @param entry - The queued entry.
-     * @returns `"deliver"`, `"hold"` (nobody signed in) or `"drop"` (someone else).
+     * @returns `"deliver"`, `"hold"` (nobody signed in, or someone else under
+     *   `foreignEntries: "hold"`) or `"drop"` (someone else, by default).
      */
     function ownership(entry: OutboxEntry<TPayload>): "deliver" | "hold" | "drop" {
         if (!getPrincipal || entry.owner === undefined) return "deliver";
         const owner = currentOwner(getPrincipal);
         if (owner === entry.owner) return "deliver";
-        return owner === null ? "hold" : "drop";
+        return owner === null || foreignEntries === "hold" ? "hold" : "drop";
     }
 
     let inflight: Promise<SyncRunSummary> | null = null;
@@ -505,9 +533,11 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * its session is still current (see `endSession`) and that the entry is still
      * in the outbox — another tab sharing the IndexedDB may have cleared it on
      * logout. With `getPrincipal`, the entry's owner stamp is checked at the same
-     * point (see `ownership`): another principal's entry is deleted unsent, and
-     * one owned by somebody while nobody is signed in stays queued; neither blocks
-     * later entries of the same record. A delivery already in progress when the
+     * point (see `ownership`): an entry that is not the current principal's is
+     * deleted unsent or stays queued, per `foreignEntries`. A dropped entry blocks
+     * nothing, since it will never be delivered; a held one blocks the later
+     * entries of its record, exactly like a failure, because it will be delivered
+     * later and must not land after them. A delivery already in progress when the
      * session ended still has its
      * row deleted or its attempt bumped, because that outcome is true for the
      * server; its `onEntryDelivered`/`onEntryFailed` callback is not fired, since
@@ -531,6 +561,7 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             const verdict = ownership(entry);
             if (verdict === "hold") {
                 summary.held = (summary.held ?? 0) + 1;
+                blocked.add(entry.recordId);
                 continue;
             }
             if (verdict === "drop") {

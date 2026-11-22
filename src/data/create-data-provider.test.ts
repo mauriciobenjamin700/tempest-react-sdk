@@ -26,6 +26,7 @@ function mockClient(): ApiClient {
         arrayBuffer: vi.fn(async () => new ArrayBuffer(0)),
         upload: vi.fn(async () => ({}) as never),
         url: vi.fn((path: string) => `https://api.example.com${path}`),
+        wsUrl: vi.fn((path: string) => `wss://api.example.com${path}`),
     };
 }
 

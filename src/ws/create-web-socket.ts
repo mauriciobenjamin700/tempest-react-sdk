@@ -157,7 +157,9 @@ export interface CreateWebSocketOptions<T> {
      * A server ping is still answered when the schema drops it: the heartbeat is
      * the transport's contract with the server, not the app's with its payload,
      * and a socket that stops sending `pong` is closed with `4408` once per
-     * timeout. The validation itself must be synchronous — a frame is decoded
+     * timeout. For the same reason, while `respondToPing` is on, a ping the
+     * schema refuses is dropped quietly — no `onValidationError`, no development
+     * warning — so the schema does not have to declare the heartbeat. The validation itself must be synchronous — a frame is decoded
      * inside the `message` handler and delivered from it, so an async schema
      * would deliver frames in whatever order their validations settled; that
      * case is reported through `onValidationError` instead of awaited.
@@ -353,6 +355,23 @@ export function createWebSocket<T = unknown>(
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Swallow the schema's refusal of a server ping the client answers itself.
+     *
+     * The heartbeat is transport, not payload: with `respondToPing` on, the
+     * `pong` goes out whatever the schema says, so an app schema that does not
+     * describe `{"type":"ping"}` is the normal case. Reporting that refusal to
+     * `onValidationError` turned every heartbeat into a "the backend broke the
+     * contract" alarm — one every 30 s against `tempest-fastapi-sdk` — and the
+     * only way out was declaring the ping in the app's schema. A ping the schema
+     * does accept is still delivered to `onMessage`, as before.
+     *
+     * @returns Nothing.
+     */
+    function ignoreHeartbeatIssues(): void {
+        return;
     }
 
     /**
@@ -591,23 +610,17 @@ export function createWebSocket<T = unknown>(
         ws.onmessage = (event) => {
             armSilence();
             const raw = typeof event.data === "string" ? event.data : "";
+            const heartbeat = respondToPing && isServerPingFrame(raw);
             const decoded = decodeFrame<T>(raw, "createWebSocket", {
                 parser,
                 onParseError,
                 schema,
-                onValidationError,
+                onValidationError: heartbeat ? ignoreHeartbeatIssues : onValidationError,
             });
-            if (!decoded.delivered) {
-                if (respondToPing && ws.readyState === WebSocket.OPEN && isServerPingFrame(raw)) {
-                    ws.send(pongPayload);
-                }
-                return;
-            }
-            const data = decoded.data;
-            if (respondToPing && isServerPing(data) && ws.readyState === WebSocket.OPEN) {
-                ws.send(pongPayload);
-            }
-            onMessage?.({ data, raw: event });
+            const owesPong =
+                heartbeat || (respondToPing && decoded.delivered && isServerPing(decoded.data));
+            if (owesPong && ws.readyState === WebSocket.OPEN) ws.send(pongPayload);
+            if (decoded.delivered) onMessage?.({ data: decoded.data, raw: event });
         };
 
         ws.onerror = (event) => {

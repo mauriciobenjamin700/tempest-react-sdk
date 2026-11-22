@@ -317,6 +317,15 @@ What the option guarantees:
     does not reach your `onMessage` when the schema refuses it — which is right,
     since you never declared it.
 
+    And the refusal is **not** reported (0.84.0, #704): with `respondToPing` on, a
+    ping the schema does not describe fires neither `onValidationError` nor the
+    development warning. Before, every heartbeat — one every 30 s against
+    `tempest-fastapi-sdk` — reached `onValidationError` as "the backend changed the
+    contract", and the only way to silence it was declaring the ping in the app's
+    schema. A schema that declares the ping still gets it in `onMessage`; with
+    `respondToPing: false` (the app answers pings itself), the refusal is reported
+    again, because the ping is then the app's payload.
+
 !!! check "A signal that exists in production, not only in dev"
     The one-time warning is dev-only (it goes through `isDevBuild()`, which answers
     correctly on its own under Vite, webpack, Rspack and Parcel — measured) and it
@@ -338,7 +347,7 @@ What the option guarantees:
 - `onReconnecting` is a quiet state; `onLost` is what deserves UI and a "try again" button.
 - `opened` separates "could not join" from "dropped mid-session" — the first is an error, the second reconnects on its own.
 - `pingInterval` + `pingPayload` keep the connection alive.
-- `schema` validates each frame before delivering it — the heartbeat `pong` still goes out even when the schema refuses the ping.
+- `schema` validates each frame before delivering it — the heartbeat `pong` still goes out even when the schema refuses the ping, and that refusal does not become an `onValidationError`.
 - `useWebSocket` ties everything to the component and exposes `status`/`lastMessage`/`send`/`reconnect`/`setSilenceTimeout`.
 
 ## See also

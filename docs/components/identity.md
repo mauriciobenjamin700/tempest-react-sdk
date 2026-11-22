@@ -106,6 +106,13 @@ export function Cards({ navigate }: { navigate: (to: string) => void }) {
 !!! tip "Use `flush` para hospedar tabelas e listas"
     Cards têm padding interno por padrão. Ao colocar uma `Table` ou lista que já tem suas próprias margens, ative `flush` para o conteúdo encostar nas bordas do card sem padding duplo.
 
+!!! note "Blocos dentro do card ganham espaçamento"
+    Dois ou mais filhos em bloco — um `Stat` e uma `Timeline`, um parágrafo e uma
+    lista — ficam a `--tempest-space-4` (16 px) um do outro, sem precisar de
+    `Stack`. Conteúdo inline (`Olá <strong>Ana</strong>`) continua na mesma linha, e
+    o card `flush` não ganha espaçamento. Antes, como todo componente do SDK zera a
+    própria margem, os blocos encostavam (#710).
+
 !!! note "`interactive` torna o card inteiro um botão"
     Com `interactive`, o card recebe `role="button"`, `tabIndex={0}` e handler de teclado (Enter/Space). Evite colocar outros elementos clicáveis dentro de um card interativo — clicks aninhados disputam o mesmo gesto e confundem a navegação por teclado.
 

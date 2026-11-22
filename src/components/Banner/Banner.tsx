@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Banner.module.css";
+import { COMMON_MESSAGES } from "@/i18n/messages/common";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export type BannerVariant = "info" | "success" | "warning" | "danger";
 
@@ -42,6 +44,7 @@ export function Banner({
     children,
     ...props
 }: BannerProps) {
+    const text = useTempestText(COMMON_MESSAGES);
     const [open, setOpen] = useState(true);
     if (!open) return null;
     return (
@@ -56,7 +59,7 @@ export function Banner({
                 <button
                     type="button"
                     className={styles.close}
-                    aria-label="Fechar"
+                    aria-label={text.t("tempest.common.close")}
                     onClick={() => {
                         setOpen(false);
                         onDismiss?.();

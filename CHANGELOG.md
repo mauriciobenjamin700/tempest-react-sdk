@@ -506,8 +506,88 @@ http + auth + hook)` 12 842 → 13 097 (teto 12,94 → 13,1 kB) — o `AppProvid
 ESM` 172 596 → 173 069 (teto 172,7 → 173,1 kB); `ceiling: full barrel CJS` 203 908 → 204 687
   (teto 204 → 204,7 kB). `slice: auth screens` 8 947 → 9 030, dentro do teto.
 
+### Adicionado
+
+- **`/charts`: `labels` separa o nome da série da chave do dado** (#739). A legenda e o tooltip
+  mostravam a própria chave de `categories`, e para traduzir a receita do app de gestão remontava cada
+  linha com a frase traduzida como chave (`[t("…")]: day.done`). Agora
+  `labels={{ done: t("series.done") }}` vira o `name` de cada série e os dados ficam com as chaves da
+  API. Vale para `AreaChart`, `BarChart`, `LineChart` e `RadarChart`; categoria sem entrada mostra a
+  chave. Teste: `series-labels.test.tsx`.
+- **`/charts`: `yAxisWidth` e `yAxisFormatter` nos gráficos cartesianos** (#740). `yAxisWidth`
+  (default `"auto"`) e `yAxisFormatter` (formata só o eixo; default `valueFormatter`), para o eixo
+  levar `R$ 186 mil` enquanto o tooltip mostra `R$ 186.430,00`. Tipos novos: `ValueAxisProps`,
+  `CartesianAxisChartProps`.
+- **`Stat`: `higherIsBetter`** (#745). Com `false`, a alta pinta de vermelho e a queda de verde —
+  taxa de faltas, churn, tempo de resposta. A direção (`trend`, texto do delta) não muda. O delta
+  ganha `data-trend` e `data-tone` (`positive`/`negative`/`neutral`). Contraste medido no Chromium,
+  transições desligadas, ida e volta claro → escuro → claro: alta ruim 9,51:1 (claro) / 6,48:1
+  (escuro); queda boa 8,65:1 / 10,28:1 — são os tokens `--tempest-danger-fg`/`--tempest-success-fg`
+  de antes.
+- **`BottomNavigation`: `href` e `match="route"`, o mesmo contrato de item da `Sidebar`** (#744).
+  Item com `href` vira `<a>` (clique simples vai para `onChange` sem recarregar; ctrl/cmd-clique fica
+  com o navegador; `disabled` e esquema fora da allowlist do `safeLinkUrl` continuam botão), e
+  `match="route"` acende o `href` mais longo que cobre o `pathname`, pela regra do `activeNavKey`.
+  `onChange` e `value` passam a ser opcionais. A receita do app de gestão deixa de calcular o item
+  ativo com `activeNavKey`.
+- **Textos padrão dos componentes passam pelo i18n, com tabela embutida em pt-BR e en** (#746,
+  parcial). `ErrorState`, `ConfirmDialog`, `Spinner`, `Pagination` (com plural), `Modal`, `Drawer`,
+  `Banner`, `Alert`, `Tag`, `SearchBar` e os landmarks de `BottomNavigation`/`Sidebar` leem
+  `tempest.*` do catálogo do app; na falta, respondem em inglês com locale `en`/`en-*` e em pt-BR
+  nos outros casos e sem provider — o que todo app via antes. Prop explícita continua vencendo.
+  `TEMPEST_MESSAGES` (raiz) exporta a tabela para quem traduz para um terceiro idioma. Cada
+  componente importa só a própria tabela, então a fatia que renderiza um `ErrorState` leva três
+  frases, não o catálogo inteiro. Ainda fora: `DataTable`, `Table`, `Command`, `Chat`, `FilterBar`,
+  auth, captura e PWA, entre outros — a #746 segue aberta.
+
+### Corrigido
+
+- **`Card`: blocos irmãos não encostam mais um no outro** (#710). Medido no Chromium (390 e 1280 px,
+  claro e escuro): `Stat` seguido de `Timeline` dentro de um `Card` ficavam a **0 px**. A causa não
+  era o `Stat` nem a `Timeline`: todo componente do SDK zera a própria margem e o corpo do `Card` é
+  um bloco simples, então **quaisquer** dois blocos encostavam — 12 dos 61 `<Card>` de docs, gallery
+  e templates têm mais de um filho direto. Agora filhos em bloco ficam a `--tempest-space-4` (16 px),
+  por `margin-block-start` (conteúdo inline continua na mesma linha; `flush` fica sem espaçamento).
+- **`/charts`: o eixo Y cortava valor formatado longo** (#740). Medido no Chromium: com
+  `valueFormatter` em BRL, `"R$ 50.000"` começava 10 px e `"R$ 200.000"` 18 px **antes** da borda do
+  SVG — em 390 **e** em 1280 px, não só no celular como a issue e a receita diziam: o recharts
+  reserva 60 px fixos. Com o novo default `yAxisWidth="auto"`, o rótulo mais longo começa 5 px dentro
+  do gráfico. A dica da receita ("notação compacta cabe no eixo do celular") vira `yAxisFormatter`.
+- **`Alert`: o rótulo do botão fechar era `"Dismiss"`, em inglês, num SDK pt-BR.** Agora vem de
+  `tempest.common.close` ("Fechar" / "Close").
+
+### Alterado
+
+- **Peer `recharts` sobe para `^3.2.0`** (era `^2.0.0 || ^3.0.0`). O `width="auto"` do `YAxis`
+  existe a partir do 3.2.0: o `YAxis` do 2.15.4 soma a largura como número e o do 3.0.0/3.1.0 não
+  trata `"auto"` (conferido no código publicado de cada versão, `npm pack recharts@<v>`). Nenhuma
+  versão 2.x era exercitada pela suíte — o dev dep é 3.11.
+
+### Budgets
+
+- **#710/#739/#740/#744/#745/#746, medido com `npm run build && npx size-limit --json` sobre a
+  `main` em `71727a7` e sobre este branch**, bytes brotli: `slice: typical app` 12 842 → 13 139
+  (teto 12,94 → 13,2 kB); `slice: auth screens` 8 947 → 9 203 (teto 9,2 → 9,3 kB); `slice: Pix
+checkout screen` 6 280 → 6 550 (teto 6,4 → 6,6 kB); `slice: DataTable with inline editing` 6 001 →
+  6 422 (teto 6,1 → 6,45 kB); `ceiling: full barrel ESM` 172 596 → 173 420 (teto 172,7 → 173,5 kB);
+  `ceiling: full barrel CJS` 203 908 → 205 394 (teto 204 → 205,5 kB); `charts entry` 1 784 → 1 855
+  (teto 3 kB, dentro). O custo é o contexto do i18n e as frases em dois idiomas de cada componente
+  da fatia (a `Pagination`, no `DataTable`, leva sete). A primeira versão, com uma tabela única,
+  custava +656 B na fatia `typical app`; separar por componente baixou para +297 B.
+- **Tetos do barrel remedidos sobre a soma com a `main` em `50a4572`** (`npm run build && npx size-limit --json`):
+  `ceiling: full barrel ESM` 173 520 B (teto 173,5 → 173,6 kB); `ceiling: full barrel CJS` 205 729 B
+  (teto 205,5 → 205,8 kB). Só os tetos do barrel; as fatias seguem dentro dos tetos acima.
+
 ### Interno
 
+- **Gallery: demos de `Stat` com polaridade dentro de `Card`, `BottomNavigation` por rota e
+  `LineChart`/`BarChart` com `labels` e eixo compacto**, mais `e2e/card-chart-layout.spec.ts`, que mede
+  no Chromium (390 e 1280 px) o espaço de 16 px entre `Stat` e `Timeline` num `Card` e que nenhum
+  rótulo do eixo Y começa fora do gráfico. O `e2e/axe-baseline.json` sobe `incomplete ·
+color-contrast` em 19–22 nós por célula (98 → 117 em 1280, 112 → 132/134 em 390): são os 22 textos
+  SVG do gráfico novo, que o axe não consegue avaliar ("background could not be determined"). Medindo
+  à mão, o texto do eixo fica a 3,38:1 no tema escuro porque os gráficos não aplicam
+  `--tempest-chart-axis` — registrado na #766.
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O
   Pages publica a branch pelo workflow embutido `pages-build-deployment`, que roda no Actions; com o
   Actions desligado (13 a 22/11/2026) o push entrava, nenhum build acontecia e o script terminava com
@@ -560,6 +640,7 @@ server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 
   com esbuild + brotli sobre o mesmo `dist/`); `ceiling: full barrel ESM` 173 686 (teto 172,7 →
   173,9 kB); `ceiling: full barrel CJS` 205 381 (teto 204 → 205,6 kB); `styles.css` 32 610 (teto
   32,6 → 32,7 kB, a fonte declarada em `Drawer`/`Modal`/`Command` e as regras das colunas novas).
+- **Soma de #767 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #764 e #765 + este branch, bytes brotli): `slice: typical app` 13 376 B (teto 13.2 kB → 13.5 kB); `slice: DataTable with inline editing + server mode` 7 605 B (teto 7.3 KB → 7.7 kB); `slice: createZip + writeXlsx` 6 962 B (teto 6.95 KB → 7.1 kB); `ceiling: full barrel ESM` 176 264 B (teto 175.5 kB → 176.4 kB); `ceiling: full barrel CJS` 208 649 B (teto 207.7 kB → 208.7 kB). Nenhum estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

@@ -1675,6 +1675,8 @@ Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito:
 
 Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada. Vale também para o `GET` do `mePath` que o `login()` faz depois de instalar o token: um perfil que chega depois de um `logout()` (ou de `logout()` + `login()` de outra conta) é descartado, em vez de ficar no store ao lado do token da conta seguinte.
 
+E se o `GET` do `mePath` **falha** — um 500, um 401, a rede caindo —, o `login()` desfaz a entrada antes de rejeitar com esse erro: o refresh token que ela trouxe é revogado (`logoutPath`, no modo body), o store e o refresh token guardado são limpos e o `onSessionEnd` roda com `"expired"` para ela, já que o token chegou a notificar os ouvintes do store. Quando o `login()` rejeita, não sobra sessão nenhuma — nem a anterior, que já terminou com `"switch"` quando as credenciais novas foram aceitas. Até a 0.92.0 o token novo ficava instalado ao lado de um usuário `null`, com `isAuthenticated` `true` para ninguém (#748). Vale também para o `restore()` e para a troca de conta que um `refresh()` descobre.
+
 ### Refresh em voo e troca de conta — `SessionSupersededError`
 
 Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu durante uma sessão encerrada e volta 401 é recusada do mesmo jeito — inclusive a repetição depois de um refresh — em vez de ser repetida como a conta que está logada agora ou de encerrar a sessão dela. E uma request que saiu **sem** token e volta 401 depois que uma conta entrou só rejeita com o 401: não renova nem encerra a sessão nova.
@@ -5411,6 +5413,11 @@ npm i recharts
     rodado `npm i recharts`, o build quebra com `Cannot find module 'recharts'`.
     Instale-o no app que de fato usa gráficos.
 
+!!! note "recharts 3.2 ou mais novo"
+    O peer é `recharts@^3.2.0`: o eixo Y que se ajusta ao rótulo (`yAxisWidth="auto"`)
+    só existe a partir dessa versão: o código do `YAxis` do 2.15 e do 3.0/3.1 não
+    trata `"auto"` e soma a largura como número.
+
 ## A família cartesiana: Area, Bar, Line
 
 `AreaChart`, `BarChart` e `LineChart` compartilham a **mesma** interface de
@@ -5526,6 +5533,9 @@ Com `stack`, as três áreas se empilham e o topo mostra o total por hora.
 | `showGrid`       | `boolean`                   | `true`                 | Renderiza o grid cartesiano.                                                    |
 | `showTooltip`    | `boolean`                   | `true`                 | Renderiza o tooltip.                                                            |
 | `valueFormatter` | `(value: number) => string` | —                      | Formata valores numéricos no tooltip e no eixo Y.                               |
+| `labels`         | `Record<string, string>`    | —                      | Nome de cada série na legenda e no tooltip, por chave de `categories`.          |
+| `yAxisWidth`     | `number \| "auto"`          | `"auto"`               | Largura do eixo Y em px, ou `"auto"` para caber o maior rótulo. Não no Radar.   |
+| `yAxisFormatter` | `(value: number) => string` | `valueFormatter`       | Formata só os rótulos do eixo Y. Não no Radar.                                  |
 | `className`      | `string`                    | —                      | Classe extra aplicada ao wrapper do gráfico.                                    |
 
 `ChartData = Array<Record<string, string | number>>` — cada linha mapeia uma
@@ -5535,6 +5545,79 @@ chave de coluna a um rótulo (string) ou valor (number).
     `categories` é um array, então você decide quantas séries quer. Uma só
     (`categories={["receita"]}`) desenha um gráfico simples; várias desenham
     séries comparativas, cada uma com a próxima cor da paleta.
+
+### Rótulo da série separado da chave do dado (`labels`)
+
+A legenda e o tooltip mostram o **nome da série**, que por padrão é a própria
+chave (`"done"`). Para traduzir, passe `labels` — um mapa chave → texto. Os dados
+continuam com as chaves que a API mandou:
+
+```tsx
+import { BarChart } from "tempest-react-sdk/charts";
+
+const semana = [
+    { dia: "seg", done: 34, noShow: 3 },
+    { dia: "ter", done: 29, noShow: 5 },
+];
+
+export function Atendimentos({ t }: { t: (key: string) => string }) {
+    return (
+        <BarChart
+            data={semana}
+            index="dia"
+            categories={["done", "noShow"]}
+            labels={{ done: t("series.done"), noShow: t("series.noShow") }}
+            stack
+        />
+    );
+}
+```
+
+Categoria sem entrada em `labels` mostra a chave. Vale para `AreaChart`,
+`BarChart`, `LineChart` e `RadarChart`. O `PieChart` não precisa: o nome de
+cada fatia já vem da coluna `index`.
+
+### Eixo de valor: largura e formato
+
+Sem configuração, o eixo Y **se ajusta ao maior rótulo** (`yAxisWidth="auto"`).
+Antes ele reservava 60 px fixos, e `"R$ 50.000"` perdia os primeiros 10 px —
+em qualquer largura de tela, não só no celular (medido no Chromium, #740).
+
+Rótulo longo ocupa espaço do gráfico no celular. Para o eixo, use um formato
+curto em `yAxisFormatter`; o tooltip continua com o valor exato do
+`valueFormatter`:
+
+```tsx
+import { LineChart } from "tempest-react-sdk/charts";
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const brlCompacto = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+});
+
+const meses = [
+    { mes: "out", total: 164750 },
+    { mes: "nov", total: 186430 },
+];
+
+export function Faturamento() {
+    return (
+        <LineChart
+            data={meses}
+            index="mes"
+            categories={["total"]}
+            valueFormatter={(v) => brl.format(v)}
+            yAxisFormatter={(v) => brlCompacto.format(v)}
+        />
+    );
+}
+```
+
+O eixo mostra `R$ 186 mil`; o tooltip, `R$ 186.430,00`. Para alinhar as áreas de
+plotagem de gráficos empilhados, fixe a largura com um número
+(`yAxisWidth={72}`).
 
 ## PieChart
 
@@ -5853,6 +5936,8 @@ você passa `width`:
 - `AreaChart`, `BarChart` e `LineChart` compartilham `CartesianChartProps`:
   `data` + `index` (eixo X) + `categories` (séries). `stack` empilha em
   Area/Bar; o `LineChart` o ignora.
+- `labels` dá nome às séries sem trocar as chaves dos dados; o eixo Y se ajusta
+  ao maior rótulo e `yAxisFormatter` formata só o eixo.
 - `PieChart` usa `category` (valor) + `index` (rótulo), uma linha por fatia, com
   `donut` opcional.
 - `RadarChart` reusa `CartesianChartProps` (`index` = eixo angular); ignora
@@ -9056,7 +9141,32 @@ const [open, setOpen] = useState(false);
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Gatilho global"
-    Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
+    Combine com `useKeyboardShortcut`, que recebe um objeto `KeyboardShortcut`, para abrir via ⌘K / Ctrl+K:
+
+    ```tsx
+    import { useState } from "react";
+    import { Button, Command, Kbd, formatShortcut, useKeyboardShortcut } from "tempest-react-sdk";
+
+    export function Palette() {
+      const [open, setOpen] = useState<boolean>(false);
+      useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
+
+      return (
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(true)}
+            rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
+          >
+            Buscar
+          </Button>
+          <Command open={open} onOpenChange={setOpen} items={[]} />
+        </>
+      );
+    }
+    ```
+
+    O hook já chama `preventDefault` e dispara com o foco num campo, porque o atalho leva Ctrl/Cmd. `formatShortcut` mostra `⌘K` ou `Ctrl+K` conforme o sistema. Veja [`useKeyboardShortcut`](../hooks.md#atalho-global-usekeyboardshortcut).
 
 !!! note "Textos padrão em PT-BR"
     Até a versão anterior, `placeholder`, `emptyMessage` e o nome acessível vinham fixos em inglês (`"Type a command…"`, `"No results"`, `"Command palette"`). Um leitor de tela em PT-BR anunciava o diálogo em outra língua. Os três agora têm default em PT-BR e aceitam prop.
@@ -11266,8 +11376,37 @@ export function Metricas() {
 | `value` | `ReactNode`                | —                                    |
 | `delta` | `ReactNode`                | —                                    |
 | `trend` | `"up" \| "down" \| "flat"` | inferido por `+`/`-` em delta string |
+| `higherIsBetter` | `boolean`         | `true`                               |
 | `hint`  | `ReactNode`                | —                                    |
 | `icon`  | `ReactNode`                | —                                    |
+
+### Polaridade: quando subir é ruim
+
+A cor do delta diz **bom** ou **ruim**, não "subiu" ou "desceu". Por padrão, alta é
+verde e queda é vermelha. Em métrica onde crescer é o problema — taxa de faltas,
+churn, tempo de resposta, chamados abertos — passe `higherIsBetter={false}`: a alta
+fica vermelha e a queda, verde. A direção não muda; `trend` e o texto do delta
+continuam dizendo para onde o número foi.
+
+```tsx
+import { Stat } from "tempest-react-sdk";
+
+export function TaxaDeFaltas() {
+    return (
+        <Stat
+            label="Faltas"
+            value="7,5%"
+            delta="+1,2 p.p."
+            higherIsBetter={false}
+            hint="vs. semana passada"
+        />
+    );
+}
+```
+
+O delta expõe `data-trend` (`up`/`down`/`flat`) e `data-tone`
+(`positive`/`negative`/`neutral`), para teste ou estilo do app sem depender de
+classe com hash.
 
 ## `Progress`
 
@@ -11635,6 +11774,11 @@ export function FalhaAoCarregar({
 }
 ```
 
+Sem `title`, `description` ou `retryLabel`, os textos padrão vêm do
+[i18n](../i18n.md#textos-padrao-dos-componentes) (`tempest.errorState.*`): em
+inglês com locale `en`, em pt-BR sem provider. `description={null}` some com a
+descrição.
+
 ## `OfflineIndicator`
 
 **Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
@@ -11832,6 +11976,13 @@ export function Cards({ navigate }: { navigate: (to: string) => void }) {
 
 !!! tip "Use `flush` para hospedar tabelas e listas"
     Cards têm padding interno por padrão. Ao colocar uma `Table` ou lista que já tem suas próprias margens, ative `flush` para o conteúdo encostar nas bordas do card sem padding duplo.
+
+!!! note "Blocos dentro do card ganham espaçamento"
+    Dois ou mais filhos em bloco — um `Stat` e uma `Timeline`, um parágrafo e uma
+    lista — ficam a `--tempest-space-4` (16 px) um do outro, sem precisar de
+    `Stack`. Conteúdo inline (`Olá <strong>Ana</strong>`) continua na mesma linha, e
+    o card `flush` não ganha espaçamento. Antes, como todo componente do SDK zera a
+    própria margem, os blocos encostavam (#710).
 
 !!! note "`interactive` torna o card inteiro um botão"
     Com `interactive`, o card recebe `role="button"`, `tabIndex={0}` e handler de teclado (Enter/Space). Evite colocar outros elementos clicáveis dentro de um card interativo — clicks aninhados disputam o mesmo gesto e confundem a navegação por teclado.
@@ -14293,10 +14444,48 @@ export function BarraInferior({ cartCount }: { cartCount: number }) {
 | ------------ | ------------------------------ | ------- |
 | `items`      | `BottomNavigationItem[]` (3–5) | —       |
 | `value`      | `string`                       | —       |
+| `match`      | `"key" \| "route"`             | `"key"` |
 | `onChange`   | `(key: string) => void`        | —       |
 | `showLabels` | `boolean`                      | `true`  |
 
-Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled? }`.
+Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled?, href? }` — o
+mesmo contrato do `SidebarItem`, então uma lista só alimenta os dois.
+
+### Links e item ativo pela rota
+
+Com `href`, o item vira um `<a>` de verdade: segurar e "abrir em nova aba" funciona
+no celular e o leitor de tela anuncia link. Com `onChange`, o clique simples é do
+router do app (o `href` não recarrega a página); ctrl/cmd-clique fica com o
+navegador. Com `match="route"`, `value` é o `pathname` e o item aceso é o de `href`
+mais longo que cobre a rota, pela mesma regra do
+[`activeNavKey`](#activenavkey-a-mesma-resolucao-fora-do-sidebar):
+
+```tsx
+import { BottomNavigation, useLocation, useNavigate } from "tempest-react-sdk";
+import { LayoutDashboard, Users } from "lucide-react";
+
+export function AbasDoApp() {
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
+
+    return (
+        <BottomNavigation
+            match="route"
+            value={pathname}
+            items={[
+                { key: "/", href: "/", label: "Painel", icon: <LayoutDashboard size={20} /> },
+                { key: "/pacientes", href: "/pacientes", label: "Pacientes", icon: <Users size={20} /> },
+            ]}
+            onChange={(key) => navigate(key)}
+        />
+    );
+}
+```
+
+Em `/pacientes/42?aba=consultas`, "Pacientes" fica aceso; `/` só acende em `/`. O
+nome do landmark vem de `tempest.bottomNavigation.label` no catálogo do
+[i18n](../i18n.md#textos-padrao-dos-componentes) ("Navegação principal" /
+"Main navigation"); `aria-label` o substitui.
 
 **Safe-area**: aplica `padding-bottom: env(safe-area-inset-bottom)` automático.
 
@@ -15719,8 +15908,8 @@ export default createViteConfig({
 
 ## Script inline entra por hash
 
-Um `<script>` inline no `index.html` — o anti-flash do `themeInitScript()`, por
-exemplo — é liberado pelo **SHA-256 do conteúdo**, nunca por `'unsafe-inline'`. O
+Um `<script>` inline no `index.html` — o anti-flash do `themeInitScript()`, colado à
+mão ou injetado pelo `tempestThemeInit()`, por exemplo — é liberado pelo **SHA-256 do conteúdo**, nunca por `'unsafe-inline'`. O
 plugin roda como transform `post`, então enxerga o HTML final. No dev, o preâmbulo
 do React Refresh entra do mesmo jeito.
 
@@ -22112,11 +22301,43 @@ function CommandPalette() {
 
 `mod: true` aceita Ctrl ou Cmd, simplificando cross-OS.
 
-!!! note "Não dispara dentro de inputs"
-    Por default (`ignoreInput: true`) o atalho é ignorado quando o foco está num
-    `<input>`, `<textarea>`, `<select>` ou `[contenteditable]` — pra não roubar o
-    "k" que o usuário está digitando. Passe `{ ignoreInput: false }` se quiser o
-    contrário.
+Os defaults dependem do modificador do atalho:
+
+| Opção            | Atalho com `ctrl`/`meta`/`mod` | Com `alt` | Tecla sem modificador (`"/"`, `"?"`) |
+| ---------------- | ------------------------------ | --------- | ------------------------------------ |
+| `ignoreInput`    | `false`: dispara num campo     | `true`    | `true`: o campo fica com a tecla     |
+| `preventDefault` | `true`                         | `true`    | `false`                              |
+
+Ctrl/Cmd não digita nada, então ⌘K dispara mesmo com o foco na busca, e o
+`preventDefault` impede o navegador de agir na mesma tecla (Ctrl+K foca a busca do
+Chrome e do Firefox). Tecla simples digitada num `<input>`, `<textarea>`, `<select>` ou
+`[contenteditable]` continua do campo.
+
+!!! warning "Atalho de edição: devolva a tecla ao campo"
+    Ao ligar uma combinação que o próprio campo usa (`mod+z`, `mod+a`, `mod+c`),
+    passe `{ ignoreInput: true }`: sem isso, o Cmd+Z dentro de um `<textarea>` chama o
+    seu handler em vez de desfazer o texto.
+
+#### Mostrar o atalho — `formatShortcut` e `isApplePlatform`
+
+```tsx
+import { Kbd, formatShortcut, isApplePlatform } from "tempest-react-sdk";
+
+export function SearchHint() {
+  return (
+    <span>
+      Buscar <Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>
+      {isApplePlatform() ? null : " (no Mac, ⌘K)"}
+    </span>
+  );
+}
+```
+
+`formatShortcut` recebe o mesmo objeto do hook e devolve o rótulo na convenção do
+sistema: `⌘K` / `⇧⌘P` no Mac, iPhone e iPad (modificadores na ordem ⌃ ⌥ ⇧ ⌘, sem
+separador) e `Ctrl+K` / `Ctrl+Shift+P` no resto. `{ platform: "apple" | "other" }` fixa
+a convenção, para teste ou página de ajuda. `isApplePlatform()` responde a mesma
+pergunta de forma crua; fora do navegador, devolve `false`.
 
 ### Busca com debounce — `useDebounce`
 
@@ -23081,7 +23302,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro. Com `getSessionEpoch`, um 401 que chega **depois** de a época em que a tentativa saiu ter mudado — com ou sem token — não chama nem `refresh` nem `onUnauthorized`: a request rejeita com `SessionSupersededError`. Esse 401 é da sessão que acabou, e deslogar por ele derrubaria a conta que entrou depois (auditoria run-17 — até a 0.90.0 um `createApiClient` próprio derrubava a sessão de B pelo 401 atrasado de A). A época é lida na chegada, antes dos hooks, então um `onUnauthorized` que desloga por causa **deste** 401 continua deixando o chamador com o 401 (#646).
 - `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura. Com `retry` ligado, também impede que uma repetição saia em outra sessão — veja [Retentativa embutida](#retentativa-embutida). A proteção segue o bearer: um cliente só com cookie (`withCredentials`, sem `getToken`) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.
-- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`. Um `refresh` que **lança** depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com `SessionSupersededError`, sem chamar `onUnauthorized` — senão o envelope 401 da conta anterior chegaria ao `onError` da atual, e um `onUnauthorized` que chama `logout()` derrubaria a sessão nova (#657). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646). Só o `refresh` que falha conta como sessão que falhou: uma falha de rede **na repetição**, depois de um `refresh` que deu certo, rejeita com o erro de rede, como numa primeira tentativa, sem chamar `onUnauthorized` — até a 0.91.0 ela caía no mesmo tratamento e um soluço de rede logo depois do refresh deslogava o usuário (#684).
+- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`. Um `refresh` que **lança** depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com `SessionSupersededError`, sem chamar `onUnauthorized` — senão o envelope 401 da conta anterior chegaria ao `onError` da atual, e um `onUnauthorized` que chama `logout()` derrubaria a sessão nova (#657). Isso vale também para a request que saiu **sem** token: um `login(B)` durante o `refresh` que falha dela não deixa o `onUnauthorized` derrubar B — até a 0.92.0 a checagem só olhava tentativas com token, e um `createApiClient` próprio deslogava B pelo 401 anônimo (#696). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646). Só o `refresh` que falha conta como sessão que falhou: uma falha de rede **na repetição**, depois de um `refresh` que deu certo, rejeita com o erro de rede, como numa primeira tentativa, sem chamar `onUnauthorized` — até a 0.91.0 ela caía no mesmo tratamento e um soluço de rede logo depois do refresh deslogava o usuário (#684).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
@@ -24390,6 +24611,71 @@ plural("boxes", 2, undefined, { default: "{count} caixas" }); // "2 caixas"
     `default` e deixe ela responder. Este é o caminho que as strings internas do
     próprio SDK usam (`tempest.error.offline`, em `useDescribeApiError`).
 
+## Textos padrão dos componentes
+
+Componentes do SDK têm texto padrão: o título do `ErrorState`, os botões do
+`ConfirmDialog`, o "Fechar" do `Modal`. Com um `I18nProvider` montado, esses
+textos passam pelo catálogo, numa ordem só:
+
+1. **Prop explícita** (`title`, `retryLabel`, `confirmLabel`…) — sempre vence.
+2. **O seu catálogo**, pela chave `tempest.*` (locale ativo, depois `fallbackLocale`).
+3. **A tabela embutida do SDK**, em inglês quando o locale é `en` ou `en-*`.
+4. A mesma tabela em **pt-BR** — também o que aparece sem provider nenhum.
+
+Ou seja: um app em inglês recebe os textos padrão em inglês sem configurar nada,
+e um app em outro idioma traduz copiando as chaves para o próprio catálogo:
+
+```tsx
+import { ErrorState, I18nProvider, TEMPEST_MESSAGES } from "tempest-react-sdk";
+
+const messages = {
+    es: {
+        ...TEMPEST_MESSAGES.en,
+        "tempest.errorState.title": "Algo salió mal",
+        "tempest.errorState.retry": "Reintentar",
+    },
+};
+
+export function App({ refetch }: { refetch: () => void }) {
+    return (
+        <I18nProvider locale="es" messages={messages}>
+            <ErrorState onRetry={refetch} />
+        </I18nProvider>
+    );
+}
+```
+
+As chaves, com o padrão em pt-BR / en:
+
+| Chave                                | pt-BR                                          | en                                   | Onde                                           |
+| ------------------------------------ | ---------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
+| `tempest.common.close`               | Fechar                                         | Close                                | botão fechar de `Modal`, `Drawer`, `Banner`, `Alert` |
+| `tempest.errorState.title`           | Algo deu errado                                | Something went wrong                 | `ErrorState`                                   |
+| `tempest.errorState.description`     | Não foi possível carregar essas informações.   | We couldn't load this information.   | `ErrorState`                                   |
+| `tempest.errorState.retry`           | Tentar novamente                               | Try again                            | `ErrorState`                                   |
+| `tempest.confirmDialog.confirm`      | Confirmar                                      | Confirm                              | `ConfirmDialog`                                |
+| `tempest.confirmDialog.cancel`       | Cancelar                                       | Cancel                               | `ConfirmDialog`                                |
+| `tempest.spinner.label`              | Carregando                                     | Loading                              | `Spinner`                                      |
+| `tempest.pagination.results_one`     | {count} resultado                              | {count} result                       | `Pagination`                                   |
+| `tempest.pagination.results_other`   | {count} resultados                             | {count} results                      | `Pagination`                                   |
+| `tempest.pagination.pageOf`          | Página {page} de {total}                       | Page {page} of {total}               | `Pagination`                                   |
+| `tempest.pagination.previous`        | Página anterior                                | Previous page                        | `Pagination`                                   |
+| `tempest.pagination.next`            | Próxima página                                 | Next page                            | `Pagination`                                   |
+| `tempest.pagination.pageSize`        | Itens por página                               | Items per page                       | `Pagination`                                   |
+| `tempest.pagination.pageSizeOption`  | {size} / página                                | {size} / page                        | `Pagination`                                   |
+| `tempest.bottomNavigation.label`     | Navegação principal                            | Main navigation                      | `BottomNavigation`                             |
+| `tempest.sidebar.label`              | Navegação lateral                              | Side navigation                      | `Sidebar`                                      |
+| `tempest.tag.remove`                 | Remover                                        | Remove                               | `Tag`                                          |
+| `tempest.searchBar.clear`            | Limpar busca                                   | Clear search                         | `SearchBar`                                    |
+| `tempest.searchBar.placeholder`      | Buscar...                                      | Search...                            | `SearchBar`                                    |
+
+!!! note "Ainda fora do catálogo"
+    `DataTable`, `Table`, `Command`, `Chat`, `FilterBar`, as telas de auth, os
+    componentes de captura e de PWA, entre outros, ainda têm o texto padrão fixo em
+    pt-BR — passe as props de texto deles. A migração continua no #746. As mensagens
+    do [`useDescribeApiError`](./http.md) já passavam pelo catálogo
+    (`tempest.error.offline`, `tempest.error.validation`), mas sem tabela em inglês.
+
 ## Plurais
 
 `plural(key, count, params?)` escolhe entre `${key}_one` (quando `count === 1`) e `${key}_other` (qualquer outro valor), com `{count}` disponível na interpolação:
@@ -24436,6 +24722,7 @@ const ptBR = await fetch("/i18n/pt-BR.json").then((response) => response.json())
 - `t` interpola `{placeholder}`, cai no fallback e por fim devolve a própria chave — nunca quebra.
 - `plural` usa os sufixos `_one` / `_other`; plurais complexos pedem `i18next`.
 - `createI18n` roda fora do React; `withLocale` clona o objeto em outro idioma.
+- Os textos padrão dos componentes (`tempest.*`) passam pelo catálogo, com tabela embutida em pt-BR e en (`TEMPEST_MESSAGES`); prop explícita sempre vence.
 
 ## Veja também
 
@@ -33313,15 +33600,13 @@ import {
   Button,
   Command,
   Kbd,
+  formatShortcut,
   useKeyboardShortcut,
   useNavigate,
   useTheme,
   type CommandItem,
 } from "tempest-react-sdk";
 import { useAuth } from "@/stores/auth";
-
-const isApple: boolean =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 export function CommandPalette() {
   const [open, setOpen] = useState<boolean>(false);
@@ -33330,14 +33615,7 @@ export function CommandPalette() {
   const role: string | undefined = useAuth.use.user()?.role;
   const logout: () => void = useAuth.use.logout();
 
-  useKeyboardShortcut(
-    { key: "k", mod: true },
-    (event) => {
-      event.preventDefault();
-      setOpen(true);
-    },
-    { ignoreInput: false },
-  );
+  useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
 
   const items: CommandItem[] = [
     {
@@ -33403,7 +33681,7 @@ export function CommandPalette() {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        rightIcon={<Kbd size="sm">{isApple ? "⌘ K" : "Ctrl K"}</Kbd>}
+        rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
       >
         Buscar
       </Button>
@@ -33476,14 +33754,16 @@ Cada `onSelect` é a ação do item: `navigate(...)`, `toggle()` ou `logout()`.
 `useKeyboardShortcut({ key: "k", mod: true }, handler)` casa **Cmd+K no macOS e Ctrl+K
 no Windows e no Linux**. O hook recebe um objeto `KeyboardShortcut`, não uma string.
 
-Dois detalhes deixam o atalho pronto para uso real:
+Como o atalho leva o modificador, o hook já faz duas coisas sozinho:
 
-- `event.preventDefault()`: Ctrl+K é atalho do próprio navegador (focar a busca no
-  Chrome e no Firefox). Sem isso, a paleta abre **e** o navegador rouba o foco.
-- `{ ignoreInput: false }`: por padrão o hook ignora teclas digitadas dentro de um
-  campo, para não sequestrar a digitação. Para ⌘K isso é o contrário do que se quer:
-  a pessoa está com o foco na busca de pedidos e quer pular de tela. Como o atalho
-  exige o modificador, não há risco de engolir uma letra digitada.
+- chama `event.preventDefault()`: Ctrl+K é atalho do próprio navegador (focar a busca
+  no Chrome e no Firefox), e sem isso a paleta abre **e** o navegador rouba o foco;
+- dispara com o foco num campo: a pessoa está na busca de pedidos e quer pular de tela.
+  Tecla sem Ctrl/Cmd (`"/"`, `"?"`) continua pertencendo ao campo onde é digitada.
+
+Para mudar qualquer um dos dois, passe `{ preventDefault: false }` ou
+`{ ignoreInput: true }`. Veja
+[`useKeyboardShortcut`](../hooks.md#atalho-global-usekeyboardshortcut).
 
 ### Itens por papel
 
@@ -33498,21 +33778,19 @@ O botão "Buscar" tem dois papéis. No computador, ele **ensina** o atalho, com 
 certa para o sistema de quem está usando. No celular, é **o único jeito** de abrir a
 paleta, já que não há teclado físico. 📱
 
-!!! note "Por que detectar a plataforma na mão"
-    O `mod` do hook resolve Cmd vs. Ctrl na hora de **ouvir** a tecla. Para
-    **mostrar** a tecla, o app decide sozinho, e um teste em `navigator.userAgent`
-    basta. O `typeof navigator` evita erro se o módulo for importado fora do
-    navegador, num teste em Node, por exemplo.
+`formatShortcut` recebe o mesmo objeto que o hook escuta e devolve `⌘K` no Mac,
+iPhone e iPad, e `Ctrl+K` no resto. O rótulo e o atalho não têm como divergir.
 
 ## Recap
 
 - ✅ `Command` recebe `items`, `open` e `onOpenChange` e cuida de busca, grupos,
   teclado e foco.
-- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …, { ignoreInput: false })` abre a
-  paleta de qualquer lugar, com `preventDefault` para vencer o atalho do navegador.
+- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …)` abre a paleta de qualquer lugar,
+  inclusive de dentro de um campo, e vence o atalho do navegador.
 - ✅ `keywords` acha a tela pelo sinônimo.
 - ✅ A lista depende do usuário, mas a proteção de verdade fica no guard e no backend.
-- ✅ Um botão com `Kbd` ensina o atalho e é a porta de entrada no celular.
+- ✅ Um botão com `Kbd` e `formatShortcut` ensina o atalho certo para o sistema e é a
+  porta de entrada no celular.
 
 ---
 
@@ -33546,41 +33824,20 @@ tema **antes da primeira pintura**.
 
 ### 1. O script no `<head>`
 
-=== "Vite (`index.html`)"
+=== "Vite (`vite.config.ts`)"
 
-    ```html
-    <!-- index.html -->
-    <!doctype html>
-    <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#ffffff" />
-        <title>Painel · Loja Aurora</title>
-        <script>
-          (function () {
-            try {
-              var key = "tempest-theme";
-              var def = "system";
-              var stored = localStorage.getItem(key);
-              var mode = stored || def;
-              var resolved =
-                mode === "dark" || mode === "light"
-                  ? mode
-                  : matchMedia("(prefers-color-scheme: dark)").matches
-                    ? "dark"
-                    : "light";
-              document.documentElement.setAttribute("data-tempest-theme", resolved);
-            } catch (e) {}
-          })();
-        </script>
-      </head>
-      <body>
-        <div id="root"></div>
-        <script type="module" src="/src/main.tsx"></script>
-      </body>
-    </html>
+    ```ts
+    // vite.config.ts
+    import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
+
+    export default createViteConfig({
+      plugins: [tempestThemeInit(), tempestCsp()],
+    });
     ```
+
+    O `tempestThemeInit()` escreve o script no topo do `<head>` do `index.html`, no
+    `vite dev` e no build. O `index.html` fica como está, sem script colado à mão. O app
+    gerado pelo `create-tempest-app` já vem com essa linha.
 
 === "SSR (React no servidor)"
 
@@ -33598,7 +33855,6 @@ tema **antes da primeira pintura**.
         <html lang="pt-BR">
           <head>
             <meta charSet="UTF-8" />
-            <meta name="theme-color" content="#ffffff" />
             <title>Painel · Loja Aurora</title>
             <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
           </head>
@@ -33681,8 +33937,8 @@ Ele roda **antes do CSS e antes do React**. Lê a escolha salva em
 navegador com `prefers-color-scheme`. No fim, escreve `data-tempest-theme="dark"` (ou
 `"light"`) no `<html>`. Quando a primeira pintura acontece, os tokens já estão certos.
 
-O conteúdo da aba **Vite** é exatamente o que `themeInitScript()` devolve, só
-formatado. Na aba **SSR**, você injeta a própria função, e o script nunca sai de
+Na aba **Vite**, o plugin `tempestThemeInit()` injeta o que `themeInitScript()` devolve.
+Na aba **SSR**, você injeta a própria função. Nos dois casos o script nunca sai de
 sincronia com o SDK.
 
 !!! warning "Síncrono e cedo, sempre"
@@ -33690,8 +33946,8 @@ sincronia com o SDK.
     primeira pintura, senão o flash volta.
 
 !!! check "Com `tempestCsp()`, o script inline já é liberado"
-    O plugin de CSP do SDK calcula o SHA-256 de todo script inline do `index.html` e o
-    coloca na política. Você não precisa de `'unsafe-inline'`. Veja
+    O plugin de CSP do SDK calcula o SHA-256 de todo script inline do `index.html`,
+    inclusive o que o `tempestThemeInit()` injeta, e o coloca na política. Você não precisa de `'unsafe-inline'`. Veja
     [Script inline entra por hash](../csp.md#script-inline-entra-por-hash).
 
 ### O seletor usa o contexto do tema
@@ -33716,13 +33972,14 @@ O `<AppProviders>` monta o `ThemeProvider` por padrão. A prop `theme` só ajust
   provider escuta `prefers-color-scheme` e troca na hora em que o sistema operacional
   muda.
 - `themeColor` atualiza a `<meta name="theme-color">`, que pinta a barra do navegador
-  no Android e a barra de status do app instalado. 📱 Ele só **atualiza** a tag: ela
-  precisa existir no `<head>`, por isso as duas abas do passo 1 a declaram.
+  no Android e a barra de status do app instalado. 📱 Se a página não tem a tag, o provider
+  a cria no `<head>`.
 
 !!! tip "Mesma chave nos dois lados"
     O script e o provider precisam ler a mesma chave do `localStorage`. Os dois usam
     `"tempest-theme"` por padrão. Se você trocar, passe `storageKey` aos dois:
-    `themeInitScript({ storageKey: "aurora-theme" })` e
+    `tempestThemeInit({ storageKey: "aurora-theme" })` (ou
+    `themeInitScript({ storageKey: "aurora-theme" })` no SSR) e
     `theme={{ storageKey: "aurora-theme" }}`.
 
 ### O seu CSS usa os mesmos tokens
@@ -33735,8 +33992,8 @@ tema escuro é sempre esse atributo, nunca `class="dark"`. Veja
 
 ## Recap
 
-- ✅ O script de `themeInitScript()` no `<head>` aplica o tema antes da primeira
-  pintura: sem flash.
+- ✅ `tempestThemeInit()` no `vite.config.ts` (ou `themeInitScript()` no SSR) põe o
+  script no `<head>`, que aplica o tema antes da primeira pintura: sem flash.
 - ✅ `useTheme()` dá `theme`, `resolvedTheme`, `setTheme` e `toggle`.
 - ✅ `SegmentedControl` + `setTheme` viram o seletor **Claro / Escuro / Sistema**.
 - ✅ `<AppProviders theme={{ defaultTheme, themeColor }}>` acompanha o sistema e pinta a
@@ -33986,8 +34243,6 @@ export const messages: Catalog = {
         "nav.patients": "Pacientes",
         "nav.settings": "Configurações",
         "nav.logout": "Sair",
-        "common.errorTitle": "Algo deu errado",
-        "common.retry": "Tentar de novo",
         "page.error": "Esta tela encontrou um erro inesperado.",
         "dashboard.title": "Painel da clínica",
         "dashboard.description": "O dia de hoje e os últimos 7 dias, num relance.",
@@ -34001,7 +34256,6 @@ export const messages: Catalog = {
         "dashboard.series.done": "Realizadas",
         "dashboard.series.noShow": "Faltas",
         "dashboard.mix": "Pacientes por convênio",
-        "dashboard.series.patients": "Pacientes",
         "dashboard.empty": "Nenhuma consulta nos últimos 7 dias",
         "dashboard.emptyHint": "Os gráficos aparecem assim que a agenda tiver atendimentos.",
         "dashboard.error": "Não foi possível carregar o painel.",
@@ -34025,8 +34279,6 @@ export const messages: Catalog = {
         "nav.patients": "Patients",
         "nav.settings": "Settings",
         "nav.logout": "Sign out",
-        "common.errorTitle": "Something went wrong",
-        "common.retry": "Try again",
         "page.error": "This screen hit an unexpected error.",
         "dashboard.title": "Clinic dashboard",
         "dashboard.description": "Today and the last 7 days, at a glance.",
@@ -34040,7 +34292,6 @@ export const messages: Catalog = {
         "dashboard.series.done": "Attended",
         "dashboard.series.noShow": "No-shows",
         "dashboard.mix": "Patients by health plan",
-        "dashboard.series.patients": "Patients",
         "dashboard.empty": "No appointments in the last 7 days",
         "dashboard.emptyHint": "The charts show up once the schedule has appointments.",
         "dashboard.error": "Could not load the dashboard.",
@@ -34191,7 +34442,7 @@ Aqui moram as duas portas do app. 🚪
 
 **A porta da sessão** está na rota `/`, que envolve todas as outras. O guard `useSessionGuard` é um hook — por isso o nome começa com `use` — e assina o store: quando a sessão termina, por Sair ou por expiração, ele re-renderiza sozinho e manda para `/login`. O `preserveFrom: true` leva junto o endereço de onde a pessoa veio.
 
-O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo.
+O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo. É só esse instante: se o `/auth/me` falha, o `login()` desfaz a entrada antes de rejeitar, e o token não fica sozinho no store (#748).
 
 **A porta do papel** está em `pacientes`. O `useCan` responde numa passada de efeito, então no primeiro render ele ainda não sabe. O guard devolve `"pending"` nesse meio-tempo: o app mostra o spinner, em vez de mandar a recepcionista embora num piscar de olhos. Detalhes em [Roteamento → `"pending"`](../routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
@@ -34262,7 +34513,6 @@ import {
     Navbar,
     Outlet,
     Sidebar,
-    activeNavKey,
     useCan,
     useI18n,
     useLocation,
@@ -34335,10 +34585,8 @@ export function AppLayout(): ReactNode {
             bottomNav={
                 <BottomNavigation
                     items={items}
-                    value={activeNavKey(
-                        pathname,
-                        items.map((item) => item.key),
-                    )}
+                    value={pathname}
+                    match="route"
                     onChange={(key) => navigate(key)}
                 />
             }
@@ -34346,11 +34594,7 @@ export function AppLayout(): ReactNode {
             <ErrorBoundary
                 resetKeys={[pathname]}
                 fallback={({ reset }) => (
-                    <ErrorState
-                        title={t("common.errorTitle")}
-                        description={t("page.error")}
-                        retryLabel={t("common.retry")}
-                        onRetry={reset}
+                    <ErrorState description={t("page.error")} onRetry={reset}
                     />
                 )}
             >
@@ -34365,7 +34609,7 @@ O [`AppShell`](../components/layout.md#appshell) troca a navegação pelo tamanh
 
 - **Os itens dependem do papel.** `useCan` decide se "Pacientes" entra na lista. O médico nem vê a entrada — e se digitar `/pacientes`, o guard da rota o devolve ao painel.
 - **A `Sidebar` resolve o item ativo sozinha** com `match="route"`: em `/pacientes?page=2` o item "Pacientes" continua aceso. Os itens têm `href`, então ctrl-clique abre em outra aba.
-- **A `BottomNavigation` recebe a mesma lista**, com o item ativo calculado pelo [`activeNavKey`](../components/navigation.md#activenavkey-a-mesma-resolucao-fora-do-sidebar).
+- **A `BottomNavigation` recebe a mesma lista e o mesmo `match="route"`.** No celular os itens também são links de verdade, e o item ativo sai da rota pela mesma regra da `Sidebar`. Veja [`BottomNavigation`](../components/navigation.md#links-e-item-ativo-pela-rota).
 - **O Sair** chama `auth.logout()` e mais nada. O store limpa na hora, o `onSessionEnd` limpa o cache, e o guard da sessão leva para o login.
 
 O `ErrorBoundary` em volta do `<Outlet />` é o **segundo** boundary do app, e o que mais aparece: um erro de render no painel troca só o conteúdo por uma tela de erro, e o menu continua lá. O `resetKeys={[pathname]}` limpa o erro quando a pessoa navega para outra página. Veja [Error Boundary](../error-boundary.md).
@@ -34425,6 +34669,7 @@ function RevenueStat(): ReactNode {
 
 function RevenueChart(): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
+    const money = useMoney();
     const revenue = useRevenue();
     const compactMoney = (value: number): string =>
         formatNumber(value, { style: "currency", currency: "BRL", notation: "compact" });
@@ -34433,18 +34678,15 @@ function RevenueChart(): ReactNode {
     if (revenue.isError) {
         return (
             <ErrorState
-                title={t("common.errorTitle")}
                 description={t("dashboard.revenueError")}
-                retryLabel={t("common.retry")}
                 onRetry={() => void revenue.refetch()}
             />
         );
     }
 
-    const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
         month: formatDate(`${point.month}-01`, { month: "short" }),
-        [series]: point.total,
+        total: point.total,
     }));
 
     return (
@@ -34452,8 +34694,10 @@ function RevenueChart(): ReactNode {
             <LineChart
                 data={data}
                 index="month"
-                categories={[series]}
-                valueFormatter={compactMoney}
+                categories={["total"]}
+                labels={{ total: t("dashboard.series.revenue") }}
+                valueFormatter={money}
+                yAxisFormatter={compactMoney}
                 height={280}
             />
         </Card>
@@ -34475,18 +34719,14 @@ function DashboardSkeleton(): ReactNode {
 
 function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
-    const done = t("dashboard.series.done");
-    const noShow = t("dashboard.series.noShow");
-    const patients = t("dashboard.series.patients");
-
     const week = summary.appointments_by_day.map((day) => ({
         day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
-        [done]: day.done,
-        [noShow]: day.no_show,
+        done: day.done,
+        noShow: day.no_show,
     }));
     const mix = summary.insurance_mix.map((share) => ({
         insurance: share.insurance,
-        [patients]: share.patients,
+        patients: share.patients,
     }));
     const delta = summary.appointments_today_delta;
     const isEmptyWeek = summary.appointments_by_day.every((day) => day.done + day.no_show === 0);
@@ -34534,7 +34774,11 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
                         <BarChart
                             data={week}
                             index="day"
-                            categories={[done, noShow]}
+                            categories={["done", "noShow"]}
+                            labels={{
+                                done: t("dashboard.series.done"),
+                                noShow: t("dashboard.series.noShow"),
+                            }}
                             stack
                             height={280}
                         />
@@ -34543,7 +34787,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
                         <PieChart
                             data={mix}
                             index="insurance"
-                            category={patients}
+                            category="patients"
                             donut
                             height={280}
                         />
@@ -34572,9 +34816,7 @@ export default function Dashboard(): ReactNode {
                 <DashboardSkeleton />
             ) : summary.isError ? (
                 <ErrorState
-                    title={t("common.errorTitle")}
                     description={t("dashboard.error")}
-                    retryLabel={t("common.retry")}
                     onRetry={() => void summary.refetch()}
                 />
             ) : (
@@ -34587,9 +34829,9 @@ export default function Dashboard(): ReactNode {
 
 A tela mais densa do app. Vamos por partes. 📊
 
-**Os estados.** O componente de fora só decide qual dos três mostrar: `isPending` → esqueleto no formato da tela, `isError` → `ErrorState` com "Tentar de novo", senão o conteúdo. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.
+**Os estados.** O componente de fora só decide qual dos três mostrar: `isPending` → esqueleto no formato da tela, `isError` → `ErrorState` com o botão de tentar de novo, senão o conteúdo. O título e o botão do `ErrorState` vêm do próprio SDK, já no idioma ativo ([textos padrão](../i18n.md#textos-padrao-dos-componentes)); a tela só passa a descrição. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.
 
-**Os indicadores.** Quatro [`Stat`](../components/feedback.md#stat) num `Grid` de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo `formatNumber` do i18n: `1.284` em português, `1,284` em inglês.
+**Os indicadores.** Quatro [`Stat`](../components/feedback.md#stat) num `Grid` de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo `formatNumber` do i18n: `1.284` em português, `1,284` em inglês. A taxa de faltas sai sem delta porque o resumo não traz a variação dela; quando trouxer, passe `higherIsBetter={false}` — numa taxa de faltas, subir é ruim e a cor do delta precisa dizer isso ([polaridade](../components/feedback.md#polaridade-quando-subir-e-ruim)).
 
 **O faturamento só para a gestora.** `RevenueStat` e `RevenueChart` estão dentro de `<Can action="read" resource="finance">`. O `<Can>` não renderiza os filhos para quem não pode — e componente que não monta não dispara a query. O `/dashboard/revenue` nunca é chamado pela recepção.
 
@@ -34599,14 +34841,14 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 
 **Os gráficos.** `BarChart` empilhado, `PieChart` em rosca e `LineChart`, do subpath [`tempest-react-sdk/charts`](../charts.md). O formato de dados é sempre o mesmo: `index` é a chave do eixo, `categories` são as séries.
 
-!!! warning "O nome da série é a chave do objeto"
-    O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a **frase traduzida** como chave: `[done]: day.done`, onde `done` vale `"Realizadas"` ou `"Attended"`. Trocar o idioma refaz os dados e a legenda acompanha.
+!!! tip "O nome da série vem de `labels`"
+    Os dados ficam com as chaves da API (`done`, `noShow`) e `labels` dá o texto da legenda e do tooltip: `labels={{ done: t("dashboard.series.done") }}`. Trocar o idioma muda só o rótulo. Veja [`labels`](../charts.md#rotulo-da-serie-separado-da-chave-do-dado-labels).
 
 !!! info "Data sem hora fica no dia que o backend mandou"
     `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
-!!! tip "Eixo com dinheiro: notação compacta"
-    No gráfico de faturamento, o `valueFormatter` usa `notation: "compact"`. `R$ 186.430` vira `R$ 186 mil`, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.
+!!! tip "Eixo com dinheiro: compacto no eixo, inteiro no tooltip"
+    O eixo Y se ajusta ao maior rótulo sozinho. No celular, `R$ 186.430` inteiro tomaria espaço do gráfico, então o eixo usa `yAxisFormatter` com `notation: "compact"` (`R$ 186 mil`) e o tooltip continua com o valor inteiro do `valueFormatter`. Veja [eixo de valor](../charts.md#eixo-de-valor-largura-e-formato).
 
 ## Pacientes
 
@@ -41628,7 +41870,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # alias @ -> ./src em "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -41639,8 +41881,8 @@ my-app/
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakeia uma sessão via useAuth.use.setSession() e navigate("/dashboard")
     ├── pages/Dashboard.tsx      # export default (lazy), rota protegida
-    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 ```
 
 ### Cada arquivo → o recurso do SDK que ele mostra
@@ -41658,14 +41900,14 @@ Vamos olhar os três mais importantes.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestCsp()],
+    plugins: [tempestThemeInit(), tempestCsp()],
 });
 ```
 
-Uma chamada. O `createViteConfig` já liga o plugin de React, o alias `@ -> ./src` e os defaults que o SDK espera. Veja a página [Vite Config](./vite-config.md) pra customizar. O `tempestCsp()` escreve a Content-Security-Policy no `index.html`, no dev e no build, com o `connect-src` tirado das URLs `VITE_*` do `.env` — por isso o `cp .env.example .env` do primeiro passo importa. Veja [Content-Security-Policy](./csp.md).
+Uma chamada. O `createViteConfig` já liga o plugin de React, o alias `@ -> ./src` e os defaults que o SDK espera. Veja a página [Vite Config](./vite-config.md) pra customizar. O `tempestCsp()` escreve a Content-Security-Policy no `index.html`, no dev e no build, com o `connect-src` tirado das URLs `VITE_*` do `.env` — por isso o `cp .env.example .env` do primeiro passo importa. Veja [Content-Security-Policy](./csp.md). O `tempestThemeInit()` põe o script anti-flash do tema no `<head>`, então quem escolheu o escuro não vê um quadro claro ao carregar. Veja [No-flash](./theme.md#no-flash-evitar-o-flash-do-tema-errado).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 
@@ -41688,6 +41930,7 @@ export function App() {
 
 ```ts
 import { createAuthStore, createSelectors } from "tempest-react-sdk";
+import { configureApiAuth } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -41696,12 +41939,19 @@ export interface User {
 }
 
 export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" }));
+
+configureApiAuth({
+  getToken: () => useAuth.getState().token,
+  onUnauthorized: () => useAuth.getState().logout(),
+});
 ```
 
 `createAuthStore<User>` cria uma store Zustand de autenticação persistida (`name: "app-auth"` é a chave de storage). `createSelectors` te dá acesso atômico via `useAuth.use.<campo>()` — é assim que `RootLayout.tsx` lê `useAuth.use.isAuthenticated()` e `Login.tsx` chama `useAuth.use.setSession()`. Mais padrões em [State](./state.md).
 
+O `configureApiAuth` no fim liga a store ao cliente HTTP: o `lib/api.ts` não importa nada de auth, então um projeto sem login apaga `stores/auth.ts` e o cliente segue funcionando sem token.
+
 !!! note "O resto se explica sozinho"
-    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` com `baseURL`/`getToken`/`onUnauthorized` e exporta `createQueryKeys` pra você organizar as chaves de cache.
+    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` lendo o token pelo que o `configureApiAuth` registrou e exporta `queryKeys = createQueryKeys("app", { me })` pra você organizar as chaves de cache.
 
 ## Modo PWA (`--pwa`)
 
@@ -41942,7 +42192,16 @@ export const useCounter = createStore<{ count: number; inc: () => void }>((set) 
 
 ### 3. Busque dados com React Query + queryKeys + api
 
-Combine o cliente HTTP, as query keys e o `useQuery` (já disponível pelo `AppProviders`):
+O template só declara a chave `me`. Acrescente a sua em `src/lib/api.ts`:
+
+```ts
+export const queryKeys = createQueryKeys("app", {
+  me: () => ["me"],
+  users: () => ["users"],
+});
+```
+
+E combine o cliente HTTP, a chave e o `useQuery` (já disponível pelo `AppProviders`):
 
 ```tsx
 import { useQuery } from "@tanstack/react-query";
@@ -41950,7 +42209,7 @@ import { api, queryKeys } from "@/lib/api";
 
 export function UserList() {
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.users.all,
+    queryKey: queryKeys.users(),
     queryFn: () => api.get("/users"),
   });
 
@@ -45766,7 +46025,20 @@ O que cada campo significa:
 
 Há um problema clássico: o HTML pinta antes do React montar, então por um instante o usuário vê o tema padrão antes de o `ThemeProvider` corrigir. A solução é um script síncrono inline no `<head>`, **antes de qualquer CSS**, que aplica o atributo na primeira pintura.
 
-`themeInitScript()` devolve exatamente esse trecho. Em um `index.html` Vite:
+`themeInitScript()` devolve exatamente esse trecho. Num app Vite, o plugin `tempestThemeInit()` o injeta no topo do `<head>`, no `vite dev` e no build — o app do `create-tempest-app` já vem com ele:
+
+```ts
+// vite.config.ts
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+  plugins: [tempestThemeInit(), tempestCsp()],
+});
+```
+
+Passe ao plugin o mesmo `storageKey`/`defaultTheme` do `ThemeProvider` (`tempestThemeInit({ storageKey: "aurora-theme" })`). Com o `tempestCsp()`, o script entra na política pelo hash, sem `'unsafe-inline'`. Medido no app gerado pela 0.92.0 (`vite build` + `vite preview`, Chromium, `localStorage["tempest-theme"] = "dark"`, 5 cargas): sem o script, no primeiro `requestAnimationFrame` o atributo não existia e o `body` pintava `rgb(255, 255, 255)` nas 5.
+
+Sem o plugin, o mesmo trecho colado à mão num `index.html`:
 
 ```html
 <!doctype html>
@@ -46293,7 +46565,7 @@ Os componentes do SDK leem `data-tempest-theme`. Se o **CSS próprio do seu app*
 </ThemeProvider>
 ```
 
-Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (a meta tag precisa existir no `<head>`):
+Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (e cria a tag no `<head>` quando a página não tem):
 
 ```tsx
 <ThemeProvider themeColor={{ light: "#1f7a3f", dark: "#0f1411" }}>
@@ -46319,7 +46591,7 @@ Passe `target` para aplicar o tema em uma subárvore específica em vez de `<htm
 - `ThemeProvider` escreve `data-tempest-theme` no `<html>` (ou no elemento de `target`); os tokens `--tempest-*` reagem sozinhos.
 - Modos: `"light"`, `"dark"`, `"system"` — o último segue `prefers-color-scheme` ao vivo. A escolha persiste em `localStorage["tempest-theme"]`.
 - `useTheme()` dá `theme` (preferência crua), `resolvedTheme` (sempre `light`/`dark`), `setTheme` e `toggle`.
-- Inline o `themeInitScript()` **síncrono no `<head>`, antes do CSS**, para eliminar o flash do tema errado.
+- Ligue o `tempestThemeInit()` no `vite.config.ts` (ou inline o `themeInitScript()` **síncrono no `<head>`, antes do CSS**) para eliminar o flash do tema errado.
 - Customize o visual sobrescrevendo os tokens `--tempest-*`; use `target` para tema em subárvore.
 
 ## Veja também
@@ -50176,6 +50448,11 @@ Todas as opções são opcionais.
 !!! tip "Content-Security-Policy"
     O `tempestCsp()` mora no mesmo subpath e deriva o `connect-src` das variáveis
     `VITE_*` que o app lê em runtime. Veja [Content-Security-Policy](csp.md).
+
+!!! tip "Tema sem flash"
+    O `tempestThemeInit()` também mora aqui: injeta o `themeInitScript()` no topo do
+    `<head>`, e o `tempestCsp()` o libera pelo hash. Veja
+    [No-flash](theme.md#no-flash-evitar-o-flash-do-tema-errado).
 
 ## Recap
 

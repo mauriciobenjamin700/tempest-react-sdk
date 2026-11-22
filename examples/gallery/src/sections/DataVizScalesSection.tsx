@@ -7,6 +7,7 @@ import {
     SEQUENTIAL_STEP_COUNT,
     sequentialScale,
 } from "tempest-react-sdk";
+import { BarChart, LineChart } from "tempest-react-sdk/charts";
 import { Example } from "../Example";
 
 const HOURS = ["08", "10", "12", "14", "16", "18", "20"];
@@ -56,6 +57,31 @@ function ScaleLegend({
         </div>
     );
 }
+
+/** Monthly revenue in BRL — wide enough to overflow a fixed 60 px axis. */
+const REVENUE = [
+    { month: "jul", total: 92_400 },
+    { month: "ago", total: 118_900 },
+    { month: "set", total: 131_200 },
+    { month: "out", total: 164_750 },
+    { month: "nov", total: 186_430 },
+];
+
+/** Appointments per weekday, keyed as the API sends them. */
+const WEEK = [
+    { day: "seg", done: 34, noShow: 3 },
+    { day: "ter", done: 29, noShow: 5 },
+    { day: "qua", done: 31, noShow: 2 },
+    { day: "qui", done: 27, noShow: 4 },
+    { day: "sex", done: 22, noShow: 6 },
+];
+
+const BRL_FULL = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const BRL_AXIS = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+});
 
 /**
  * Demo of the continuous scales.
@@ -251,6 +277,48 @@ scaleSteps("diverging");  // ${DIVERGING_STEP_COUNT} passos (5 = meio neutro)`}
                             </div>
                         </div>
                     ))}
+                </div>
+            </Example>
+
+            <Example
+                title="LineChart · BarChart — rótulos de série e eixo de valor"
+                id="ex-chart-labels-axis"
+                note='labels traduz a legenda e o tooltip sem remontar os dados; o eixo Y se ajusta ao maior rótulo (yAxisWidth="auto") e yAxisFormatter formata só o eixo.'
+                code={`<LineChart
+    data={revenue}
+    index="month"
+    categories={["total"]}
+    labels={{ total: "Faturamento" }}
+    valueFormatter={(v) => brlFull.format(v)}
+    yAxisFormatter={(v) => brlAxis.format(v)}
+/>
+
+<BarChart
+    data={week}
+    index="day"
+    categories={["done", "noShow"]}
+    labels={{ done: "Realizadas", noShow: "Faltas" }}
+    stack
+/>`}
+            >
+                <div className="gallery-grid" style={{ alignItems: "start" }}>
+                    <LineChart
+                        data={REVENUE}
+                        index="month"
+                        categories={["total"]}
+                        labels={{ total: "Faturamento" }}
+                        valueFormatter={(value) => BRL_FULL.format(value)}
+                        yAxisFormatter={(value) => BRL_AXIS.format(value)}
+                        height={240}
+                    />
+                    <BarChart
+                        data={WEEK}
+                        index="day"
+                        categories={["done", "noShow"]}
+                        labels={{ done: "Realizadas", noShow: "Faltas" }}
+                        stack
+                        height={240}
+                    />
                 </div>
             </Example>
         </section>

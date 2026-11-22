@@ -6,6 +6,8 @@
  * resize is half a footer.
  */
 import { useEffect, useMemo, useRef } from "react";
+import { PAGINATION_MESSAGES } from "@/i18n/messages/pagination";
+import { useTempestText } from "@/i18n/use-tempest-text";
 import { cn } from "@/utils/cn";
 import styles from "./Pagination.module.css";
 
@@ -98,6 +100,7 @@ export function Pagination({
         [pageSize, pageSizeOptions],
     );
     const activePage = useRef<HTMLButtonElement | null>(null);
+    const text = useTempestText(PAGINATION_MESSAGES);
 
     useEffect(() => {
         if (compactOnMobile) return;
@@ -110,8 +113,8 @@ export function Pagination({
         <div className={cn(styles.wrapper, className)} data-compact={String(compactOnMobile)}>
             <div className={styles.summary}>
                 {typeof totalItems === "number"
-                    ? `${totalItems} resultado${totalItems === 1 ? "" : "s"}`
-                    : `Página ${page} de ${totalPages}`}
+                    ? text.plural("tempest.pagination.results", totalItems)
+                    : text.t("tempest.pagination.pageOf", { page, total: totalPages })}
             </div>
             <div className={styles.controls}>
                 <button
@@ -119,7 +122,7 @@ export function Pagination({
                     className={styles.page}
                     onClick={() => onPageChange(Math.max(1, page - 1))}
                     disabled={page <= 1}
-                    aria-label="Página anterior"
+                    aria-label={text.t("tempest.pagination.previous")}
                 >
                     ‹
                 </button>
@@ -153,7 +156,7 @@ export function Pagination({
                     className={styles.page}
                     onClick={() => onPageChange(Math.min(totalPages, page + 1))}
                     disabled={page >= totalPages}
-                    aria-label="Próxima página"
+                    aria-label={text.t("tempest.pagination.next")}
                 >
                     ›
                 </button>
@@ -162,11 +165,11 @@ export function Pagination({
                         className={styles.sizeSelect}
                         value={pageSize}
                         onChange={(event) => onPageSizeChange(Number(event.target.value))}
-                        aria-label="Itens por página"
+                        aria-label={text.t("tempest.pagination.pageSize")}
                     >
                         {sizes.map((opt) => (
                             <option key={opt} value={opt}>
-                                {opt} / página
+                                {text.t("tempest.pagination.pageSizeOption", { size: opt })}
                             </option>
                         ))}
                     </select>

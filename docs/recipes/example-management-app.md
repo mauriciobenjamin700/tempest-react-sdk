@@ -237,8 +237,6 @@ export const messages: Catalog = {
         "nav.patients": "Pacientes",
         "nav.settings": "Configurações",
         "nav.logout": "Sair",
-        "common.errorTitle": "Algo deu errado",
-        "common.retry": "Tentar de novo",
         "page.error": "Esta tela encontrou um erro inesperado.",
         "dashboard.title": "Painel da clínica",
         "dashboard.description": "O dia de hoje e os últimos 7 dias, num relance.",
@@ -252,7 +250,6 @@ export const messages: Catalog = {
         "dashboard.series.done": "Realizadas",
         "dashboard.series.noShow": "Faltas",
         "dashboard.mix": "Pacientes por convênio",
-        "dashboard.series.patients": "Pacientes",
         "dashboard.empty": "Nenhuma consulta nos últimos 7 dias",
         "dashboard.emptyHint": "Os gráficos aparecem assim que a agenda tiver atendimentos.",
         "dashboard.error": "Não foi possível carregar o painel.",
@@ -276,8 +273,6 @@ export const messages: Catalog = {
         "nav.patients": "Patients",
         "nav.settings": "Settings",
         "nav.logout": "Sign out",
-        "common.errorTitle": "Something went wrong",
-        "common.retry": "Try again",
         "page.error": "This screen hit an unexpected error.",
         "dashboard.title": "Clinic dashboard",
         "dashboard.description": "Today and the last 7 days, at a glance.",
@@ -291,7 +286,6 @@ export const messages: Catalog = {
         "dashboard.series.done": "Attended",
         "dashboard.series.noShow": "No-shows",
         "dashboard.mix": "Patients by health plan",
-        "dashboard.series.patients": "Patients",
         "dashboard.empty": "No appointments in the last 7 days",
         "dashboard.emptyHint": "The charts show up once the schedule has appointments.",
         "dashboard.error": "Could not load the dashboard.",
@@ -513,7 +507,6 @@ import {
     Navbar,
     Outlet,
     Sidebar,
-    activeNavKey,
     useCan,
     useI18n,
     useLocation,
@@ -586,10 +579,8 @@ export function AppLayout(): ReactNode {
             bottomNav={
                 <BottomNavigation
                     items={items}
-                    value={activeNavKey(
-                        pathname,
-                        items.map((item) => item.key),
-                    )}
+                    value={pathname}
+                    match="route"
                     onChange={(key) => navigate(key)}
                 />
             }
@@ -597,11 +588,7 @@ export function AppLayout(): ReactNode {
             <ErrorBoundary
                 resetKeys={[pathname]}
                 fallback={({ reset }) => (
-                    <ErrorState
-                        title={t("common.errorTitle")}
-                        description={t("page.error")}
-                        retryLabel={t("common.retry")}
-                        onRetry={reset}
+                    <ErrorState description={t("page.error")} onRetry={reset}
                     />
                 )}
             >
@@ -616,7 +603,7 @@ O [`AppShell`](../components/layout.md#appshell) troca a navegação pelo tamanh
 
 - **Os itens dependem do papel.** `useCan` decide se "Pacientes" entra na lista. O médico nem vê a entrada — e se digitar `/pacientes`, o guard da rota o devolve ao painel.
 - **A `Sidebar` resolve o item ativo sozinha** com `match="route"`: em `/pacientes?page=2` o item "Pacientes" continua aceso. Os itens têm `href`, então ctrl-clique abre em outra aba.
-- **A `BottomNavigation` recebe a mesma lista**, com o item ativo calculado pelo [`activeNavKey`](../components/navigation.md#activenavkey-a-mesma-resolucao-fora-do-sidebar).
+- **A `BottomNavigation` recebe a mesma lista e o mesmo `match="route"`.** No celular os itens também são links de verdade, e o item ativo sai da rota pela mesma regra da `Sidebar`. Veja [`BottomNavigation`](../components/navigation.md#links-e-item-ativo-pela-rota).
 - **O Sair** chama `auth.logout()` e mais nada. O store limpa na hora, o `onSessionEnd` limpa o cache, e o guard da sessão leva para o login.
 
 O `ErrorBoundary` em volta do `<Outlet />` é o **segundo** boundary do app, e o que mais aparece: um erro de render no painel troca só o conteúdo por uma tela de erro, e o menu continua lá. O `resetKeys={[pathname]}` limpa o erro quando a pessoa navega para outra página. Veja [Error Boundary](../error-boundary.md).
@@ -676,6 +663,7 @@ function RevenueStat(): ReactNode {
 
 function RevenueChart(): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
+    const money = useMoney();
     const revenue = useRevenue();
     const compactMoney = (value: number): string =>
         formatNumber(value, { style: "currency", currency: "BRL", notation: "compact" });
@@ -684,18 +672,15 @@ function RevenueChart(): ReactNode {
     if (revenue.isError) {
         return (
             <ErrorState
-                title={t("common.errorTitle")}
                 description={t("dashboard.revenueError")}
-                retryLabel={t("common.retry")}
                 onRetry={() => void revenue.refetch()}
             />
         );
     }
 
-    const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
         month: formatDate(`${point.month}-01`, { month: "short" }),
-        [series]: point.total,
+        total: point.total,
     }));
 
     return (
@@ -703,8 +688,10 @@ function RevenueChart(): ReactNode {
             <LineChart
                 data={data}
                 index="month"
-                categories={[series]}
-                valueFormatter={compactMoney}
+                categories={["total"]}
+                labels={{ total: t("dashboard.series.revenue") }}
+                valueFormatter={money}
+                yAxisFormatter={compactMoney}
                 height={280}
             />
         </Card>
@@ -726,18 +713,14 @@ function DashboardSkeleton(): ReactNode {
 
 function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
-    const done = t("dashboard.series.done");
-    const noShow = t("dashboard.series.noShow");
-    const patients = t("dashboard.series.patients");
-
     const week = summary.appointments_by_day.map((day) => ({
         day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
-        [done]: day.done,
-        [noShow]: day.no_show,
+        done: day.done,
+        noShow: day.no_show,
     }));
     const mix = summary.insurance_mix.map((share) => ({
         insurance: share.insurance,
-        [patients]: share.patients,
+        patients: share.patients,
     }));
     const delta = summary.appointments_today_delta;
     const isEmptyWeek = summary.appointments_by_day.every((day) => day.done + day.no_show === 0);
@@ -785,7 +768,11 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
                         <BarChart
                             data={week}
                             index="day"
-                            categories={[done, noShow]}
+                            categories={["done", "noShow"]}
+                            labels={{
+                                done: t("dashboard.series.done"),
+                                noShow: t("dashboard.series.noShow"),
+                            }}
                             stack
                             height={280}
                         />
@@ -794,7 +781,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
                         <PieChart
                             data={mix}
                             index="insurance"
-                            category={patients}
+                            category="patients"
                             donut
                             height={280}
                         />
@@ -823,9 +810,7 @@ export default function Dashboard(): ReactNode {
                 <DashboardSkeleton />
             ) : summary.isError ? (
                 <ErrorState
-                    title={t("common.errorTitle")}
                     description={t("dashboard.error")}
-                    retryLabel={t("common.retry")}
                     onRetry={() => void summary.refetch()}
                 />
             ) : (
@@ -838,9 +823,9 @@ export default function Dashboard(): ReactNode {
 
 A tela mais densa do app. Vamos por partes. 📊
 
-**Os estados.** O componente de fora só decide qual dos três mostrar: `isPending` → esqueleto no formato da tela, `isError` → `ErrorState` com "Tentar de novo", senão o conteúdo. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.
+**Os estados.** O componente de fora só decide qual dos três mostrar: `isPending` → esqueleto no formato da tela, `isError` → `ErrorState` com o botão de tentar de novo, senão o conteúdo. O título e o botão do `ErrorState` vêm do próprio SDK, já no idioma ativo ([textos padrão](../i18n.md#textos-padrao-dos-componentes)); a tela só passa a descrição. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.
 
-**Os indicadores.** Quatro [`Stat`](../components/feedback.md#stat) num `Grid` de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo `formatNumber` do i18n: `1.284` em português, `1,284` em inglês.
+**Os indicadores.** Quatro [`Stat`](../components/feedback.md#stat) num `Grid` de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo `formatNumber` do i18n: `1.284` em português, `1,284` em inglês. A taxa de faltas sai sem delta porque o resumo não traz a variação dela; quando trouxer, passe `higherIsBetter={false}` — numa taxa de faltas, subir é ruim e a cor do delta precisa dizer isso ([polaridade](../components/feedback.md#polaridade-quando-subir-e-ruim)).
 
 **O faturamento só para a gestora.** `RevenueStat` e `RevenueChart` estão dentro de `<Can action="read" resource="finance">`. O `<Can>` não renderiza os filhos para quem não pode — e componente que não monta não dispara a query. O `/dashboard/revenue` nunca é chamado pela recepção.
 
@@ -850,14 +835,14 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 
 **Os gráficos.** `BarChart` empilhado, `PieChart` em rosca e `LineChart`, do subpath [`tempest-react-sdk/charts`](../charts.md). O formato de dados é sempre o mesmo: `index` é a chave do eixo, `categories` são as séries.
 
-!!! warning "O nome da série é a chave do objeto"
-    O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a **frase traduzida** como chave: `[done]: day.done`, onde `done` vale `"Realizadas"` ou `"Attended"`. Trocar o idioma refaz os dados e a legenda acompanha.
+!!! tip "O nome da série vem de `labels`"
+    Os dados ficam com as chaves da API (`done`, `noShow`) e `labels` dá o texto da legenda e do tooltip: `labels={{ done: t("dashboard.series.done") }}`. Trocar o idioma muda só o rótulo. Veja [`labels`](../charts.md#rotulo-da-serie-separado-da-chave-do-dado-labels).
 
 !!! info "Data sem hora fica no dia que o backend mandou"
     `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
-!!! tip "Eixo com dinheiro: notação compacta"
-    No gráfico de faturamento, o `valueFormatter` usa `notation: "compact"`. `R$ 186.430` vira `R$ 186 mil`, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.
+!!! tip "Eixo com dinheiro: compacto no eixo, inteiro no tooltip"
+    O eixo Y se ajusta ao maior rótulo sozinho. No celular, `R$ 186.430` inteiro tomaria espaço do gráfico, então o eixo usa `yAxisFormatter` com `notation: "compact"` (`R$ 186 mil`) e o tooltip continua com o valor inteiro do `valueFormatter`. Veja [eixo de valor](../charts.md#eixo-de-valor-largura-e-formato).
 
 ## Pacientes
 

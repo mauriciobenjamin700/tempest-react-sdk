@@ -10,8 +10,8 @@ import {
 } from "recharts";
 import { cn } from "@/utils/cn";
 import { useChartColors } from "./use-chart-colors";
-import { toTooltipFormatter } from "./types";
-import type { CartesianChartProps } from "./types";
+import { seriesName, toTooltipFormatter } from "./types";
+import type { CartesianAxisChartProps } from "./types";
 
 /**
  * AreaChart — themed wrapper over recharts `AreaChart`.
@@ -33,8 +33,11 @@ export function AreaChart({
     showGrid = true,
     showTooltip = true,
     valueFormatter,
+    labels,
+    yAxisWidth = "auto",
+    yAxisFormatter,
     className,
-}: CartesianChartProps) {
+}: CartesianAxisChartProps) {
     const palette = useChartColors(colors);
     const stackId = stack ? "stack" : undefined;
 
@@ -42,7 +45,7 @@ export function AreaChart({
         <RAreaChart data={data} width={width} height={height}>
             {showGrid ? <CartesianGrid strokeDasharray="3 3" /> : null}
             <XAxis dataKey={index} />
-            <YAxis tickFormatter={valueFormatter} />
+            <YAxis width={yAxisWidth} tickFormatter={yAxisFormatter ?? valueFormatter} />
             {showTooltip ? <Tooltip formatter={toTooltipFormatter(valueFormatter)} /> : null}
             {showLegend ? <Legend /> : null}
             {categories.map((category, i) => {
@@ -52,6 +55,7 @@ export function AreaChart({
                         key={category}
                         type="monotone"
                         dataKey={category}
+                        name={seriesName(labels, category)}
                         stackId={stackId}
                         stroke={color}
                         fill={color}

@@ -56,6 +56,20 @@
 }
 
 /*
+ * Vertical rhythm between the blocks a card stacks (#710). Every SDK component
+ * zeroes its own margin, so a `Stat` followed by a `Timeline` met with no space at
+ * all. The owl selector spaces siblings without turning the body into a flex
+ * container, which would split inline content (`Olá <strong>Ana</strong>`) into
+ * one line per node; a top margin has no effect on inline boxes. Two classes, so
+ * the rule outweighs the single-class `margin: 0` each child declares, whichever
+ * stylesheet loads last. `flush` hosts a table edge to edge and keeps no rhythm.
+ */
+.card > .body > * + *,
+.card.padded > * + :not(.footer) {
+    margin-block-start: var(--tempest-space-4);
+}
+
+/*
  * The header wraps: actions that do not fit beside the title move under it instead
  * of pushing the card, and the page, wider than the screen.
  */

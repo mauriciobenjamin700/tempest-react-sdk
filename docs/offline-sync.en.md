@@ -257,6 +257,109 @@ sync.clearOutbox();
     **after** A was queued, A may reach the server before B. Leave the option off
     when the server validates that kind of reference on write.
 
+!!! tip "Files with the record: `attachments`"
+    The inspection has photos, and the visit's `PUT` carries their URLs. Queueing each
+    photo as an **entry of its own** breaks the order: the engine only orders entries
+    of the **same record**, and a failing record never holds up the others — the visit
+    reaches the server pointing at a photo that never arrived. With `attachments`, the
+    engine uploads the files with [`createResumableUpload`](./resumable-upload.md)
+    **before** the entry's `deliver`, and hands the URLs in `entry.attachments`:
+
+    | Hook | What it does |
+    | --- | --- |
+    | `list(entry)` | reads the entry's attachments from the **app's store**: `{ id, blob, uploadedUrl }[]`. One that has `uploadedUrl` is not sent again |
+    | `upload(attachment)` | returns the `createResumableUpload` options (`endpoint`, `getToken`, `chunkSize`…). `file` is the blob; `key` defaults to `outbox-attachment:<id>` |
+    | `onUploaded(attachment, url)` | stores the URL in the app's store — and is where you release the blob, or keep only a thumbnail |
+
+    ```ts
+    import { createOfflineSync, createOfflineStore } from "tempest-react-sdk";
+
+    interface Visit {
+        id: string;
+        photoIds: string[];
+    }
+
+    interface Photo {
+        id: string;
+        blob: Blob | null;
+        uploadUrl: string | null;
+    }
+
+    const photos = createOfflineStore<Photo, string>({
+        databaseName: "Visits",
+        version: 1,
+        tableName: "photos",
+        indexes: "&id",
+        keyPath: "id",
+    });
+
+    const sync = createOfflineSync<Visit, never>({
+        databaseName: "VisitsOutbox",
+        watermark: { storageKey: "visits.watermark" },
+        attachments: {
+            list: async (entry) => {
+                const ids = entry.payload?.photoIds ?? [];
+                const rows = await Promise.all(ids.map((id) => photos.get(id)));
+                return rows.flatMap((photo) =>
+                    photo ? [{ id: photo.id, blob: photo.blob, uploadedUrl: photo.uploadUrl }] : [],
+                );
+            },
+            upload: () => ({ endpoint: "/api/uploads", chunkSize: 256 * 1024 }),
+            onUploaded: async (photo, url) => {
+                await photos.update(photo.id, { uploadUrl: url, blob: null });
+            },
+        },
+        deliver: async (entry) => {
+            await fetch(`/api/visits/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify({
+                    ...entry.payload,
+                    photos: entry.attachments?.map((ref) => ref.url) ?? [],
+                }),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+    });
+
+    sync.subscribe((state) => {
+        console.log(state.uploadedBytes, state.totalBytes, state.pendingBytes);
+    });
+    ```
+
+    The attachment inherits everything the entry already has:
+
+    - **A failure is the entry's failure.** A refused upload, or a `start()` that
+      resolves `null` (paused or aborted), counts as a `deliver` that threw:
+      `attempts` goes up, the record's next edits wait, the next flush retries — and
+      `deliver` is **not** called, because the visit would point at nothing.
+    - **A dropped connection resumes from the offset.** The per-attachment `key` is
+      the same across runs, so the next flush sends `HEAD` + `PATCH` from where it
+      stopped, not a new `POST`.
+    - **Owner and `coalesce` come first.** An entry held or dropped by
+      `getPrincipal`/`foreignEntries` uploads nothing; with `coalesce`, `list`
+      receives the folded entry, with the newest payload.
+    - **Logout mid-upload** (`clearOutbox()`/`resetWatermark()`) stops the run before
+      `deliver` and skips `onUploaded`, which would write into the next user's store.
+      The resume record keeps the final offset, so the owner's upload finishes
+      without resending a byte when they come back.
+
+    The **blob lives in the app's store**, never in the outbox: the queue keeps only
+    the record snapshot, without copying the file. Progress shows up in `SyncState`:
+
+    | Field | What it is |
+    | --- | --- |
+    | `uploadedBytes` / `totalBytes` | bytes of the attachment **uploading now** (`0`/`0` when none) |
+    | `pendingBytes` | sum of the attachments not uploaded yet, from `list()` over every queued entry, each file once |
+    | `persisted` | `navigator.storage.persisted()`, or `null` where the API is missing |
+
+    The engine **reads** `persisted` but never asks for persistence: in Firefox
+    `requestPersistentStorage()` opens a permission prompt, and a prompt that pops up
+    out of nowhere during a background sync is a prompt the user denies. Call it at
+    login or install. The [Offline field app](./recipes/field-app-offline.md) recipe
+    builds all of it: compression before storing, the blob released in `onUploaded`
+    and the storage warning with `pendingBytes`.
+
 The sections below show **what the engine does under the hood** (and how to wire it by hand when you need fine-grained control — multiple stores, per-field merges, etc.).
 
 ## Prerequisites
@@ -439,7 +542,7 @@ export function startSync(): void {
 
 ## Reactive UI and auto-flush
 
-Don't wire sync state by hand: `useOfflineSync(sync, opts)` subscribes the component to the engine (via `subscribe`/`getState`) and exposes `{ phase, pending, syncing, lastSummary, lastError, flush, enqueue }`, with optional flush on mount, on the `online` event and on an interval. `useSyncStatus(sync)` returns a ready `{ tone, pending, syncing }` for `<SyncStatusBadge>`. For the offline bar and the SW update prompt, see **[PWA & Offline-First](./pwa.md)**.
+Don't wire sync state by hand: `useOfflineSync(sync, opts)` subscribes the component to the engine (via `subscribe`/`getState`) and exposes `{ phase, pending, syncing, lastSummary, lastError, uploadedBytes, totalBytes, pendingBytes, persisted, flush, enqueue }`, with optional flush on mount, on the `online` event and on an interval. `useSyncStatus(sync)` returns a ready `{ tone, pending, syncing }` for `<SyncStatusBadge>`. For the offline bar and the SW update prompt, see **[PWA & Offline-First](./pwa.md)**.
 
 ```tsx
 import { useOfflineSync, SyncStatusBadge, useSyncStatus } from "tempest-react-sdk";

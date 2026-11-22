@@ -47,6 +47,31 @@ const dropCss = {
 };
 
 /**
+ * Leave the outbox's lazy tus client out of every JavaScript check.
+ *
+ * `createOfflineSync` loads `createResumableUpload` with `import()` the first time an
+ * outbox attachment uploads (#726), so an engine without attachments does not carry
+ * it — measured in a Vite 8 app importing only `{ createOfflineSync }`: the tus client
+ * lands in its own lazy chunk (5.18 kB br) and the entry chunk grows by 1.06 kB br.
+ *
+ * esbuild without code splitting inlines a dynamic import instead, and to keep it
+ * lazy it wraps the target **and every module it reaches** in an init function, which
+ * defeats tree-shaking in them. Those modules are the core of `http/` (errors, retry,
+ * CSRF, credential scope), so inlining measured +139 B on the http client slice and
+ * +152 B on the tus slice itself — bytes no real bundler emits. Marked external
+ * here, the tus client is budgeted where it belongs: by the resumable-upload slice,
+ * which imports it statically.
+ */
+const lazyResumableUpload = {
+    name: "size-limit-lazy-resumable-upload",
+    setup(build) {
+        build.onResolve({ filter: /http\/resumable-upload\.js$/ }, (args) =>
+            args.kind === "dynamic-import" ? { path: args.path, external: true } : undefined,
+        );
+    },
+};
+
+/**
  * Whether a check measures stylesheets rather than JavaScript.
  *
  * @param {{ path?: string | string[] }} check - One size-limit entry.
@@ -63,7 +88,7 @@ export default checks.map((check) =>
         : {
               ...check,
               modifyEsbuildConfig(config) {
-                  config.plugins = [...(config.plugins ?? []), dropCss];
+                  config.plugins = [...(config.plugins ?? []), dropCss, lazyResumableUpload];
                   return config;
               },
           },

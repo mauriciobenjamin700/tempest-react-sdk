@@ -284,6 +284,40 @@ useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/ru
   `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
   não código novo.
 
+### Adicionado
+
+- **`createOfflineSync({ attachments })`: arquivos da entrada sobem antes do `deliver`** (#726,
+  fatia 2). `list(entry)` lê do store do app os anexos (`{ id, blob, uploadedUrl }`), `upload(anexo)`
+  devolve as opções do `createResumableUpload` (`key` padrão `outbox-attachment:<id>`) e
+  `onUploaded(anexo, url)` grava a URL — e é onde o app libera o blob. O motor sobe os pendentes, um
+  por um, e entrega as URLs em `entry.attachments`. A issue propunha uma entrada de outbox para o
+  arquivo; reproduzido em 22/11/2026, isso quebra a ordem: o motor só ordena entradas do mesmo
+  registro, e com a foto falhando a visita que aponta para ela foi entregue mesmo assim
+  (`npx vitest run src/offline/create-offline-sync.attachments.test.ts -t "separate record"`:
+  `succeeded: 1, failed: 1`, visita no servidor sem a foto). Como anexo, upload recusado ou `start()`
+  que resolve `null` é falha da entrada (`attempts`, bloqueio por registro, retry), queda retoma do
+  offset, entrada segurada pelo dono não sobe nada, e `coalesce` lista a entrada juntada. Logout no
+  meio do upload para o run antes do `deliver` e não chama o `onUploaded`. O blob fica no store do
+  app; a outbox não guarda cópia. O tus client entra por `import()`: o motor sem anexos não o
+  carrega.
+- **`SyncState` ganha `uploadedBytes`, `totalBytes`, `pendingBytes` e `persisted`.** Os dois
+  primeiros acompanham o anexo em envio; `pendingBytes` soma, pelo `list()` de cada entrada da fila,
+  os anexos que ainda não subiram (cada arquivo uma vez); `persisted` lê
+  `navigator.storage.persisted()` (`null` sem a API). O motor **não** chama
+  `requestPersistentStorage()`, porque no Firefox isso abre pedido de permissão — o app pede no
+  login. Os quatro campos são obrigatórios no tipo: um `SyncState` montado à mão (mock de teste)
+  passa a precisar deles.
+- **Receita App de campo offline (PT e EN):** o `uploadPendingPhotos` manual (23 linhas chamadas
+  de dentro do `deliver`) vira a opção `attachments` — o `sync.ts` da receita vai de 135 para 130
+  linhas, e o que sai dele (ordem, retry, retomada, dono) passa a ser coberto pela suíte do SDK; o `onUploaded` troca o blob por `null` e a grade mostra uma
+  miniatura de 480 px gerada com `resizeImage`; o `signIn` chama `requestPersistentStorage()`; o
+  `StorageGuard` mostra `pendingBytes` junto do `useStorageEstimate`, e o `SyncPanel`, a barra do
+  envio em andamento. A compressão antes do `put` continua o `compress` com `maxBytes: 400_000`:
+  medido em 22/11/2026 no Chromium 159 headless, sobre uma imagem sintética de 12 MP (4032×3024,
+  JPEG 0,92) em três níveis de detalhe, o original de 2 705 / 3 807 / 5 085 KB vira 214 / 230 /
+  334 KB com `resizeImage({ width: 1600, type: "image/webp" })` e 343 / 388 / 393 KB com o
+  `compress` da receita — o `compress` fica porque garante o teto de bytes. Método no PR.
+
 ## [0.92.0] — 2026-11-21
 
 ### Corrigido

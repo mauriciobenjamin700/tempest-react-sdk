@@ -22,6 +22,12 @@ export type {
     SyncTrigger,
     WatermarkStore,
 } from "./create-offline-sync";
+export type {
+    OutboxAttachment,
+    OutboxAttachmentRef,
+    OutboxAttachmentUploadOptions,
+    OutboxAttachments,
+} from "./outbox-attachments";
 export { higherVersionWins, lastWriteWins } from "./conflict";
 export { useOfflineSync, useSyncStatus } from "./use-offline-sync";
 export type {

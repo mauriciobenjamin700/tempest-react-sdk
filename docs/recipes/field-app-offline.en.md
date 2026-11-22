@@ -138,7 +138,8 @@ export interface VisitPhoto {
   id: string;
   visit_id: string;
   technician_id: string;
-  blob: Blob;
+  blob: Blob | null;
+  thumb: Blob;
   bytes: number;
   taken_at: string;
   upload_url: string | null;
@@ -212,13 +213,14 @@ Three things to notice:
 - `sync_state` and `conflict_detail` are **local only** — the server never sees them. They
   tell the screen whether the visit is waiting for signal, already went, or hit a conflict.
 - The photo keeps the `Blob` itself, not a URL. There is no server to point at in the
-  pasture.
+  pasture. Once it is uploaded, `blob` becomes `null` and only the thumbnail (`thumb`)
+  stays: the device does not keep what the server already has.
 
 ### 2. The session
 
 ```ts
 // src/lib/auth.ts
-import { createTempestAuth } from "tempest-react-sdk";
+import { createTempestAuth, requestPersistentStorage } from "tempest-react-sdk";
 
 export interface Technician {
   id: string;
@@ -235,11 +237,22 @@ export const auth = createTempestAuth<Technician>({
 export function currentTechnicianId(): string | null {
   return auth.useAuthStore.getState().user?.id ?? null;
 }
+
+export async function signIn(email: string, password: string): Promise<void> {
+  await auth.login({ email, password });
+  void requestPersistentStorage();
+}
 ```
 
 [`createTempestAuth`](../integration-fastapi.md#5-turn-key-authentication-createtempestauth)
 wires login, refresh and an already-authenticated `auth.api`. `currentTechnicianId` is read
 outside React — by the sync engine and the database — so it is a function, not a hook.
+
+`signIn` asks for **persistent storage** right after login. Without it, the browser may
+delete IndexedDB under disk pressure — and in Safari outside the home screen, after ~7 days
+without use. The request lives here, not in the sync engine, because in Firefox it opens a
+permission prompt: at login the technician understands why the app is asking; in the middle
+of a background upload, they do not.
 
 ### 3. The on-device database
 
@@ -284,13 +297,7 @@ This is the heart of the app.
 
 ```ts
 // src/visits/sync.ts
-import {
-  createOfflineSync,
-  createResumableUpload,
-  encodeIdSegment,
-  isApiError,
-  lastWriteWins,
-} from "tempest-react-sdk";
+import { createOfflineSync, encodeIdSegment, isApiError, lastWriteWins } from "tempest-react-sdk";
 import { auth, currentTechnicianId } from "@/lib/auth";
 import { photos, visits } from "@/visits/db";
 import { listPhotos } from "@/visits/photos";
@@ -305,30 +312,6 @@ import {
 
 const PHOTO_CHUNK_SIZE = 256 * 1024;
 
-async function uploadPendingPhotos(visitId: string): Promise<PhotoRef[]> {
-  const list = await listPhotos(visitId);
-  const refs: PhotoRef[] = [];
-
-  for (const photo of list) {
-    let url = photo.upload_url;
-    if (url === null) {
-      const done = await createResumableUpload({
-        endpoint: auth.api.url("/uploads"),
-        file: photo.blob,
-        key: `visit-photo:${photo.id}`,
-        chunkSize: PHOTO_CHUNK_SIZE,
-        metadata: { visit_id: visitId, photo_id: photo.id, filetype: photo.blob.type },
-        getToken: auth.getToken,
-      }).start();
-      if (done === null) throw new Error("Envio da foto interrompido.");
-      url = done.url;
-      await photos.update(photo.id, { upload_url: url });
-    }
-    refs.push({ id: photo.id, url, taken_at: photo.taken_at });
-  }
-  return refs;
-}
-
 export const visitSync = createOfflineSync<Visit, VisitDto>({
   databaseName: "CampoVisitasOutbox",
   watermark: { storageKey: "campo.visits.watermark" },
@@ -336,12 +319,37 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   foreignEntries: "hold",
   coalesce: true,
 
+  attachments: {
+    list: async (entry) =>
+      (await listPhotos(entry.recordId)).map((photo) => ({
+        id: photo.id,
+        blob: photo.blob,
+        uploadedUrl: photo.upload_url,
+      })),
+    upload: (photo) => ({
+      endpoint: auth.api.url("/uploads"),
+      chunkSize: PHOTO_CHUNK_SIZE,
+      metadata: { photo_id: photo.id, filetype: photo.blob.type },
+      getToken: auth.getToken,
+    }),
+    onUploaded: async (photo, url) => {
+      await photos.update(photo.id, { upload_url: url, blob: null });
+    },
+  },
+
   deliver: async (entry) => {
     const visit = entry.payload;
     if (visit === undefined) return;
 
+    const takenAt = new Map(
+      (await listPhotos(entry.recordId)).map((photo) => [photo.id, photo.taken_at]),
+    );
+    const photoRefs: PhotoRef[] = (entry.attachments ?? []).map((ref) => ({
+      ...ref,
+      taken_at: takenAt.get(ref.id) ?? visit.visited_at,
+    }));
+
     try {
-      const photoRefs = await uploadPendingPhotos(entry.recordId);
       await auth.api.put(`/visits/${encodeIdSegment(entry.recordId)}`, {
         body: toPayload(visit, photoRefs),
       });
@@ -437,30 +445,44 @@ again), but without the option every intermediate `PUT` still spent a round-trip
 signal that barely holds. Details, and what is not folded, in
 [Ten edits, one request](../offline-sync.md#the-fast-path-createofflinesync).
 
-#### `deliver`: the photos go up before the visit
+#### `attachments`: the photos go up before the visit
 
-[`createOfflineSync`](../offline-sync.md#the-fast-path-createofflinesync) calls `deliver`
-once per outbox entry. Here it does two things, in this order:
+The photos are **attachments** of the visit. With the `attachments` option,
+[`createOfflineSync`](../offline-sync.md#the-fast-path-createofflinesync) does this for
+each entry, in this order:
 
-1. **Uploads the photos that have no `upload_url` yet**, one by one, with
-   [`createResumableUpload`](../resumable-upload.md).
-2. **Sends the visit's `PUT`** with the photo URLs in the body.
+1. Asks `list` which photos the visit has. They live in the **app's store** — the outbox
+   keeps no copy of the file.
+2. **Uploads the ones with no `upload_url` yet**, one by one, with
+   [`createResumableUpload`](../resumable-upload.md) and the options `upload` returns.
+3. Calls `onUploaded` for each, which stores the URL and **swaps `blob` for `null`**: the
+   photo is on the server now, and the device keeps only the thumbnail.
+4. Calls `deliver` with the URLs in `entry.attachments`, and it sends the visit's `PUT`.
 
-Why do the photos live **inside** `deliver` and not in a separate queue? Because that way
-they inherit everything the engine already does:
+Why don't the photos go in an outbox **entry of their own**? Because each photo would be
+another record, and the engine only orders entries **of the same record** — a failing
+record never holds up the others. The photo would fail on 2G, and the visit's `PUT` would
+reach the server pointing at a photo that does not exist. As attachments, they inherit
+everything the engine already does:
 
-- If anything fails — photo 3 of 5, or the `PUT` — `deliver` throws, the entry **stays
-  queued** with `attempts` bumped, and the next flush tries again.
+- If anything fails — photo 3 of 5, or the `PUT` — the entry **stays queued** with
+  `attempts` bumped, and the next flush tries again. With the photo failing, `deliver` is
+  not even called.
 - Photos 1 and 2 already got an `upload_url` and do not go up again.
-- Photo 3 **resumes from the byte where it stopped**: the `key: "visit-photo:<id>"` is the
-  same, so the resumable upload finds its record and continues with a `HEAD` + `PATCH`.
+- Photo 3 **resumes from the byte where it stopped**: the default `key` is
+  `outbox-attachment:<id>`, the same on every flush, so the resumable upload finds its
+  record and continues with a `HEAD` + `PATCH`.
 - Per-record order is preserved: a visit that failed does not let its next edit jump
   ahead. Other visits carry on normally.
+- A visit **held** for another technician (`foreignEntries: "hold"`) uploads no photo.
 
-!!! info "Why an explicit `key`"
+`deliver` only joins each photo's `taken_at` to the URLs, for the body the backend expects.
+
+!!! info "Why the `key` carries the photo `id`"
     The resumable upload's default fingerprint uses the `File`'s name and `lastModified`.
     A `Blob` read from IndexedDB has neither, so two blobs of the same size would collide.
-    With the photo `id` in the key, each photo has its own resume point. See
+    That is why the engine's default `key` is `outbox-attachment:<id>`: each photo has its
+    own resume point. See
     [Resuming after a reload](../resumable-upload.md#resuming-after-a-reload).
 
 !!! tip "Small chunks for bad signal"
@@ -559,12 +581,16 @@ over the local one.
 
 ```ts
 // src/visits/photos.ts
-import type { CompressedImage } from "tempest-react-sdk/imaging";
+import type { CompressedImage, ProcessedImage } from "tempest-react-sdk/imaging";
 import { currentTechnicianId } from "@/lib/auth";
 import { photos } from "@/visits/db";
 import type { VisitPhoto } from "@/visits/types";
 
-export async function addPhoto(visitId: string, image: CompressedImage): Promise<VisitPhoto> {
+export async function addPhoto(
+  visitId: string,
+  image: CompressedImage,
+  thumb: ProcessedImage,
+): Promise<VisitPhoto> {
   const owner = currentTechnicianId();
   if (owner === null) throw new Error("Sua sessão expirou. Entre de novo para fotografar.");
 
@@ -573,6 +599,7 @@ export async function addPhoto(visitId: string, image: CompressedImage): Promise
     visit_id: visitId,
     technician_id: owner,
     blob: image.blob,
+    thumb: thumb.blob,
     bytes: image.bytes,
     taken_at: new Date().toISOString(),
     upload_url: null,
@@ -595,7 +622,7 @@ signed in, the function throws instead of calling `listBy` without an owner — 
 list everyone's photos.
 
 The photo enters the database with `upload_url: null`. Whoever sends it to the server is
-`deliver`, the next time the visit syncs.
+the sync engine, before `deliver`, the next time the visit syncs.
 
 ### 6. The screen's queries
 
@@ -648,14 +675,22 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
 
 ```tsx
 // src/components/SyncPanel.tsx
-import { Alert, Button, Card, RelativeTime, useOfflineSync, useOnline } from "tempest-react-sdk";
+import {
+  Alert,
+  Button,
+  Card,
+  Progress,
+  RelativeTime,
+  formatBytes,
+  useOfflineSync,
+  useOnline,
+} from "tempest-react-sdk";
 import { visitSync } from "@/visits/sync";
 
 export function SyncPanel() {
   const online = useOnline();
-  const { pending, syncing, lastSyncedAt, lastError, flush } = useOfflineSync(visitSync, {
-    flushOnOnline: false,
-  });
+  const { pending, syncing, lastSyncedAt, lastError, uploadedBytes, totalBytes, pendingBytes, flush } =
+    useOfflineSync(visitSync, { flushOnOnline: false });
 
   if (pending === 0 && lastError === null) return null;
 
@@ -665,7 +700,15 @@ export function SyncPanel() {
         {pending === 1
           ? "1 alteração esperando sinal."
           : `${pending} alterações esperando sinal.`}
+        {pendingBytes > 0 && ` ${formatBytes(pendingBytes)} em fotos.`}
       </p>
+      {totalBytes > 0 && (
+        <Progress
+          value={Math.round((uploadedBytes / totalBytes) * 100)}
+          showLabel
+          label="Enviando foto"
+        />
+      )}
       {lastSyncedAt !== null && (
         <p>
           Último envio completo: <RelativeTime date={lastSyncedAt} />
@@ -717,6 +760,10 @@ every run. The panel passes `flushOnOnline: false` because only one thing trigge
 upload — the `SyncRunner`, in `App`. `pending` also counts another technician's held
 entries: Ana sees that Carlos's work is waiting on the tablet.
 
+`pendingBytes` sums the photos not uploaded yet, and `uploadedBytes`/`totalBytes` follow
+the one uploading right now — the technician sees the bar move on 2G, instead of a frozen
+"sending".
+
 `lastError` shows why the last run failed. "Failed to fetch" in the pasture is routine;
 what you want to see is a `401` or a `413` that will not go away on its own.
 
@@ -735,13 +782,18 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { useRef, type ChangeEvent } from "react";
 import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
-import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
+import {
+  bestSupportedType,
+  resizeImage,
+  useImagePreview,
+  useImageProcessing,
+} from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
 import type { VisitPhoto } from "@/visits/types";
 
 function PhotoThumb({ photo }: { photo: VisitPhoto }) {
-  const { url } = useImagePreview(photo.blob);
+  const { url } = useImagePreview(photo.thumb);
 
   return (
     <figure style={{ margin: 0, display: "grid", gap: 4 }}>
@@ -785,7 +837,8 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
           withoutEnlargement: true,
           type,
         });
-        await addPhoto(visitId, image);
+        const thumb = await resizeImage(image.blob, { width: 480, type });
+        await addPhoto(visitId, image, thumb);
       } catch {
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
@@ -855,6 +908,11 @@ days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
 - `bestSupportedType` — WebP where the browser can encode it, JPEG where it cannot. Asking
   a browser that cannot encode WebP for it would return a PNG, several times bigger, with
   no error at all.
+- `resizeImage` with `width: 480` makes the grid's **thumbnail**. It stays on the device
+  after the upload, when `onUploaded` releases the full photo.
+
+Compressing before the `put` is the cheapest lever against the browser's storage limit:
+each photo takes up the device **until it uploads**, and in the field that can be days.
 
 `useImagePreview` creates the `Blob`'s preview URL and **revokes** it on its own at unmount.
 
@@ -1371,8 +1429,8 @@ export async function buildVisitZip(
     [
       { path: "visita.xlsx", data: sheet },
       ...photoList.map((photo, index) => ({
-        path: `fotos/foto-${String(index + 1).padStart(2, "0")}.${extensionOf(photo.blob.type)}`,
-        data: photo.blob,
+        path: `fotos/foto-${String(index + 1).padStart(2, "0")}.${extensionOf((photo.blob ?? photo.thumb).type)}`,
+        data: photo.blob ?? photo.thumb,
       })),
     ],
     {
@@ -1438,6 +1496,8 @@ export function ExportVisitButton({ visit }: { visit: Visit }) {
 - [`createZip`](../utilities.md#zip-archives-createzip) builds the archive in slices,
   without freezing the screen, and **stores** the photos without recompressing — they are
   already WebP/JPEG. `onProgress` feeds the [`Progress`](../components/feedback.md#progress).
+- A photo that **already went up** goes in as its thumbnail: the full one left the device
+  in `onUploaded`. In the pasture, before signal, the ZIP carries the full photos.
 - [`shareOrDownloadBlob`](../share.md#export-a-file-shareordownloadblob) opens the phone's
   share sheet (WhatsApp, e-mail, Drive) and downloads on desktop.
 
@@ -1465,6 +1525,7 @@ import {
   Banner,
   Button,
   OfflineIndicator,
+  formatBytes,
   QueryProvider,
   ToastProvider,
   UpdatePrompt,
@@ -1492,23 +1553,27 @@ function SyncRunner() {
 }
 
 function StorageGuard() {
-  const storage = useStorageEstimate();
+  const storage = useStorageEstimate({ pollMs: 60_000 });
+  const { pending, pendingBytes } = useOfflineSync(visitSync, { flushOnOnline: false });
 
-  if (storage.persisted === false) {
+  if (storage.persisted === false && pending > 0) {
     return (
       <Banner
         variant="warning"
         title="Proteja as visitas deste aparelho"
         action={<Button size="sm" onClick={() => void storage.requestPersist()}>Proteger</Button>}
       >
-        Sem isso, o navegador pode apagar visitas e fotos não enviadas quando faltar espaço.
+        {formatBytes(pendingBytes)} em fotos ainda não foram enviadas. Sem proteção, o navegador
+        pode apagá-las quando faltar espaço.
       </Banner>
     );
   }
   if (storage.ratio !== null && storage.ratio > 0.8) {
     return (
       <Banner variant="danger" title="Armazenamento quase cheio">
-        Envie as visitas pendentes antes de tirar mais fotos.
+        {formatBytes(storage.usage)} de {formatBytes(storage.quota)} usados,{" "}
+        {formatBytes(pendingBytes)} esperando envio. Envie as visitas pendentes antes de tirar
+        mais fotos.
       </Banner>
     );
   }
@@ -1556,9 +1621,11 @@ installPrecache({
   comes back and every two minutes. `flush` is single-flight, so triggers that coincide
   become one run. On every engine change it invalidates the `["visits"]` queries, and the
   list shows the new badge without a reload.
-- **`StorageGuard`** uses [`useStorageEstimate`](../pwa.md#4-durability-request-persistent-storage).
-  Without persistent storage the browser may **evict** IndexedDB under disk pressure — and
-  here IndexedDB holds work that does not exist anywhere else yet.
+- **`StorageGuard`** joins [`useStorageEstimate`](../pwa.md#4-durability-request-persistent-storage)
+  (how much the device uses and holds) with the engine's `pendingBytes` (how much of that
+  is work that does not exist anywhere else yet). Without persistent storage the browser
+  may **evict** IndexedDB under disk pressure; `signIn` already asked for protection, and
+  the banner only shows when it was denied **and** something is pending.
 - **`OfflineIndicator`** shows the offline bar and flashes a confirmation when signal comes
   back.
 - **`UpdatePrompt`** asks before swapping versions. Reloading on its own in the middle of
@@ -1599,9 +1666,9 @@ installPrecache({
 - 📤 **`createOfflineSync`** is the outbox: `saveVisit` writes locally and enqueues; the
   upload happens whenever it can, and `coalesce: true` folds the edits of one visit into a
   single `PUT`.
-- 📸 Photos go up **inside `deliver`** with **`createResumableUpload`** and a per-photo
-  `key` — a failure retries, a drop resumes from the offset, a sent photo does not go up
-  again.
+- 📸 Photos are the visit's **`attachments`**: the engine uploads them with the resumable
+  upload **before** `deliver` — a failure retries, a drop resumes from the offset, a sent
+  photo does not go up again, and `onUploaded` frees the file from the device.
 - ⚖️ Conflicts come in two kinds: the one the machine settles (`lastWriteWins` in
   `applyRemote`) and the one the technician settles (`409 VISIT_LOCKED` becomes the
   `conflict` state on screen).
@@ -1612,8 +1679,9 @@ installPrecache({
   queue.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** deliver the report without a
   network.
-- 🔒 **`useStorageEstimate`** asks for persistent storage; `UpdatePrompt` does not swap
-  versions mid-inspection; the service worker only precaches.
+- 🔒 Login asks for persistent storage; **`useStorageEstimate`** + `pendingBytes` warn when
+  space runs short; `UpdatePrompt` does not swap versions mid-inspection; the service
+  worker only precaches.
 - ⚠️ **`networkMode: "always"`** on the queries that read IndexedDB, or they pause offline.
 
 ## See also

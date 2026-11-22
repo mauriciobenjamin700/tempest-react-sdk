@@ -729,7 +729,15 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Skeleton,
+  StorageFullError,
+  formatBytes,
+  useToast,
+} from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -781,7 +789,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
           type,
         });
         await addPhoto(visitId, image);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -851,6 +863,12 @@ dias. Então ela passa pelo [`useImageProcessing`](../imaging.md#no-react) antes
   um navegador que não codifica devolveria PNG, várias vezes maior, sem erro nenhum.
 
 O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no unmount.
+
+Quando o aparelho não tem mais espaço, o `photos.put` rejeita com
+[`StorageFullError`](../offline.md#armazenamento-cheio-storagefullerror), e o laço para:
+as próximas fotos também não caberiam, e a mensagem certa é "sincronize", não "fotografe
+de novo". O erro cru do navegador nem diria isso — no Chromium ele chega como `AbortError`
+do Dexie.
 
 !!! warning "Reencodar apaga o GPS da foto"
     O EXIF some no reencode, incluindo as coordenadas. Isso protege a localização de quem
@@ -1594,6 +1612,7 @@ installPrecache({
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
   o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
+- 💾 **`StorageFullError`** separa "memória cheia" de "foto ruim" no `catch` da câmera.
 - 🔒 **`useStorageEstimate`** pede armazenamento persistente; o `UpdatePrompt` não troca
   de versão no meio da vistoria; o service worker só faz precache.
 - ⚠️ **`networkMode: "always"`** nas queries que leem o IndexedDB, senão elas pausam

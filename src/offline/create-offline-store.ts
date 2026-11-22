@@ -1,4 +1,5 @@
 import Dexie, { type Collection, type IndexableType, type Table, type UpdateSpec } from "dexie";
+import { isQuotaExceededError, StorageFullError } from "./storage-full-error";
 
 export interface OfflineStoreConfig<TItem> {
     /** IndexedDB database name. */
@@ -36,6 +37,14 @@ export interface ListOptions<TItem> {
     filter?: (item: TItem) => boolean;
 }
 
+/**
+ * Typed surface over one IndexedDB table.
+ *
+ * Every write (`put`, `bulkPut`, `update`, `updateMany`, `delete`, `clear`)
+ * rejects with {@link StorageFullError} when the browser refuses it for lack of
+ * space; any other error passes through unchanged. `raw` and `db` are Dexie
+ * itself and are not converted.
+ */
 export interface OfflineStore<TItem, TKey extends string | number> {
     /** Insert or replace a record. */
     put: (item: TItem, owner?: string) => Promise<TKey>;
@@ -191,29 +200,54 @@ export function buildStore<TItem, TKey extends string | number = string>(
         return read(base, options);
     }
 
+    /**
+     * Run one write and turn a refusal for lack of space into
+     * {@link StorageFullError}.
+     *
+     * Chromium enforces the quota when the transaction commits, so the write
+     * rejects with Dexie's `AbortError` wrapping the `QuotaExceededError`;
+     * {@link isQuotaExceededError} recognises that and the other shapes. Any
+     * other error is rethrown as it came.
+     *
+     * @param write - Starts the write.
+     * @returns What the write resolved with.
+     */
+    async function guarded<T>(write: () => PromiseLike<T>): Promise<T> {
+        try {
+            return await write();
+        } catch (error) {
+            if (isQuotaExceededError(error)) throw new StorageFullError(error);
+            throw error;
+        }
+    }
+
     return {
-        put: (item, owner) => table.put(withOwner(item, owner)) as Promise<TKey>,
+        put: (item, owner) => guarded(() => table.put(withOwner(item, owner)) as Promise<TKey>),
         bulkPut: (items, owner) =>
-            table.bulkPut(items.map((item) => withOwner(item, owner))) as Promise<TKey>,
+            guarded(
+                () => table.bulkPut(items.map((item) => withOwner(item, owner))) as Promise<TKey>,
+            ),
         get: (key) => table.get(key),
         list,
         listBy,
-        update: (key, changes) => table.update(key, changes as UpdateSpec<TItem>),
-        updateMany: async (owner, changes) => {
-            const spec = changes as UpdateSpec<TItem>;
-            if (ownerField && owner) {
-                return table.where(ownerField).equals(owner).modify(spec);
-            }
-            return table.toCollection().modify(spec);
-        },
-        delete: (key) => table.delete(key),
-        clear: async (owner) => {
-            if (ownerField && owner) {
-                await table.where(ownerField).equals(owner).delete();
-                return;
-            }
-            await table.clear();
-        },
+        update: (key, changes) => guarded(() => table.update(key, changes as UpdateSpec<TItem>)),
+        updateMany: (owner, changes) =>
+            guarded(() => {
+                const spec = changes as UpdateSpec<TItem>;
+                if (ownerField && owner) {
+                    return table.where(ownerField).equals(owner).modify(spec);
+                }
+                return table.toCollection().modify(spec);
+            }),
+        delete: (key) => guarded(() => table.delete(key)),
+        clear: (owner) =>
+            guarded(async () => {
+                if (ownerField && owner) {
+                    await table.where(ownerField).equals(owner).delete();
+                    return;
+                }
+                await table.clear();
+            }),
         count: (owner) => {
             if (ownerField && owner) {
                 return table.where(ownerField).equals(owner).count();

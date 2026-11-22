@@ -1675,6 +1675,8 @@ Um `logout()` cujo teardown ainda está em andamento é esperado do mesmo jeito:
 
 Um `login()` cuja sessão mudou enquanto a request dele estava em voo — um `logout()` no meio, por exemplo — rejeita com `SessionSupersededError` e não instala nada. Vale também para o `GET` do `mePath` que o `login()` faz depois de instalar o token: um perfil que chega depois de um `logout()` (ou de `logout()` + `login()` de outra conta) é descartado, em vez de ficar no store ao lado do token da conta seguinte.
 
+E se o `GET` do `mePath` **falha** — um 500, um 401, a rede caindo —, o `login()` desfaz a entrada antes de rejeitar com esse erro: o refresh token que ela trouxe é revogado (`logoutPath`, no modo body), o store e o refresh token guardado são limpos e o `onSessionEnd` roda com `"expired"` para ela, já que o token chegou a notificar os ouvintes do store. Quando o `login()` rejeita, não sobra sessão nenhuma — nem a anterior, que já terminou com `"switch"` quando as credenciais novas foram aceitas. Até a 0.92.0 o token novo ficava instalado ao lado de um usuário `null`, com `isAuthenticated` `true` para ninguém (#748). Vale também para o `restore()` e para a troca de conta que um `refresh()` descobre.
+
 ### Refresh em voo e troca de conta — `SessionSupersededError`
 
 Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma **época de sessão**, que o `logout()` e um `login()` com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com `SessionSupersededError` — e o cliente repassa esse erro **sem** chamar `onUnauthorized`, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu durante uma sessão encerrada e volta 401 é recusada do mesmo jeito — inclusive a repetição depois de um refresh — em vez de ser repetida como a conta que está logada agora ou de encerrar a sessão dela. E uma request que saiu **sem** token e volta 401 depois que uma conta entrou só rejeita com o 401: não renova nem encerra a sessão nova.
@@ -22733,7 +22735,7 @@ Opções (todas exceto `baseURL` são opcionais):
 - `getToken()` — chamado a cada request; retornar string injeta `Authorization: Bearer <token>`.
 - `onUnauthorized(response, context)` — disparado sempre que a requisição termina sem autorização: 401 sem `refresh`, `refresh()` que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O `context` descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar `SessionSupersededError` ali faz a request rejeitar com esse erro. Com `getSessionEpoch`, um 401 que chega **depois** de a época em que a tentativa saiu ter mudado — com ou sem token — não chama nem `refresh` nem `onUnauthorized`: a request rejeita com `SessionSupersededError`. Esse 401 é da sessão que acabou, e deslogar por ele derrubaria a conta que entrou depois (auditoria run-17 — até a 0.90.0 um `createApiClient` próprio derrubava a sessão de B pelo 401 atrasado de A). A época é lida na chegada, antes dos hooks, então um `onUnauthorized` que desloga por causa **deste** 401 continua deixando o chamador com o 401 (#646).
 - `getSessionEpoch()` — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em `context.epoch` para `refresh` e `onUnauthorized` — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu **com** token e o contador mudou antes de ela chegar, a request rejeita com `SessionSupersededError` em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (`detail`, `code`), que levaria os dados da conta anterior ao `onError` da atual. O `createTempestAuth` já o configura. Com `retry` ligado, também impede que uma repetição saia em outra sessão — veja [Retentativa embutida](#retentativa-embutida). A proteção segue o bearer: um cliente só com cookie (`withCredentials`, sem `getToken`) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.
-- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`. Um `refresh` que **lança** depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com `SessionSupersededError`, sem chamar `onUnauthorized` — senão o envelope 401 da conta anterior chegaria ao `onError` da atual, e um `onUnauthorized` que chama `logout()` derrubaria a sessão nova (#657). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646). Só o `refresh` que falha conta como sessão que falhou: uma falha de rede **na repetição**, depois de um `refresh` que deu certo, rejeita com o erro de rede, como numa primeira tentativa, sem chamar `onUnauthorized` — até a 0.91.0 ela caía no mesmo tratamento e um soluço de rede logo depois do refresh deslogava o usuário (#684).
+- `refresh(context)` — quando presente e o request der 401, o cliente aguarda `refresh()` e repete a requisição **uma vez**. O `context` (`RequestAuthContext`) traz `token`, o token com que a request rejeitada saiu, e `epoch`, o valor de `getSessionEpoch` naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um `refresh` que lança `SessionSupersededError` faz a request rejeitar com esse erro **sem** chamar `onUnauthorized`: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja [Auth → Refresh em voo e troca de conta](./auth.md#refresh-em-voo-e-troca-de-conta-sessionsupersedederror). E se o `refresh` **resolver** depois de a sessão da request rejeitada ter acabado (o `getSessionEpoch` mudou e ela tinha saído com token), a request rejeita com `SessionSupersededError` em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um `refresh` próprio que ignora o `context`. Um `refresh` que **lança** depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com `SessionSupersededError`, sem chamar `onUnauthorized` — senão o envelope 401 da conta anterior chegaria ao `onError` da atual, e um `onUnauthorized` que chama `logout()` derrubaria a sessão nova (#657). Isso vale também para a request que saiu **sem** token: um `login(B)` durante o `refresh` que falha dela não deixa o `onUnauthorized` derrubar B — até a 0.92.0 a checagem só olhava tentativas com token, e um `createApiClient` próprio deslogava B pelo 401 anônimo (#696). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646). Só o `refresh` que falha conta como sessão que falhou: uma falha de rede **na repetição**, depois de um `refresh` que deu certo, rejeita com o erro de rede, como numa primeira tentativa, sem chamar `onUnauthorized` — até a 0.91.0 ela caía no mesmo tratamento e um soluço de rede logo depois do refresh deslogava o usuário (#684).
 - `retry` — `true` ou `RetryOptions`. **Desligado por default.** Ver [Retentativa embutida](#retentativa-embutida).
 - `logger` — para onde o cliente reporta cada requisição que terminou. **Desligado por default.** Ver [Log de requisição](#log-de-requisicao).
 - `withCredentials` — envia cookies em cross-origin (default `false`).
@@ -27128,6 +27130,83 @@ useQuery({
 });
 ```
 
+## Armazenamento cheio: `StorageFullError`
+
+Toda escrita do store — `put`, `bulkPut`, `update`, `updateMany`, `delete` e `clear` — rejeita com `StorageFullError` quando o navegador recusa por falta de espaço. É o sinal para o app dizer "memória cheia, sincronize antes de continuar", em vez de mostrar o erro do Dexie:
+
+```ts
+import { StorageFullError, createOfflineStore } from "tempest-react-sdk";
+
+interface Visit {
+  id: string;
+  technician_id: string;
+  notes: string;
+}
+
+const visits = createOfflineStore<Visit, string>({
+  databaseName: "CampoVisitas",
+  version: 1,
+  tableName: "visits",
+  indexes: "&id, technician_id",
+  ownerField: "technician_id",
+});
+
+export async function saveVisit(visit: Visit, owner: string): Promise<"saved" | "full"> {
+  try {
+    await visits.put(visit, owner);
+    return "saved";
+  } catch (error) {
+    if (error instanceof StorageFullError) return "full";
+    throw error;
+  }
+}
+```
+
+Testar `error.name === "QuotaExceededError"` não basta, porque não é esse o erro que chega. Medido no Chromium 159, com a cota da origem em 1 MiB (`Storage.overrideQuotaForOrigin` do DevTools Protocol) e um registro de 4 MiB: as quatro escritas rejeitaram com o **`AbortError`** do Dexie. O pedido em si dá certo; a cota é cobrada quando a transação faz commit, e o `QuotaExceededError` só aparece no `inner` do abort. O store reconhece essa forma e as outras:
+
+| O que o Dexie entrega | Quando |
+| --- | --- |
+| `AbortError` com `inner` `QuotaExceededError` | cota cobrada no commit — o caso medido no Chromium |
+| `QuotaExceededError` do Dexie | o próprio pedido recusado |
+| `BulkError` / `ModifyError` com a cota em `failures` | `bulkPut` / `updateMany` com registros recusados um a um |
+
+O erro original fica em `cause`. Depois de um `bulkPut`, `cause` pode ser o `BulkError` do Dexie, cujo `failuresByPos` diz quais registros falharam — os outros podem ter sido gravados. Qualquer outro erro passa inalterado. O `enqueue` do [`createOfflineSync`](./offline-sync.md) herda o comportamento, porque a outbox é um `OfflineStore`.
+
+A reprodução sem browser (`npx vitest run src/offline/create-offline-store.quota.test.ts`) aborta o commit com `QuotaExceededError` no fake-indexeddb, como o Chromium faz, e cobre cada escrita.
+
+`raw` e `db` são o Dexie direto e **não** convertem. Numa transação sua, a cota é cobrada no commit **da transação**, então teste o erro dela com `isQuotaExceededError`, que reconhece as mesmas formas:
+
+```ts
+import { createOfflineStore, isQuotaExceededError } from "tempest-react-sdk";
+
+interface Draft {
+  id: string;
+  body: string;
+}
+
+const drafts = createOfflineStore<Draft, string>({
+  databaseName: "Rascunhos",
+  version: 1,
+  tableName: "drafts",
+  indexes: "&id",
+});
+
+export async function saveAll(items: Draft[]): Promise<boolean> {
+  try {
+    await drafts.db.transaction("rw", drafts.raw, async () => {
+      await drafts.raw.clear();
+      await drafts.raw.bulkAdd(items);
+    });
+    return true;
+  } catch (error) {
+    if (isQuotaExceededError(error)) return false;
+    throw error;
+  }
+}
+```
+
+O SDK **não** recusa gravação olhando o `navigator.storage.estimate()`: o número é aproximado, e a recusa do navegador é o sinal exato. Para avisar antes de encher, use o [`useStorageEstimate`](./pwa.md#4-durabilidade-peca-armazenamento-persistente).
+
 ## `createOfflineDatabase` — várias tabelas numa base
 
 `createOfflineStore` dá a cada store uma base só dela, que é a forma certa pra um cache isolado. Deixa de ser assim no instante em que as tabelas pertencem uma à outra: chats e suas mensagens, uma entidade e seus rascunhos, qualquer coisa que você leria ou limparia como uma unidade. Separá-las em bases diferentes custa a transação de verdade — o Dexie só roda uma atomicamente **dentro** de uma mesma base — e ainda espalha o bump de versão de uma mudança relacionada por dois lugares.
@@ -27189,6 +27268,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `ownerField` ativa scoping multi-tenant: `put`/`list`/`count`/`clear`/`updateMany` respeitam o `owner` e isolam dados por usuário.
 - CRUD: `put`/`bulkPut`, `get`/`list` (com `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
 - `listBy(índice, valor, owner)` lista por outro campo indexado pelo índice, sem perder o dono.
+- Escrita recusada por falta de espaço rejeita com `StorageFullError` (original em `cause`); em `raw`/`db`, use `isQuotaExceededError`.
 - `raw` e `db` abrem a porta pra queries Dexie avançadas.
 - Bump `version` ao mudar `indexes`; use `db.version(N).upgrade(...)` pra migrações de dados.
 
@@ -33942,7 +34022,7 @@ Aqui moram as duas portas do app. 🚪
 
 **A porta da sessão** está na rota `/`, que envolve todas as outras. O guard `useSessionGuard` é um hook — por isso o nome começa com `use` — e assina o store: quando a sessão termina, por Sair ou por expiração, ele re-renderiza sozinho e manda para `/login`. O `preserveFrom: true` leva junto o endereço de onde a pessoa veio.
 
-O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo.
+O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo. É só esse instante: se o `/auth/me` falha, o `login()` desfaz a entrada antes de rejeitar, e o token não fica sozinho no store (#748).
 
 **A porta do papel** está em `pacientes`. O `useCan` responde numa passada de efeito, então no primeiro render ele ainda não sabe. O guard devolve `"pending"` nesse meio-tempo: o app mostra o spinner, em vez de mandar a recepcionista embora num piscar de olhos. Detalhes em [Roteamento → `"pending"`](../routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
@@ -35627,7 +35707,15 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Skeleton,
+  StorageFullError,
+  formatBytes,
+  useToast,
+} from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -35679,7 +35767,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
           type,
         });
         await addPhoto(visitId, image);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -35749,6 +35841,12 @@ dias. Então ela passa pelo [`useImageProcessing`](../imaging.md#no-react) antes
   um navegador que não codifica devolveria PNG, várias vezes maior, sem erro nenhum.
 
 O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no unmount.
+
+Quando o aparelho não tem mais espaço, o `photos.put` rejeita com
+[`StorageFullError`](../offline.md#armazenamento-cheio-storagefullerror), e o laço para:
+as próximas fotos também não caberiam, e a mensagem certa é "sincronize", não "fotografe
+de novo". O erro cru do navegador nem diria isso — no Chromium ele chega como `AbortError`
+do Dexie.
 
 !!! warning "Reencodar apaga o GPS da foto"
     O EXIF some no reencode, incluindo as coordenadas. Isso protege a localização de quem
@@ -36492,6 +36590,7 @@ installPrecache({
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
   o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
+- 💾 **`StorageFullError`** separa "memória cheia" de "foto ruim" no `catch` da câmera.
 - 🔒 **`useStorageEstimate`** pede armazenamento persistente; o `UpdatePrompt` não troca
   de versão no meio da vistoria; o service worker só faz precache.
 - ⚠️ **`networkMode: "always"`** nas queries que leem o IndexedDB, senão elas pausam

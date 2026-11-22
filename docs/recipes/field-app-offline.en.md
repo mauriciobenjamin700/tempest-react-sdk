@@ -734,7 +734,15 @@ what you want to see is a `401` or a `413` that will not go away on its own.
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
 import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  Skeleton,
+  StorageFullError,
+  formatBytes,
+  useToast,
+} from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -786,7 +794,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
           type,
         });
         await addPhoto(visitId, image);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -857,6 +869,12 @@ days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
   no error at all.
 
 `useImagePreview` creates the `Blob`'s preview URL and **revokes** it on its own at unmount.
+
+When the device runs out of space, `photos.put` rejects with
+[`StorageFullError`](../offline.md#storage-full-storagefullerror), and the loop stops: the
+next photos would not fit either, and the right message is "sync", not "shoot again". The
+browser's raw error would not even say that — in Chromium it arrives as Dexie's
+`AbortError`.
 
 !!! warning "Re-encoding drops the photo's GPS"
     EXIF is gone after the re-encode, coordinates included. That protects the location of
@@ -1612,6 +1630,8 @@ installPrecache({
   queue.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** deliver the report without a
   network.
+- 💾 **`StorageFullError`** tells "storage full" apart from "bad photo" in the camera's
+  `catch`.
 - 🔒 **`useStorageEstimate`** asks for persistent storage; `UpdatePrompt` does not swap
   versions mid-inspection; the service worker only precaches.
 - ⚠️ **`networkMode: "always"`** on the queries that read IndexedDB, or they pause offline.

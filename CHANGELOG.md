@@ -6,6 +6,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`StorageFullError` e `isQuotaExceededError`: escrita do `OfflineStore` recusada por falta de
+  espaço vira um erro tipado** (parte de #726). Toda escrita do store (`put`, `bulkPut`, `update`,
+  `updateMany`, `delete`, `clear`) — e por tabela o `createOfflineDatabase`, e o `enqueue` do
+  `createOfflineSync`, cuja outbox é um store — rejeita com `StorageFullError`, com o erro original
+  em `cause`, para o app avisar "memória cheia, sincronize antes de continuar". A issue dizia que o
+  erro saía como `QuotaExceededError` cru; medido no Chromium 159 com a cota da origem em 1 MiB
+  (`Storage.overrideQuotaForOrigin`) e um registro de 4 MiB, as quatro escritas rejeitavam com o
+  **`AbortError`** do Dexie, com o `QuotaExceededError` só no `inner`: a cota é cobrada no commit.
+  Testar `name === "QuotaExceededError"` não pegava nenhuma. `isQuotaExceededError` reconhece essa
+  forma, o `QuotaExceededError` do Dexie e do navegador, `BulkError`/`ModifyError` com a cota em
+  `failures` e cadeias de `cause`, e serve para escrita feita por `raw`/`db`, que não converte
+  (`npx vitest run src/offline/create-offline-store.quota.test.ts src/offline/storage-full-error.test.ts`).
+  A receita [App de campo offline](docs/recipes/field-app-offline.md) separa "memória cheia" de
+  "foto ruim" no `catch` da câmera.
 - **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
   React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
   precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num
@@ -87,6 +101,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **#726 (`StorageFullError`), medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `9770a39` e sobre este branch**, em bytes brotli: `slice: offline + PWA surface` 5 366 → 5 577
+  (teto 6 kB, dentro); `ceiling: full barrel ESM` 173 112 → 173 276 (teto 173,3 kB, dentro);
+  `ceiling: full barrel CJS` 204 565 → 204 726 (teto 204,9 kB, dentro). `slice: device capture`
+  5 744 → 5 757 passou do teto de 5,75 kB sem carregar código novo: o bundle do size-limit dessa
+  fatia tem os **mesmos 17 134 bytes** minificados nos dois lados, e só os nomes curtos que o esbuild
+  dá a quatro identificadores mudam (`C`/`I` → `E`/`F`), o que muda o brotli em 13 B (conferido com
+  `npx size-limit --save-bundle <dir>` com só essa entrada no `.size-limit.checks.json`, e `diff`
+  dos dois `index.js`). Teto 5,75 → 5,8 kB.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.

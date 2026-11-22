@@ -97,6 +97,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **`<StorageUsage>` (parte de #726), medido com `npm run build && npx size-limit --json` sobre a
+  `main` em `6a716c5` e sobre este branch**, bytes brotli: `ceiling: full barrel ESM` 173 112 →
+  173 576 (teto 173,3 → 173,6 kB); `ceiling: full barrel CJS` 204 565 → 205 444 (teto 204,9 →
+  205,5 kB); `styles.css` 32 526 → 32 658 (teto 32,6 → 32,7 kB). Os bytes são o componente novo e a
+  folha dele; nenhuma fatia existente o alcança.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.

@@ -227,7 +227,8 @@ os dados vieram.
 Por padrão, o TanStack Query **pausa** uma query quando o navegador está offline: a
 `queryFn` nem roda. Num app comum, isso é bom. Aqui, seria um spinner eterno, porque é
 justamente a `queryFn` que lê o IndexedDB. `networkMode: "always"` manda a query rodar
-de qualquer jeito, e o fallback para o cache acontece.
+de qualquer jeito, e o fallback para o cache acontece. A medição, e por que não é o default
+do SDK, estão em [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 !!! tip "A volta do sinal atualiza sozinha"
     `refetchOnReconnect` vem ligado no TanStack Query. Quando o sinal volta, a query

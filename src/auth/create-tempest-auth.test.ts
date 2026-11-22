@@ -266,7 +266,16 @@ describe("createTempestAuth — one client, with per-request opt-outs", () => {
         expect(auth.getToken()).toBe("tok-2");
     });
 
-    it("sends the token on mePath but does not end the session when it comes back 401", async () => {
+    /**
+     * The lookup still goes out once, with the token and without the `401`
+     * refresh-and-replay (`skipAuthRetry`, 0.66.0). Until #748 this test also
+     * pinned `getToken()` as `"tok-1"` — "the session survives a failed user
+     * lookup" — which was the bug: `login()` rejected while the token stayed
+     * installed next to a `null` user, and `isAuthenticated` read `true`. The
+     * decision was revised on purpose: a sign-in whose user cannot be loaded
+     * is undone, so the assertion is inverted rather than dropped.
+     */
+    it("sends the token on mePath once, without a refresh, and undoes the sign-in when it comes back 401", async () => {
         let meCalls = 0;
         const refresh = vi.fn();
         const fetcher = vi.fn(async (input: RequestInfo | URL) => {
@@ -289,7 +298,8 @@ describe("createTempestAuth — one client, with per-request opt-outs", () => {
             status: 401,
         });
         expect(meCalls, "no refresh-and-replay on the user lookup").toBe(1);
-        expect(auth.getToken(), "the session survives a failed user lookup").toBe("tok-1");
+        expect(auth.getToken(), "a sign-in without its user is undone (#748)").toBeNull();
+        expect(auth.useAuthStore.getState().isAuthenticated).toBe(false);
         expect(refresh).not.toHaveBeenCalled();
     });
 });

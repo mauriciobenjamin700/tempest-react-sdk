@@ -92,6 +92,12 @@ The generated `package.json` ships these scripts:
 | `npm run lint`      | `eslint .` — ESLint 9 flat config (react-hooks + refresh) |
 | `npm run lint:fix`  | `eslint . --fix` — auto-fix what it can                   |
 
+### Dependencies the app imports directly
+
+Besides the peers (`react`, `react-dom`, `react-router`), the generated `package.json` declares `@tanstack/react-query`, `react-hook-form` and `zod`. All three already come with the SDK, but the docs import them from app code (`useQuery`, `useForm`, `z.object`), and importing what you do not declare only works by accident: npm and yarn resolve it through the copy the SDK leaves at the root of `node_modules`; **pnpm**, which only exposes what the app declares, fails `tsc` with `Cannot find module`. The declared range is **the SDK's own**, so every manager installs a single copy — which matters for `@tanstack/react-query` and `react-hook-form`, which carry React context. When you upgrade the SDK, run `npx tempest doctor`: it warns when one of the app's ranges fell behind and npm nested a second copy.
+
+`lucide-react` is left out on purpose — see [Icons](icons.md#do-not-install-lucide-react-yourself).
+
 ## Tour of what gets generated
 
 The generated project is lean on purpose: each file exists to **demonstrate an SDK feature** you'll reuse. Here's the full structure:
@@ -101,7 +107,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # @ -> ./src alias in "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -112,8 +118,8 @@ my-app/
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakes a session via useAuth.use.setSession() then navigate("/dashboard")
     ├── pages/Dashboard.tsx      # default export (lazy), protected route
-    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 ```
 
 ### Each file → the SDK feature it shows
@@ -131,14 +137,14 @@ Let's look at the three most important ones.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestCsp()],
+    plugins: [tempestThemeInit(), tempestCsp()],
 });
 ```
 
-One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md).
+One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md). `tempestThemeInit()` puts the theme's anti-flash script in the `<head>`, so whoever picked dark never sees a light frame on load. See [No-flash](./theme.md#no-flash-avoiding-the-wrong-theme-flash).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 
@@ -161,6 +167,7 @@ export function App() {
 
 ```ts
 import { createAuthStore, createSelectors } from "tempest-react-sdk";
+import { configureApiAuth } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -169,12 +176,19 @@ export interface User {
 }
 
 export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" }));
+
+configureApiAuth({
+  getToken: () => useAuth.getState().token,
+  onUnauthorized: () => useAuth.getState().logout(),
+});
 ```
 
 `createAuthStore<User>` creates a persisted Zustand auth store (`name: "app-auth"` is the storage key). `createSelectors` gives you atomic access via `useAuth.use.<field>()` — that's how `RootLayout.tsx` reads `useAuth.use.isAuthenticated()` and `Login.tsx` calls `useAuth.use.setSession()`. More patterns in [State](./state.md).
 
+The `configureApiAuth` call at the end wires the store into the HTTP client: `lib/api.ts` imports nothing from auth, so a project without login deletes `stores/auth.ts` and the client keeps working without a token.
+
 !!! note "The rest is self-explanatory"
-    `routes.tsx` uses `defineRoutes([...])` with an index route, a login route, and a `dashboard` that is both **lazy** and **guarded**. `lib/api.ts` instantiates `createApiClient` with `baseURL`/`getToken`/`onUnauthorized` and exports `createQueryKeys` so you can organize your cache keys.
+    `routes.tsx` uses `defineRoutes([...])` with an index route, a login route, and a `dashboard` that is both **lazy** and **guarded**. `lib/api.ts` instantiates `createApiClient` reading the token through whatever `configureApiAuth` registered, and exports `queryKeys = createQueryKeys("app", { me })` so you can organize your cache keys.
 
 ## PWA mode (`--pwa`)
 
@@ -201,6 +215,7 @@ my-app/
 │   └── icon.svg                # source icon (swap for yours — the PNGs come from it)
 └── src/
     ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── sw-sync-scope.ts        # what background sync queues (and what stays with the page)
     ├── main.tsx                # (overwritten) registers /sw.js in dev and prod
     ├── vite-env.d.ts           # (overwritten) types VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (overwritten) Install button + notifications toggle
@@ -344,6 +359,12 @@ installBackgroundSync({
 
 The original fetch still **rejects** for now (your app shows an offline state), but the request is replayed later. `maxRetentionMinutes` drops stale entries; 4xx responses are discarded (a client error won't fix itself).
 
+!!! warning "One queue per mutation: the scaffold leaves to the page what it already resends"
+    The worker does not know what the page does after the rejection. If the page resends too, the same mutation goes out of **both** queues: the outbox (`createOfflineSync`) sends the newest version of the record when the network returns, and the worker later replays, in its own order, every attempt made offline — including versions the outbox has already superseded, overriding its conflict policy. That is why `--pwa` does not use the `match` above: the generated `src/sw.ts` calls `queuesInTheWorker` (`src/sw-sync-scope.ts`), which only queues this origin's `/api/` and **never**:
+
+    - a **tus** request (the `Tus-Resumable` header, which `createResumableUpload` sends on every request): the upload client already resumes by itself, re-reading the offset with `HEAD`; a `PATCH` kept by the worker comes back with the `Upload-Offset` it failed at and with the whole chunk (5 MiB by default) stored in IndexedDB for every attempt;
+    - a prefix in `RETRIED_BY_THE_PAGE`, which ships empty. **When the app gains an outbox, add the prefix it delivers there** (`"/api/visits/"`).
+
 #### Range requests — offline audio/video seeking
 
 Mark a route with `rangeRequests: true` to serve `206 Partial Content` by slicing the cached resource — without it, media can't seek offline:
@@ -408,7 +429,16 @@ export const useCounter = createStore<{ count: number; inc: () => void }>((set) 
 
 ### 3. Fetch data with React Query + queryKeys + api
 
-Combine the HTTP client, the query keys, and `useQuery` (already available through `AppProviders`):
+The template only declares the `me` key. Add yours in `src/lib/api.ts`:
+
+```ts
+export const queryKeys = createQueryKeys("app", {
+  me: () => ["me"],
+  users: () => ["users"],
+});
+```
+
+Then combine the HTTP client, the key, and `useQuery` (already available through `AppProviders`):
 
 ```tsx
 import { useQuery } from "@tanstack/react-query";
@@ -416,7 +446,7 @@ import { api, queryKeys } from "@/lib/api";
 
 export function UserList() {
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.users.all,
+    queryKey: queryKeys.users(),
     queryFn: () => api.get("/users"),
   });
 

@@ -11681,6 +11681,8 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
 
+`sync` aceita o motor com o payload que ele tiver (`OfflineSync<Nota>` acima): a prop é tipada como `SyncStatusSource`, só o `getState` e o `subscribe` que o badge lê. Até a 0.92.0 ela era `OfflineSync<unknown>`, e todo motor tipado reprovava com TS2322 sob `strict` — o `enqueue` recebe o payload, então o motor não é covariante nele.
+
 ## `UpdatePrompt`
 
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
@@ -12551,6 +12553,40 @@ export function Anexos() {
 }
 ```
 
+### Abrir a câmera do celular: `capture`
+
+`capture` vai direto para o `<input type="file">` e, no celular, pula o seletor de arquivos
+e abre o app de câmera: `"environment"` é a traseira, `"user"` a frontal, `true` deixa o
+navegador escolher. Você ganha foco, flash e a resolução total da câmera sem pedir permissão
+nenhuma — quem fotografa é o app do sistema. O mesmo prop existe no [`Dropzone`](#dropzone).
+
+```tsx
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function FotoDoDocumento() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Foto do documento"
+            accept="image/*"
+            capture="environment"
+            value={files}
+            onChange={setFiles}
+            title="Toque para fotografar"
+        />
+    );
+}
+```
+
+!!! note "No desktop, `capture` não faz nada"
+    O navegador de desktop ignora o atributo e abre o seletor de arquivos de sempre — o
+    componente continua funcionando, só sem o atalho para a câmera. Combine com
+    `accept="image/*"` (ou `video/*`): o atributo só tem sentido para mídia. E conte com
+    **uma foto por abertura**, mesmo com `multiple`; para várias fotos, o usuário toca de
+    novo.
+
 ## `Slider`
 
 **Quando usar:** escolher um único valor numa faixa contínua (volume, brilho, etc.). Para uma faixa de dois valores use `RangeSlider`.
@@ -12641,6 +12677,7 @@ function Uploader() {
 | `onDrop`    | `(files: File[]) => void`  | —       |
 | `accept`    | `string`                   | —       |
 | `multiple`  | `boolean`                  | `true`  |
+| `capture`   | `boolean \| "user" \| "environment"` | — ([abre a câmera](#abrir-a-camera-do-celular-capture)) |
 | `maxSize`   | `number` (bytes)           | —       |
 | `onReject`  | `(files: File[]) => void`  | —       |
 | `disabled`  | `boolean`                  | `false` |
@@ -14954,12 +14991,18 @@ import { RelativeTime } from "tempest-react-sdk";
 
 <RelativeTime date={post.createdAt} />; // pt-BR
 <RelativeTime date={post.createdAt} locale="en" />;
+<RelativeTime date={position.timestamp} updateEvery={15_000} />; // conta sozinho
+<RelativeTime date={position.timestamp} now={clock} />; // usa o relógio do app
 ```
 
-| Prop     | Tipo                       | Default | Notas                        |
-| -------- | -------------------------- | ------- | ---------------------------- |
-| `date`   | `Date \| string \| number` | —       | Instante a renderizar.       |
-| `locale` | `"pt" \| "en"`             | `"pt"`  | `"pt"` mapeia pra `"pt-BR"`. |
+| Prop          | Tipo                       | Default    | Notas                                                                           |
+| ------------- | -------------------------- | ---------- | ------------------------------------------------------------------------------- |
+| `date`        | `Date \| string \| number` | —          | Instante a renderizar.                                                          |
+| `locale`      | `"pt" \| "en"`             | `"pt"`     | `"pt"` mapeia pra `"pt-BR"`.                                                    |
+| `now`         | `Date \| number`           | o render   | O "agora" do app (um relógio para a lista inteira, ou o de um teste). Vence `updateEvery`. |
+| `updateEvery` | `number` (ms)              | desligado  | Re-renderiza sozinho nesse intervalo. Valor que não é número positivo desliga.  |
+
+Sem `now` nem `updateEvery`, o texto é calculado no render e **fica parado** até algo re-renderizar o componente — medido: 5 min depois, ainda "agora há pouco". O relógio interno é opt-in de propósito: cem linhas com um intervalo cada acordariam a página cem vezes por tick; numa lista, um `now` do pai é o formato barato, e `updateEvery` é para o horário solitário que não tem nada acima para re-renderizá-lo. O timer é limpo no unmount.
 
 Estende `HTMLAttributes<HTMLTimeElement>`.
 
@@ -15802,6 +15845,7 @@ export const dataProvider = createDataProvider(apiClient, {
 | `create("posts", data)`            | `POST /posts`                                                 |
 | `update("posts", id, data)`        | `PATCH /posts/{id}` (ou `PUT` com `updateMethod: "put"`)      |
 | `deleteOne("posts", id)`           | `DELETE /posts/{id}`                                          |
+| `deleteMany("posts", ids)`         | um `DELETE /posts/{id}` por id, em paralelo, cada um com o próprio resultado |
 
 ### O `id` nunca sai do próprio segmento
 
@@ -15881,17 +15925,51 @@ Todos resolvem o provider via contexto — você só informa o nome do recurso e
 - `useCreate<T>(resource, options?)` → mutation; `mutate(data)`
 - `useUpdate<T>(resource, options?)` → mutation; `mutate({ id, data })`
 - `useDelete<T>(resource, options?)` → mutation; `mutate(id)`
+- `useDeleteMany<T>(resource, options?)` → mutation; `mutate(ids)` resolve com `{ deleted, failed }`
 
 As mutations já invalidam o cache certo no sucesso:
 
-| Hook        | Invalida no `onSuccess`                          |
-| ----------- | ----------------------------------------------- |
-| `useCreate` | a lista do recurso                              |
-| `useUpdate` | a lista **e** o registro `useOne` daquele `id`  |
-| `useDelete` | a lista do recurso                              |
+| Hook            | Invalida no `onSuccess`                          |
+| --------------- | ----------------------------------------------- |
+| `useCreate`     | a lista do recurso                              |
+| `useUpdate`     | a lista **e** o registro `useOne` daquele `id`  |
+| `useDelete`     | a lista do recurso                              |
+| `useDeleteMany` | a lista do recurso, **uma vez** para o lote todo |
 
 !!! tip "Você ainda passa opções do TanStack Query"
-    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError`, `onSuccess` (chamado **depois** da invalidação do SDK) continuam funcionando normalmente.
+    Cada hook aceita um último argumento `options` que é repassado para o `useQuery`/`useMutation` por baixo (menos `queryKey`/`queryFn`/`mutationFn`, que o SDK controla). Então `staleTime`, `placeholderData`, `onError` e `onSuccess` funcionam normalmente. O `onSuccess` do app roda **depois** de o SDK disparar a invalidação, nunca no lugar dela: até a 0.92.0 ele substituía o do SDK, e a lista ficava velha depois de criar, editar ou excluir (#699).
+
+### Excluir uma seleção: `useDeleteMany`
+
+Excluir uma seleção chamando `useDelete().mutateAsync` para cada id invalida a lista uma vez por id, e cada invalidação refaz o `GET` da lista montada: medido com 10 ids, 10 `invalidateQueries` e 10 `getList`. O `useDeleteMany` exclui o lote e invalida **uma** vez:
+
+```tsx
+import { useDeleteMany } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+}
+
+export function DeleteSelection({ ids }: { ids: string[] }) {
+  const deleteMany = useDeleteMany<Product>("products");
+
+  async function confirm(): Promise<void> {
+    const { deleted, failed } = await deleteMany.mutateAsync(ids);
+    console.log(`${deleted.length} excluídos, ${failed.length} recusados`);
+  }
+
+  return (
+    <button disabled={deleteMany.isPending} onClick={() => void confirm()}>
+      Excluir {ids.length}
+    </button>
+  );
+}
+```
+
+- **Cada id tem o próprio resultado.** Um produto que o backend recusa (pedido em aberto) vai para `failed` com o erro, e não esconde os nove que saíram. A mutation só rejeita quando a chamada do provider inteira falha — e aí nada é invalidado.
+- **A lista é invalidada mesmo quando todos falharam**: um `404` pode significar que outra sessão já excluiu o registro.
+- **Backend com rota de exclusão em lote?** Implemente `deleteMany(resource, ids)` no seu `DataProvider` e devolva o mesmo `{ deleted, failed }`. É opcional: sem ele, o hook faz um `deleteOne` por id, em paralelo.
 
 ### As chaves de cache, quando você precisa delas
 
@@ -15909,9 +15987,15 @@ queryClient.invalidateQueries({ queryKey: listQueryKey("posts") });
 queryClient.invalidateQueries({ queryKey: oneQueryKey("posts", 42) });
 ```
 
-`listQueryKey(resource, params?)` devolve `["data", <recurso>, "list", params]`
-e `oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
+`listQueryKey(resource)` devolve `["data", <recurso>, "list"]`, o prefixo de
+**toda** lista do recurso, então invalida todas as páginas, ordenações e
+filtros de uma vez. Com `params`, `listQueryKey(resource, params)` devolve
+`["data", <recurso>, "list", params]`, a chave exata de uma lista. E
+`oneQueryKey(resource, id)` devolve `["data", <recurso>, "one", id]`. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.
+
+!!! note "Até a 0.92.0, `listQueryKey(\"posts\")` não invalidava nada"
+    Sem `params`, a chave terminava num `undefined` literal (`["data", "posts", "list", undefined]`), e o filtro do `invalidateQueries` compara esse quarto elemento como qualquer outro: casava com **0** das listas que o `useList` monta com paginação (#700). Hoje a chave para em `"list"`.
 
 !!! warning "Paginação e ordenação ganham do filtro com o mesmo nome"
     Os `filters` entram na query **antes** de `pagination` e `sort`. Um filtro com a chave de um desses parâmetros (`page`, `size`, `order_by`, `ascending` no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: `filters: { page: 1 }` vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem `pagination`, o filtro continua indo como veio.
@@ -16056,7 +16140,9 @@ export function EditPost({ id }: { id: string }) {
 - `createDataProvider(client, options?)` transforma um `apiClient` num provider CRUD no estilo Refine, com defaults alinhados ao `tempest-fastapi-sdk` (`page`/`size`/`order_by`/`ascending`, `ascending` booleano, PATCH no update).
 - Envolva a árvore com `<TempestDataProvider provider={…}>` **abaixo** de um `<QueryProvider>`.
 - `useList` resolve um `OffsetPage<T>` (`items`/`total`/`page`/`pages`); `useOne` busca um registro e se desabilita sem `id`.
-- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).
+- `useCreate` / `useUpdate` / `useDelete` são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update). O `onSuccess` do app roda depois da invalidação, não no lugar dela.
+- `useDeleteMany` exclui uma seleção e invalida a lista uma vez; cada id volta em `deleted` ou `failed`.
+- `listQueryKey(resource)` invalida todas as listas do recurso; com `params`, é a chave de uma lista só.
 - Backends fora da convenção? Ajuste `pageParam`/`sizeParam`/`sortFieldParam`/`sortOrderParam`/`sortOrderAsBoolean`/`updateMethod`/`buildPath`.
 - Todo `id` passa por `encodeIdSegment`: fica num segmento só, e `""`/`"."`/`".."` são rejeitados antes da requisição.
 
@@ -19303,6 +19389,8 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
   quem não tem, e `detector` aceita um polyfill.
 - `useBarcodeScanner` — a metade de decodificação, sobre `useCameraStream`; loop que não se
   sobrepõe, `formats` resolvidos pela interseção com o motor.
+- `useCameraStream` — a câmera crua, na raiz: abre, classifica o erro e libera no unmount,
+  sem exigir o `onnxruntime-web`.
 - `useTorch` — a lanterna é constraint de track viva, não dispositivo; `supported` só vale
   depois do stream.
 - `useVideoRecorder` — mesmo motor do áudio: relógio que desconta pausa, `stop()` com todos
@@ -19317,7 +19405,8 @@ export function ChatComDitado({ messages, onSend }: ChatProps) {
 
 - [Áudio](./audio.md) — microfone, gravação de voz, WAV, saída de som
 - [Componentes utilitários](./components/utility.md) — o `QRCode`, que codifica
-- [Vision (ONNX)](./vision.md) — o `useCameraStream` que este módulo reaproveita
+- [Vision (ONNX)](./vision.md#usecamerastream-abrir-a-camera) — o `useCameraStream`, exportado
+  na raiz por este módulo e documentado junto da luminância
 
 ---
 
@@ -21071,6 +21160,7 @@ export function CorridaAoVivo() {
 
 - `minDistanceKm` (default `0.005` = 5 m) descarta amostras muito próximas — filtra o tremido do GPS parado.
 - `maxPoints` limita o array retido (a distância total continua contando).
+- `onPoint(point)` é chamado **uma vez por ponto aceito** (depois do filtro de `minDistanceKm`), na ordem. É o caminho para transmitir cada posição: um `useEffect` sobre `lastPoint` vê só a última de duas leituras que chegam antes de um render — medido com duas leituras no mesmo `act`, o efeito viu `[2, 3]` de `[1, 2, 3]`, e o `onPoint` viu as três. O hook lê o `onPoint` do último render, então uma arrow inline enxerga o estado atual.
 - `autoStart: true` já começa a rastrear na montagem.
 - Cada ponto traz `speed` (m/s, a unidade do navegador — `× 3.6` dá km/h) e `heading` (graus a partir do norte), `null` quando o aparelho não informa. O `heading` `NaN` que alguns navegadores mandam com o aparelho parado também vira `null`.
 
@@ -21272,8 +21362,8 @@ Pedaço por pedaço:
 | --- | --- | --- | --- |
 | `route` | `readonly Coordinate[]` | — | Rota planejada, tracejada. Enquadra o mapa. |
 | `trail` | `readonly Coordinate[]` | — | Caminho percorrido, sólido. |
-| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label? }`. |
-| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, content? }`. |
+| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label?, stale?, staleLabel? }`. |
+| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, visited?, content? }`. |
 | `follow` | `boolean` | `false` | Mantém o veículo à vista sem mudar o zoom. |
 | `etaLabel` | `string` | — | Texto anunciado ao leitor de tela. |
 | `height` / `padding` | `number` | `360` / `32` | Altura e margem do enquadramento, em px. |
@@ -21283,6 +21373,7 @@ Pedaço por pedaço:
 | `tileUrl` / `tileAttribution` / `tileMaxZoom` | `string` / `string` / `number` | — / — / `19` | Tiles do **seu** servidor. |
 | `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Textos acessíveis. |
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Nome falado de cada tipo. |
+| `visitedLabel` | `string` | `"visita concluída"` | Acrescentado ao nome falado de um marcador `visited`. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
 | `roads` | `RoadGraph<E>` | — | Grafo do `createRoadGraph`: desenha as ruas e encaixa veículo e trilha. |
 | `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Cada posição nova encaixada (sua aresta, ponto, distância), ou `null` fora de qualquer rua. Só com `roads`. |
@@ -21334,6 +21425,48 @@ Pedaço por pedaço:
 !!! info "Alvo de toque de 44 px, em qualquer tamanho"
     Medido no Chromium sobre a gallery da 0.91.0 (`elementFromPoint` em 16 direções, a cada 2 px): uma parada só respondia dentro do disco de **16 px**, e depois só num anel de 3 px a 16 px do centro — o traço transparente do anel de foco. Agora cada marcador tem um círculo invisível de **44 px** (WCAG 2.2, SC 2.5.5) que recebe o toque, e o `markerScale` não o encolhe. Por isso o `markerScale` padrão continua `1`: ele serve para **ler** o glifo de longe, não para conseguir tocá-lo.
 
+### Estados: parada já visitada e posição velha
+
+O que já passou e o que vem pela frente não podem ter a mesma cara, e uma posição de quatro minutos atrás não pode parecer ao vivo. Dois campos dizem isso no próprio glifo:
+
+- **`visited`** no `LiveRouteMarker` pinta o marcador em cinza neutro (`--tempest-live-route-visited`, padrão `--tempest-text-muted`). A forma continua a do tipo — uma parada atendida segue redonda, o número segue dentro — e o nome acessível ganha `visitedLabel` (padrão `"visita concluída"`).
+- **`stale`** no `vehicle` deixa o veículo onde ele foi visto pela última vez, sem o halo e em cinza (`--tempest-live-route-stale`), e acrescenta `staleLabel` (padrão `"posição desatualizada"`) ao nome que o leitor de tela lê.
+
+```tsx
+import { LiveRouteMap, type Coordinate, type LiveRouteMarker, type TrackPoint } from "tempest-react-sdk";
+
+const STALE_AFTER_MS = 30_000;
+
+export function TripNow({
+  route,
+  stops,
+  position,
+  now,
+}: {
+  route: Coordinate[];
+  stops: (LiveRouteMarker & { departed: boolean })[];
+  position: TrackPoint;
+  now: number;
+}) {
+  return (
+    <LiveRouteMap
+      route={route}
+      markers={stops.map(({ departed, ...stop }) => ({ ...stop, visited: departed }))}
+      vehicle={{
+        position,
+        heading: position.heading ?? null,
+        label: "Van 12",
+        stale: now - position.timestamp > STALE_AFTER_MS,
+      }}
+    />
+  );
+}
+```
+
+- **Quem decide o "velho" é o app.** O mapa não tem relógio próprio: um timer dentro dele re-renderizaria um mapa que não tem nada novo a desenhar. O app já tem o `timestamp` da posição e um `now` que anda (veja o [`RelativeTime`](./components/utility.md#relativetime) com `updateEvery`).
+- **O cinza mede 6,92:1 (claro) e 7,43:1 (escuro) contra o fundo do mapa** (`--tempest-surface-2`), e o número dentro, em `--tempest-surface`, 7,30 e 8,39:1 — medido no browser e afirmado em `src/geo/LiveRouteMap.states.test.tsx`.
+- **Mesmo cinza nos dois estados, de propósito**: "já passou" e "parou de chegar" são o mesmo recado — isto é passado. A forma separa um do outro.
+
 ### Legenda — `LiveRouteMapLegend`
 
 Cada app desenhava a própria legenda imitando os glifos do SDK com SVG próprio — e uma mudança de tema ou de glifo deixava a legenda para trás. O `LiveRouteMapLegend` desenha **os mesmos glifos**, com as mesmas classes e os mesmos tokens do mapa:
@@ -21353,20 +21486,24 @@ export function PassengerLegend() {
         { symbol: "vehicle", label: "Ônibus" },
         { symbol: "route", label: "Rota planejada" },
         { symbol: "trail", label: "Já percorrido" },
+        { symbol: "stop", label: "Parada atendida", glyphText: "1", visited: true },
+        { symbol: "vehicle", label: "Sem sinal do ônibus", stale: true },
+        { symbol: "badge", label: "Embarques na parada", badge: 3 },
       ]}
     />
   );
 }
 ```
 
-- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"` ou uma das linhas (`"route"`, `"trail"`). Os campos `emphasis`, `glyphText` e `icon` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`.
+- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"`, uma das linhas (`"route"`, `"trail"`) ou o `"badge"`, o selo de contagem. Os campos `emphasis`, `glyphText`, `icon` e `visited` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`; `stale`, para o veículo; `badge` (padrão `1`), para o selo.
+- **O selo da legenda é o mesmo desenho do mapa** (`BadgeShape` compartilhado): mesmo token de cor, mesma largura para `"99+"`. Antes não havia símbolo para ele, e a legenda não explicava o número sobre a parada.
 - **Sem `items`**, a legenda lista os seis símbolos com rótulos em PT-BR.
 - **Passe o mesmo `markerScale` do mapa** para os glifos baterem; veículo e linhas não escalam, como no mapa.
 - É uma lista (`<ul>`) com nome acessível `"Legenda do mapa"` (troque com `label`); os desenhos são `aria-hidden`, e o leitor de tela lê o texto.
 
 | Prop | Tipo | Default | Descrição |
 | --- | --- | --- | --- |
-| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon? }`, na ordem. |
+| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon?, visited?, stale?, badge? }`, na ordem. |
 | `markerScale` | `number` | `1` | O mesmo fator do mapa. |
 | `label` | `string` | `"Legenda do mapa"` | Nome acessível da lista. |
 
@@ -21389,6 +21526,8 @@ O mapa e a legenda são temados só por tokens. Para recolorir, sobrescreva no `
 | `--tempest-live-route-stop-ink` | `glyphText` e `icon` na parada | `--tempest-info-on-solid` |
 | `--tempest-live-route-destination-ink` | `glyphText` e `icon` no destino | `--tempest-danger-on-solid` |
 | `--tempest-live-route-road` / `--tempest-live-route-road-casing` | Ruas do `roads` | `--tempest-bg` / `--tempest-text-subtle` |
+| `--tempest-live-route-visited` / `--tempest-live-route-visited-ink` | Marcador `visited` / seu `glyphText` e `icon` | `--tempest-text-muted` / `--tempest-surface` |
+| `--tempest-live-route-stale` / `--tempest-live-route-stale-ink` | Veículo `stale` / sua seta | `--tempest-text-muted` / `--tempest-surface` |
 
 !!! note "Por que o selo não usa mais `--tempest-text` sobre `--tempest-bg`"
     Até a 0.91.0 o `badge` era `--tempest-text` de fundo com o número em `--tempest-bg` — o par invertido. No tema do próprio SDK isso dava 17,75:1 (claro) e 17,51:1 (escuro). Mas o contraste dependia de **dois** tokens que o app troca separados: um tema que clareou `--tempest-text` e deixou `--tempest-bg` branco pôs o número branco num selo quase branco — **1,11:1**, medido no Chromium. Agora o selo usa o par neutro fixo (`--tempest-gray-700` + `--tempest-neutral-on-solid`), o mesmo do `Badge` sólido neutro: **10,46:1** nos dois temas, e também com o tema parcial. As tintas dos glifos usam os pares `*-solid`/`*-on-solid` medidos — 5,17 e 4,83:1 no claro, 5,25 e 5,13:1 no escuro; a origem, `--tempest-surface` sobre `--tempest-success-fg` (8,65 e 10,28:1). Se o seu tema troca `--tempest-surface` sem trocar `--tempest-success-fg`, ajuste `--tempest-live-route-origin-ink` junto.
@@ -22836,7 +22975,12 @@ await api.delete<void>(`/users/${encodeIdSegment(id)}`);
 // URL absoluta, sem enviar nada (EventSource, <img src>, link de download)
 api.url("/files/relatorio.pdf", { inline: true });
 // → "<VITE_API_URL>/files/relatorio.pdf?inline=true" — sem Authorization, sem token na query
+// URL do WebSocket no mesmo servidor: http → ws, https → wss
+api.wsUrl("/trips/42/watch");
+// → "wss://<host de VITE_API_URL>/trips/42/watch" quando a base é https
 ```
+
+`wsUrl(path, params?)` (0.84.0, #706) é o `url()` com o esquema trocado — `http:` vira `ws:`, `https:` vira `wss:`, e host, porta, `prefix` e query ficam iguais. É para o [`useWebSocket`](./websocket.md), que recebe URL e não cliente: o socket servido ao lado da API REST fica sob o mesmo `baseURL`, sem uma segunda variável de ambiente para o staging apontar para a produção. Com `baseURL` relativo (`"/api"`), resolve contra a página. Um esquema sem par de WebSocket (`blob:`, `data:`) lança `TypeError` na chamada, em vez de virar "URL de WebSocket inválida" lá no `new WebSocket`. O `.replace(/^http/, "ws")` à mão acertava os dois casos comuns e deixava esse passar.
 
 Comportamento:
 
@@ -22882,9 +23026,9 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
 
 É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
 
-!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0)"
-    O `url(path, params?)` entrou na interface `ApiClient` como método
-    obrigatório. Quem usa `createApiClient` não muda nada; um objeto que
+!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0) e `wsUrl` (0.84.0)"
+    O `url(path, params?)` e depois o `wsUrl(path, params?)` entraram na
+    interface `ApiClient` como métodos obrigatórios. Quem usa `createApiClient` não muda nada; um objeto que
     **finge** ser o cliente — o mock de teste mais comum — passa a dar erro de
     tipo até ganhar o método:
 
@@ -22903,6 +23047,7 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
         arrayBuffer: vi.fn(),
         upload: vi.fn(),
         url: (path) => `https://api.exemplo.com${path}`,
+        wsUrl: (path) => `wss://api.exemplo.com${path}`,
     };
     ```
 
@@ -26628,7 +26773,7 @@ sync.clearOutbox();
     | --- | --- |
     | o mesmo dono | entregue |
     | ninguém | fica na fila (`summary.held`) e sai quando o dono voltar |
-    | outra pessoa | apagada sem envio (`summary.dropped`) |
+    | outra pessoa | apagada sem envio (`summary.dropped`) — ou, com `foreignEntries: "hold"`, fica na fila (`summary.held`) |
 
     ```ts
     import { createOfflineSync } from "tempest-react-sdk";
@@ -26657,6 +26802,42 @@ sync.clearOutbox();
 
     Entrada enfileirada antes de você ligar a opção não tem carimbo e é entregue como antes: são edições do próprio usuário, e segurá-las travaria toda fila no upgrade.
 
+!!! tip "Aparelho compartilhado: `foreignEntries: \"hold\"`"
+    O padrão `"drop"` serve ao aparelho pessoal: a fila da conta anterior só acumularia. No **tablet compartilhado** ele apaga trabalho — o Carlos sai sem sinal com três vistorias na fila, a Ana entra, sincroniza, e as três somem sem envio (#724). Com `foreignEntries: "hold"`, a entrada de outra pessoa **fica na fila** e sai quando o dono entrar de novo, com a sessão dele:
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let technicianId: string | null = "carlos";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "VisitsOutbox",
+        watermark: { storageKey: "visits.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/visits/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => technicianId,
+        foreignEntries: "hold",
+    });
+
+    await sync.enqueue("update", "v1", { text: "vistoria do Carlos" });
+    technicianId = "ana";
+    console.log((await sync.flush()).held); // 1 — fica na fila, não sai com a sessão da Ana
+    technicianId = "carlos";
+    console.log((await sync.flush()).succeeded); // 1 — sai quando o Carlos volta
+    ```
+
+    Em nenhuma das duas políticas a entrada sai com a sessão de outra pessoa. O que muda:
+
+    - **A ordem por registro continua valendo.** Uma entrada segurada segura também as seguintes **do mesmo registro** (`summary.deferred`), como uma falha: se a edição mais nova da Ana saísse antes, a do Carlos, mais velha, a sobrescreveria quando ele voltasse. Vale também no padrão: uma edição feita deslogado não passa mais na frente da edição segurada do dono.
+    - **`pendingCount()` e o `pending` do `useOfflineSync` contam as entradas seguradas** — o badge da Ana mostra que há trabalho do Carlos no aparelho. `clearOutbox()` continua sendo o que esvazia a fila.
+    - Com `"hold"`, entrada enfileirada **deslogado** também fica segurada (no padrão, é apagada), e só sai de novo com ninguém logado.
+
 !!! danger "A ordem por registro é preservada na falha — e antes não era"
     Quando uma entrada falha, as **demais entradas daquele mesmo registro** ficam
     sem ser tentadas nesta passada, e voltam na próxima na ordem original. Elas
@@ -26671,6 +26852,73 @@ sync.clearOutbox();
 
     O bloqueio é **por registro, não por passada**: um registro que o servidor está
     recusando não segura as mutações de nenhum outro.
+
+!!! tip "Dez edições, um request: `coalesce`"
+    Sem rede, o técnico edita a mesma visita dez vezes. Por padrão isso vira **dez**
+    `deliver` quando o sinal volta — nove deles mandando um snapshot que o décimo
+    sobrescreve. Com `coalesce: true`, cada sequência de `create`/`update` do mesmo
+    registro vira **um** `deliver`:
+
+    | O que vai para o `deliver` | De onde vem |
+    | --- | --- |
+    | `op` | da entrada **mais antiga** — `create` seguido de `update`s continua `create` |
+    | `payload` | da **mais nova** (`true`) ou o fold de todas, da mais antiga para a mais nova (função) |
+    | `id`, `attempts`, `lastError` | da mais antiga — uma chave de idempotência tirada de `entry.id` não muda entre tentativas |
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    interface Note {
+        id: string;
+        text?: string;
+        pinned?: boolean;
+    }
+
+    const sync = createOfflineSync<Note, never>({
+        databaseName: "NotesOutbox",
+        watermark: { storageKey: "notes.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/notes/${entry.recordId}`, {
+                method: entry.op === "delete" ? "DELETE" : "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        coalesce: true,
+    });
+
+    await sync.enqueue("create", "n1", { id: "n1", text: "a" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "b" });
+    await sync.enqueue("update", "n1", { id: "n1", text: "c" });
+    const summary = await sync.flush();
+    console.log(summary.succeeded, summary.coalesced); // 1 2 — um PUT com o texto "c"
+    ```
+
+    Se a fila guarda **patch** em vez de snapshot, passe uma função de merge:
+    `coalesce: (acumulado, proximo) => ({ ...acumulado, ...proximo })`.
+
+    O que **não** se junta, de propósito:
+
+    - **`delete` nunca entra no fold** e fecha a sequência: `create`, `update`,
+      `delete` vira `create` (payload mais novo) e depois `delete`, dois requests em
+      ordem. Descartar o par deixaria o registro órfão no servidor sempre que o
+      `create` tivesse chegado e só a resposta tivesse se perdido.
+    - **Entradas de donos diferentes** (`getPrincipal`) não se juntam.
+    - **O que foi enfileirado durante o envio** fica para o próximo flush. O fold
+      acontece quando o run entrega, não quando o `enqueue` grava — por isso
+      `pendingCount()` ainda conta cada entrada até o flush. Reescrever a entrada no
+      `enqueue` arriscaria apagar, junto com as outras, uma edição que chegou
+      enquanto aquele registro estava no ar.
+
+    Na falha, as entradas juntadas continuam na fila: só a mais antiga ganha
+    `attempts`, e as outras contam em `summary.deferred`. No sucesso, todas saem e
+    as absorvidas contam em `summary.coalesced`.
+
+    O envio juntado sai **na posição da entrada mais antiga**, levando o estado mais
+    novo. Se uma edição recente do registro A aponta para um registro B criado
+    **depois** que A entrou na fila, A pode chegar ao servidor antes de B. Deixe a
+    opção desligada quando o servidor valida esse tipo de referência na escrita.
 
 As seções abaixo mostram **o que o motor faz por baixo** (e como montar à mão quando você precisa de controle fino — múltiplos stores, merge por campo, etc.).
 
@@ -26886,13 +27134,35 @@ O backend resolve por `updated_at` (a escrita mais recente vence). No cliente, o
 Para os dois casos comuns, o SDK exporta resolvedores prontos pra usar dentro do `applyRemote` (empate → remoto vence):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
+interface Analysis {
+  id: string;
+  user_id: string;
+  updated_at: string;
+  version: number;
+}
+
+// o mesmo store da seção 2
+const analyses = createOfflineStore<Analysis, string>({
+  databaseName: "FamachaOffline",
+  version: 1,
+  tableName: "analyses",
+  indexes: "&id, user_id, updated_at",
+  ownerField: "user_id",
+});
+
+// passe como `applyRemote` no `createOfflineSync`
+export async function applyRemote(dto: Analysis): Promise<void> {
   const local = await analyses.get(dto.id);
-  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-  // ou: higherVersionWins(local, dto, (r) => r.version)
-};
+  await analyses.put(lastWriteWins(local, dto, (r) => r.updated_at));
+}
+
+// ou, com contador de versão no registro
+export async function applyRemoteByVersion(dto: Analysis): Promise<void> {
+  const local = await analyses.get(dto.id);
+  await analyses.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap
@@ -27009,6 +27279,43 @@ await notificationsStore.delete("m-1"); // por key
 await notificationsStore.clear(ownerId); // todos do owner
 ```
 
+### Listar por outro índice: `listBy`
+
+O `list` filtra pelo dono. Para listar por **outro** campo indexado — as fotos de uma visita, as mensagens de um chat — use `listBy(índice, valor, owner?, options?)`. Ele vai pelo índice do IndexedDB e continua respeitando o dono:
+
+```ts
+import { createOfflineStore } from "tempest-react-sdk";
+
+interface VisitPhoto {
+  id: string;
+  technician_id: string;
+  visit_id: string;
+  taken_at: string;
+}
+
+const photos = createOfflineStore<VisitPhoto, string>({
+  databaseName: "CampoFotos",
+  version: 1,
+  tableName: "photos",
+  indexes: "&id, technician_id, visit_id, taken_at",
+  ownerField: "technician_id",
+});
+
+const daVisita = await photos.listBy("visit_id", "visita-7", "tec-ana", {
+  orderBy: "taken_at",
+});
+```
+
+Os dois atalhos que ele substitui erram cada um de um jeito:
+
+| Chamada | Usa o índice? | Respeita o dono? |
+| --- | --- | --- |
+| `list(owner, { filter: (p) => p.visit_id === id })` | não — lê **todo** registro do dono | sim |
+| `raw.where("visit_id").equals(id)` | sim | **não** — devolve foto de outro técnico |
+| `listBy("visit_id", id, owner)` | sim | sim |
+
+Medido no teste `create-offline-store.list-by.test.ts` (`npx vitest run src/offline/create-offline-store.list-by.test.ts`): dois donos, 20 fotos cada, 4 por visita — o `filter` do `list` é chamado 20 vezes para achar 4; o do `listBy` só vê as 4 que o índice e o dono já separaram. O índice precisa estar declarado em `indexes`; um campo não indexado rejeita com o `SchemaError` do Dexie em vez de varrer a tabela. Sem `owner` (ou sem `ownerField`), volta o resultado de todos os donos, como no `list`.
+
 `raw` (a `Table` do Dexie) e `db` (a instância Dexie) ficam expostos pra queries avançadas — transações multi-tabela, `where().and()` complexos:
 
 ```ts
@@ -27104,6 +27411,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `createOfflineStore({ databaseName, version, tableName, indexes, keyPath, ownerField })` devolve um CRUD tipado sobre IndexedDB via Dexie (dependência direta do SDK).
 - `ownerField` ativa scoping multi-tenant: `put`/`list`/`count`/`clear`/`updateMany` respeitam o `owner` e isolam dados por usuário.
 - CRUD: `put`/`bulkPut`, `get`/`list` (com `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
+- `listBy(índice, valor, owner)` lista por outro campo indexado pelo índice, sem perder o dono.
 - `raw` e `db` abrem a porta pra queries Dexie avançadas.
 - Bump `version` ao mudar `indexes`; use `db.version(N).upgrade(...)` pra migrações de dados.
 
@@ -29508,12 +29816,33 @@ Para mutações **otimistas** que gravam no outbox e atualizam o cache do TanSta
 O pull sobrescreve o registro local pela versão do servidor. Quando precisar de uma política explícita dentro do `applyRemote`, os helpers cobrem os dois casos comuns (empate → remoto vence):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
-  const local = await store.get(dto.id);
-  await store.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-};
+interface Note {
+  id: string;
+  updatedAt: string;
+  version: number;
+}
+
+// o store local que o motor alimenta
+const notes = createOfflineStore<Note, string>({
+  databaseName: "NotesOffline",
+  version: 1,
+  tableName: "notes",
+  indexes: "&id, updatedAt",
+});
+
+// passe como `applyRemote` no `createOfflineSync`
+export async function applyRemote(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(lastWriteWins(local, dto, (r) => r.updatedAt));
+}
+
+// ou, com contador de versão no registro
+export async function applyRemoteByVersion(dto: Note): Promise<void> {
+  const local = await notes.get(dto.id);
+  await notes.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap
@@ -29579,11 +29908,10 @@ Defaults aplicados quando você **não** passa um `client`:
 
     Se o seu app dependia de retry em 4xx, o override é o de sempre: `defaultOptions={{ queries: { retry: 1 } }}`.
 
-Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto (ignora os defaults do SDK):
+Para sobrescrever, passe `defaultOptions` (mesclado por cima dos defaults) ou um `client` pronto. Um `client` feito com `new QueryClient()` ignora os defaults do SDK; feito com `createQueryClient()`, ele os mantém:
 
 ```tsx
-import { QueryClient } from "@tanstack/react-query";
-import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
+import { createQueryClient, QueryProvider, STALE_TIME } from "tempest-react-sdk";
 
 // Opção A — só ajustar alguns defaults
 <QueryProvider defaultOptions={{ queries: { staleTime: STALE_TIME.LONG } }}>
@@ -29591,7 +29919,7 @@ import { QueryProvider, STALE_TIME } from "tempest-react-sdk";
 </QueryProvider>;
 
 // Opção B — trazer seu próprio client (compartilhar entre roots, plugar devtools, etc.)
-const client = new QueryClient();
+const client = createQueryClient();
 <QueryProvider client={client}>
   <App />
 </QueryProvider>;
@@ -29610,6 +29938,59 @@ const client = new QueryClient();
     Com o provider visivelmente montado três linhas acima. Nada nessa mensagem aponta pra duplicata, e é por isso que ela custa uma tarde.
 
     A partir da v0.52.1 o SDK detecta e avisa em desenvolvimento: um client de outra cópia faz duck-type perfeito mas falha o `instanceof`, que é a discriminação exata. O conserto é `npm dedupe`, e `npx tempest doctor` lista toda dependência duplicada.
+
+### `createQueryClient`: o client fora do React
+
+O `QueryProvider` cria o client por dentro, e ali ele fica preso. Quando o app precisa dele **fora** do React — o `queryClient.clear()` no `onSessionEnd` da sessão, o `persistQueryClientOffline({ queryClient })`, um prefetch no loader da rota —, crie-o com `createQueryClient()` e entregue-o ao provider. É o mesmo client que o provider criaria, com os mesmos defaults:
+
+```tsx
+import { createQueryClient, createTempestAuth, QueryProvider } from "tempest-react-sdk";
+import type { ReactNode } from "react";
+
+export const queryClient = createQueryClient();
+
+export const auth = createTempestAuth({
+  baseURL: "https://api.example.com",
+  onSessionEnd: () => {
+    queryClient.clear();
+  },
+});
+
+export function Providers({ children }: { children: ReactNode }) {
+  return <QueryProvider client={queryClient}>{children}</QueryProvider>;
+}
+```
+
+- **Aceita os mesmos overrides do provider**: `createQueryClient({ queries: { staleTime: STALE_TIME.LONG } })` mescla por chave, dentro de `queries` e de `mutations`, e mantém os defaults que você não nomeou.
+- **Um client novo por chamada.** Crie uma vez, no nível do módulo, e importe onde precisar.
+- **Sem redigitar os defaults.** Antes dele, o app que precisava do client copiava `STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT` e `shouldRetryQuery` num `new QueryClient({ … })`, e a cópia divergia no dia em que um deles mudasse (#741). E o client sai da mesma cópia do `@tanstack/react-query` que o SDK usa, então não cai no "No QueryClient set" de cópia duplicada descrito acima.
+
+### Query que lê só o IndexedDB: `networkMode: "always"`
+
+O TanStack Query **pausa** a query quando o navegador está offline: com o `networkMode` padrão (`"online"`), a `queryFn` nem roda. Para uma query que vai à rede, é o certo — ela espera o sinal voltar em vez de queimar uma requisição que vai falhar. Para uma query cuja `queryFn` lê **só** o IndexedDB, é um skeleton eterno. Medido offline (`src/query/create-query-client.test.tsx`):
+
+| `networkMode`    | Chamadas da `queryFn` | Estado                  |
+| ---------------- | --------------------- | ----------------------- |
+| `"online"`       | 0                     | `pending` / `paused`    |
+| `"offlineFirst"` | 1                     | `success`               |
+| `"always"`       | 1                     | `success`               |
+
+Marque a query local, não o client inteiro:
+
+```ts
+import { useQuery } from "@tanstack/react-query";
+
+export function useDrafts(readDrafts: () => Promise<string[]>) {
+  return useQuery({
+    queryKey: ["drafts"],
+    queryFn: readDrafts,
+    networkMode: "always",
+  });
+}
+```
+
+!!! note "Por que não é o default do SDK"
+    `defaultOptions={{ queries: { networkMode: "always" } }}` funciona no `QueryProvider` e no `createQueryClient` desde sempre, mas vale para **toda** query: as que vão à rede passam a disparar offline e falhar, em vez de pausar até o sinal voltar. O SDK mantém o `"online"` e a query local diz que não depende de rede.
 
 ## Presets de tempo
 
@@ -29877,6 +30258,8 @@ Dexie é peer dependency do store offline — instale (`npm i dexie`).
 ## Recap
 
 - `<QueryProvider>` na raiz — um por app — entrega defaults calibrados; sobrescreva via `defaultOptions` ou `client`.
+- `createQueryClient()` dá o mesmo client com os mesmos defaults, para usar fora do React (`clear()` no fim da sessão, persistência, prefetch).
+- Query que lê só o IndexedDB leva `networkMode: "always"`; as que vão à rede continuam pausando offline.
 - `STALE_TIME` / `CACHE_TIME` / `REFETCH_TIME` substituem números mágicos por presets nomeados.
 - `createQueryKeys(scope, builders)` gera keys tipadas e consistentes, com um `all` automático pra invalidação ampla.
 - Combine `setQueryData` (resposta imediata) com `invalidateQueries` (revalidação) usando a mesma key factory.
@@ -29923,7 +30306,7 @@ As peças do SDK que entram:
 | Peça | Para quê | Doc |
 | --- | --- | --- |
 | `createApiClient` + `createDataProvider` | cliente HTTP e CRUD por recurso | [HTTP](../http.md), [Data Provider](../data-provider.md#createdataprovider) |
-| `useList` / `useCreate` / `useUpdate` / `useDelete` | cache e invalidação via TanStack Query | [Os hooks de recurso](../data-provider.md#os-hooks-de-recurso) |
+| `useList` / `useCreate` / `useUpdate` / `useDeleteMany` | cache e invalidação via TanStack Query | [Os hooks de recurso](../data-provider.md#os-hooks-de-recurso) |
 | `DataTable` | tabela com paginação, ordenação e tamanho de página no servidor | [`DataTable` no servidor](../components/data.md#datatablet-paginacao-no-servidor) |
 | `Drawer` | painel do formulário | [`Drawer`](../components/overlay.md#drawer) |
 | `useZodForm` + `FormField` + `MoneyInput` | formulário validado, preço em centavos | [Formulários](../forms.md#exemplo-completo-schema-provider-fields-submit), [`MoneyInput`](../forms-br.md#inputs-com-mascara) |
@@ -30420,8 +30803,9 @@ O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 !!! check "Callbacks na chamada, não no hook"
     `onSuccess` e `onError` vão no `mutate(values, callbacks)`, por chamada. É o lugar certo para
-    o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o `onSuccess` que o
-    `useCreate`/`useUpdate` usam para invalidar a lista.
+    o que depende da tela (fechar o drawer, mostrar o toast, e a mensagem muda entre cadastro e
+    edição). No hook também funcionaria: o `onSuccess` do app roda depois da invalidação da lista,
+    não no lugar dela. Até a 0.92.0 ele a substituía, e a lista ficava velha (#699).
 
 ### 7. A página
 
@@ -30443,7 +30827,7 @@ import {
   Select,
   Stack,
   toOptions,
-  useDelete,
+  useDeleteMany,
   useDescribeApiError,
   useList,
   useToast,
@@ -30481,12 +30865,11 @@ export function ProductsPage() {
   const products = useList<Product>("products", toListParams(filters), {
     placeholderData: keepPreviousData,
   });
-  const deleteProduct = useDelete<Product>("products");
+  const deleteProducts = useDeleteMany<Product>("products");
 
   const [editing, setEditing] = useState<Product | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [toDelete, setToDelete] = useState<Product[]>([]);
-  const [deleting, setDeleting] = useState(false);
   const [selection, setSelection] = useState<Selection>({ key: "", ids: [] });
 
   const items = products.data?.items ?? [];
@@ -30508,19 +30891,16 @@ export function ProductsPage() {
   }
 
   async function confirmDelete(): Promise<void> {
-    setDeleting(true);
-    const results = await Promise.allSettled(
-      toDelete.map((product) => deleteProduct.mutateAsync(product.id)),
+    const { deleted, failed } = await deleteProducts.mutateAsync(
+      toDelete.map((product) => product.id),
     );
-    setDeleting(false);
 
-    const removed = toDelete.filter((_, index) => results[index].status === "fulfilled");
-    const failures = results.filter((result) => result.status === "rejected");
+    const removed = toDelete.filter((product) => deleted.some((entry) => entry.id === product.id));
     if (removed.length === 1) toast.success(`${removed[0].name} excluído.`);
     if (removed.length > 1) toast.success(`${removed.length} produtos excluídos.`);
-    if (failures.length > 0) {
+    if (failed.length > 0) {
       toast.error(
-        describe(failures[0].reason, `${failures.length} produto(s) não puderam ser excluídos.`),
+        describe(failed[0].error, `${failed.length} produto(s) não puderam ser excluídos.`),
       );
     }
     setSelected([]);
@@ -30721,7 +31101,7 @@ export function ProductsPage() {
         }
         confirmLabel="Sim, excluir"
         variant="danger"
-        loading={deleting}
+        loading={deleteProducts.isPending}
         onConfirm={confirmDelete}
         onCancel={() => setToDelete([])}
       />
@@ -30774,9 +31154,11 @@ nem está vendo.
 "Excluir" numa coluna da própria tabela, sem emprestar a `key` de um campo do produto. O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.
 
-Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` chama
-`deleteProduct.mutateAsync` para cada produto com `Promise.allSettled`, então uma falha não cancela
-as outras: se dois de três saíram, o toast diz quais saíram e qual não saiu, com o `detail` do
+Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` manda os ids para
+o [`useDeleteMany`](../data-provider.md#excluir-uma-selecao-usedeletemany), que exclui cada um por
+conta própria e invalida a lista **uma** vez — com um `useDelete` por id, 10 produtos custavam 10
+invalidações e 10 `GET` da lista. Uma falha não cancela as outras: o resultado separa `deleted` de
+`failed`, e se dois de três saíram, o toast diz quais saíram e qual não saiu, com o `detail` do
 backend ("Produto com pedidos em aberto").
 
 !!! tip "Excluiu a última linha da última página?"
@@ -30819,8 +31201,8 @@ Com o backend rodando, abra `/produtos` e confira:
 
 ## Recap
 
-- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDelete` dão o CRUD inteiro sem uma
-  `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
+- `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` dão o CRUD inteiro sem
+  uma `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
 - O `DataTable` com `totalItems` delega página, tamanho e ordenação para você; guarde os três na URL.
 - `useUrlState` guarda página, filtros e ordem na URL; escritas do mesmo clique viram uma navegação.
 - A busca é a do `DataTable`, controlada pela URL e com `searchDebounceMs`: uma requisição por busca,
@@ -31065,11 +31447,6 @@ sessão some, a rota re-renderiza e manda para `/login`. Com `preserveFrom: true
 redirect leva o endereço pedido, e a tela de login pode voltar para ele com
 `useReturnTo`. Veja
 [Voltar para onde estava](../routing.md#voltar-para-onde-estava-depois-do-login).
-
-!!! tip "O template lê o store com `getState()`"
-    O `src/routes.tsx` gerado usa `guard: () => useAuth.getState().isAuthenticated`.
-    Funciona na navegação, mas não reage a um logout no meio da tela. A forma por
-    hook, usada acima, re-renderiza a rota na hora.
 
 ### A tela tem os quatro estados
 
@@ -33262,13 +33639,13 @@ Elas abrem o app no computador da recepção e no celular, entre um atendimento 
 Cada tela cobre os cinco estados de uma tela real: **carregando**, **vazio**, **erro**, **sucesso** e **celular**.
 
 !!! info "O que você precisa"
-    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)) e o `zod`:
+    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)):
 
     ```bash
-    npm install recharts zod @tanstack/react-query
+    npm install recharts
     ```
 
-    O `@tanstack/react-query` já vem com o SDK; declarar no seu `package.json` deixa explícito que o app importa dele. Rode `npx tempest doctor` depois: ele avisa se o npm aninhou uma segunda cópia.
+    O `zod` e o `@tanstack/react-query` que esta página importa já vêm declarados no `package.json` do scaffold, na mesma faixa do SDK — veja [Dependências que o app importa direto](../scaffold.md#dependencias-que-o-app-importa-direto).
 
 ## O contrato com o backend
 
@@ -33390,28 +33767,11 @@ Um arquivo, espelhando o JSON do backend campo a campo. Os nomes ficam em inglê
 
 ```ts
 // src/lib/api.ts
-import { QueryClient } from "@tanstack/react-query";
-import {
-    CACHE_TIME,
-    STALE_TIME,
-    createQueryKeys,
-    createTempestAuth,
-    shouldRetryQuery,
-} from "tempest-react-sdk";
+import { createQueryClient, createQueryKeys, createTempestAuth } from "tempest-react-sdk";
 
 import type { User } from "@/types";
 
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: STALE_TIME.DEFAULT,
-            gcTime: CACHE_TIME.DEFAULT,
-            retry: shouldRetryQuery,
-            refetchOnWindowFocus: false,
-        },
-        mutations: { retry: 0 },
-    },
-});
+export const queryClient = createQueryClient();
 
 export const auth = createTempestAuth<User>({
     baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
@@ -33443,8 +33803,8 @@ Este arquivo é o coração do app. Pedaço por pedaço:
 - **`retry: true`** repete `GET` que falhou por rede ou `5xx`. Escrita nunca é repetida sozinha — um `POST` repetido poderia cadastrar o paciente duas vezes.
 - **`onSessionEnd`** limpa o cache de queries quando a sessão termina — no **Sair**, na expiração e na troca de conta. Sem isso, a recepcionista que entra depois da gestora veria, por um instante, o faturamento que ficou no cache.
 
-!!! warning "Por que criar o `QueryClient` à mão"
-    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio e o entrega ao provider. Os `defaultOptions` copiam os do SDK (`STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`, `shouldRetryQuery`), para o comportamento continuar o mesmo — veja [Query → Provider](../query.md#provider).
+!!! note "Por que o app cria o `QueryClient`"
+    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio com `createQueryClient()` e o entrega ao provider. É o mesmo client, com os mesmos defaults do SDK, sem redigitar nenhum — veja [`createQueryClient`](../query.md#createqueryclient-o-client-fora-do-react).
 
 **`createQueryKeys`** dá um prefixo comum a todas as chaves de cache. Repare na dupla `patients()` / `patientList(search)`: a lista é guardada por busca, e invalidar `patients()` derruba **todas** as buscas de uma vez depois de um cadastro.
 
@@ -34947,6 +35307,7 @@ import {
 } from "tempest-react-sdk";
 import { auth, currentTechnicianId } from "@/lib/auth";
 import { photos, visits } from "@/visits/db";
+import { listPhotos } from "@/visits/photos";
 import {
   fromDto,
   toPayload,
@@ -34954,16 +35315,12 @@ import {
   type Visit,
   type VisitChangesPage,
   type VisitDto,
-  type VisitPhoto,
 } from "@/visits/types";
 
 const PHOTO_CHUNK_SIZE = 256 * 1024;
 
 async function uploadPendingPhotos(visitId: string): Promise<PhotoRef[]> {
-  const list: VisitPhoto[] = await photos.raw
-    .where("visit_id")
-    .equals(visitId)
-    .sortBy("taken_at");
+  const list = await listPhotos(visitId);
   const refs: PhotoRef[] = [];
 
   for (const photo of list) {
@@ -34990,6 +35347,8 @@ export const visitSync = createOfflineSync<Visit, VisitDto>({
   databaseName: "CampoVisitasOutbox",
   watermark: { storageKey: "campo.visits.watermark" },
   getPrincipal: currentTechnicianId,
+  foreignEntries: "hold",
+  coalesce: true,
 
   deliver: async (entry) => {
     const visit = entry.payload;
@@ -35084,6 +35443,13 @@ e a entrada fica esperando — a tela já respondeu.
 
 O `create`/`update` é só rótulo: como a rota é upsert, os dois viram o mesmo `PUT`.
 
+E o `coalesce: true` junta as edições: o técnico que salva a mesma visita dez vezes sem
+sinal manda **um** `PUT` quando a rede volta, com a versão mais nova — não dez. As fotos
+sobem uma vez só de qualquer jeito (quem já tem `upload_url` não sobe de novo), mas sem a
+opção cada `PUT` intermediário ainda gastava um round-trip num sinal que mal se sustenta.
+Detalhes, e o que não se junta, em
+[Dez edições, um request](../offline-sync.md#o-jeito-rapido-createofflinesync).
+
 #### `deliver`: as fotos sobem antes da visita
 
 O [`createOfflineSync`](../offline-sync.md#o-jeito-rapido-createofflinesync) chama o
@@ -35129,12 +35495,17 @@ envio o motor confere de novo:
 | --- | --- |
 | o mesmo técnico | entregue |
 | ninguém | fica na fila até ele voltar |
-| outro técnico | **descartada sem envio** |
+| outro técnico | **fica na fila**, sem envio, até o dono voltar |
 
-A terceira linha protege o servidor de receber a vistoria do Carlos com o token da Ana.
-Mas ela também quer dizer: se o Carlos sair com visitas pendentes e a Ana entrar e
-sincronizar, as visitas do Carlos se perdem. Por isso o botão de sair (mais abaixo)
-**avisa** antes. 👇
+A terceira linha é o `foreignEntries: "hold"`. Ela protege o servidor de receber a
+vistoria do Carlos com o token da Ana **e** protege o trabalho do Carlos: se ele sair com
+visitas pendentes e a Ana entrar e sincronizar, as visitas dele continuam no tablet e saem
+quando ele entrar de novo. O padrão do motor (`"drop"`) as apagaria — serve ao aparelho
+pessoal, não ao tablet da cooperativa. Detalhes em
+[Offline Sync › Aparelho compartilhado](../offline-sync.md#o-jeito-rapido-createofflinesync).
+
+Uma visita **do Carlos** que a Ana editar espera a edição dele sair primeiro: a ordem por
+registro vale também para entrada segurada.
 
 #### `pullPage` e `applyRemote`: o que vem do escritório
 
@@ -35223,9 +35594,16 @@ export async function addPhoto(visitId: string, image: CompressedImage): Promise
 }
 
 export function listPhotos(visitId: string): Promise<VisitPhoto[]> {
-  return photos.raw.where("visit_id").equals(visitId).sortBy("taken_at");
+  const owner = currentTechnicianId();
+  if (owner === null) throw new Error("Sua sessão expirou. Entre de novo para ver as fotos.");
+  return photos.listBy("visit_id", visitId, owner, { orderBy: "taken_at" });
 }
 ```
+
+O [`listBy`](../offline.md#listar-por-outro-indice-listby) vai pelo índice `visit_id` e
+continua preso ao dono: o `photos.raw.where("visit_id")` direto no Dexie também usava o
+índice, mas devolvia a foto de outro técnico com a mesma visita. Sem ninguém logado, a
+função lança em vez de chamar `listBy` sem dono — que listaria as fotos de todos.
 
 A foto entra no banco com `upload_url: null`. Quem a manda para o servidor é o `deliver`,
 na próxima vez que a visita sincronizar.
@@ -35273,7 +35651,9 @@ export function useVisitPhotos(visitId: string): UseQueryResult<VisitPhoto[], Er
     O TanStack Query **pausa** queries quando o navegador está offline — o padrão é
     `networkMode: "online"`. Aqui a `queryFn` lê o IndexedDB, que não precisa de rede
     nenhuma, mas a query nem chega a rodar: a tela fica no skeleton até o sinal voltar.
-    `networkMode: "always"` diz ao Query que essa função não depende de rede.
+    `networkMode: "always"` diz ao Query que essa função não depende de rede. A medição, e por
+    que o SDK não troca o default do client inteiro, estão em
+    [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 ### 7. Status de sync: o painel e o botão de sair
 
@@ -35324,58 +35704,38 @@ export function SyncPanel() {
 ```tsx
 // src/components/LogoutButton.tsx
 import { LogOut } from "lucide-react";
-import { useState } from "react";
-import { Button, ConfirmDialog, useOfflineSync } from "tempest-react-sdk";
+import { Button } from "tempest-react-sdk";
 import { auth } from "@/lib/auth";
 import { visitSync } from "@/visits/sync";
 
 export function LogoutButton() {
-  const { pending } = useOfflineSync(visitSync, { flushOnOnline: false });
-  const [asking, setAsking] = useState(false);
-
   async function signOut(): Promise<void> {
     visitSync.resetWatermark();
     await auth.logout();
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        iconOnly
-        aria-label="Sair"
-        onClick={() => (pending > 0 ? setAsking(true) : void signOut())}
-      >
-        <LogOut size={18} />
-      </Button>
-      <ConfirmDialog
-        open={asking}
-        variant="danger"
-        title={`${pending} alterações ainda não foram enviadas`}
-        description="Elas ficam guardadas neste aparelho e saem quando você entrar de novo. Se outro técnico entrar aqui antes disso, elas são descartadas."
-        confirmLabel="Sair mesmo assim"
-        cancelLabel="Ficar e esperar o sinal"
-        onConfirm={signOut}
-        onCancel={() => setAsking(false)}
-      />
-    </>
+    <Button variant="ghost" iconOnly aria-label="Sair" onClick={() => void signOut()}>
+      <LogOut size={18} />
+    </Button>
   );
 }
 ```
 
 O [`useOfflineSync`](../offline-sync.md#ui-reativa-e-flush-automatico) inscreve o componente
 no motor: `pending`, `syncing`, `lastSyncedAt` e `lastError` mudam sozinhos a cada envio.
-Os dois componentes passam `flushOnOnline: false` porque quem dispara o envio é um só — o
-`SyncRunner`, no `App`.
+O painel passa `flushOnOnline: false` porque quem dispara o envio é um só — o
+`SyncRunner`, no `App`. O `pending` conta também as entradas seguradas de outro técnico: a
+Ana vê que há trabalho do Carlos esperando no tablet.
 
 O `lastError` mostra o motivo da última falha. "Failed to fetch" no pasto é rotina; o que
 você quer ver é um `401` ou um `413` que não vai passar sozinho.
 
 !!! warning "Sair não apaga a outbox — e de propósito"
     O logout chama `resetWatermark()`, não `clearOutbox()`. Apagar a fila perderia o dia de
-    trabalho de quem saiu sem sinal. Com o `getPrincipal`, as entradas do técnico ficam
-    **seguras** até ele voltar — o `ConfirmDialog` só deixa claro o único caso em que elas
-    se perdem.
+    trabalho de quem saiu sem sinal. Com `getPrincipal` + `foreignEntries: "hold"`, as
+    entradas do técnico ficam **seguras** até ele voltar, mesmo que outro técnico entre e
+    sincronize antes — por isso o botão de sair não precisa perguntar nada.
 
 ### 8. A câmera
 
@@ -35383,8 +35743,7 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { useRef, type ChangeEvent } from "react";
-import { Badge, Button, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -35414,15 +35773,12 @@ function PhotoThumb({ photo }: { photo: VisitPhoto }) {
 }
 
 export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: boolean }) {
-  const input = useRef<HTMLInputElement>(null);
   const client = useQueryClient();
   const toast = useToast();
   const list = useVisitPhotos(visitId);
   const { compress, isWorking } = useImageProcessing();
 
-  async function handleFiles(event: ChangeEvent<HTMLInputElement>): Promise<void> {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = "";
+  async function handleFiles(files: File[]): Promise<void> {
     const type = await bestSupportedType(["image/webp", "image/jpeg"]);
 
     for (const file of files) {
@@ -35445,25 +35801,14 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 
   return (
     <section>
-      <input
-        ref={input}
-        type="file"
+      <Dropzone
         accept="image/*"
         capture="environment"
-        multiple
-        hidden
-        onChange={(event) => void handleFiles(event)}
-      />
-      <Button
-        variant="soft"
-        fullWidth
-        leftIcon={<Camera size={18} />}
-        loading={isWorking}
-        disabled={disabled}
-        onClick={() => input.current?.click()}
+        disabled={disabled || isWorking}
+        onDrop={(files) => void handleFiles(files)}
       >
-        Tirar foto
-      </Button>
+        <Camera size={18} aria-hidden /> {isWorking ? "Processando a foto…" : "Tirar foto"}
+      </Dropzone>
 
       {list.isPending ? (
         <Skeleton height={96} style={{ marginTop: 12 }} />
@@ -35493,9 +35838,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
 }
 ```
 
-O `<input type="file" capture="environment">` abre **o app de câmera do próprio celular**,
-na câmera traseira. Você ganha foco, flash e resolução total sem pedir permissão nenhuma —
-e funciona no iPhone, onde nem todo navegador abre câmera dentro da página.
+O [`capture="environment"`](../components/inputs.md#abrir-a-camera-do-celular-capture) do
+`Dropzone` abre **o app de câmera do próprio celular**, na câmera traseira. Você ganha foco,
+flash e resolução total sem pedir permissão nenhuma — e funciona no iPhone, onde nem todo
+navegador abre câmera dentro da página. No desktop o mesmo toque abre o seletor de arquivos,
+e arrastar uma foto para a área também vale.
 
 A foto de um celular atual tem vários MB. Guardar isso cru encheria o aparelho em poucos
 dias. Então ela passa pelo [`useImageProcessing`](../imaging.md#no-react) antes:
@@ -35519,9 +35866,8 @@ O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no un
 
     ```tsx
     // src/components/InlineCamera.tsx
-    import { Button } from "tempest-react-sdk";
+    import { Button, useCameraStream } from "tempest-react-sdk";
     import { captureFrame, type CapturedFrame } from "tempest-react-sdk/imaging";
-    import { useCameraStream } from "tempest-react-sdk/vision";
 
     export function InlineCamera({ onShot }: { onShot: (frame: CapturedFrame) => void }) {
       const camera = useCameraStream({
@@ -35554,11 +35900,9 @@ O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no un
     }
     ```
 
-    O preço: o `useCameraStream` mora no subpath `/vision`, que exige o
-    `onnxruntime-web` instalado mesmo sem modelo nenhum (veja
-    [Vision](../vision.md#onnxruntime-web-e-peer-dependency-opcional)). E o frame sai na
-    resolução do stream de vídeo, normalmente menor que a da câmera nativa. Para foto de
-    vistoria, o `<input capture>` costuma ser a escolha melhor.
+    O `useCameraStream` vem da raiz, que não exige o `onnxruntime-web`. O preço é outro: o
+    frame sai na resolução do stream de vídeo, normalmente menor que a da câmera nativa.
+    Para foto de vistoria, o `<input capture>` costuma ser a escolha melhor.
 
 ### 9. A tela da visita
 
@@ -35863,7 +36207,6 @@ import {
   Skeleton,
   SyncStatusBadge,
   formatDateTime,
-  useSyncStatus,
 } from "tempest-react-sdk";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SyncPanel } from "@/components/SyncPanel";
@@ -35889,7 +36232,6 @@ const SYNC_BADGE: Record<
 export function VisitListPage() {
   const navigate = useNavigate();
   const list = useVisitList();
-  const status = useSyncStatus(visitSync);
 
   return (
     <>
@@ -35899,7 +36241,7 @@ export function VisitListPage() {
         safeArea
         actions={
           <>
-            <SyncStatusBadge tone={status.tone} pending={status.pending} />
+            <SyncStatusBadge sync={visitSync} />
             <LogoutButton />
           </>
         }
@@ -35964,14 +36306,9 @@ Os quatro estados, cada um com o componente certo:
 | vazio | [`EmptyState`](../components/feedback.md#emptystate) dizendo o que fazer — e que funciona sem sinal |
 | com dados | [`ListTile`](../components/data.md#listtile) por visita, com o badge de envio de cada uma |
 
-No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o `tone`
-e o `pending` do `useSyncStatus(visitSync)` e mostra o estado geral: sincronizado,
+No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o motor
+em `sync={visitSync}`, se inscreve nele sozinho e mostra o estado geral: sincronizado,
 sincronizando, pendente, offline ou erro. O badge **por linha** diz qual visita, especificamente, ainda não foi.
-
-!!! note "Por que não `sync={visitSync}`"
-    O badge também aceita o motor direto, mas a prop é tipada como `OfflineSync<unknown>`,
-    e um motor com payload tipado (`OfflineSync<Visit>`) não passa nela com `strict`
-    ligado. O `useSyncStatus` é genérico e aceita o seu motor como ele é.
 
 O [`FloatingActionButton`](../components/actions.md#floatingactionbutton) fica no canto inferior direito, ao
 alcance do polegar. O `paddingBottom: 96` da lista garante que ele não cubra a última visita.
@@ -36218,12 +36555,12 @@ installPrecache({
 - **`sw.ts`** só faz precache do app shell, para o app abrir sem rede. Veja
   [PWA](../pwa.md#2-precache-cache-runtime-navigation-preload).
 
-!!! warning "Não ligue o `installBackgroundSync` nas rotas que a outbox já cuida"
-    O template `--pwa` vem com `installBackgroundSync` casando **todo** `/api/`. Neste app,
-    quem reenvia é a outbox. Com os dois ligados, um `PUT /api/visits/…` que falhou offline
-    sai duas vezes — e um `PATCH` do tus guardado pelo worker é reenviado depois, com um
-    `Upload-Offset` velho, e leva `409`. Remova o `installBackgroundSync` (como acima) ou
-    tire `/api/visits` e `/api/uploads` do `match` dele.
+!!! info "Por que este `sw.ts` não tem `installBackgroundSync`"
+    Neste app, quem reenvia é a outbox, e o upload tus retoma sozinho. O template `--pwa`
+    já deixa o tus fora do background sync; se você mantiver o `installBackgroundSync` do
+    scaffold, acrescente `"/api/visits/"` ao `RETRIED_BY_THE_PAGE` do
+    `src/sw-sync-scope.ts`, senão um `PUT /api/visits/…` que falhou offline sai pelas duas
+    filas. Veja [Uma fila por mutação](../scaffold.md#background-sync-mutacoes-offline-que-reenviam-sozinhas).
 
 ## Testando no campo (sem ir ao campo)
 
@@ -36249,7 +36586,7 @@ installPrecache({
 - 🗄️ **`createOfflineDatabase`** guarda visitas e fotos (como `Blob`) na mesma base, com
   dono por técnico.
 - 📤 **`createOfflineSync`** é a outbox: `saveVisit` grava local e enfileira; o envio
-  acontece quando der.
+  acontece quando der, e `coalesce: true` junta as edições da mesma visita num `PUT` só.
 - 📸 As fotos sobem **dentro do `deliver`** com **`createResumableUpload`** e `key` por
   foto — falha retenta, queda retoma do offset, foto enviada não sobe de novo.
 - ⚖️ Conflito tem dois tipos: o que a máquina resolve (`lastWriteWins` no `applyRemote`)
@@ -36257,7 +36594,7 @@ installPrecache({
 - 🗜️ **`useImageProcessing` + `bestSupportedType`** reduzem a foto no aparelho; o GPS vai
   no registro, porque o reencode apaga o EXIF.
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
-  o que está acontecendo; o logout avisa antes de arriscar a fila.
+  o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
 - 🔒 **`useStorageEstimate`** pede armazenamento persistente; o `UpdatePrompt` não troca
   de versão no meio da vistoria; o service worker só faz precache.
@@ -36545,15 +36882,10 @@ const tripFrameSchema = z.object({
   status: z.enum(["scheduled", "in_progress", "finished", "cancelled"]),
 });
 
-const pingFrameSchema = z.object({
-  type: z.literal("ping"),
-});
-
 export const liveFrameSchema = z.discriminatedUnion("type", [
   positionFrameSchema,
   stopFrameSchema,
   tripFrameSchema,
-  pingFrameSchema,
 ]);
 
 export type LiveFrame = z.infer<typeof liveFrameSchema>;
@@ -36565,7 +36897,7 @@ Pedaço por pedaço:
 - **`TripStop` e `TripPlace` estendem `Coordinate`.** Como o backend já manda `latitude`/`longitude`, uma parada **é** uma coordenada: ela entra direto em `estimateTravel`, `boundingBox` e no marcador do mapa, sem conversão.
 - **`recorded_at` é a hora em que o GPS tomou a posição**, não a hora em que o frame chegou. É ela que diz se a posição está velha.
 - **Os frames são uma união discriminada por `type`.** O `liveFrameSchema` é o que o [`useWebSocket` valida](../websocket.md#validar-o-frame-com-schema) antes de entregar: um frame fora do contrato é descartado e nunca vira uma van em `latitude: undefined`.
-- **O `ping` está no schema de propósito.** O `tempest-fastapi-sdk` manda `{"type":"ping"}` como heartbeat. O SDK responde o `pong` mesmo que o schema recuse o ping — mas um ping recusado também chega no `onValidationError`, e o seu log de "backend mudou o contrato" encheria de falso alarme. Declarar o ping resolve.
+- **O `ping` não entra no schema.** O `tempest-fastapi-sdk` manda `{"type":"ping"}` como heartbeat, e o SDK responde o `pong` e descarta o ping sem chamar o `onValidationError` — o seu log de "backend mudou o contrato" só ouve frame de payload. Veja [O `pong` continua saindo](../websocket.md#validar-o-frame-com-schema).
 - **`Street`** é a aresta de rua da seção opcional [Ruas no mapa](#opcional-ruas-no-mapa-e-a-van-na-rua). Se você não for usar, pode apagar.
 
 ## Passo 2 — Cliente HTTP e a query da viagem
@@ -36594,15 +36926,14 @@ export function useTrip(tripId: string): UseQueryResult<Trip> {
 }
 
 export function liveTripUrl(tripId: string, channel: "watch" | "drive"): string {
-  const http = api.url(`/trips/${encodeIdSegment(tripId)}/${channel}`);
-  return http.replace(/^http/, "ws");
+  return api.wsUrl(`/trips/${encodeIdSegment(tripId)}/${channel}`);
 }
 ```
 
 - **[`createApiClient`](../http.md#createapiclient)** com `prefix: "/api"`: os caminhos ficam sem o prefixo, como o serviço FastAPI os declara.
 - **[`createQueryKeys`](../query.md#query-keys-tipadas)** dá a key `["trips", tripId]`. O hook de posição vai **escrever** nessa mesma key quando uma parada mudar — por isso ela mora num lugar só.
 - **`encodeIdSegment`** escapa o id antes de ir para o caminho: um id com `/` não vira outra rota.
-- **`liveTripUrl`** usa `api.url()` — a URL absoluta que o cliente atingiria, com o mesmo `baseURL` e `prefix` — e troca `http` por `ws` (e `https` por `wss`). O socket fala com o mesmo servidor, sem uma segunda variável de ambiente.
+- **`liveTripUrl`** usa [`api.wsUrl()`](../http.md#createapiclient) — a URL que o cliente atingiria, com o mesmo `baseURL` e `prefix`, com `http` trocado por `ws` (e `https` por `wss`). O socket fala com o mesmo servidor, sem uma segunda variável de ambiente.
 
 !!! tip "Autenticação do socket"
     O navegador não deixa um `WebSocket` mandar header `Authorization`. Aqui a sessão vai por cookie (`withCredentials: true` no HTTP, e o handshake do socket leva o cookie do mesmo site). Se o seu backend autentica por token, siga o que ele espera no handshake — o `useWebSocket` aceita `protocols`.
@@ -36741,11 +37072,11 @@ Pedaço por pedaço:
 - **`onReconnecting` / `onReconnected` / `onLost`** — os três estados que [não são a mesma coisa](../websocket.md#reconectando-erro). Reconectar é discreto; só `onLost` merece um botão. Ao voltar, o hook **invalida a query da viagem**: os frames de parada que se perderam no buraco voltam pelo `GET`.
 - **Frames de parada e de viagem escrevem no cache da query** com `setQueryData`. A tela não tem dois estados da mesma viagem — o painel, o mapa e a lista leem do mesmo lugar.
 - **A trilha junta duas fontes**: o histórico que veio no `GET` (`trip.trail`) e o que chegou pelo socket depois. O filtro `timestamp > lastKnown` evita duplicar o trecho quando o refetch depois da reconexão traz pontos que o socket também já tinha mandado.
-- **`useInterval` atualiza `now` a cada 5 s.** Sem ele, "há 1 min" ficaria congelado na tela: nada re-renderiza quando o socket fica em silêncio — que é justamente o caso que importa.
+- **`useInterval` atualiza `now` a cada 5 s.** É ele que vira o `signal` para `stale` quando nada chega: nada re-renderiza quando o socket fica em silêncio — que é justamente o caso que importa. O mesmo `now` vai para o `RelativeTime` do passo 6, então a tela inteira anda com um relógio só.
 - **`signal`** resume tudo em um estado: `connecting`, `waiting` (aberto, sem posição ainda), `live`, `stale` (última posição há mais de 30 s) e `lost`.
 
-!!! warning "Posição velha parece posição boa"
-    O mapa não sabe a idade da posição: a van continua desenhada onde estava, com a mesma seta. Quem diz "isso tem 4 minutos" é a sua tela — por isso o `signal` existe e o `SignalStatus` do passo 6 aparece logo acima do mapa.
+!!! info "Posição velha não pode parecer posição boa"
+    O mapa não sabe a idade da posição — quem sabe é o `signal`. Por isso a página passa `stale` para o mapa quando o sinal é `stale` ou `lost`: a van fica onde foi vista por último, em cinza e sem o halo, e o leitor de tela ouve "sem sinal, última posição conhecida". Veja [Estados](../geo.md#estados-parada-ja-visitada-e-posicao-velha).
 
 ## Passo 4 — Paradas viram marcadores
 
@@ -36765,9 +37096,8 @@ export function formatClock(value: string | Date): string {
 }
 
 function stopLabel(stop: TripStop, isMine: boolean): string {
-  const served = stop.status === "departed" ? " (já atendida)" : "";
   const mine = isMine ? "Seu embarque — " : "";
-  return `${mine}Parada ${stop.order}, ${stop.name}${served}`;
+  return `${mine}Parada ${stop.order}, ${stop.name}`;
 }
 
 function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): ReactElement {
@@ -36803,6 +37133,7 @@ export function tripMarkers(trip: Trip, viewer: TripViewer): LiveRouteMarker[] {
         kind: "stop",
         glyphText: String(stop.order),
         emphasis: isMine,
+        visited: stop.status === "departed",
         badge: viewer === "driver" && pendingBoarding > 0 ? pendingBoarding : undefined,
         content: <StopDetails stop={stop} viewer={viewer} />,
       };
@@ -36832,9 +37163,10 @@ export function tripMarkers(trip: Trip, viewer: TripViewer): LiveRouteMarker[] {
 - **`glyphText: String(stop.order)`** escreve o número da parada **dentro** do glifo. Quem olha o mapa sabe que a van passa no 2 antes do 3.
 - **`emphasis: isMine`** cresce o glifo do embarque da Juliana e põe um halo na mesma cor. Continua sendo uma parada — só que a dela. Veja [Simbologia](../geo.md#simbologia-destaque-numero-icone-e-tamanho).
 - **`badge`** só na visão do motorista, e só em parada pendente: é a contagem de quem ainda vai embarcar ali. Parada atendida perde o selo.
+- **`visited`** pinta de cinza a parada que a van já atendeu — o que ficou para trás deixa de parecer o que vem pela frente — e o leitor de tela ouve "visita concluída" depois do tipo.
 - **`icon: <Flag />`** na chegada: um ícone do `lucide-react` cabe direto e herda a tinta do glifo.
 - **`content`** abre um painel ao tocar no marcador. Para o motorista, a lista de nomes; para o passageiro, o endereço e a previsão.
-- **O `label` repete em texto o que o glifo mostra** — "Seu embarque — Parada 3, …" e "(já atendida)". O leitor de tela lê o `label` e o tipo; `emphasis`, `glyphText` e `icon` são só visuais.
+- **O `label` repete em texto o que o glifo mostra** — "Seu embarque — Parada 3, …". O leitor de tela lê o `label` e o tipo; `emphasis`, `glyphText` e `icon` são só visuais. O "já atendida" não precisa ir no `label`: o `visited` já o diz.
 
 ## Passo 5 — O mapa das duas telas
 
@@ -36859,6 +37191,7 @@ export interface TripMapProps {
   trip: Trip;
   viewer: TripViewer;
   vehicle: TrackPoint | null;
+  stale?: boolean;
   trail: readonly TrackPoint[];
   etaLabel?: string;
   roads?: RoadGraph<Street>;
@@ -36868,14 +37201,18 @@ export interface TripMapProps {
 const PASSENGER_LEGEND: LiveRouteLegendItem[] = [
   { symbol: "stop", label: "Seu embarque", emphasis: true },
   { symbol: "stop", label: "Outras paradas, na ordem", glyphText: "1" },
+  { symbol: "stop", label: "Parada já atendida", glyphText: "1", visited: true },
   { symbol: "destination", label: "Chegada", icon: <Flag /> },
   { symbol: "vehicle", label: "Van" },
+  { symbol: "vehicle", label: "Van sem sinal", stale: true },
   { symbol: "trail", label: "Já percorrido" },
 ];
 
 const DRIVER_LEGEND: LiveRouteLegendItem[] = [
   { symbol: "origin", label: "Garagem" },
   { symbol: "stop", label: "Parada, na ordem", glyphText: "1" },
+  { symbol: "badge", label: "Embarques pendentes na parada", badge: 3 },
+  { symbol: "stop", label: "Parada já atendida", glyphText: "1", visited: true },
   { symbol: "destination", label: "Chegada", icon: <Flag /> },
   { symbol: "route", label: "Rota planejada" },
   { symbol: "trail", label: "Já percorrido" },
@@ -36885,6 +37222,7 @@ export function TripMap({
   trip,
   viewer,
   vehicle,
+  stale = false,
   trail,
   etaLabel,
   roads,
@@ -36906,6 +37244,8 @@ export function TripMap({
                 position: vehicle,
                 heading: vehicle.heading ?? null,
                 label: `${trip.vehicle_label}, placa ${trip.plate}`,
+                stale,
+                staleLabel: "sem sinal, última posição conhecida",
               }
             : null
         }
@@ -36939,7 +37279,7 @@ export function TripMap({
 ```tsx
 // src/trips/SignalStatus.tsx
 import type { ReactElement } from "react";
-import { Badge, Banner, Button, relativeTime, type BadgeVariant } from "tempest-react-sdk";
+import { Badge, Banner, Button, RelativeTime, type BadgeVariant } from "tempest-react-sdk";
 import type { LiveVehicle, SignalState } from "@/trips/use-live-vehicle";
 
 const VARIANT: Record<Exclude<SignalState, "lost">, BadgeVariant> = {
@@ -36970,18 +37310,23 @@ export function SignalStatus({ live }: { live: LiveVehicle }): ReactElement {
     );
   }
 
-  const seen = live.position ? relativeTime(live.position.timestamp, { now: live.now }) : null;
 
   const text: Record<Exclude<SignalState, "lost">, string> = {
     connecting: "Conectando ao veículo…",
     waiting: "Aguardando a primeira posição",
     live: "Ao vivo",
-    stale: `Sem sinal do veículo · última posição ${seen ?? ""}`,
+    stale: "Sem sinal do veículo · última posição",
   };
 
   return (
     <Badge variant={VARIANT[live.signal]} dot role="status">
       {text[live.signal]}
+      {live.signal === "stale" && live.position ? (
+        <>
+          {" "}
+          <RelativeTime date={live.position.timestamp} now={live.now} />
+        </>
+      ) : null}
     </Badge>
   );
 }
@@ -36989,7 +37334,7 @@ export function SignalStatus({ live }: { live: LiveVehicle }): ReactElement {
 
 - **[`Badge`](../components/feedback.md#badge)** com `dot` e `role="status"` para os estados que se resolvem sozinhos: conectando, aguardando, ao vivo, sem sinal.
 - **[`Banner`](../components/feedback.md#banner)** só para `lost`, o único estado em que a pessoa pode fazer alguma coisa. `"rejected"` (o servidor recusou com 4400–4499) não ganha botão: tentar de novo não muda uma recusa.
-- **`relativeTime(…, { now })`** usa o `now` que o hook atualiza. O componente [`RelativeTime`](../components/utility.md#relativetime) calcula na hora do render e não aceita `now` — por isso o texto aqui usa a função.
+- **[`RelativeTime`](../components/utility.md#relativetime) com `now`** usa o relógio que o hook atualiza, e escreve a idade num `<time>` com `dateTime`. Sem um relógio no app, `updateEvery` faria o componente contar sozinho.
 
 ## Passo 7 — Próxima parada e ETA
 
@@ -37167,6 +37512,7 @@ function LiveTrip({ trip }: { trip: Trip }): ReactElement {
           trip={trip}
           viewer="passenger"
           vehicle={live.position}
+          stale={live.signal === "stale" || live.signal === "lost"}
           trail={live.trail}
           etaLabel={etaAnnouncement(eta)}
         />
@@ -37259,7 +37605,7 @@ Os estados, de cima para baixo:
 
 ```tsx
 // src/pages/DriverTripPage.tsx
-import { useEffect, useMemo, type ReactElement } from "react";
+import { useMemo, type ReactElement } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import {
@@ -37278,13 +37624,6 @@ import { TripMap } from "@/trips/TripMap";
 
 function Driving({ trip }: { trip: Trip }): ReactElement {
   const queryClient = useQueryClient();
-  const gps = usePositionTracker({
-    autoStart: true,
-    minDistanceKm: 0.01,
-    maxPoints: 2_000,
-    positionOptions: { enableHighAccuracy: true, maximumAge: 0 },
-  });
-
   const socket = useWebSocket<LiveFrame>(liveTripUrl(trip.id, "drive"), {
     schema: liveFrameSchema,
     silenceTimeout: 75_000,
@@ -37295,21 +37634,25 @@ function Driving({ trip }: { trip: Trip }): ReactElement {
     },
   });
 
-  const { lastPoint } = gps;
-  const { send } = socket;
+  const gps = usePositionTracker({
+    autoStart: true,
+    minDistanceKm: 0.01,
+    maxPoints: 2_000,
+    positionOptions: { enableHighAccuracy: true, maximumAge: 0 },
+    onPoint: (point) => {
+      const frame: PositionFrame = {
+        type: "position",
+        latitude: point.latitude,
+        longitude: point.longitude,
+        heading: point.heading ?? null,
+        speed_kmh: point.speed == null ? null : Math.round(point.speed * 3.6),
+        recorded_at: new Date(point.timestamp).toISOString(),
+      };
+      socket.send(JSON.stringify(frame));
+    },
+  });
 
-  useEffect(() => {
-    if (!lastPoint) return;
-    const frame: PositionFrame = {
-      type: "position",
-      latitude: lastPoint.latitude,
-      longitude: lastPoint.longitude,
-      heading: lastPoint.heading ?? null,
-      speed_kmh: lastPoint.speed == null ? null : Math.round(lastPoint.speed * 3.6),
-      recorded_at: new Date(lastPoint.timestamp).toISOString(),
-    };
-    send(JSON.stringify(frame));
-  }, [lastPoint, send]);
+  const { lastPoint } = gps;
 
   const stop = nextStop(trip, "driver");
   const now = lastPoint?.timestamp ?? Date.now();
@@ -37380,7 +37723,7 @@ export function DriverTripPage(): ReactElement {
 ```
 
 - **[`usePositionTracker`](../geo.md#rastreamento-ao-vivo-usepositiontracker)** liga o GPS na montagem (`autoStart`), com alta precisão, e descarta posições a menos de 10 m da anterior — parado no sinal, o celular não manda nada.
-- **Cada `lastPoint` novo vira um frame `position`** no socket `drive`. O tipo `PositionFrame` vem do mesmo schema que o passageiro valida: se o contrato mudar, o TypeScript reclama dos dois lados.
+- **Cada ponto aceito vira um frame `position`** no socket `drive`, pelo `onPoint`. Um `useEffect` sobre `lastPoint` perderia o primeiro de dois pontos que chegam antes de um render; o `onPoint` é chamado uma vez por ponto. O tipo `PositionFrame` vem do mesmo schema que o passageiro valida: se o contrato mudar, o TypeScript reclama dos dois lados.
 - **`send()` devolve `false` com o socket caído, e a posição é descartada.** É o que você quer aqui: uma posição de 40 s atrás não ajuda ninguém, e a próxima chega em segundos.
 - **O mapa do motorista usa o GPS local**, não o eco do servidor: zero latência, e funciona mesmo sem conexão.
 - **Recusa de localização é terminal** (`lastError.code === 1`) e ganha uma tela própria. Sem sinal de GPS (túnel) é passageiro: um selo, e o tracker volta sozinho na próxima leitura. Veja [Erro passageiro, recusa e `lastError`](../geo.md#erro-passageiro-recusa-e-lasterror).
@@ -37503,11 +37846,11 @@ O mapa e a legenda são temados só por tokens `--tempest-*`. Para dar a cor da 
 
 ## Recap
 
-- 📜 **Contrato primeiro**: tipos que estendem `Coordinate` e um schema zod com o `ping` incluso — o mesmo schema valida o que o passageiro recebe e tipa o que o motorista manda.
+- 📜 **Contrato primeiro**: tipos que estendem `Coordinate` e um schema zod só com o payload — o mesmo schema valida o que o passageiro recebe e tipa o que o motorista manda; o heartbeat é do SDK.
 - 📡 **`useWebSocket`** com `schema`, `silenceTimeout` e os três estados de conexão; `onReconnected` invalida a query para cobrir o buraco.
-- ⏱️ **Posição tem idade**: `recorded_at` + um `now` que anda com `useInterval` dão o estado "sem sinal há X" que o mapa sozinho não mostra.
-- 🗺️ **`LiveRouteMap`** com `route`, `trail`, `vehicle.heading`, `follow`, `glyphText` na ordem, `emphasis` no embarque, `badge` para o motorista, `icon` na chegada, `markerScale` no toque e a **`LiveRouteMapLegend`** com os mesmos glifos.
-- 🛰️ **Motorista**: `usePositionTracker` + `send()`; posição velha se descarta, a não ser que a trilha valha dinheiro (`queueWhileClosed`).
+- ⏱️ **Posição tem idade**: `recorded_at` + um `now` que anda com `useInterval` dão o estado "sem sinal há X", que vira `stale` no veículo e `RelativeTime` com `now` no selo.
+- 🗺️ **`LiveRouteMap`** com `route`, `trail`, `vehicle.heading`, `follow`, `glyphText` na ordem, `emphasis` no embarque, `badge` para o motorista, `visited` nas atendidas, `icon` na chegada, `markerScale` no toque e a **`LiveRouteMapLegend`** com os mesmos glifos.
+- 🛰️ **Motorista**: `usePositionTracker` com `onPoint` + `send()`; posição velha se descarta, a não ser que a trilha valha dinheiro (`queueWhileClosed`).
 - 🧩 **Estados reais**: `Skeleton`, `ErrorState` + `describeApiError`, `EmptyState`, `OfflineIndicator` e uma coluna só no celular.
 - 🛣️ **Opcional**: `roads` + `createRoadGraph` encaixam a van na rua e dão o nome da via por `onMatch`.
 
@@ -39317,7 +39660,8 @@ os dados vieram.
 Por padrão, o TanStack Query **pausa** uma query quando o navegador está offline: a
 `queryFn` nem roda. Num app comum, isso é bom. Aqui, seria um spinner eterno, porque é
 justamente a `queryFn` que lê o IndexedDB. `networkMode: "always"` manda a query rodar
-de qualquer jeito, e o fallback para o cache acontece.
+de qualquer jeito, e o fallback para o cache acontece. A medição, e por que não é o default
+do SDK, estão em [Query → `networkMode`](../query.md#query-que-le-so-o-indexeddb-networkmode-always).
 
 !!! tip "A volta do sinal atualiza sozinha"
     `refetchOnReconnect` vem ligado no TanStack Query. Quando o sinal volta, a query
@@ -40740,7 +41084,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -40748,8 +41094,8 @@ export const routes = defineRoutes([
 ]);
 ```
 
-!!! warning "O guard roda na renderização — leia a store via `getState()` ou um hook"
-    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou chame um hook direto na função do guard, que roda dentro do ciclo de renderização — veja a seção seguinte. Não capture o valor uma vez fora da função: você congelaria o estado de auth no carregamento inicial.
+!!! warning "O guard roda na renderização — leia a store por hook"
+    A função do `guard` é avaliada **durante a renderização** da rota, então pode chamar hook. Leia a store por hook (`useAuth.use.isAuthenticated()`): é o que **assina** a rota, e um `logout()` — o botão de sair ou um `401` no cliente HTTP — redireciona a tela protegida que estiver aberta. `useAuth.getState().isAuthenticated` lê o valor uma vez e não assina: depois do logout a tela continua aberta até a próxima navegação. Nomeie a função `use…`, como no exemplo, pelo motivo da seção seguinte.
 
 Quando `guard` é _falsy_, o usuário é redirecionado para `redirectTo` (padrão `"/"`). No exemplo acima, quem não está autenticado e tenta abrir `/dashboard` cai em `/login`.
 
@@ -40811,7 +41157,7 @@ export const routes = defineRoutes([
     guard: () => { … useCan() … }             // ❌ erro de lint
     ```
 
-    Guard **sem** hook (`() => useAuth.getState().isAuthenticated`) continua podendo ser arrow anônima — `getState()` não é hook.
+    `getState()` não é hook, então `() => useAuth.getState().isAuthenticated` passa no lint — mas não serve para guard de sessão: sem assinatura, um logout no meio da tela não redireciona.
 
 !!! tip "Um spinner cobre `lazy` e `pending`"
     Se a rota não define `guardFallback`, o SDK usa o `fallback` que você já passou ao `<AppRouter>` — o mesmo que cobre o carregamento de chunk do `lazy`. As duas coisas são "ainda não está pronto", e na maioria dos apps merecem o mesmo spinner.
@@ -40852,7 +41198,7 @@ Props do `<RouteGuard>`:
 | `children`   | `ReactNode`         | —      | O que proteger.                                      |
 
 !!! tip "Mesma regra de leitura de estado"
-    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, então ele tem as duas opções: `getState()` para leitura imperativa simples, ou hooks — desde que a função seja nomeada `use…`, como na seção de `"pending"` acima.
+    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, e vale a mesma regra: hook, com a função nomeada `use…`, como na seção de `"pending"` acima.
 
 ## Voltar para onde estava depois do login
 
@@ -40875,7 +41221,9 @@ export const routes = defineRoutes([
   {
     path: "dashboard",
     element: <Dashboard />,
-    guard: () => useAuth.getState().isAuthenticated,
+    guard: function useSignedIn() {
+      return useAuth.use.isAuthenticated();
+    },
     redirectTo: "/login",
     preserveFrom: true,
   },
@@ -41149,6 +41497,12 @@ O `package.json` gerado vem com estes scripts:
 | `npm run lint`      | `eslint .` — ESLint 9 flat config (react-hooks + refresh) |
 | `npm run lint:fix`  | `eslint . --fix` — autocorrige o que dá                   |
 
+### Dependências que o app importa direto
+
+Além dos peers (`react`, `react-dom`, `react-router`), o `package.json` gerado declara `@tanstack/react-query`, `react-hook-form` e `zod`. Os três já vêm com o SDK, mas a documentação importa deles no código do app (`useQuery`, `useForm`, `z.object`), e importar o que não se declara só funciona por acaso: no npm e no yarn resolve pela cópia que o SDK deixa na raiz do `node_modules`; no **pnpm**, que só expõe o que o app declara, o `tsc` reprova com `Cannot find module`. A faixa declarada é **a mesma do SDK**, então qualquer gerenciador instala uma cópia só — o que importa para `@tanstack/react-query` e `react-hook-form`, que carregam contexto React. Ao atualizar o SDK, rode `npx tempest doctor`: ele avisa quando uma faixa do app ficou para trás e o npm aninhou uma segunda cópia.
+
+O `lucide-react` fica de fora de propósito — veja [Ícones](icons.md#nao-instale-lucide-react-voce-mesmo).
+
 ## Tour pelo que foi gerado
 
 O projeto gerado é enxuto de propósito: cada arquivo existe pra **demonstrar um recurso do SDK** que você vai reaproveitar. Esta é a estrutura completa:
@@ -41258,6 +41612,7 @@ my-app/
 │   └── icon.svg                # ícone-fonte (troque pelo seu — os PNGs saem daqui)
 └── src/
     ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── sw-sync-scope.ts        # o que o background sync enfileira (e o que fica com a página)
     ├── main.tsx                # (sobrescrito) registra /sw.js em dev e produção
     ├── vite-env.d.ts           # (sobrescrito) tipa VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (sobrescrito) botão Instalar + toggle de notificações
@@ -41400,6 +41755,12 @@ installBackgroundSync({
 ```
 
 O fetch original ainda **rejeita** no momento (seu app mostra estado offline), mas a requisição é replayada depois. `maxRetentionMinutes` descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).
+
+!!! warning "Uma fila por mutação: o scaffold deixa para a página o que ela já reenvia"
+    O worker não sabe o que a página faz depois da rejeição. Se a página também reenvia, a mesma mutação sai das **duas** filas: a outbox (`createOfflineSync`) manda a versão mais nova do registro quando a rede volta, e o worker reenvia depois, na ordem dele, cada tentativa feita offline — inclusive versões que a outbox já superou, passando por cima da política de conflito dela. Por isso o `--pwa` não usa o `match` acima: o `src/sw.ts` gerado chama `queuesInTheWorker` (`src/sw-sync-scope.ts`), que só enfileira o `/api/` da própria origem e **nunca**:
+
+    - requisição **tus** (cabeçalho `Tus-Resumable`, que o `createResumableUpload` manda em todas): o cliente de upload já retoma sozinho, relendo o offset com `HEAD`; o `PATCH` guardado pelo worker volta com o `Upload-Offset` de quando falhou e com o chunk inteiro (5 MiB por padrão) salvo no IndexedDB a cada tentativa;
+    - um prefixo de `RETRIED_BY_THE_PAGE`, que nasce vazio. **Quando o app ganhar uma outbox, acrescente ali o prefixo que ela entrega** (`"/api/visitas/"`).
 
 #### Range requests — seek de áudio/vídeo offline
 
@@ -42431,7 +42792,7 @@ Cada campo do estado de auth (`user`, `token`, `isAuthenticated`, `logout`, ...)
 
 ## Lendo estado fora do React — `getState()`
 
-Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um guard de rota, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use `getState()` no hook ligado:
+Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um callback de `onUnauthorized`, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use `getState()` no hook ligado:
 
 ```ts
 import { useAuth } from "./auth-store";
@@ -42442,7 +42803,9 @@ function requireAuth(): boolean {
 }
 ```
 
-É exatamente assim que um guard de rota lê a sessão de auth: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
+É assim que o cliente HTTP lê o token a cada requisição: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
+
+O guard de rota **não** é esse caso: ele roda durante a renderização da rota e precisa reagir ao logout, então lê a store por hook — veja [Roteamento](routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
 !!! warning "`getState()` não assina"
     `getState()` lê uma vez e não re-renderiza nada quando o estado muda depois. Dentro de componentes, prefira sempre o hook (`useStore(...)` ou `useStore.use.campo()`) para que a UI se mantenha em sincronia. Reserve `getState()` para o código fora do React.
@@ -45865,7 +46228,7 @@ logout automático quando o backend responde **401**.
 
 ```text
 1. Usuário abre /dashboard sem sessão
-        → guard lê useAuth.getState().isAuthenticated (false)
+        → guard lê useAuth.use.isAuthenticated() (false)
         → redirect pra /login
 2. Usuário envia o login
         → api.post("/auth/login")  → { user, token }
@@ -46008,7 +46371,9 @@ Ele é o portão que lê a store **no momento da renderização**:
 {
   path: "dashboard",
   lazy: () => import("@/pages/Dashboard"),
-  guard: () => useAuth.getState().isAuthenticated,
+  guard: function useSignedIn() {
+    return useAuth.use.isAuthenticated();
+  },
   redirectTo: "/login",
 },
 ```
@@ -46017,13 +46382,14 @@ Antes do login, `isAuthenticated` é `false` → o `<AppRouter>` redireciona pra
 `/login`. Depois do `setSession`, a próxima tentativa de abrir `/dashboard`
 encontra `true` → o Dashboard renderiza.
 
-!!! warning "Por que o guard usa `getState()` e não o hook"
+!!! warning "Por que o guard usa o hook e não `getState()`"
 
-    O `guard` roda **fora** do ciclo de hooks (durante a montagem da rota), então
-    não pode chamar `useAuth.use.isAuthenticated()`. Ele lê o snapshot atual com
-    `getState()`. Dentro de **componentes** — como o `RootLayout` — você usa o
-    hook `.use` pra re-renderizar quando o auth muda. Mesma store, duas formas de
-    ler conforme o contexto. 💡
+    O `guard` roda **dentro** da renderização da rota, então pode chamar hook — e
+    precisa: `useAuth.use.isAuthenticated()` assina a rota, e é isso que faz o
+    logout do Passo 4 e o 401 do Passo 5 tirarem a pessoa da tela protegida.
+    `getState()` leria o valor uma vez: depois do logout, o Dashboard continuaria
+    aberto, com o usuário vazio, até a próxima navegação. `getState()` fica para o
+    que roda **fora** do React, como o `onUnauthorized` do cliente. 💡
 
 ## Passo 4 — Logout manual
 
@@ -46083,8 +46449,9 @@ Você construiu um app completo com o `tempest-react-sdk`, ponta a ponta:
   `useAuth`. ✅
 - **Login**: `api.post("/auth/login")` → `setSession({ user, token })` →
   `navigate("/dashboard")`.
-- **Área protegida**: o `guard` lê `useAuth.getState().isAuthenticated` na
-  renderização e redireciona com `redirectTo` quando falso.
+- **Área protegida**: o `guard` lê `useAuth.use.isAuthenticated()` na
+  renderização e redireciona com `redirectTo` quando falso — inclusive no meio da
+  tela, quando a sessão acaba.
 - **Logout manual**: `useAuth.use.logout()` num botão; o `RootLayout` re-renderiza
   porque lê pelo hook `.use`.
 - **Logout automático**: `onUnauthorized: () => useAuth.getState().logout()` no
@@ -46956,7 +47323,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -46968,13 +47337,14 @@ Quem não está autenticado e tenta abrir `/dashboard` cai em `/login`. A store
 `useAuth` ainda não existe — você vai criá-la na próxima página. Por enquanto,
 foque em **como** o guard lê o estado.
 
-!!! warning "O guard roda na renderização — leia a store via `getState()`"
+!!! warning "O guard roda na renderização — leia a store por hook"
 
-    A função do `guard` é avaliada **durante a renderização** da rota, fora do
-    ciclo de hooks. Por isso ela lê o valor _naquele instante_ com
-    `useAuth.getState().isAuthenticated`. **Não** capture o valor fora da função
-    (`const ok = useAuth.getState().isAuthenticated` no topo do arquivo) — você
-    congelaria o estado de auth no carregamento inicial.
+    A função do `guard` é avaliada **durante a renderização** da rota, então pode
+    chamar hook. `useAuth.use.isAuthenticated()` **assina** a rota: quando a sessão
+    acaba, ela re-renderiza e manda para `/login`, de qualquer tela protegida.
+    `useAuth.getState().isAuthenticated` lê o valor uma vez e não assina — depois de
+    um logout, a tela continuaria aberta até a próxima navegação. O nome
+    `useSignedIn` não é enfeite: o ESLint só aceita hook dentro de função `use…`.
 
 ## Navegação programática
 
@@ -47149,7 +47519,7 @@ seu shell, sem `if` espalhado pelas páginas.
 
 # Tutorial — Estado
 
-Na página anterior, o guard do dashboard leu `useAuth.getState().isAuthenticated`
+Na página anterior, o guard do dashboard leu `useAuth.use.isAuthenticated()`
 — mas a store `useAuth` ainda não existe. Vamos criá-la agora. De passagem, você
 aprende as duas peças de estado do SDK: `createStore` (uma store genérica) e
 `createAuthStore` (a store de autenticação pronta), ambas em cima do
@@ -47343,21 +47713,24 @@ export function RootLayout() {
 
 ## Lendo a store fora do React — `getState()`
 
-Nem todo código que precisa do estado é um componente. O guard de rota da página
-anterior roda **fora** da árvore React e não pode chamar hooks. Para esses casos,
-use `getState()` no hook ligado — um snapshot pontual, sem assinatura:
+Nem todo código que precisa do estado é um componente. O cliente HTTP, que você
+monta mais adiante, roda **fora** da árvore React e não pode chamar hooks. Para
+esses casos, use `getState()` no hook ligado — um snapshot pontual, sem assinatura:
 
 ```ts
-// trecho do guard, da página de roteamento
-guard: () => useAuth.getState().isAuthenticated,
+// trecho do cliente HTTP, da página de dados
+onUnauthorized: () => useAuth.getState().logout(),
 ```
+
+O guard da página anterior **não** é esse caso: ele roda durante a renderização da
+rota e precisa reagir ao logout, por isso lê pelo hook `useAuth.use.isAuthenticated()`.
 
 !!! warning "`getState()` não assina — use só fora do React"
 
     `getState()` lê uma vez e **não** re-renderiza nada quando o estado muda
     depois. Dentro de componentes, prefira sempre o hook (`useAuth.use.campo()`)
-    para a UI ficar em sincronia. Reserve `getState()` para guards de rota,
-    interceptors de HTTP e outros códigos fora da árvore React.
+    para a UI ficar em sincronia. Reserve `getState()` para interceptors de
+    HTTP e outros códigos fora da árvore React.
 
 ## Recap
 
@@ -48832,8 +49205,15 @@ COCO_CLASSES; // o array readonly das 80 classes, em ordem canônica
 Antes de rodar qualquer modelo você precisa de um **frame** — e de um frame que
 preste. O subpath `/vision` traz três primitivas de navegador pra isso: abrir a
 câmera, medir o brilho ao vivo e rejeitar capturas escuras demais. Elas são
-genéricas (não dependem de nenhum modelo), mas moram no `/vision` porque é ali
-que a captura acontece.
+genéricas (não dependem de nenhum modelo).
+
+!!! tip "Só quer a câmera? Importe o `useCameraStream` da raiz"
+    O `useCameraStream` mora no módulo de [captura](./device-capture.md) e sai na raiz
+    (`import { useCameraStream } from "tempest-react-sdk"`). O `/vision` reexporta a
+    mesma função, mas importa o `onnxruntime-web` estaticamente: sem o peer instalado,
+    o esbuild falha com `Could not resolve "onnxruntime-web"`, e o Node cru e o Vitest do
+    app com `ERR_MODULE_NOT_FOUND`. Pela raiz nada disso acontece — um guard do build
+    reprova se a raiz alcançar um módulo que importa o ONNX Runtime.
 
 ### `useCameraStream` — abrir a câmera
 
@@ -48843,7 +49223,7 @@ erro sem decorar os nomes de `DOMException`. O stream é liberado sozinho no
 unmount e no `retry()`.
 
 ```tsx
-import { useCameraStream } from "tempest-react-sdk/vision";
+import { useCameraStream } from "tempest-react-sdk";
 
 function CameraView() {
   const { status, error, videoRef, retry } = useCameraStream();
@@ -48895,7 +49275,7 @@ O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra l
 embrulhar o hook, passe `messages` — um texto por `kind`:
 
 ```tsx
-import { useCameraStream } from "tempest-react-sdk/vision";
+import { useCameraStream } from "tempest-react-sdk";
 
 const MENSAGENS_DA_CAMERA = {
   unsupported: "Este navegador não dá acesso à câmera.",
@@ -50519,6 +50899,15 @@ O que a opção garante:
     não chega ao seu `onMessage` quando o schema o recusa — o que é o certo, já
     que você não o declarou.
 
+    E a recusa **não** é reportada (0.84.0, #704): com `respondToPing` ligado, um
+    ping que o schema não descreve não dispara `onValidationError` nem o aviso de
+    desenvolvimento. Antes, cada heartbeat — um a cada 30 s contra o
+    `tempest-fastapi-sdk` — chegava no `onValidationError` como "o backend mudou o
+    contrato", e o único jeito de calar era declarar o ping no schema do app. Se o
+    schema declara o ping, ele continua chegando no `onMessage`; com
+    `respondToPing: false` (o app responde ao ping sozinho), a recusa volta a ser
+    reportada, porque aí o ping é payload do app.
+
 !!! check "Sinal que existe em produção, não só em dev"
     O aviso único é dev-only (passa por `isDevBuild()`, que responde certo sozinho
     em Vite, webpack, Rspack e Parcel — medido) e mora no console de quem estiver
@@ -50539,7 +50928,7 @@ O que a opção garante:
 - `onReconnecting` é estado discreto; `onLost` é o que merece UI e um botão de "tentar de novo".
 - `opened` separa "não consegui entrar" de "caiu no meio" — a primeira é erro, a segunda reconecta sozinha.
 - `pingInterval` + `pingPayload` mantêm a conexão viva.
-- `schema` valida cada frame antes de entregar — o `pong` do heartbeat continua saindo mesmo quando o schema recusa o ping.
+- `schema` valida cada frame antes de entregar — o `pong` do heartbeat continua saindo mesmo quando o schema recusa o ping, e essa recusa não vira `onValidationError`.
 - `useWebSocket` amarra tudo ao componente e expõe `status`/`lastMessage`/`send`/`reconnect`/`setSilenceTimeout`.
 
 ## Veja também

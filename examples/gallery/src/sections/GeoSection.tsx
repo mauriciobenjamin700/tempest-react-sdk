@@ -212,7 +212,14 @@ function LiveTripDemo(): ReactElement {
 
 /** The same trip seen by one passenger: stops numbered, their pickup set apart, a finish flag. */
 const SYMBOL_STOPS: LiveRouteMarker[] = [
-    { id: "s1", label: "Parada 1 — Praça da Sé", kind: "origin", glyphText: "1", ...BUS_ROUTE[0] },
+    {
+        id: "s1",
+        label: "Parada 1 — Praça da Sé",
+        kind: "origin",
+        glyphText: "1",
+        visited: true,
+        ...BUS_ROUTE[0],
+    },
     { id: "s2", label: "Parada 2 — Liberdade", glyphText: "2", badge: 3, ...BUS_ROUTE[3] },
     {
         id: "s3",
@@ -235,6 +242,7 @@ const SYMBOL_STOPS: LiveRouteMarker[] = [
 /** Marker symbology: emphasis, glyph text, an icon, markerScale and the shared legend. */
 function LiveSymbolsDemo(): ReactElement {
     const [large, setLarge] = useState<boolean>(false);
+    const [stale, setStale] = useState<boolean>(false);
     const scale = large ? 1.5 : 1;
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -247,6 +255,15 @@ function LiveSymbolsDemo(): ReactElement {
                 >
                     Glifos maiores (markerScale 1.5)
                 </Button>
+                <Button
+                    size="sm"
+                    variant={stale ? "primary" : "secondary"}
+                    aria-pressed={stale}
+                    onClick={() => setStale((v) => !v)}
+                    data-testid="live-symbols-stale"
+                >
+                    Sinal perdido (vehicle.stale)
+                </Button>
             </div>
             <LiveRouteMap
                 route={BUS_ROUTE}
@@ -255,6 +272,7 @@ function LiveSymbolsDemo(): ReactElement {
                     position: BUS_ROUTE[2],
                     heading: bearingDeg(BUS_ROUTE[1], BUS_ROUTE[2]),
                     label: "Ônibus 42",
+                    stale,
                 }}
                 markers={SYMBOL_STOPS}
                 markerScale={scale}
@@ -271,6 +289,9 @@ function LiveSymbolsDemo(): ReactElement {
                     { symbol: "vehicle", label: "Ônibus" },
                     { symbol: "route", label: "Rota planejada" },
                     { symbol: "trail", label: "Já percorrido" },
+                    { symbol: "stop", label: "Parada atendida", glyphText: "1", visited: true },
+                    { symbol: "vehicle", label: "Sem sinal", stale: true },
+                    { symbol: "badge", label: "Embarques na parada", badge: 3 },
                 ]}
                 data-testid="live-symbols-legend"
             />
@@ -651,8 +672,10 @@ function LiveRun() {
                 note={
                     <>
                         Paradas numeradas (<code>glyphText</code>), o embarque do passageiro em
-                        destaque (<code>emphasis</code>), bandeira de chegada (<code>icon</code>) e
-                        a legenda exportada, que usa os mesmos glifos e cores do mapa.
+                        destaque (<code>emphasis</code>), parada já atendida (<code>visited</code>),
+                        veículo sem sinal (<code>vehicle.stale</code>), bandeira de chegada (
+                        <code>icon</code>) e a legenda exportada, que usa os mesmos glifos e cores
+                        do mapa — inclusive o selo de contagem.
                     </>
                 }
                 code={`import { Flag } from "lucide-react";
@@ -690,6 +713,19 @@ import { LiveRouteMap, LiveRouteMapLegend } from "tempest-react-sdk";
                         default: "1",
                         description:
                             "Tamanho dos glifos; o alvo de toque é 44 px em qualquer escala.",
+                    },
+                    {
+                        name: "markers[].visited",
+                        type: "boolean",
+                        default: "false",
+                        description:
+                            "Parada já atendida: cinza neutro, mesmo tipo, dito ao leitor.",
+                    },
+                    {
+                        name: "vehicle.stale",
+                        type: "boolean",
+                        default: "false",
+                        description: "Posição velha: veículo cinza, sem halo, staleLabel no nome.",
                     },
                 ]}
             >

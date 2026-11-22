@@ -230,7 +230,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -238,8 +240,8 @@ export const routes = defineRoutes([
 ]);
 ```
 
-!!! warning "The guard runs on render — read your store via `getState()` or a hook"
-    The `guard` function is evaluated **during the route's render**. So it must read the state _at that moment_: use `useAuth.getState().isAuthenticated` (an imperative read, outside React) or call a hook straight in the guard function, which runs inside the render cycle — see the next section. Don't capture the value once outside the function: you'd freeze the auth state at initial load.
+!!! warning "The guard runs on render — read your store through a hook"
+    The `guard` function is evaluated **during the route's render**, so it can call hooks. Read the store through a hook (`useAuth.use.isAuthenticated()`): that is what **subscribes** the route, so a `logout()` — the sign-out button or a `401` in the HTTP client — redirects whatever protected screen is open. `useAuth.getState().isAuthenticated` reads the value once and does not subscribe: after logout the screen stays up until the next navigation. Name the function `use…`, as in the example, for the reason in the next section.
 
 When `guard` is falsy, the user is redirected to `redirectTo` (default `"/"`). In the example above, anyone not authenticated who tries to open `/dashboard` lands on `/login`.
 
@@ -301,7 +303,7 @@ export const routes = defineRoutes([
     guard: () => { … useCan() … }             // ❌ lint error
     ```
 
-    A guard with **no** hook (`() => useAuth.getState().isAuthenticated`) can stay an anonymous arrow — `getState()` is not a hook.
+    `getState()` is not a hook, so `() => useAuth.getState().isAuthenticated` passes lint — but it does not work as a session guard: with no subscription, a logout mid-screen does not redirect.
 
 !!! tip "One spinner covers `lazy` and `pending`"
     When the route defines no `guardFallback`, the SDK uses the `fallback` you already handed `<AppRouter>` — the same one covering the `lazy` chunk load. Both are "not ready yet", and in most apps they deserve the same spinner.
@@ -342,7 +344,7 @@ export function ProtectedDashboard() {
 | `children`   | `ReactNode`        | —       | What to protect.                               |
 
 !!! tip "Same state-reading rule"
-    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes. The tree's `guard` runs **inside** the render too, so it has both options: `getState()` for a simple imperative read, or hooks — as long as the function is named `use…`, as in the `"pending"` section above.
+    Here you're inside a React component, so read the store with the hook (`useAuth((state) => state.isAuthenticated)`) to re-render when auth changes. The tree's `guard` runs **inside** the render too, and the same rule applies: a hook, with the function named `use…`, as in the `"pending"` section above.
 
 ## Going back to where you were after signing in
 
@@ -365,7 +367,9 @@ export const routes = defineRoutes([
   {
     path: "dashboard",
     element: <Dashboard />,
-    guard: () => useAuth.getState().isAuthenticated,
+    guard: function useSignedIn() {
+      return useAuth.use.isAuthenticated();
+    },
     redirectTo: "/login",
     preserveFrom: true,
   },

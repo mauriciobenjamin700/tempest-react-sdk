@@ -1,6 +1,12 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import type { OfflineSync, SyncState } from "@/offline";
+import { act, render, screen } from "@testing-library/react";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
+import {
+    createOfflineSync,
+    type OfflineSync,
+    type PullPage,
+    type SyncState,
+    type SyncStatusSource,
+} from "@/offline";
 import { SyncStatusBadge } from "./SyncStatusBadge";
 
 function fakeSync(state: Partial<SyncState>): OfflineSync<unknown> {
@@ -70,5 +76,41 @@ describe("SyncStatusBadge", () => {
     it("connected engine with pending mutations reads as pending tone", () => {
         render(<SyncStatusBadge sync={fakeSync({ phase: "idle", pending: 2 })} />);
         expect(screen.getByText("Pendente")).toBeInTheDocument();
+    });
+
+    /**
+     * #718: the prop used to be `OfflineSync<unknown>`. The engine is invariant in
+     * its payload (`enqueue` takes it as a parameter), so under `strict` every
+     * engine an app creates — `OfflineSync<Visit>` — failed with TS2322 at
+     * `sync={...}`. The engine below is real and typed, with no cast: if the prop
+     * narrows back to the whole engine, `npm run typecheck` fails on this file.
+     */
+    it("accepts an engine created with a concrete payload type", async () => {
+        interface Visit {
+            id: string;
+            note: string;
+        }
+        const visits = createOfflineSync<Visit, Visit>({
+            databaseName: `badge-${Math.random().toString(36).slice(2)}`,
+            watermark: { get: () => null, set: () => undefined, clear: () => undefined },
+            deliver: vi.fn(async () => undefined),
+            pullPage: vi.fn(async (): Promise<PullPage<Visit>> => ({
+                items: [],
+                nextCursor: null,
+                serverTime: null,
+            })),
+            applyRemote: vi.fn(async () => undefined),
+        });
+        expectTypeOf(visits).toExtend<SyncStatusSource>();
+
+        render(<SyncStatusBadge sync={visits} />);
+        expect(screen.getByText("Sincronizado")).toBeInTheDocument();
+
+        await act(async () => {
+            await visits.enqueue("create", "v1", { id: "v1", note: "porta 3" });
+        });
+        expect(screen.getByText("Pendente")).toBeInTheDocument();
+        expect(screen.getByText("1")).toBeInTheDocument();
+        visits.dispose();
     });
 });

@@ -230,7 +230,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -238,8 +240,8 @@ export const routes = defineRoutes([
 ]);
 ```
 
-!!! warning "O guard roda na renderização — leia a store via `getState()` ou um hook"
-    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou chame um hook direto na função do guard, que roda dentro do ciclo de renderização — veja a seção seguinte. Não capture o valor uma vez fora da função: você congelaria o estado de auth no carregamento inicial.
+!!! warning "O guard roda na renderização — leia a store por hook"
+    A função do `guard` é avaliada **durante a renderização** da rota, então pode chamar hook. Leia a store por hook (`useAuth.use.isAuthenticated()`): é o que **assina** a rota, e um `logout()` — o botão de sair ou um `401` no cliente HTTP — redireciona a tela protegida que estiver aberta. `useAuth.getState().isAuthenticated` lê o valor uma vez e não assina: depois do logout a tela continua aberta até a próxima navegação. Nomeie a função `use…`, como no exemplo, pelo motivo da seção seguinte.
 
 Quando `guard` é _falsy_, o usuário é redirecionado para `redirectTo` (padrão `"/"`). No exemplo acima, quem não está autenticado e tenta abrir `/dashboard` cai em `/login`.
 
@@ -301,7 +303,7 @@ export const routes = defineRoutes([
     guard: () => { … useCan() … }             // ❌ erro de lint
     ```
 
-    Guard **sem** hook (`() => useAuth.getState().isAuthenticated`) continua podendo ser arrow anônima — `getState()` não é hook.
+    `getState()` não é hook, então `() => useAuth.getState().isAuthenticated` passa no lint — mas não serve para guard de sessão: sem assinatura, um logout no meio da tela não redireciona.
 
 !!! tip "Um spinner cobre `lazy` e `pending`"
     Se a rota não define `guardFallback`, o SDK usa o `fallback` que você já passou ao `<AppRouter>` — o mesmo que cobre o carregamento de chunk do `lazy`. As duas coisas são "ainda não está pronto", e na maioria dos apps merecem o mesmo spinner.
@@ -342,7 +344,7 @@ Props do `<RouteGuard>`:
 | `children`   | `ReactNode`         | —      | O que proteger.                                      |
 
 !!! tip "Mesma regra de leitura de estado"
-    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, então ele tem as duas opções: `getState()` para leitura imperativa simples, ou hooks — desde que a função seja nomeada `use…`, como na seção de `"pending"` acima.
+    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, e vale a mesma regra: hook, com a função nomeada `use…`, como na seção de `"pending"` acima.
 
 ## Voltar para onde estava depois do login
 
@@ -365,7 +367,9 @@ export const routes = defineRoutes([
   {
     path: "dashboard",
     element: <Dashboard />,
-    guard: () => useAuth.getState().isAuthenticated,
+    guard: function useSignedIn() {
+      return useAuth.use.isAuthenticated();
+    },
     redirectTo: "/login",
     preserveFrom: true,
   },

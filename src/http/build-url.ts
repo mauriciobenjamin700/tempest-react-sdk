@@ -146,3 +146,25 @@ function resolve(baseURL: string, path: string, prefix?: string): string {
     const pathname = joined.length > 0 ? `/${joined.join("/")}${trailing}` : "/";
     return `${base.origin}${pathname}${query}`;
 }
+
+/**
+ * Turn an absolute HTTP URL into the WebSocket URL of the same endpoint:
+ * `http:` becomes `ws:`, `https:` becomes `wss:`, and the rest — host, port,
+ * path, query — is kept byte for byte.
+ *
+ * The hand-written `url.replace(/^http/, "ws")` gets the two common cases right
+ * and every other one silently wrong: a `blob:` or `data:` URL passes through
+ * unchanged and fails later as "invalid WebSocket URL". This one throws at the
+ * call with the URL it was given. An URL that already says `ws:`/`wss:` — a
+ * path that was itself an absolute socket URL — is returned as is.
+ *
+ * @param url - An absolute URL, as `buildApiUrl` returns.
+ * @returns The same URL with a WebSocket scheme.
+ * @throws When the URL's scheme is not `http:`, `https:`, `ws:` or `wss:`.
+ */
+export function toWebSocketUrl(url: string): string {
+    if (!/^(https?|wss?):/i.test(url)) {
+        throw new TypeError(`createApiClient: wsUrl() needs an http(s) URL, got "${url}".`);
+    }
+    return url.replace(/^http/i, "ws");
+}

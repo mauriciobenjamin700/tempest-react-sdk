@@ -161,6 +161,7 @@ export function CorridaAoVivo() {
 
 - `minDistanceKm` (default `0.005` = 5 m) descarta amostras muito próximas — filtra o tremido do GPS parado.
 - `maxPoints` limita o array retido (a distância total continua contando).
+- `onPoint(point)` é chamado **uma vez por ponto aceito** (depois do filtro de `minDistanceKm`), na ordem. É o caminho para transmitir cada posição: um `useEffect` sobre `lastPoint` vê só a última de duas leituras que chegam antes de um render — medido com duas leituras no mesmo `act`, o efeito viu `[2, 3]` de `[1, 2, 3]`, e o `onPoint` viu as três. O hook lê o `onPoint` do último render, então uma arrow inline enxerga o estado atual.
 - `autoStart: true` já começa a rastrear na montagem.
 - Cada ponto traz `speed` (m/s, a unidade do navegador — `× 3.6` dá km/h) e `heading` (graus a partir do norte), `null` quando o aparelho não informa. O `heading` `NaN` que alguns navegadores mandam com o aparelho parado também vira `null`.
 
@@ -362,8 +363,8 @@ Pedaço por pedaço:
 | --- | --- | --- | --- |
 | `route` | `readonly Coordinate[]` | — | Rota planejada, tracejada. Enquadra o mapa. |
 | `trail` | `readonly Coordinate[]` | — | Caminho percorrido, sólido. |
-| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label? }`. |
-| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, content? }`. |
+| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label?, stale?, staleLabel? }`. |
+| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, visited?, content? }`. |
 | `follow` | `boolean` | `false` | Mantém o veículo à vista sem mudar o zoom. |
 | `etaLabel` | `string` | — | Texto anunciado ao leitor de tela. |
 | `height` / `padding` | `number` | `360` / `32` | Altura e margem do enquadramento, em px. |
@@ -373,6 +374,7 @@ Pedaço por pedaço:
 | `tileUrl` / `tileAttribution` / `tileMaxZoom` | `string` / `string` / `number` | — / — / `19` | Tiles do **seu** servidor. |
 | `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Textos acessíveis. |
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Nome falado de cada tipo. |
+| `visitedLabel` | `string` | `"visita concluída"` | Acrescentado ao nome falado de um marcador `visited`. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
 | `roads` | `RoadGraph<E>` | — | Grafo do `createRoadGraph`: desenha as ruas e encaixa veículo e trilha. |
 | `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Cada posição nova encaixada (sua aresta, ponto, distância), ou `null` fora de qualquer rua. Só com `roads`. |
@@ -424,6 +426,48 @@ Pedaço por pedaço:
 !!! info "Alvo de toque de 44 px, em qualquer tamanho"
     Medido no Chromium sobre a gallery da 0.91.0 (`elementFromPoint` em 16 direções, a cada 2 px): uma parada só respondia dentro do disco de **16 px**, e depois só num anel de 3 px a 16 px do centro — o traço transparente do anel de foco. Agora cada marcador tem um círculo invisível de **44 px** (WCAG 2.2, SC 2.5.5) que recebe o toque, e o `markerScale` não o encolhe. Por isso o `markerScale` padrão continua `1`: ele serve para **ler** o glifo de longe, não para conseguir tocá-lo.
 
+### Estados: parada já visitada e posição velha
+
+O que já passou e o que vem pela frente não podem ter a mesma cara, e uma posição de quatro minutos atrás não pode parecer ao vivo. Dois campos dizem isso no próprio glifo:
+
+- **`visited`** no `LiveRouteMarker` pinta o marcador em cinza neutro (`--tempest-live-route-visited`, padrão `--tempest-text-muted`). A forma continua a do tipo — uma parada atendida segue redonda, o número segue dentro — e o nome acessível ganha `visitedLabel` (padrão `"visita concluída"`).
+- **`stale`** no `vehicle` deixa o veículo onde ele foi visto pela última vez, sem o halo e em cinza (`--tempest-live-route-stale`), e acrescenta `staleLabel` (padrão `"posição desatualizada"`) ao nome que o leitor de tela lê.
+
+```tsx
+import { LiveRouteMap, type Coordinate, type LiveRouteMarker, type TrackPoint } from "tempest-react-sdk";
+
+const STALE_AFTER_MS = 30_000;
+
+export function TripNow({
+  route,
+  stops,
+  position,
+  now,
+}: {
+  route: Coordinate[];
+  stops: (LiveRouteMarker & { departed: boolean })[];
+  position: TrackPoint;
+  now: number;
+}) {
+  return (
+    <LiveRouteMap
+      route={route}
+      markers={stops.map(({ departed, ...stop }) => ({ ...stop, visited: departed }))}
+      vehicle={{
+        position,
+        heading: position.heading ?? null,
+        label: "Van 12",
+        stale: now - position.timestamp > STALE_AFTER_MS,
+      }}
+    />
+  );
+}
+```
+
+- **Quem decide o "velho" é o app.** O mapa não tem relógio próprio: um timer dentro dele re-renderizaria um mapa que não tem nada novo a desenhar. O app já tem o `timestamp` da posição e um `now` que anda (veja o [`RelativeTime`](./components/utility.md#relativetime) com `updateEvery`).
+- **O cinza mede 6,92:1 (claro) e 7,43:1 (escuro) contra o fundo do mapa** (`--tempest-surface-2`), e o número dentro, em `--tempest-surface`, 7,30 e 8,39:1 — medido no browser e afirmado em `src/geo/LiveRouteMap.states.test.tsx`.
+- **Mesmo cinza nos dois estados, de propósito**: "já passou" e "parou de chegar" são o mesmo recado — isto é passado. A forma separa um do outro.
+
 ### Legenda — `LiveRouteMapLegend`
 
 Cada app desenhava a própria legenda imitando os glifos do SDK com SVG próprio — e uma mudança de tema ou de glifo deixava a legenda para trás. O `LiveRouteMapLegend` desenha **os mesmos glifos**, com as mesmas classes e os mesmos tokens do mapa:
@@ -443,20 +487,24 @@ export function PassengerLegend() {
         { symbol: "vehicle", label: "Ônibus" },
         { symbol: "route", label: "Rota planejada" },
         { symbol: "trail", label: "Já percorrido" },
+        { symbol: "stop", label: "Parada atendida", glyphText: "1", visited: true },
+        { symbol: "vehicle", label: "Sem sinal do ônibus", stale: true },
+        { symbol: "badge", label: "Embarques na parada", badge: 3 },
       ]}
     />
   );
 }
 ```
 
-- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"` ou uma das linhas (`"route"`, `"trail"`). Os campos `emphasis`, `glyphText` e `icon` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`.
+- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"`, uma das linhas (`"route"`, `"trail"`) ou o `"badge"`, o selo de contagem. Os campos `emphasis`, `glyphText`, `icon` e `visited` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`; `stale`, para o veículo; `badge` (padrão `1`), para o selo.
+- **O selo da legenda é o mesmo desenho do mapa** (`BadgeShape` compartilhado): mesmo token de cor, mesma largura para `"99+"`. Antes não havia símbolo para ele, e a legenda não explicava o número sobre a parada.
 - **Sem `items`**, a legenda lista os seis símbolos com rótulos em PT-BR.
 - **Passe o mesmo `markerScale` do mapa** para os glifos baterem; veículo e linhas não escalam, como no mapa.
 - É uma lista (`<ul>`) com nome acessível `"Legenda do mapa"` (troque com `label`); os desenhos são `aria-hidden`, e o leitor de tela lê o texto.
 
 | Prop | Tipo | Default | Descrição |
 | --- | --- | --- | --- |
-| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon? }`, na ordem. |
+| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon?, visited?, stale?, badge? }`, na ordem. |
 | `markerScale` | `number` | `1` | O mesmo fator do mapa. |
 | `label` | `string` | `"Legenda do mapa"` | Nome acessível da lista. |
 
@@ -479,6 +527,8 @@ O mapa e a legenda são temados só por tokens. Para recolorir, sobrescreva no `
 | `--tempest-live-route-stop-ink` | `glyphText` e `icon` na parada | `--tempest-info-on-solid` |
 | `--tempest-live-route-destination-ink` | `glyphText` e `icon` no destino | `--tempest-danger-on-solid` |
 | `--tempest-live-route-road` / `--tempest-live-route-road-casing` | Ruas do `roads` | `--tempest-bg` / `--tempest-text-subtle` |
+| `--tempest-live-route-visited` / `--tempest-live-route-visited-ink` | Marcador `visited` / seu `glyphText` e `icon` | `--tempest-text-muted` / `--tempest-surface` |
+| `--tempest-live-route-stale` / `--tempest-live-route-stale-ink` | Veículo `stale` / sua seta | `--tempest-text-muted` / `--tempest-surface` |
 
 !!! note "Por que o selo não usa mais `--tempest-text` sobre `--tempest-bg`"
     Até a 0.91.0 o `badge` era `--tempest-text` de fundo com o número em `--tempest-bg` — o par invertido. No tema do próprio SDK isso dava 17,75:1 (claro) e 17,51:1 (escuro). Mas o contraste dependia de **dois** tokens que o app troca separados: um tema que clareou `--tempest-text` e deixou `--tempest-bg` branco pôs o número branco num selo quase branco — **1,11:1**, medido no Chromium. Agora o selo usa o par neutro fixo (`--tempest-gray-700` + `--tempest-neutral-on-solid`), o mesmo do `Badge` sólido neutro: **10,46:1** nos dois temas, e também com o tema parcial. As tintas dos glifos usam os pares `*-solid`/`*-on-solid` medidos — 5,17 e 4,83:1 no claro, 5,25 e 5,13:1 no escuro; a origem, `--tempest-surface` sobre `--tempest-success-fg` (8,65 e 10,28:1). Se o seu tema troca `--tempest-surface` sem trocar `--tempest-success-fg`, ajuste `--tempest-live-route-origin-ink` junto.

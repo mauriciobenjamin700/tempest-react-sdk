@@ -108,6 +108,11 @@
     );
 }
 
+.visited {
+    color: var(--tempest-live-route-visited, var(--tempest-text-muted));
+    --tempest-live-route-ink: var(--tempest-live-route-visited-ink, var(--tempest-surface));
+}
+
 .markerDot {
     fill: var(--tempest-surface);
 }
@@ -166,6 +171,18 @@
 
 .vehicleMark {
     fill: var(--tempest-primary-foreground);
+}
+
+.vehicleStale .vehicleHalo {
+    opacity: 0;
+}
+
+.vehicleStale .vehicleBody {
+    fill: var(--tempest-live-route-stale, var(--tempest-text-muted));
+}
+
+.vehicleStale .vehicleMark {
+    fill: var(--tempest-live-route-stale-ink, var(--tempest-surface));
 }
 
 .scale line {

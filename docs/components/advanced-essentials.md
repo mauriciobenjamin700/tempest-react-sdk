@@ -271,7 +271,32 @@ const [open, setOpen] = useState(false);
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Gatilho global"
-    Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
+    Combine com `useKeyboardShortcut`, que recebe um objeto `KeyboardShortcut`, para abrir via ⌘K / Ctrl+K:
+
+    ```tsx
+    import { useState } from "react";
+    import { Button, Command, Kbd, formatShortcut, useKeyboardShortcut } from "tempest-react-sdk";
+
+    export function Palette() {
+      const [open, setOpen] = useState<boolean>(false);
+      useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
+
+      return (
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(true)}
+            rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
+          >
+            Buscar
+          </Button>
+          <Command open={open} onOpenChange={setOpen} items={[]} />
+        </>
+      );
+    }
+    ```
+
+    O hook já chama `preventDefault` e dispara com o foco num campo, porque o atalho leva Ctrl/Cmd. `formatShortcut` mostra `⌘K` ou `Ctrl+K` conforme o sistema. Veja [`useKeyboardShortcut`](../hooks.md#atalho-global-usekeyboardshortcut).
 
 !!! note "Textos padrão em PT-BR"
     Até a versão anterior, `placeholder`, `emptyMessage` e o nome acessível vinham fixos em inglês (`"Type a command…"`, `"No results"`, `"Command palette"`). Um leitor de tela em PT-BR anunciava o diálogo em outra língua. Os três agora têm default em PT-BR e aceitam prop.

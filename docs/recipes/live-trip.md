@@ -173,15 +173,10 @@ const tripFrameSchema = z.object({
   status: z.enum(["scheduled", "in_progress", "finished", "cancelled"]),
 });
 
-const pingFrameSchema = z.object({
-  type: z.literal("ping"),
-});
-
 export const liveFrameSchema = z.discriminatedUnion("type", [
   positionFrameSchema,
   stopFrameSchema,
   tripFrameSchema,
-  pingFrameSchema,
 ]);
 
 export type LiveFrame = z.infer<typeof liveFrameSchema>;
@@ -193,7 +188,7 @@ Pedaço por pedaço:
 - **`TripStop` e `TripPlace` estendem `Coordinate`.** Como o backend já manda `latitude`/`longitude`, uma parada **é** uma coordenada: ela entra direto em `estimateTravel`, `boundingBox` e no marcador do mapa, sem conversão.
 - **`recorded_at` é a hora em que o GPS tomou a posição**, não a hora em que o frame chegou. É ela que diz se a posição está velha.
 - **Os frames são uma união discriminada por `type`.** O `liveFrameSchema` é o que o [`useWebSocket` valida](../websocket.md#validar-o-frame-com-schema) antes de entregar: um frame fora do contrato é descartado e nunca vira uma van em `latitude: undefined`.
-- **O `ping` está no schema de propósito.** O `tempest-fastapi-sdk` manda `{"type":"ping"}` como heartbeat. O SDK responde o `pong` mesmo que o schema recuse o ping — mas um ping recusado também chega no `onValidationError`, e o seu log de "backend mudou o contrato" encheria de falso alarme. Declarar o ping resolve.
+- **O `ping` não entra no schema.** O `tempest-fastapi-sdk` manda `{"type":"ping"}` como heartbeat, e o SDK responde o `pong` e descarta o ping sem chamar o `onValidationError` — o seu log de "backend mudou o contrato" só ouve frame de payload. Veja [O `pong` continua saindo](../websocket.md#validar-o-frame-com-schema).
 - **`Street`** é a aresta de rua da seção opcional [Ruas no mapa](#opcional-ruas-no-mapa-e-a-van-na-rua). Se você não for usar, pode apagar.
 
 ## Passo 2 — Cliente HTTP e a query da viagem
@@ -222,15 +217,14 @@ export function useTrip(tripId: string): UseQueryResult<Trip> {
 }
 
 export function liveTripUrl(tripId: string, channel: "watch" | "drive"): string {
-  const http = api.url(`/trips/${encodeIdSegment(tripId)}/${channel}`);
-  return http.replace(/^http/, "ws");
+  return api.wsUrl(`/trips/${encodeIdSegment(tripId)}/${channel}`);
 }
 ```
 
 - **[`createApiClient`](../http.md#createapiclient)** com `prefix: "/api"`: os caminhos ficam sem o prefixo, como o serviço FastAPI os declara.
 - **[`createQueryKeys`](../query.md#query-keys-tipadas)** dá a key `["trips", tripId]`. O hook de posição vai **escrever** nessa mesma key quando uma parada mudar — por isso ela mora num lugar só.
 - **`encodeIdSegment`** escapa o id antes de ir para o caminho: um id com `/` não vira outra rota.
-- **`liveTripUrl`** usa `api.url()` — a URL absoluta que o cliente atingiria, com o mesmo `baseURL` e `prefix` — e troca `http` por `ws` (e `https` por `wss`). O socket fala com o mesmo servidor, sem uma segunda variável de ambiente.
+- **`liveTripUrl`** usa [`api.wsUrl()`](../http.md#createapiclient) — a URL que o cliente atingiria, com o mesmo `baseURL` e `prefix`, com `http` trocado por `ws` (e `https` por `wss`). O socket fala com o mesmo servidor, sem uma segunda variável de ambiente.
 
 !!! tip "Autenticação do socket"
     O navegador não deixa um `WebSocket` mandar header `Authorization`. Aqui a sessão vai por cookie (`withCredentials: true` no HTTP, e o handshake do socket leva o cookie do mesmo site). Se o seu backend autentica por token, siga o que ele espera no handshake — o `useWebSocket` aceita `protocols`.
@@ -369,11 +363,11 @@ Pedaço por pedaço:
 - **`onReconnecting` / `onReconnected` / `onLost`** — os três estados que [não são a mesma coisa](../websocket.md#reconectando-erro). Reconectar é discreto; só `onLost` merece um botão. Ao voltar, o hook **invalida a query da viagem**: os frames de parada que se perderam no buraco voltam pelo `GET`.
 - **Frames de parada e de viagem escrevem no cache da query** com `setQueryData`. A tela não tem dois estados da mesma viagem — o painel, o mapa e a lista leem do mesmo lugar.
 - **A trilha junta duas fontes**: o histórico que veio no `GET` (`trip.trail`) e o que chegou pelo socket depois. O filtro `timestamp > lastKnown` evita duplicar o trecho quando o refetch depois da reconexão traz pontos que o socket também já tinha mandado.
-- **`useInterval` atualiza `now` a cada 5 s.** Sem ele, "há 1 min" ficaria congelado na tela: nada re-renderiza quando o socket fica em silêncio — que é justamente o caso que importa.
+- **`useInterval` atualiza `now` a cada 5 s.** É ele que vira o `signal` para `stale` quando nada chega: nada re-renderiza quando o socket fica em silêncio — que é justamente o caso que importa. O mesmo `now` vai para o `RelativeTime` do passo 6, então a tela inteira anda com um relógio só.
 - **`signal`** resume tudo em um estado: `connecting`, `waiting` (aberto, sem posição ainda), `live`, `stale` (última posição há mais de 30 s) e `lost`.
 
-!!! warning "Posição velha parece posição boa"
-    O mapa não sabe a idade da posição: a van continua desenhada onde estava, com a mesma seta. Quem diz "isso tem 4 minutos" é a sua tela — por isso o `signal` existe e o `SignalStatus` do passo 6 aparece logo acima do mapa.
+!!! info "Posição velha não pode parecer posição boa"
+    O mapa não sabe a idade da posição — quem sabe é o `signal`. Por isso a página passa `stale` para o mapa quando o sinal é `stale` ou `lost`: a van fica onde foi vista por último, em cinza e sem o halo, e o leitor de tela ouve "sem sinal, última posição conhecida". Veja [Estados](../geo.md#estados-parada-ja-visitada-e-posicao-velha).
 
 ## Passo 4 — Paradas viram marcadores
 
@@ -393,9 +387,8 @@ export function formatClock(value: string | Date): string {
 }
 
 function stopLabel(stop: TripStop, isMine: boolean): string {
-  const served = stop.status === "departed" ? " (já atendida)" : "";
   const mine = isMine ? "Seu embarque — " : "";
-  return `${mine}Parada ${stop.order}, ${stop.name}${served}`;
+  return `${mine}Parada ${stop.order}, ${stop.name}`;
 }
 
 function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): ReactElement {
@@ -431,6 +424,7 @@ export function tripMarkers(trip: Trip, viewer: TripViewer): LiveRouteMarker[] {
         kind: "stop",
         glyphText: String(stop.order),
         emphasis: isMine,
+        visited: stop.status === "departed",
         badge: viewer === "driver" && pendingBoarding > 0 ? pendingBoarding : undefined,
         content: <StopDetails stop={stop} viewer={viewer} />,
       };
@@ -460,9 +454,10 @@ export function tripMarkers(trip: Trip, viewer: TripViewer): LiveRouteMarker[] {
 - **`glyphText: String(stop.order)`** escreve o número da parada **dentro** do glifo. Quem olha o mapa sabe que a van passa no 2 antes do 3.
 - **`emphasis: isMine`** cresce o glifo do embarque da Juliana e põe um halo na mesma cor. Continua sendo uma parada — só que a dela. Veja [Simbologia](../geo.md#simbologia-destaque-numero-icone-e-tamanho).
 - **`badge`** só na visão do motorista, e só em parada pendente: é a contagem de quem ainda vai embarcar ali. Parada atendida perde o selo.
+- **`visited`** pinta de cinza a parada que a van já atendeu — o que ficou para trás deixa de parecer o que vem pela frente — e o leitor de tela ouve "visita concluída" depois do tipo.
 - **`icon: <Flag />`** na chegada: um ícone do `lucide-react` cabe direto e herda a tinta do glifo.
 - **`content`** abre um painel ao tocar no marcador. Para o motorista, a lista de nomes; para o passageiro, o endereço e a previsão.
-- **O `label` repete em texto o que o glifo mostra** — "Seu embarque — Parada 3, …" e "(já atendida)". O leitor de tela lê o `label` e o tipo; `emphasis`, `glyphText` e `icon` são só visuais.
+- **O `label` repete em texto o que o glifo mostra** — "Seu embarque — Parada 3, …". O leitor de tela lê o `label` e o tipo; `emphasis`, `glyphText` e `icon` são só visuais. O "já atendida" não precisa ir no `label`: o `visited` já o diz.
 
 ## Passo 5 — O mapa das duas telas
 
@@ -487,6 +482,7 @@ export interface TripMapProps {
   trip: Trip;
   viewer: TripViewer;
   vehicle: TrackPoint | null;
+  stale?: boolean;
   trail: readonly TrackPoint[];
   etaLabel?: string;
   roads?: RoadGraph<Street>;
@@ -496,14 +492,18 @@ export interface TripMapProps {
 const PASSENGER_LEGEND: LiveRouteLegendItem[] = [
   { symbol: "stop", label: "Seu embarque", emphasis: true },
   { symbol: "stop", label: "Outras paradas, na ordem", glyphText: "1" },
+  { symbol: "stop", label: "Parada já atendida", glyphText: "1", visited: true },
   { symbol: "destination", label: "Chegada", icon: <Flag /> },
   { symbol: "vehicle", label: "Van" },
+  { symbol: "vehicle", label: "Van sem sinal", stale: true },
   { symbol: "trail", label: "Já percorrido" },
 ];
 
 const DRIVER_LEGEND: LiveRouteLegendItem[] = [
   { symbol: "origin", label: "Garagem" },
   { symbol: "stop", label: "Parada, na ordem", glyphText: "1" },
+  { symbol: "badge", label: "Embarques pendentes na parada", badge: 3 },
+  { symbol: "stop", label: "Parada já atendida", glyphText: "1", visited: true },
   { symbol: "destination", label: "Chegada", icon: <Flag /> },
   { symbol: "route", label: "Rota planejada" },
   { symbol: "trail", label: "Já percorrido" },
@@ -513,6 +513,7 @@ export function TripMap({
   trip,
   viewer,
   vehicle,
+  stale = false,
   trail,
   etaLabel,
   roads,
@@ -534,6 +535,8 @@ export function TripMap({
                 position: vehicle,
                 heading: vehicle.heading ?? null,
                 label: `${trip.vehicle_label}, placa ${trip.plate}`,
+                stale,
+                staleLabel: "sem sinal, última posição conhecida",
               }
             : null
         }
@@ -567,7 +570,7 @@ export function TripMap({
 ```tsx
 // src/trips/SignalStatus.tsx
 import type { ReactElement } from "react";
-import { Badge, Banner, Button, relativeTime, type BadgeVariant } from "tempest-react-sdk";
+import { Badge, Banner, Button, RelativeTime, type BadgeVariant } from "tempest-react-sdk";
 import type { LiveVehicle, SignalState } from "@/trips/use-live-vehicle";
 
 const VARIANT: Record<Exclude<SignalState, "lost">, BadgeVariant> = {
@@ -598,18 +601,23 @@ export function SignalStatus({ live }: { live: LiveVehicle }): ReactElement {
     );
   }
 
-  const seen = live.position ? relativeTime(live.position.timestamp, { now: live.now }) : null;
 
   const text: Record<Exclude<SignalState, "lost">, string> = {
     connecting: "Conectando ao veículo…",
     waiting: "Aguardando a primeira posição",
     live: "Ao vivo",
-    stale: `Sem sinal do veículo · última posição ${seen ?? ""}`,
+    stale: "Sem sinal do veículo · última posição",
   };
 
   return (
     <Badge variant={VARIANT[live.signal]} dot role="status">
       {text[live.signal]}
+      {live.signal === "stale" && live.position ? (
+        <>
+          {" "}
+          <RelativeTime date={live.position.timestamp} now={live.now} />
+        </>
+      ) : null}
     </Badge>
   );
 }
@@ -617,7 +625,7 @@ export function SignalStatus({ live }: { live: LiveVehicle }): ReactElement {
 
 - **[`Badge`](../components/feedback.md#badge)** com `dot` e `role="status"` para os estados que se resolvem sozinhos: conectando, aguardando, ao vivo, sem sinal.
 - **[`Banner`](../components/feedback.md#banner)** só para `lost`, o único estado em que a pessoa pode fazer alguma coisa. `"rejected"` (o servidor recusou com 4400–4499) não ganha botão: tentar de novo não muda uma recusa.
-- **`relativeTime(…, { now })`** usa o `now` que o hook atualiza. O componente [`RelativeTime`](../components/utility.md#relativetime) calcula na hora do render e não aceita `now` — por isso o texto aqui usa a função.
+- **[`RelativeTime`](../components/utility.md#relativetime) com `now`** usa o relógio que o hook atualiza, e escreve a idade num `<time>` com `dateTime`. Sem um relógio no app, `updateEvery` faria o componente contar sozinho.
 
 ## Passo 7 — Próxima parada e ETA
 
@@ -795,6 +803,7 @@ function LiveTrip({ trip }: { trip: Trip }): ReactElement {
           trip={trip}
           viewer="passenger"
           vehicle={live.position}
+          stale={live.signal === "stale" || live.signal === "lost"}
           trail={live.trail}
           etaLabel={etaAnnouncement(eta)}
         />
@@ -887,7 +896,7 @@ Os estados, de cima para baixo:
 
 ```tsx
 // src/pages/DriverTripPage.tsx
-import { useEffect, useMemo, type ReactElement } from "react";
+import { useMemo, type ReactElement } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import {
@@ -906,13 +915,6 @@ import { TripMap } from "@/trips/TripMap";
 
 function Driving({ trip }: { trip: Trip }): ReactElement {
   const queryClient = useQueryClient();
-  const gps = usePositionTracker({
-    autoStart: true,
-    minDistanceKm: 0.01,
-    maxPoints: 2_000,
-    positionOptions: { enableHighAccuracy: true, maximumAge: 0 },
-  });
-
   const socket = useWebSocket<LiveFrame>(liveTripUrl(trip.id, "drive"), {
     schema: liveFrameSchema,
     silenceTimeout: 75_000,
@@ -923,21 +925,25 @@ function Driving({ trip }: { trip: Trip }): ReactElement {
     },
   });
 
-  const { lastPoint } = gps;
-  const { send } = socket;
+  const gps = usePositionTracker({
+    autoStart: true,
+    minDistanceKm: 0.01,
+    maxPoints: 2_000,
+    positionOptions: { enableHighAccuracy: true, maximumAge: 0 },
+    onPoint: (point) => {
+      const frame: PositionFrame = {
+        type: "position",
+        latitude: point.latitude,
+        longitude: point.longitude,
+        heading: point.heading ?? null,
+        speed_kmh: point.speed == null ? null : Math.round(point.speed * 3.6),
+        recorded_at: new Date(point.timestamp).toISOString(),
+      };
+      socket.send(JSON.stringify(frame));
+    },
+  });
 
-  useEffect(() => {
-    if (!lastPoint) return;
-    const frame: PositionFrame = {
-      type: "position",
-      latitude: lastPoint.latitude,
-      longitude: lastPoint.longitude,
-      heading: lastPoint.heading ?? null,
-      speed_kmh: lastPoint.speed == null ? null : Math.round(lastPoint.speed * 3.6),
-      recorded_at: new Date(lastPoint.timestamp).toISOString(),
-    };
-    send(JSON.stringify(frame));
-  }, [lastPoint, send]);
+  const { lastPoint } = gps;
 
   const stop = nextStop(trip, "driver");
   const now = lastPoint?.timestamp ?? Date.now();
@@ -1008,7 +1014,7 @@ export function DriverTripPage(): ReactElement {
 ```
 
 - **[`usePositionTracker`](../geo.md#rastreamento-ao-vivo-usepositiontracker)** liga o GPS na montagem (`autoStart`), com alta precisão, e descarta posições a menos de 10 m da anterior — parado no sinal, o celular não manda nada.
-- **Cada `lastPoint` novo vira um frame `position`** no socket `drive`. O tipo `PositionFrame` vem do mesmo schema que o passageiro valida: se o contrato mudar, o TypeScript reclama dos dois lados.
+- **Cada ponto aceito vira um frame `position`** no socket `drive`, pelo `onPoint`. Um `useEffect` sobre `lastPoint` perderia o primeiro de dois pontos que chegam antes de um render; o `onPoint` é chamado uma vez por ponto. O tipo `PositionFrame` vem do mesmo schema que o passageiro valida: se o contrato mudar, o TypeScript reclama dos dois lados.
 - **`send()` devolve `false` com o socket caído, e a posição é descartada.** É o que você quer aqui: uma posição de 40 s atrás não ajuda ninguém, e a próxima chega em segundos.
 - **O mapa do motorista usa o GPS local**, não o eco do servidor: zero latência, e funciona mesmo sem conexão.
 - **Recusa de localização é terminal** (`lastError.code === 1`) e ganha uma tela própria. Sem sinal de GPS (túnel) é passageiro: um selo, e o tracker volta sozinho na próxima leitura. Veja [Erro passageiro, recusa e `lastError`](../geo.md#erro-passageiro-recusa-e-lasterror).
@@ -1131,10 +1137,10 @@ O mapa e a legenda são temados só por tokens `--tempest-*`. Para dar a cor da 
 
 ## Recap
 
-- 📜 **Contrato primeiro**: tipos que estendem `Coordinate` e um schema zod com o `ping` incluso — o mesmo schema valida o que o passageiro recebe e tipa o que o motorista manda.
+- 📜 **Contrato primeiro**: tipos que estendem `Coordinate` e um schema zod só com o payload — o mesmo schema valida o que o passageiro recebe e tipa o que o motorista manda; o heartbeat é do SDK.
 - 📡 **`useWebSocket`** com `schema`, `silenceTimeout` e os três estados de conexão; `onReconnected` invalida a query para cobrir o buraco.
-- ⏱️ **Posição tem idade**: `recorded_at` + um `now` que anda com `useInterval` dão o estado "sem sinal há X" que o mapa sozinho não mostra.
-- 🗺️ **`LiveRouteMap`** com `route`, `trail`, `vehicle.heading`, `follow`, `glyphText` na ordem, `emphasis` no embarque, `badge` para o motorista, `icon` na chegada, `markerScale` no toque e a **`LiveRouteMapLegend`** com os mesmos glifos.
-- 🛰️ **Motorista**: `usePositionTracker` + `send()`; posição velha se descarta, a não ser que a trilha valha dinheiro (`queueWhileClosed`).
+- ⏱️ **Posição tem idade**: `recorded_at` + um `now` que anda com `useInterval` dão o estado "sem sinal há X", que vira `stale` no veículo e `RelativeTime` com `now` no selo.
+- 🗺️ **`LiveRouteMap`** com `route`, `trail`, `vehicle.heading`, `follow`, `glyphText` na ordem, `emphasis` no embarque, `badge` para o motorista, `visited` nas atendidas, `icon` na chegada, `markerScale` no toque e a **`LiveRouteMapLegend`** com os mesmos glifos.
+- 🛰️ **Motorista**: `usePositionTracker` com `onPoint` + `send()`; posição velha se descarta, a não ser que a trilha valha dinheiro (`queueWhileClosed`).
 - 🧩 **Estados reais**: `Skeleton`, `ErrorState` + `describeApiError`, `EmptyState`, `OfflineIndicator` e uma coluna só no celular.
 - 🛣️ **Opcional**: `roads` + `createRoadGraph` encaixam a van na rua e dão o nome da via por `onMatch`.

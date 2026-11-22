@@ -47,6 +47,14 @@ export interface CreatePositionTrackerOptions {
     /** Called with the full trajectory each time a point is added. */
     onUpdate?: (points: readonly TrackPoint[]) => void;
     /**
+     * Called once for every reading the tracker keeps — after the
+     * `minDistanceKm` filter, before `maxPoints` trims anything — with that
+     * point. Built for forwarding each position somewhere (a WebSocket, a
+     * queue): watching `lastPoint` from React sees only the newest of several
+     * readings that land before one render, and the ones in between are lost.
+     */
+    onPoint?: (point: TrackPoint) => void;
+    /**
      * Called on every `GeolocationPositionError`, including each repeated
      * `TIMEOUT` while the status is already `"error"`.
      */
@@ -117,6 +125,7 @@ export function createPositionTracker(options: CreatePositionTrackerOptions = {}
         maxPoints = Infinity,
         positionOptions,
         onUpdate,
+        onPoint,
         onError,
         onStatusChange,
     } = options;
@@ -164,6 +173,7 @@ export function createPositionTracker(options: CreatePositionTrackerOptions = {}
         }
 
         lastKept = point;
+        onPoint?.(point);
         points.push(point);
         if (points.length > maxPoints) {
             points = points.slice(points.length - maxPoints);

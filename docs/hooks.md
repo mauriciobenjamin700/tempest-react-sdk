@@ -141,11 +141,43 @@ function CommandPalette() {
 
 `mod: true` aceita Ctrl ou Cmd, simplificando cross-OS.
 
-!!! note "Não dispara dentro de inputs"
-    Por default (`ignoreInput: true`) o atalho é ignorado quando o foco está num
-    `<input>`, `<textarea>`, `<select>` ou `[contenteditable]` — pra não roubar o
-    "k" que o usuário está digitando. Passe `{ ignoreInput: false }` se quiser o
-    contrário.
+Os defaults dependem do modificador do atalho:
+
+| Opção            | Atalho com `ctrl`/`meta`/`mod` | Com `alt` | Tecla sem modificador (`"/"`, `"?"`) |
+| ---------------- | ------------------------------ | --------- | ------------------------------------ |
+| `ignoreInput`    | `false`: dispara num campo     | `true`    | `true`: o campo fica com a tecla     |
+| `preventDefault` | `true`                         | `true`    | `false`                              |
+
+Ctrl/Cmd não digita nada, então ⌘K dispara mesmo com o foco na busca, e o
+`preventDefault` impede o navegador de agir na mesma tecla (Ctrl+K foca a busca do
+Chrome e do Firefox). Tecla simples digitada num `<input>`, `<textarea>`, `<select>` ou
+`[contenteditable]` continua do campo.
+
+!!! warning "Atalho de edição: devolva a tecla ao campo"
+    Ao ligar uma combinação que o próprio campo usa (`mod+z`, `mod+a`, `mod+c`),
+    passe `{ ignoreInput: true }`: sem isso, o Cmd+Z dentro de um `<textarea>` chama o
+    seu handler em vez de desfazer o texto.
+
+#### Mostrar o atalho — `formatShortcut` e `isApplePlatform`
+
+```tsx
+import { Kbd, formatShortcut, isApplePlatform } from "tempest-react-sdk";
+
+export function SearchHint() {
+  return (
+    <span>
+      Buscar <Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>
+      {isApplePlatform() ? null : " (no Mac, ⌘K)"}
+    </span>
+  );
+}
+```
+
+`formatShortcut` recebe o mesmo objeto do hook e devolve o rótulo na convenção do
+sistema: `⌘K` / `⇧⌘P` no Mac, iPhone e iPad (modificadores na ordem ⌃ ⌥ ⇧ ⌘, sem
+separador) e `Ctrl+K` / `Ctrl+Shift+P` no resto. `{ platform: "apple" | "other" }` fixa
+a convenção, para teste ou página de ajuda. `isApplePlatform()` responde a mesma
+pergunta de forma crua; fora do navegador, devolve `false`.
 
 ### Busca com debounce — `useDebounce`
 

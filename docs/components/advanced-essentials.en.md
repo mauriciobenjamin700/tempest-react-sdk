@@ -264,7 +264,32 @@ const [open, setOpen] = useState(false);
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Global trigger"
-    Pair with `useKeyboardShortcut("mod+k", () => setOpen(true))` to open via ⌘K / Ctrl+K.
+    Pair with `useKeyboardShortcut`, which takes a `KeyboardShortcut` object, to open via ⌘K / Ctrl+K:
+
+    ```tsx
+    import { useState } from "react";
+    import { Button, Command, Kbd, formatShortcut, useKeyboardShortcut } from "tempest-react-sdk";
+
+    export function Palette() {
+      const [open, setOpen] = useState<boolean>(false);
+      useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
+
+      return (
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(true)}
+            rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
+          >
+            Search
+          </Button>
+          <Command open={open} onOpenChange={setOpen} items={[]} />
+        </>
+      );
+    }
+    ```
+
+    The hook already calls `preventDefault` and fires with the focus in a field, because the shortcut carries Ctrl/Cmd. `formatShortcut` shows `⌘K` or `Ctrl+K` depending on the system. See [`useKeyboardShortcut`](../hooks.md#global-shortcut-usekeyboardshortcut).
 
 ## Recap
 

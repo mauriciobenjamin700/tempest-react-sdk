@@ -32,6 +32,8 @@ export { useClipboard } from "./use-clipboard";
 export type { UseClipboardOptions, UseClipboardResult } from "./use-clipboard";
 export { useKeyboardShortcut } from "./use-keyboard-shortcut";
 export type { KeyboardShortcut, UseKeyboardShortcutOptions } from "./use-keyboard-shortcut";
+export { formatShortcut, isApplePlatform } from "./format-shortcut";
+export type { FormatShortcutOptions, ShortcutPlatform } from "./format-shortcut";
 export { useBeforeInstallPrompt } from "./use-before-install-prompt";
 export type { UseBeforeInstallPromptResult } from "./use-before-install-prompt";
 export { useIdle } from "./use-idle";

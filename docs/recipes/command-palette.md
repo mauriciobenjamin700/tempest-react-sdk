@@ -33,15 +33,13 @@ import {
   Button,
   Command,
   Kbd,
+  formatShortcut,
   useKeyboardShortcut,
   useNavigate,
   useTheme,
   type CommandItem,
 } from "tempest-react-sdk";
 import { useAuth } from "@/stores/auth";
-
-const isApple: boolean =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 export function CommandPalette() {
   const [open, setOpen] = useState<boolean>(false);
@@ -50,14 +48,7 @@ export function CommandPalette() {
   const role: string | undefined = useAuth.use.user()?.role;
   const logout: () => void = useAuth.use.logout();
 
-  useKeyboardShortcut(
-    { key: "k", mod: true },
-    (event) => {
-      event.preventDefault();
-      setOpen(true);
-    },
-    { ignoreInput: false },
-  );
+  useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
 
   const items: CommandItem[] = [
     {
@@ -123,7 +114,7 @@ export function CommandPalette() {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        rightIcon={<Kbd size="sm">{isApple ? "⌘ K" : "Ctrl K"}</Kbd>}
+        rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
       >
         Buscar
       </Button>
@@ -195,14 +186,16 @@ Cada `onSelect` é a ação do item: `navigate(...)`, `toggle()` ou `logout()`.
 `useKeyboardShortcut({ key: "k", mod: true }, handler)` casa **Cmd+K no macOS e Ctrl+K
 no Windows e no Linux**. O hook recebe um objeto `KeyboardShortcut`, não uma string.
 
-Dois detalhes deixam o atalho pronto para uso real:
+Como o atalho leva o modificador, o hook já faz duas coisas sozinho:
 
-- `event.preventDefault()`: Ctrl+K é atalho do próprio navegador (focar a busca no
-  Chrome e no Firefox). Sem isso, a paleta abre **e** o navegador rouba o foco.
-- `{ ignoreInput: false }`: por padrão o hook ignora teclas digitadas dentro de um
-  campo, para não sequestrar a digitação. Para ⌘K isso é o contrário do que se quer:
-  a pessoa está com o foco na busca de pedidos e quer pular de tela. Como o atalho
-  exige o modificador, não há risco de engolir uma letra digitada.
+- chama `event.preventDefault()`: Ctrl+K é atalho do próprio navegador (focar a busca
+  no Chrome e no Firefox), e sem isso a paleta abre **e** o navegador rouba o foco;
+- dispara com o foco num campo: a pessoa está na busca de pedidos e quer pular de tela.
+  Tecla sem Ctrl/Cmd (`"/"`, `"?"`) continua pertencendo ao campo onde é digitada.
+
+Para mudar qualquer um dos dois, passe `{ preventDefault: false }` ou
+`{ ignoreInput: true }`. Veja
+[`useKeyboardShortcut`](../hooks.md#atalho-global-usekeyboardshortcut).
 
 ### Itens por papel
 
@@ -217,18 +210,16 @@ O botão "Buscar" tem dois papéis. No computador, ele **ensina** o atalho, com 
 certa para o sistema de quem está usando. No celular, é **o único jeito** de abrir a
 paleta, já que não há teclado físico. 📱
 
-!!! note "Por que detectar a plataforma na mão"
-    O `mod` do hook resolve Cmd vs. Ctrl na hora de **ouvir** a tecla. Para
-    **mostrar** a tecla, o app decide sozinho, e um teste em `navigator.userAgent`
-    basta. O `typeof navigator` evita erro se o módulo for importado fora do
-    navegador, num teste em Node, por exemplo.
+`formatShortcut` recebe o mesmo objeto que o hook escuta e devolve `⌘K` no Mac,
+iPhone e iPad, e `Ctrl+K` no resto. O rótulo e o atalho não têm como divergir.
 
 ## Recap
 
 - ✅ `Command` recebe `items`, `open` e `onOpenChange` e cuida de busca, grupos,
   teclado e foco.
-- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …, { ignoreInput: false })` abre a
-  paleta de qualquer lugar, com `preventDefault` para vencer o atalho do navegador.
+- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …)` abre a paleta de qualquer lugar,
+  inclusive de dentro de um campo, e vence o atalho do navegador.
 - ✅ `keywords` acha a tela pelo sinônimo.
 - ✅ A lista depende do usuário, mas a proteção de verdade fica no guard e no backend.
-- ✅ Um botão com `Kbd` ensina o atalho e é a porta de entrada no celular.
+- ✅ Um botão com `Kbd` e `formatShortcut` ensina o atalho certo para o sistema e é a
+  porta de entrada no celular.

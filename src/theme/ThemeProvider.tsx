@@ -41,8 +41,10 @@ export interface ThemeProviderProps {
     /**
      * When set, keeps `<meta name="theme-color">` in sync with the resolved
      * theme — `content` becomes `themeColor.dark` in dark mode and
-     * `themeColor.light` in light mode. The meta tag must already exist in the
-     * document `<head>`. No-op when omitted.
+     * `themeColor.light` in light mode. When the document has no such tag, one
+     * is appended to `<head>` (#735: until then the prop did nothing, silently,
+     * on every page without the tag — the scaffold's base template among them).
+     * No-op when omitted.
      */
     themeColor?: { light: string; dark: string };
 }
@@ -55,7 +57,8 @@ function resolve(mode: ThemeMode): ResolvedTheme {
 
 /**
  * Write the resolved theme onto every configured attribute and, when a
- * `themeColor` map is provided, sync the `<meta name="theme-color">` tag.
+ * `themeColor` map is provided, sync the `<meta name="theme-color">` tag,
+ * creating it in `<head>` when the page has none.
  */
 function applyResolved(
     element: HTMLElement,
@@ -66,8 +69,13 @@ function applyResolved(
     const attrs = Array.isArray(attribute) ? attribute : [attribute];
     for (const attr of attrs) element.setAttribute(attr, resolved);
     if (themeColor && typeof document !== "undefined") {
-        const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-        if (meta) meta.content = themeColor[resolved];
+        let meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+        if (!meta) {
+            meta = document.createElement("meta");
+            meta.name = "theme-color";
+            document.head.appendChild(meta);
+        }
+        meta.content = themeColor[resolved];
     }
 }
 

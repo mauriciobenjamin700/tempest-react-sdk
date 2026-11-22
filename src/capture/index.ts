@@ -1,10 +1,13 @@
 /**
- * `capture` — the browser's device-capture APIs beyond the microphone: reading
- * barcodes off the camera, recording video, sharing a screen, and turning speech into
- * text.
+ * `capture` — the browser's device-capture APIs beyond the microphone: opening the
+ * camera, reading barcodes off it, recording video, sharing a screen, and turning
+ * speech into text.
  *
  * Every one of them is a platform API with no dependency behind it. The audio side of
- * capture lives in `audio` and shares this module's recorder engine.
+ * capture lives in `audio` and shares this module's recorder engine. `useCameraStream`
+ * lives here rather than in `vision` because opening a camera needs no model: the
+ * `/vision` subpath re-exports it, but importing it from there makes a bundler resolve
+ * `onnxruntime-web` (#721).
  */
 
 export {
@@ -38,6 +41,15 @@ export {
     pickVideoMimeType,
 } from "./video-recorder";
 export type { VideoRecorderHandle, VideoRecorderOptions, VideoRecording } from "./video-recorder";
+
+export { useCameraStream } from "./use-camera-stream";
+export type {
+    CameraStreamError,
+    CameraStreamErrorKind,
+    CameraStreamStatus,
+    UseCameraStreamApi,
+    UseCameraStreamOptions,
+} from "./use-camera-stream";
 
 export { useBarcodeScanner } from "./use-barcode-scanner";
 export type { UseBarcodeScannerOptions, UseBarcodeScannerResult } from "./use-barcode-scanner";

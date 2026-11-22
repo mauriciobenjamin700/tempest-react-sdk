@@ -870,9 +870,8 @@ days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
 
     ```tsx
     // src/components/InlineCamera.tsx
-    import { Button } from "tempest-react-sdk";
+    import { Button, useCameraStream } from "tempest-react-sdk";
     import { captureFrame, type CapturedFrame } from "tempest-react-sdk/imaging";
-    import { useCameraStream } from "tempest-react-sdk/vision";
 
     export function InlineCamera({ onShot }: { onShot: (frame: CapturedFrame) => void }) {
       const camera = useCameraStream({
@@ -905,11 +904,10 @@ days. So it goes through [`useImageProcessing`](../imaging.md#in-react) first:
     }
     ```
 
-    The price: `useCameraStream` lives in the `/vision` subpath, which requires
-    `onnxruntime-web` to be installed even without any model (see
-    [Vision](../vision.md#onnxruntime-web-is-an-optional-peer-dependency)). And the frame
-    comes out at the video stream's resolution, usually lower than the native camera's.
-    For an inspection photo, `<input capture>` is usually the better choice.
+    `useCameraStream` comes from the root entry, which does not require `onnxruntime-web`.
+    The price is a different one: the frame comes out at the video stream's resolution,
+    usually lower than the native camera's. For an inspection photo, `<input capture>` is
+    usually the better choice.
 
 ### 9. The visit screen
 

@@ -33,6 +33,7 @@ const required = [
     "WebPushClient",
     "registerServiceWorker",
     "playAudio",
+    "useCameraStream",
     "share",
     "cn",
     "formatCurrency",

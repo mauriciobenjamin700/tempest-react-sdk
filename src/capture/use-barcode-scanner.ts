@@ -11,7 +11,7 @@ import {
     type CameraStreamError,
     type CameraStreamStatus,
     type UseCameraStreamOptions,
-} from "@/vision/use-camera-stream";
+} from "./use-camera-stream";
 
 import {
     createBarcodeDetector,

@@ -510,7 +510,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createZip, writeXlsx }"
     },
-    "limit": "6.94 KB",
+    "limit": "6.95 KB",
     "ignore": [
       "react",
       "react-dom",

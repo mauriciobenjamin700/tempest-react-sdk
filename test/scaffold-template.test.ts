@@ -104,6 +104,22 @@ describe("scaffold Content-Security-Policy", () => {
     );
 });
 
+describe("scaffold route guard (#738)", () => {
+    it("reads the auth store through a hook, so a logout redirects the open protected screen", () => {
+        const routes = readFileSync(join(ROOT, "template", "src", "routes.tsx"), "utf8");
+
+        expect(
+            routes,
+            "template/src/routes.tsx must not read the store with getState() inside a guard: " +
+                "it does not subscribe, and after logout the protected screen stays up until " +
+                "the next navigation (src/router/guard-reactivity.test.tsx shows both cases).",
+        ).not.toMatch(/guard:[^,]*getState\(\)/);
+        expect(routes).toMatch(
+            /guard: function use\w+\(\) \{\s*return useAuth\.use\.isAuthenticated\(\);/,
+        );
+    });
+});
+
 describe("scaffold session teardown (#531)", () => {
     const shell = readFileSync(join(ROOT, "template-pwa", "src", "pwa.tsx"), "utf8");
 

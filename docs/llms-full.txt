@@ -31047,11 +31047,6 @@ redirect leva o endereço pedido, e a tela de login pode voltar para ele com
 `useReturnTo`. Veja
 [Voltar para onde estava](../routing.md#voltar-para-onde-estava-depois-do-login).
 
-!!! tip "O template lê o store com `getState()`"
-    O `src/routes.tsx` gerado usa `guard: () => useAuth.getState().isAuthenticated`.
-    Funciona na navegação, mas não reage a um logout no meio da tela. A forma por
-    hook, usada acima, re-renderiza a rota na hora.
-
 ### A tela tem os quatro estados
 
 - ⏳ **Carregando**: `loading={isLoading}` desenha linhas-esqueleto.
@@ -40722,7 +40717,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -40730,8 +40727,8 @@ export const routes = defineRoutes([
 ]);
 ```
 
-!!! warning "O guard roda na renderização — leia a store via `getState()` ou um hook"
-    A função do `guard` é avaliada **durante a renderização** da rota. Por isso ela precisa ler o estado _naquele momento_: use `useAuth.getState().isAuthenticated` (leitura imperativa, fora do React) ou chame um hook direto na função do guard, que roda dentro do ciclo de renderização — veja a seção seguinte. Não capture o valor uma vez fora da função: você congelaria o estado de auth no carregamento inicial.
+!!! warning "O guard roda na renderização — leia a store por hook"
+    A função do `guard` é avaliada **durante a renderização** da rota, então pode chamar hook. Leia a store por hook (`useAuth.use.isAuthenticated()`): é o que **assina** a rota, e um `logout()` — o botão de sair ou um `401` no cliente HTTP — redireciona a tela protegida que estiver aberta. `useAuth.getState().isAuthenticated` lê o valor uma vez e não assina: depois do logout a tela continua aberta até a próxima navegação. Nomeie a função `use…`, como no exemplo, pelo motivo da seção seguinte.
 
 Quando `guard` é _falsy_, o usuário é redirecionado para `redirectTo` (padrão `"/"`). No exemplo acima, quem não está autenticado e tenta abrir `/dashboard` cai em `/login`.
 
@@ -40793,7 +40790,7 @@ export const routes = defineRoutes([
     guard: () => { … useCan() … }             // ❌ erro de lint
     ```
 
-    Guard **sem** hook (`() => useAuth.getState().isAuthenticated`) continua podendo ser arrow anônima — `getState()` não é hook.
+    `getState()` não é hook, então `() => useAuth.getState().isAuthenticated` passa no lint — mas não serve para guard de sessão: sem assinatura, um logout no meio da tela não redireciona.
 
 !!! tip "Um spinner cobre `lazy` e `pending`"
     Se a rota não define `guardFallback`, o SDK usa o `fallback` que você já passou ao `<AppRouter>` — o mesmo que cobre o carregamento de chunk do `lazy`. As duas coisas são "ainda não está pronto", e na maioria dos apps merecem o mesmo spinner.
@@ -40834,7 +40831,7 @@ Props do `<RouteGuard>`:
 | `children`   | `ReactNode`         | —      | O que proteger.                                      |
 
 !!! tip "Mesma regra de leitura de estado"
-    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, então ele tem as duas opções: `getState()` para leitura imperativa simples, ou hooks — desde que a função seja nomeada `use…`, como na seção de `"pending"` acima.
+    Aqui você está num componente React, então leia a store com o hook (`useAuth((state) => state.isAuthenticated)`) para re-renderizar quando o auth mudar. O `guard` da árvore roda **dentro** da renderização também, e vale a mesma regra: hook, com a função nomeada `use…`, como na seção de `"pending"` acima.
 
 ## Voltar para onde estava depois do login
 
@@ -40857,7 +40854,9 @@ export const routes = defineRoutes([
   {
     path: "dashboard",
     element: <Dashboard />,
-    guard: () => useAuth.getState().isAuthenticated,
+    guard: function useSignedIn() {
+      return useAuth.use.isAuthenticated();
+    },
     redirectTo: "/login",
     preserveFrom: true,
   },
@@ -42360,7 +42359,7 @@ Cada campo do estado de auth (`user`, `token`, `isAuthenticated`, `logout`, ...)
 
 ## Lendo estado fora do React — `getState()`
 
-Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um guard de rota, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use `getState()` no hook ligado:
+Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um callback de `onUnauthorized`, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use `getState()` no hook ligado:
 
 ```ts
 import { useAuth } from "./auth-store";
@@ -42371,7 +42370,9 @@ function requireAuth(): boolean {
 }
 ```
 
-É exatamente assim que um guard de rota lê a sessão de auth: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
+É assim que o cliente HTTP lê o token a cada requisição: ele precisa do valor _agora_, uma vez, sem assinar para re-renders. `getState()` te dá um snapshot. (Para _reagir_ a mudanças fora do React, use `useStore.subscribe()`.)
+
+O guard de rota **não** é esse caso: ele roda durante a renderização da rota e precisa reagir ao logout, então lê a store por hook — veja [Roteamento](routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 
 !!! warning "`getState()` não assina"
     `getState()` lê uma vez e não re-renderiza nada quando o estado muda depois. Dentro de componentes, prefira sempre o hook (`useStore(...)` ou `useStore.use.campo()`) para que a UI se mantenha em sincronia. Reserve `getState()` para o código fora do React.
@@ -45794,7 +45795,7 @@ logout automático quando o backend responde **401**.
 
 ```text
 1. Usuário abre /dashboard sem sessão
-        → guard lê useAuth.getState().isAuthenticated (false)
+        → guard lê useAuth.use.isAuthenticated() (false)
         → redirect pra /login
 2. Usuário envia o login
         → api.post("/auth/login")  → { user, token }
@@ -45937,7 +45938,9 @@ Ele é o portão que lê a store **no momento da renderização**:
 {
   path: "dashboard",
   lazy: () => import("@/pages/Dashboard"),
-  guard: () => useAuth.getState().isAuthenticated,
+  guard: function useSignedIn() {
+    return useAuth.use.isAuthenticated();
+  },
   redirectTo: "/login",
 },
 ```
@@ -45946,13 +45949,14 @@ Antes do login, `isAuthenticated` é `false` → o `<AppRouter>` redireciona pra
 `/login`. Depois do `setSession`, a próxima tentativa de abrir `/dashboard`
 encontra `true` → o Dashboard renderiza.
 
-!!! warning "Por que o guard usa `getState()` e não o hook"
+!!! warning "Por que o guard usa o hook e não `getState()`"
 
-    O `guard` roda **fora** do ciclo de hooks (durante a montagem da rota), então
-    não pode chamar `useAuth.use.isAuthenticated()`. Ele lê o snapshot atual com
-    `getState()`. Dentro de **componentes** — como o `RootLayout` — você usa o
-    hook `.use` pra re-renderizar quando o auth muda. Mesma store, duas formas de
-    ler conforme o contexto. 💡
+    O `guard` roda **dentro** da renderização da rota, então pode chamar hook — e
+    precisa: `useAuth.use.isAuthenticated()` assina a rota, e é isso que faz o
+    logout do Passo 4 e o 401 do Passo 5 tirarem a pessoa da tela protegida.
+    `getState()` leria o valor uma vez: depois do logout, o Dashboard continuaria
+    aberto, com o usuário vazio, até a próxima navegação. `getState()` fica para o
+    que roda **fora** do React, como o `onUnauthorized` do cliente. 💡
 
 ## Passo 4 — Logout manual
 
@@ -46012,8 +46016,9 @@ Você construiu um app completo com o `tempest-react-sdk`, ponta a ponta:
   `useAuth`. ✅
 - **Login**: `api.post("/auth/login")` → `setSession({ user, token })` →
   `navigate("/dashboard")`.
-- **Área protegida**: o `guard` lê `useAuth.getState().isAuthenticated` na
-  renderização e redireciona com `redirectTo` quando falso.
+- **Área protegida**: o `guard` lê `useAuth.use.isAuthenticated()` na
+  renderização e redireciona com `redirectTo` quando falso — inclusive no meio da
+  tela, quando a sessão acaba.
 - **Logout manual**: `useAuth.use.logout()` num botão; o `RootLayout` re-renderiza
   porque lê pelo hook `.use`.
 - **Logout automático**: `onUnauthorized: () => useAuth.getState().logout()` no
@@ -46885,7 +46890,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -46897,13 +46904,14 @@ Quem não está autenticado e tenta abrir `/dashboard` cai em `/login`. A store
 `useAuth` ainda não existe — você vai criá-la na próxima página. Por enquanto,
 foque em **como** o guard lê o estado.
 
-!!! warning "O guard roda na renderização — leia a store via `getState()`"
+!!! warning "O guard roda na renderização — leia a store por hook"
 
-    A função do `guard` é avaliada **durante a renderização** da rota, fora do
-    ciclo de hooks. Por isso ela lê o valor _naquele instante_ com
-    `useAuth.getState().isAuthenticated`. **Não** capture o valor fora da função
-    (`const ok = useAuth.getState().isAuthenticated` no topo do arquivo) — você
-    congelaria o estado de auth no carregamento inicial.
+    A função do `guard` é avaliada **durante a renderização** da rota, então pode
+    chamar hook. `useAuth.use.isAuthenticated()` **assina** a rota: quando a sessão
+    acaba, ela re-renderiza e manda para `/login`, de qualquer tela protegida.
+    `useAuth.getState().isAuthenticated` lê o valor uma vez e não assina — depois de
+    um logout, a tela continuaria aberta até a próxima navegação. O nome
+    `useSignedIn` não é enfeite: o ESLint só aceita hook dentro de função `use…`.
 
 ## Navegação programática
 
@@ -47078,7 +47086,7 @@ seu shell, sem `if` espalhado pelas páginas.
 
 # Tutorial — Estado
 
-Na página anterior, o guard do dashboard leu `useAuth.getState().isAuthenticated`
+Na página anterior, o guard do dashboard leu `useAuth.use.isAuthenticated()`
 — mas a store `useAuth` ainda não existe. Vamos criá-la agora. De passagem, você
 aprende as duas peças de estado do SDK: `createStore` (uma store genérica) e
 `createAuthStore` (a store de autenticação pronta), ambas em cima do
@@ -47272,21 +47280,24 @@ export function RootLayout() {
 
 ## Lendo a store fora do React — `getState()`
 
-Nem todo código que precisa do estado é um componente. O guard de rota da página
-anterior roda **fora** da árvore React e não pode chamar hooks. Para esses casos,
-use `getState()` no hook ligado — um snapshot pontual, sem assinatura:
+Nem todo código que precisa do estado é um componente. O cliente HTTP, que você
+monta mais adiante, roda **fora** da árvore React e não pode chamar hooks. Para
+esses casos, use `getState()` no hook ligado — um snapshot pontual, sem assinatura:
 
 ```ts
-// trecho do guard, da página de roteamento
-guard: () => useAuth.getState().isAuthenticated,
+// trecho do cliente HTTP, da página de dados
+onUnauthorized: () => useAuth.getState().logout(),
 ```
+
+O guard da página anterior **não** é esse caso: ele roda durante a renderização da
+rota e precisa reagir ao logout, por isso lê pelo hook `useAuth.use.isAuthenticated()`.
 
 !!! warning "`getState()` não assina — use só fora do React"
 
     `getState()` lê uma vez e **não** re-renderiza nada quando o estado muda
     depois. Dentro de componentes, prefira sempre o hook (`useAuth.use.campo()`)
-    para a UI ficar em sincronia. Reserve `getState()` para guards de rota,
-    interceptors de HTTP e outros códigos fora da árvore React.
+    para a UI ficar em sincronia. Reserve `getState()` para interceptors de
+    HTTP e outros códigos fora da árvore React.
 
 ## Recap
 

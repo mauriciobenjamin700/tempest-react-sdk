@@ -205,7 +205,9 @@ export const routes = defineRoutes([
       {
         path: "dashboard",
         lazy: () => import("@/pages/Dashboard"),
-        guard: () => useAuth.getState().isAuthenticated,
+        guard: function useSignedIn() {
+          return useAuth.use.isAuthenticated();
+        },
         redirectTo: "/login",
       },
     ],
@@ -217,13 +219,14 @@ Quem não está autenticado e tenta abrir `/dashboard` cai em `/login`. A store
 `useAuth` ainda não existe — você vai criá-la na próxima página. Por enquanto,
 foque em **como** o guard lê o estado.
 
-!!! warning "O guard roda na renderização — leia a store via `getState()`"
+!!! warning "O guard roda na renderização — leia a store por hook"
 
-    A função do `guard` é avaliada **durante a renderização** da rota, fora do
-    ciclo de hooks. Por isso ela lê o valor _naquele instante_ com
-    `useAuth.getState().isAuthenticated`. **Não** capture o valor fora da função
-    (`const ok = useAuth.getState().isAuthenticated` no topo do arquivo) — você
-    congelaria o estado de auth no carregamento inicial.
+    A função do `guard` é avaliada **durante a renderização** da rota, então pode
+    chamar hook. `useAuth.use.isAuthenticated()` **assina** a rota: quando a sessão
+    acaba, ela re-renderiza e manda para `/login`, de qualquer tela protegida.
+    `useAuth.getState().isAuthenticated` lê o valor uma vez e não assina — depois de
+    um logout, a tela continuaria aberta até a próxima navegação. O nome
+    `useSignedIn` não é enfeite: o ESLint só aceita hook dentro de função `use…`.
 
 ## Navegação programática
 

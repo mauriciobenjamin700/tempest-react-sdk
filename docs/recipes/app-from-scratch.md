@@ -231,11 +231,6 @@ redirect leva o endereço pedido, e a tela de login pode voltar para ele com
 `useReturnTo`. Veja
 [Voltar para onde estava](../routing.md#voltar-para-onde-estava-depois-do-login).
 
-!!! tip "O template lê o store com `getState()`"
-    O `src/routes.tsx` gerado usa `guard: () => useAuth.getState().isAuthenticated`.
-    Funciona na navegação, mas não reage a um logout no meio da tela. A forma por
-    hook, usada acima, re-renderiza a rota na hora.
-
 ### A tela tem os quatro estados
 
 - ⏳ **Carregando**: `loading={isLoading}` desenha linhas-esqueleto.

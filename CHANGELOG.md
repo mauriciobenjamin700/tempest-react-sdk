@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Scaffold: o guard do `/dashboard` reage ao logout** (#738). O `src/routes.tsx` do
+  `create-tempest-app` lia a sessão com `guard: () => useAuth.getState().isAuthenticated`, que não
+  assina a store. O layout re-renderiza no logout, mas o React Router devolve ao `<Outlet />` o
+  mesmo elemento da última troca de rota, então o React pula a subárvore guardada e o guard não
+  roda de novo. Medido num app gerado da 0.92.0 (`vite` + Chromium headless, script
+  `@playwright/test`: login de demonstração → `/dashboard` → Logout): a URL continuava
+  `/dashboard` e a tela mostrava `Signed in as ().`; com o guard por hook, a mesma sequência termina
+  em `/login`. O template agora usa `guard: function useSignedIn() { return
+useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/rules-of-hooks`), e
+  vale também para o `401` que chega no `onUnauthorized`. A causa não estava só no template: o
+  tutorial (`routing`, `state`, `auth-flow`), `routing.md`, `state.md`, o README e a docstring do
+  `defineRoutes` ensinavam `getState()` no guard, e o tutorial afirmava que o guard roda fora do
+  ciclo de hooks e que o logout manual mandava de volta ao login — as duas frases eram falsas. As
+  páginas passam a ensinar o hook; `src/router/guard-reactivity.test.tsx` fixa os dois
+  comportamentos (hook redireciona, `getState()` deixa a tela aberta) e
+  `test/scaffold-template.test.ts` impede o template de voltar ao `getState()`.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

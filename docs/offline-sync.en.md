@@ -110,7 +110,7 @@ sync.clearOutbox();
     | --- | --- |
     | the same owner | delivered |
     | nobody | stays queued (`summary.held`) and goes out when its owner is back |
-    | somebody else | deleted unsent (`summary.dropped`) |
+    | somebody else | deleted unsent (`summary.dropped`) — or, with `foreignEntries: "hold"`, stays queued (`summary.held`) |
 
     ```ts
     import { createOfflineSync } from "tempest-react-sdk";
@@ -138,6 +138,42 @@ sync.clearOutbox();
     ```
 
     An entry queued before you turned the option on carries no stamp and is delivered as before: it is the user's own edit, and holding it would strand every queue on upgrade.
+
+!!! tip "Shared device: `foreignEntries: \"hold\"`"
+    The `"drop"` default suits a personal device: the previous account's queue would only pile up. On a **shared tablet** it deletes work — Carlos signs out with no signal and three inspections queued, Ana signs in, syncs, and the three are gone unsent (#724). With `foreignEntries: "hold"`, somebody else's entry **stays queued** and goes out when its owner signs back in, under their own session:
+
+    ```ts
+    import { createOfflineSync } from "tempest-react-sdk";
+
+    let technicianId: string | null = "carlos";
+
+    const sync = createOfflineSync<{ text: string }, { id: string }>({
+        databaseName: "VisitsOutbox",
+        watermark: { storageKey: "visits.watermark" },
+        deliver: async (entry) => {
+            await fetch(`/api/visits/${entry.recordId}`, {
+                method: "PUT",
+                body: JSON.stringify(entry.payload),
+            });
+        },
+        pullPage: async () => ({ items: [], nextCursor: null, serverTime: null }),
+        applyRemote: async () => undefined,
+        getPrincipal: () => technicianId,
+        foreignEntries: "hold",
+    });
+
+    await sync.enqueue("update", "v1", { text: "Carlos's inspection" });
+    technicianId = "ana";
+    console.log((await sync.flush()).held); // 1 — stays queued, never goes out under Ana's session
+    technicianId = "carlos";
+    console.log((await sync.flush()).succeeded); // 1 — goes out when Carlos is back
+    ```
+
+    Under neither policy does an entry go out under somebody else's session. What changes:
+
+    - **Per-record order still holds.** A held entry also holds back the later entries **of the same record** (`summary.deferred`), like a failure: if Ana's newer edit went out first, Carlos's older one would overwrite it when he returns. This applies to the default too: an edit made while signed out no longer jumps ahead of the owner's held edit.
+    - **`pendingCount()` and `useOfflineSync`'s `pending` count held entries** — Ana's badge shows that Carlos's work is on the device. `clearOutbox()` is still what empties the queue.
+    - With `"hold"`, an entry queued **while signed out** is held as well (the default deletes it), and goes out only while nobody is signed in again.
 
 !!! danger "Per-record order survives a failure — it did not before"
     When an entry fails, the **remaining entries for that same record** are left

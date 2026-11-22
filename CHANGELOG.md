@@ -87,11 +87,47 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **#725, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
   este branch**, em bytes brotli: `slice: offline + PWA surface` 5 061 → 5 298 (teto 6 kB, dentro);
   `ceiling: full barrel ESM` 172 596 → 172 765 (teto 172,7 → 172,8 kB); `ceiling: full barrel CJS`
   203 908 → 204 290 (teto 204 → 204,3 kB). Os bytes são o agrupamento e o fold do `coalesce`.
+- **`createOfflineSync`: `foreignEntries: "hold"` para aparelho compartilhado** (#724). Com
+  `getPrincipal`, a entrada de outro dono era sempre apagada sem envio (`summary.dropped`):
+  reproduzido em 22/11/2026 (`npx vitest run src/offline/create-offline-sync.owner.test.ts`), o
+  técnico A enfileira 3 vistorias e sai (`held: 3`), B entra e sincroniza (`dropped: 3`), A volta e
+  nada é entregue — fila zerada. Com `foreignEntries: "hold"` a entrada de outro dono fica na fila
+  (`summary.held`) e sai quando ele entrar de novo, com a sessão dele; o padrão continua `"drop"`.
+  Em nenhuma das duas ela sai com a sessão de outra pessoa. `pendingCount()`/`SyncState.pending`
+  contam as seguradas. A receita **App de campo offline** liga a opção e troca o `ConfirmDialog` do
+  logout por um botão simples.
+- **`OfflineStore.listBy(índice, valor, owner?, options?)`** (#728). Lista por outro campo indexado
+  pelo índice do IndexedDB, ainda presa ao dono, com as mesmas `ListOptions` do `list`. A issue dizia
+  que o store "não lista por outro índice"; listava, por `list(owner, { filter })`, mas lendo todo
+  registro do dono — medido em 22/11/2026 com 2000 fotos de 2 donos, o predicado rodou 1000 vezes
+  para achar 20. E o contorno da receita, `photos.raw.where("visit_id")`, usava o índice mas **não**
+  o dono: devolvia as fotos de outro técnico com a mesma visita. Índice não declarado rejeita com o
+  `SchemaError` do Dexie. Disponível também nos stores do `createOfflineDatabase`.
+
+### Corrigido
+
+- **`createOfflineSync`: uma entrada segurada segura as seguintes do mesmo registro.** Com
+  `getPrincipal`, a entrada do dono segurada enquanto ninguém está logado não bloqueava as
+  seguintes do mesmo registro: uma edição feita deslogado era entregue **antes** da do dono, e a
+  dele, mais velha, a sobrescrevia no servidor quando ele voltasse — a mesma perda silenciosa que a
+  ordem por registro existe para evitar. Agora a entrada segurada bloqueia o registro como uma
+  falha, e as seguintes contam em `summary.deferred`. Fixado em
+  `create-offline-sync.owner.test.ts` ("does not deliver a signed-out edit ahead of the owner's held
+  edit of the same record"), que falha sem a correção.
+
+### Budgets
+
+- **#724 + #728, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e
+  sobre este branch**, bytes brotli: `ceiling: full barrel CJS` 203 908 → 204 155 (teto 204 →
+  204,2 kB); `ceiling: full barrel ESM` 172 596 → 172 695 (teto 172,7 kB, dentro); `slice: offline +
+PWA surface` 5,06 → 5,14 kB (teto 6 kB, dentro). Os bytes são o `listBy` e a política
+  `foreignEntries`.
 
 ### Interno
 

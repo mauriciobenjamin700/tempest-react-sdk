@@ -4,6 +4,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Interno
+
+- **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O
+  Pages publica a branch pelo workflow embutido `pages-build-deployment`, que roda no Actions; com o
+  Actions desligado (13 a 22/11/2026) o push entrava, nenhum build acontecia e o script terminava com
+  `✓ site na gh-pages` — o site ficou no deploy de 02/11/2026. O `scripts/pages-check.sh` novo
+  confere, só lendo (`gh api`), repositório público, fonte do Pages na `gh-pages` e Actions ligado
+  com `allowed_actions=selected` só para as actions da GitHub, e mostra o comando que corrige cada
+  item; `DRY_RUN=1` só mostra. `docs/release.md` troca o item 5 do checklist do dono ("desligar o
+  Actions") pela exceção do Pages. Sem mudança no pacote publicado.
+
 ## [0.92.0] — 2026-11-21
 
 ### Corrigido

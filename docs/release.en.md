@@ -5,6 +5,8 @@ How `tempest-react-sdk` is published to npm and how the docs site goes live — 
 !!! info "Why there is no workflow any more"
     Since 2026-11-13 the owner's rule is: GitHub Actions only in repositories of the `7rc` org. This repository is outside it, so its GitHub cost is zero — no workflow, no `gh run rerun`, no `gh workflow run`. `release-npm.yml` and `docs.yml` were **deleted**, not just disabled: a disabled workflow is one click from running again, and the tests pinning their hardening would keep vouching for code that never runs. The last version of both is in commit `2df6e4b`. What they did became two `Makefile` targets: `make release-tag` and `make docs-deploy`.
 
+    The rule has **one** exception, from 2026-11-22: a public package or open source tool repository may keep Actions on **for GitHub Pages only**. Pages publishes the `gh-pages` branch by running the built-in `pages-build-deployment` workflow, which belongs to GitHub but runs on Actions — with Actions off, the push lands and the site does not change. Here Actions stays on with the allowed actions limited to GitHub's own, and `.github/workflows/` stays empty.
+
 ## Overview
 
 ```text
@@ -113,7 +115,10 @@ Publishes the MkDocs site to GitHub Pages from the local machine (`scripts/docs-
 3. `node scripts/gen-llms.mjs` and `mkdocs build --strict`;
 4. checks both languages were built (`index.html` and `en/index.html`);
 5. pushes **that** directory to the `gh-pages` branch with the same venv's `ghp-import`. Not `mkdocs gh-deploy`, which would build a second time;
-6. reads the Pages configuration (`gh api`, read-only) and warns when it does not serve `gh-pages` yet.
+6. **before the push**, `scripts/pages-check.sh` checks (read-only, `gh api`) that Pages will actually publish: public repository, source on `gh-pages`, and Actions on with GitHub-owned actions only. If anything is missing, the deploy stops without pushing and prints the command that fixes it; with `DRY_RUN=1`, it only prints.
+
+!!! warning "`✓ site on gh-pages` without Actions was a lie"
+    From 2026-11-13 to 2026-11-22 Actions was off (item 5 of the checklist below, in its old wording), every `make docs-deploy` ended with ✓, and the site stayed on the last `docs.yml` deploy, from 2026-11-02. `pages-check.sh` exists so that does not come back.
 
 `DRY_RUN=1 make docs-deploy` stops after step 4. Measured on 2026-11-13: the dry-run build takes ~13 s with a warm `uv` cache and produces the pages of both languages (`time DRY_RUN=1 make docs-deploy`).
 
@@ -195,7 +200,7 @@ State read on 2026-11-13, read-only (`gh api repos/mauriciobenjamin700/tempest-r
 | 2 | npmjs.com → account | 2FA in _Authorization and writes_ mode: `npm publish` asks for the code, and a leaked session token alone does not publish | not observable from here |
 | 3 | npmjs.com → `tempest-react-sdk` → _Settings → Trusted Publisher_ | **remove** the entry pointing at `release-npm.yml`: no workflow publishes any more, and it only serves to reopen a publish path through Actions | configured since 0.7.0 |
 | 4 | _Settings → Secrets and variables → Actions_ and _Environments_ | delete the `NPM_TOKEN` secret, the `NPM_TOKEN`, `npm-release` and `github-pages` environments, the `RELEASE_BACKPORT_LINES` variable if present, and revoke the token on npmjs.com | the `NPM_TOKEN` secret and the three environments **exist** |
-| 5 | _Settings → Actions → General_ | **Disable actions**: the rule is then enforced by GitHub, not by convention | `enabled: true`, `allowed_actions: all` |
+| 5 | _Settings → Actions → General_ | **Allow select actions → GitHub's own only** (no verified creators, no patterns): what Pages needs, and nothing more. Or: `gh api -X PUT repos/mauriciobenjamin700/tempest-react-sdk/actions/permissions -F enabled=true -f allowed_actions=selected` and `gh api -X PUT …/actions/permissions/selected-actions -F github_owned_allowed=true -F verified_allowed=false`. Disabling Actions (the 2026-11-13 instruction) stops the site silently; `scripts/pages-check.sh` checks this item | `enabled: true`, `allowed_actions: all`; on 2026-11-22, `selected` with GitHub's own only |
 | 6 | _Settings → Rules → Rulesets_, targeting `main` and `release-*` | required PR, block _force push_ and _deletion_ — what makes "is on `main`" mean "was reviewed" | `main` unprotected |
 
 !!! warning "The maintainer's machine is now the perimeter"

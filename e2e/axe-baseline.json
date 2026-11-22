@@ -3,7 +3,7 @@
     "incomplete": {
       "aria-prohibited-attr": 28,
       "aria-valid-attr-value": 4,
-      "color-contrast": 98,
+      "color-contrast": 117,
       "label-content-name-mismatch": 41,
       "video-caption": 4
     },
@@ -25,7 +25,7 @@
     "incomplete": {
       "aria-prohibited-attr": 28,
       "aria-valid-attr-value": 4,
-      "color-contrast": 112,
+      "color-contrast": 132,
       "label-content-name-mismatch": 41,
       "video-caption": 4
     },
@@ -47,7 +47,7 @@
     "incomplete": {
       "aria-prohibited-attr": 28,
       "aria-valid-attr-value": 4,
-      "color-contrast": 98,
+      "color-contrast": 117,
       "label-content-name-mismatch": 41,
       "video-caption": 4
     },
@@ -69,7 +69,7 @@
     "incomplete": {
       "aria-prohibited-attr": 28,
       "aria-valid-attr-value": 4,
-      "color-contrast": 112,
+      "color-contrast": 134,
       "label-content-name-mismatch": 41,
       "video-caption": 4
     },

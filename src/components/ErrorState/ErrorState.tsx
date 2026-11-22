@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { Button } from "@/components/Button";
 import { cn } from "@/utils/cn";
 import styles from "./ErrorState.module.css";
+import { ERROR_STATE_MESSAGES } from "@/i18n/messages/error-state";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export interface ErrorStateProps {
     title?: ReactNode;
@@ -14,22 +16,25 @@ export interface ErrorStateProps {
 
 /** Error placeholder with optional retry CTA. Use when a request fails. */
 export function ErrorState({
-    title = "Algo deu errado",
-    description = "Não foi possível carregar essas informações.",
+    title,
+    description,
     onRetry,
-    retryLabel = "Tentar novamente",
+    retryLabel,
     icon,
     className,
 }: ErrorStateProps) {
+    const text = useTempestText(ERROR_STATE_MESSAGES);
+    const resolvedDescription: ReactNode =
+        description === undefined ? text.t("tempest.errorState.description") : description;
     return (
         <div className={cn(styles.wrapper, className)}>
             <div className={styles.icon}>{icon ?? <AlertIcon />}</div>
-            <h4 className={styles.title}>{title}</h4>
-            {description && <p className={styles.description}>{description}</p>}
+            <h4 className={styles.title}>{title ?? text.t("tempest.errorState.title")}</h4>
+            {resolvedDescription && <p className={styles.description}>{resolvedDescription}</p>}
             {onRetry && (
                 <div className={styles.action}>
                     <Button variant="secondary" onClick={onRetry}>
-                        {retryLabel}
+                        {retryLabel ?? text.t("tempest.errorState.retry")}
                     </Button>
                 </div>
             )}

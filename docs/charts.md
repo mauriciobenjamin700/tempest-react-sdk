@@ -59,6 +59,11 @@ npm i recharts
     rodado `npm i recharts`, o build quebra com `Cannot find module 'recharts'`.
     Instale-o no app que de fato usa gráficos.
 
+!!! note "recharts 3.2 ou mais novo"
+    O peer é `recharts@^3.2.0`: o eixo Y que se ajusta ao rótulo (`yAxisWidth="auto"`)
+    só existe a partir dessa versão: o código do `YAxis` do 2.15 e do 3.0/3.1 não
+    trata `"auto"` e soma a largura como número.
+
 ## A família cartesiana: Area, Bar, Line
 
 `AreaChart`, `BarChart` e `LineChart` compartilham a **mesma** interface de
@@ -174,6 +179,9 @@ Com `stack`, as três áreas se empilham e o topo mostra o total por hora.
 | `showGrid`       | `boolean`                   | `true`                 | Renderiza o grid cartesiano.                                                    |
 | `showTooltip`    | `boolean`                   | `true`                 | Renderiza o tooltip.                                                            |
 | `valueFormatter` | `(value: number) => string` | —                      | Formata valores numéricos no tooltip e no eixo Y.                               |
+| `labels`         | `Record<string, string>`    | —                      | Nome de cada série na legenda e no tooltip, por chave de `categories`.          |
+| `yAxisWidth`     | `number \| "auto"`          | `"auto"`               | Largura do eixo Y em px, ou `"auto"` para caber o maior rótulo. Não no Radar.   |
+| `yAxisFormatter` | `(value: number) => string` | `valueFormatter`       | Formata só os rótulos do eixo Y. Não no Radar.                                  |
 | `className`      | `string`                    | —                      | Classe extra aplicada ao wrapper do gráfico.                                    |
 
 `ChartData = Array<Record<string, string | number>>` — cada linha mapeia uma
@@ -183,6 +191,79 @@ chave de coluna a um rótulo (string) ou valor (number).
     `categories` é um array, então você decide quantas séries quer. Uma só
     (`categories={["receita"]}`) desenha um gráfico simples; várias desenham
     séries comparativas, cada uma com a próxima cor da paleta.
+
+### Rótulo da série separado da chave do dado (`labels`)
+
+A legenda e o tooltip mostram o **nome da série**, que por padrão é a própria
+chave (`"done"`). Para traduzir, passe `labels` — um mapa chave → texto. Os dados
+continuam com as chaves que a API mandou:
+
+```tsx
+import { BarChart } from "tempest-react-sdk/charts";
+
+const semana = [
+    { dia: "seg", done: 34, noShow: 3 },
+    { dia: "ter", done: 29, noShow: 5 },
+];
+
+export function Atendimentos({ t }: { t: (key: string) => string }) {
+    return (
+        <BarChart
+            data={semana}
+            index="dia"
+            categories={["done", "noShow"]}
+            labels={{ done: t("series.done"), noShow: t("series.noShow") }}
+            stack
+        />
+    );
+}
+```
+
+Categoria sem entrada em `labels` mostra a chave. Vale para `AreaChart`,
+`BarChart`, `LineChart` e `RadarChart`. O `PieChart` não precisa: o nome de
+cada fatia já vem da coluna `index`.
+
+### Eixo de valor: largura e formato
+
+Sem configuração, o eixo Y **se ajusta ao maior rótulo** (`yAxisWidth="auto"`).
+Antes ele reservava 60 px fixos, e `"R$ 50.000"` perdia os primeiros 10 px —
+em qualquer largura de tela, não só no celular (medido no Chromium, #740).
+
+Rótulo longo ocupa espaço do gráfico no celular. Para o eixo, use um formato
+curto em `yAxisFormatter`; o tooltip continua com o valor exato do
+`valueFormatter`:
+
+```tsx
+import { LineChart } from "tempest-react-sdk/charts";
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const brlCompacto = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+});
+
+const meses = [
+    { mes: "out", total: 164750 },
+    { mes: "nov", total: 186430 },
+];
+
+export function Faturamento() {
+    return (
+        <LineChart
+            data={meses}
+            index="mes"
+            categories={["total"]}
+            valueFormatter={(v) => brl.format(v)}
+            yAxisFormatter={(v) => brlCompacto.format(v)}
+        />
+    );
+}
+```
+
+O eixo mostra `R$ 186 mil`; o tooltip, `R$ 186.430,00`. Para alinhar as áreas de
+plotagem de gráficos empilhados, fixe a largura com um número
+(`yAxisWidth={72}`).
 
 ## PieChart
 
@@ -501,6 +582,8 @@ você passa `width`:
 - `AreaChart`, `BarChart` e `LineChart` compartilham `CartesianChartProps`:
   `data` + `index` (eixo X) + `categories` (séries). `stack` empilha em
   Area/Bar; o `LineChart` o ignora.
+- `labels` dá nome às séries sem trocar as chaves dos dados; o eixo Y se ajusta
+  ao maior rótulo e `yAxisFormatter` formata só o eixo.
 - `PieChart` usa `category` (valor) + `index` (rótulo), uma linha por fatia, com
   `donut` opcional.
 - `RadarChart` reusa `CartesianChartProps` (`index` = eixo angular); ignora

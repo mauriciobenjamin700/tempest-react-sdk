@@ -1,7 +1,9 @@
 import { useState } from "react";
 import {
+    Card,
     Stat,
     Tag,
+    Timeline,
     Banner,
     Money,
     RelativeTime,
@@ -72,6 +74,52 @@ export function DataDisplaySection() {
                         trend="flat"
                         hint="estável"
                     />
+                </div>
+            </Example>
+
+            <Example
+                title="Stat — polaridade e dentro de Card"
+                id="ex-stat-polarity"
+                note="higherIsBetter={false} pinta a alta de vermelho (taxa de faltas). Dentro de um Card, blocos irmãos ganham espaçamento."
+                code={`<Stat label="Faltas" value="7,5%" delta="+1,2 p.p." higherIsBetter={false} />
+<Stat label="Tempo de resposta" value="3,1 h" delta="-0,4 h" higherIsBetter={false} />
+
+<Card title="Próxima parada">
+  <Stat label="3. Praça Central" value="4 min" hint="estimativa" />
+  <Timeline items={[{ id: "a", title: "Saída", description: "08:00", marker: "success" }, { id: "b", title: "Praça Central", marker: "primary" }]} />
+</Card>`}
+            >
+                <div className="gallery-stack">
+                    <div className="gallery-grid">
+                        <Stat
+                            label="Faltas"
+                            value="7,5%"
+                            delta="+1,2 p.p."
+                            higherIsBetter={false}
+                            hint="vs. semana passada"
+                        />
+                        <Stat
+                            label="Tempo de resposta"
+                            value="3,1 h"
+                            delta="-0,4 h"
+                            higherIsBetter={false}
+                            hint="vs. semana passada"
+                        />
+                    </div>
+                    <Card title="Próxima parada">
+                        <Stat label="3. Praça Central" value="4 min" hint="estimativa" />
+                        <Timeline
+                            items={[
+                                {
+                                    id: "a",
+                                    title: "Saída",
+                                    description: "08:00",
+                                    marker: "success",
+                                },
+                                { id: "b", title: "Praça Central", marker: "primary" },
+                            ]}
+                        />
+                    </Card>
                 </div>
             </Example>
 

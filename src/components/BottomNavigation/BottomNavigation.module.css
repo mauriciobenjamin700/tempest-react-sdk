@@ -22,6 +22,7 @@
     font-size: var(--tempest-text-2xs);
     transition: color var(--tempest-duration-fast, 120ms) var(--tempest-ease-out, ease-out);
     min-height: 56px;
+    text-decoration: none;
 }
 
 .item:hover {

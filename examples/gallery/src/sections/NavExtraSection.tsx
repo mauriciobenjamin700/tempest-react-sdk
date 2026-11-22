@@ -32,6 +32,7 @@ export function NavExtraSection() {
     const [sidebarTab, setSidebarTab] = useState<string>("dashboard");
     const [collapsed, setCollapsed] = useState<boolean>(false);
     const [bottomTab, setBottomTab] = useState<string>("home");
+    const [bottomRoute, setBottomRoute] = useState<string>("/pacientes/42?aba=consultas");
     const [view, setView] = useState<string>("list");
     const [route, setRoute] = useState<string>("/dashboard/tips/42");
 
@@ -461,6 +462,72 @@ const [collapsed, setCollapsed] = useState(false);
                             ]}
                             value={bottomTab}
                             onChange={setBottomTab}
+                        />
+                    </div>
+                </div>
+            </Example>
+
+            <Example
+                title="BottomNavigation com href e rota"
+                id="ex-bottom-navigation-route"
+                note='Mesmo contrato de item da Sidebar: href vira link real e match="route" acende o item pela URL atual.'
+                code={`const { pathname } = useLocation();
+const navigate = useNavigate();
+
+<BottomNavigation
+    match="route"
+    value={pathname}
+    items={[
+        { key: "/", label: "Painel", href: "/", icon: <Home size={20} /> },
+        { key: "/pacientes", label: "Pacientes", href: "/pacientes", icon: <User size={20} /> },
+    ]}
+    onChange={(key) => navigate(key)}
+/>`}
+                props={[
+                    {
+                        name: "items[].href",
+                        type: "string",
+                        description:
+                            "Renderiza o item como <a href>; clique simples vai para onChange.",
+                    },
+                    {
+                        name: "match",
+                        type: '"key" | "route"',
+                        default: '"key"',
+                        description:
+                            'Com "route", value é o pathname e o href mais longo que o cobre acende.',
+                    },
+                ]}
+            >
+                <div className="gallery-stack">
+                    <span>
+                        Rota: <code>{bottomRoute}</code>
+                    </span>
+                    <div
+                        style={{
+                            width: 360,
+                            maxWidth: "100%",
+                            border: "1px solid var(--tempest-border)",
+                            borderRadius: 8,
+                            overflow: "hidden",
+                        }}
+                    >
+                        <BottomNavigation
+                            aria-label="Navegação por rota"
+                            match="route"
+                            value={bottomRoute}
+                            items={[
+                                { key: "/", label: "Painel", href: "/", icon: <Home size={20} /> },
+                                {
+                                    key: "/pacientes",
+                                    label: "Pacientes",
+                                    href: "/pacientes",
+                                    icon: <User size={20} />,
+                                },
+                            ]}
+                            onChange={(key) =>
+                                setBottomRoute(key === "/" ? "/" : `${key}/42?aba=consultas`)
+                            }
                         />
                     </div>
                 </div>

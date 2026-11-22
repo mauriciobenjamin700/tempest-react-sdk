@@ -203,8 +203,37 @@ export function Metricas() {
 | `value` | `ReactNode`                | —                                    |
 | `delta` | `ReactNode`                | —                                    |
 | `trend` | `"up" \| "down" \| "flat"` | inferido por `+`/`-` em delta string |
+| `higherIsBetter` | `boolean`         | `true`                               |
 | `hint`  | `ReactNode`                | —                                    |
 | `icon`  | `ReactNode`                | —                                    |
+
+### Polaridade: quando subir é ruim
+
+A cor do delta diz **bom** ou **ruim**, não "subiu" ou "desceu". Por padrão, alta é
+verde e queda é vermelha. Em métrica onde crescer é o problema — taxa de faltas,
+churn, tempo de resposta, chamados abertos — passe `higherIsBetter={false}`: a alta
+fica vermelha e a queda, verde. A direção não muda; `trend` e o texto do delta
+continuam dizendo para onde o número foi.
+
+```tsx
+import { Stat } from "tempest-react-sdk";
+
+export function TaxaDeFaltas() {
+    return (
+        <Stat
+            label="Faltas"
+            value="7,5%"
+            delta="+1,2 p.p."
+            higherIsBetter={false}
+            hint="vs. semana passada"
+        />
+    );
+}
+```
+
+O delta expõe `data-trend` (`up`/`down`/`flat`) e `data-tone`
+(`positive`/`negative`/`neutral`), para teste ou estilo do app sem depender de
+classe com hash.
 
 ## `Progress`
 
@@ -571,6 +600,11 @@ export function FalhaAoCarregar({
     );
 }
 ```
+
+Sem `title`, `description` ou `retryLabel`, os textos padrão vêm do
+[i18n](../i18n.md#textos-padrao-dos-componentes) (`tempest.errorState.*`): em
+inglês com locale `en`, em pt-BR sem provider. `description={null}` some com a
+descrição.
 
 ## `OfflineIndicator`
 

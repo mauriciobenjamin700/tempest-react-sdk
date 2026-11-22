@@ -87,6 +87,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **#725, medido com `npm run build && npx size-limit --json` sobre a `main` em `71727a7` e sobre
   este branch**, em bytes brotli: `slice: offline + PWA surface` 5 061 → 5 298 (teto 6 kB, dentro);
   `ceiling: full barrel ESM` 172 596 → 172 765 (teto 172,7 → 172,8 kB); `ceiling: full barrel CJS`

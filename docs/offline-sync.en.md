@@ -368,13 +368,35 @@ The backend resolves by `updated_at` (the most recent write wins). On the client
 For the two common cases, the SDK exports ready-made resolvers to use inside `applyRemote` (ties → remote wins):
 
 ```ts
-import { lastWriteWins, higherVersionWins } from "tempest-react-sdk";
+import { createOfflineStore, higherVersionWins, lastWriteWins } from "tempest-react-sdk";
 
-applyRemote: async (dto) => {
+interface Analysis {
+  id: string;
+  user_id: string;
+  updated_at: string;
+  version: number;
+}
+
+// the same store as section 2
+const analyses = createOfflineStore<Analysis, string>({
+  databaseName: "FamachaOffline",
+  version: 1,
+  tableName: "analyses",
+  indexes: "&id, user_id, updated_at",
+  ownerField: "user_id",
+});
+
+// pass it as `applyRemote` to `createOfflineSync`
+export async function applyRemote(dto: Analysis): Promise<void> {
   const local = await analyses.get(dto.id);
-  await analyses.save(lastWriteWins(local, dto, (r) => r.updatedAt));
-  // or: higherVersionWins(local, dto, (r) => r.version)
-};
+  await analyses.put(lastWriteWins(local, dto, (r) => r.updated_at));
+}
+
+// or, with a version counter on the record
+export async function applyRemoteByVersion(dto: Analysis): Promise<void> {
+  const local = await analyses.get(dto.id);
+  await analyses.put(higherVersionWins(local, dto, (r) => r.version));
+}
 ```
 
 ## Recap

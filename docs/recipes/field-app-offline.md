@@ -1210,7 +1210,6 @@ import {
   Skeleton,
   SyncStatusBadge,
   formatDateTime,
-  useSyncStatus,
 } from "tempest-react-sdk";
 import { LogoutButton } from "@/components/LogoutButton";
 import { SyncPanel } from "@/components/SyncPanel";
@@ -1236,7 +1235,6 @@ const SYNC_BADGE: Record<
 export function VisitListPage() {
   const navigate = useNavigate();
   const list = useVisitList();
-  const status = useSyncStatus(visitSync);
 
   return (
     <>
@@ -1246,7 +1244,7 @@ export function VisitListPage() {
         safeArea
         actions={
           <>
-            <SyncStatusBadge tone={status.tone} pending={status.pending} />
+            <SyncStatusBadge sync={visitSync} />
             <LogoutButton />
           </>
         }
@@ -1311,14 +1309,9 @@ Os quatro estados, cada um com o componente certo:
 | vazio | [`EmptyState`](../components/feedback.md#emptystate) dizendo o que fazer — e que funciona sem sinal |
 | com dados | [`ListTile`](../components/data.md#listtile) por visita, com o badge de envio de cada uma |
 
-No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o `tone`
-e o `pending` do `useSyncStatus(visitSync)` e mostra o estado geral: sincronizado,
+No topo, o [`SyncStatusBadge`](../components/feedback.md#syncstatusbadge) recebe o motor
+em `sync={visitSync}`, se inscreve nele sozinho e mostra o estado geral: sincronizado,
 sincronizando, pendente, offline ou erro. O badge **por linha** diz qual visita, especificamente, ainda não foi.
-
-!!! note "Por que não `sync={visitSync}`"
-    O badge também aceita o motor direto, mas a prop é tipada como `OfflineSync<unknown>`,
-    e um motor com payload tipado (`OfflineSync<Visit>`) não passa nela com `strict`
-    ligado. O `useSyncStatus` é genérico e aceita o seu motor como ele é.
 
 O [`FloatingActionButton`](../components/actions.md#floatingactionbutton) fica no canto inferior direito, ao
 alcance do polegar. O `paddingBottom: 96` da lista garante que ele não cubra a última visita.

@@ -657,8 +657,15 @@ COCO_CLASSES; // o array readonly das 80 classes, em ordem canônica
 Antes de rodar qualquer modelo você precisa de um **frame** — e de um frame que
 preste. O subpath `/vision` traz três primitivas de navegador pra isso: abrir a
 câmera, medir o brilho ao vivo e rejeitar capturas escuras demais. Elas são
-genéricas (não dependem de nenhum modelo), mas moram no `/vision` porque é ali
-que a captura acontece.
+genéricas (não dependem de nenhum modelo).
+
+!!! tip "Só quer a câmera? Importe o `useCameraStream` da raiz"
+    O `useCameraStream` mora no módulo de [captura](./device-capture.md) e sai na raiz
+    (`import { useCameraStream } from "tempest-react-sdk"`). O `/vision` reexporta a
+    mesma função, mas importa o `onnxruntime-web` estaticamente: sem o peer instalado,
+    o esbuild falha com `Could not resolve "onnxruntime-web"`, e o Node cru e o Vitest do
+    app com `ERR_MODULE_NOT_FOUND`. Pela raiz nada disso acontece — um guard do build
+    reprova se a raiz alcançar um módulo que importa o ONNX Runtime.
 
 ### `useCameraStream` — abrir a câmera
 
@@ -668,7 +675,7 @@ erro sem decorar os nomes de `DOMException`. O stream é liberado sozinho no
 unmount e no `retry()`.
 
 ```tsx
-import { useCameraStream } from "tempest-react-sdk/vision";
+import { useCameraStream } from "tempest-react-sdk";
 
 function CameraView() {
   const { status, error, videoRef, retry } = useCameraStream();
@@ -720,7 +727,7 @@ O `error.message` vem em **inglês** por padrão. Para mostrar o erro em outra l
 embrulhar o hook, passe `messages` — um texto por `kind`:
 
 ```tsx
-import { useCameraStream } from "tempest-react-sdk/vision";
+import { useCameraStream } from "tempest-react-sdk";
 
 const MENSAGENS_DA_CAMERA = {
   unsupported: "Este navegador não dá acesso à câmera.",

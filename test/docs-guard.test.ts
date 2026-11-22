@@ -195,6 +195,33 @@ function collectBlocks(): DocBlock[] {
     return blocks;
 }
 
+/** The SDK's own source tree, the only place where `@/` means `src/`. */
+const SDK_SRC = join(ROOT, "src");
+
+/**
+ * Resolve the SDK's `@/` alias for a module imported from inside `src/`.
+ *
+ * The SDK's `tsconfig.json` maps `@/*` to `./src/*`, and 200+ files under
+ * `src/` import through it. Without the mapping those imports do not resolve in
+ * this harness, and every type they bring in turns into `any` in the examples
+ * that touch it: the guard passed by vacuity exactly where it should check
+ * (#691). A global `paths` entry is not the fix, because the documentation uses
+ * `@/` too — for the reader's app (`@/stores/auth`, `@/lib/api`) — and those
+ * must stay unresolved fragments rather than land on an SDK module that happens
+ * to share the path. So the alias is applied only when the importing file
+ * lives under `src/`.
+ *
+ * @param specifier - The module specifier as written in the import.
+ * @param containingFile - Absolute path of the file that imports it.
+ * @returns The specifier to resolve: an absolute `src/` path for an SDK alias,
+ *   the specifier unchanged otherwise.
+ */
+function sdkAlias(specifier: string, containingFile: string): string {
+    if (!specifier.startsWith("@/")) return specifier;
+    if (!containingFile.startsWith(`${SDK_SRC}/`)) return specifier;
+    return join(SDK_SRC, specifier.slice(2));
+}
+
 /**
  * Compile the blocks and return the diagnostics that indicate a broken example.
  *
@@ -229,6 +256,18 @@ function compileBlocks(blocks: DocBlock[]): string[] {
     const fileExists = host.fileExists.bind(host);
     const getSourceFile = host.getSourceFile.bind(host);
 
+    const resolutionCache = ts.createModuleResolutionCache(ROOT, (fileName) => fileName, options);
+    host.resolveModuleNameLiterals = (literals, containingFile, redirected, compilerOptions) =>
+        literals.map((literal) =>
+            ts.resolveModuleName(
+                sdkAlias(literal.text, containingFile),
+                containingFile,
+                compilerOptions,
+                host,
+                resolutionCache,
+                redirected,
+            ),
+        );
     host.readFile = (fileName) => sources.get(fileName) ?? readFile(fileName);
     host.fileExists = (fileName) => sources.has(fileName) || fileExists(fileName);
     host.getSourceFile = (fileName, languageVersion, onError, shouldCreate) => {
@@ -281,6 +320,44 @@ describe("docs examples", () => {
     it("every example compiles against the SDK", { timeout: COMPILE_TIMEOUT }, () => {
         expect(compileBlocks(blocks)).toEqual([]);
     });
+
+    /**
+     * #691: `SyncStatusBadge.tsx` takes the type of its `sync` prop from
+     * `@/offline`. Before the guard resolved the SDK's `@/` alias, that import
+     * failed silently inside the harness, the prop typed as `any`, and an example
+     * passing a number compiled — as did the real error in
+     * `components/feedback.md`. The precondition is asserted first, so the test
+     * cannot pass by the import moving to a relative path.
+     */
+    it(
+        "a type an SDK file imports through @/ is checked, not widened to any",
+        { timeout: COMPILE_TIMEOUT },
+        () => {
+            const source = readFileSync(
+                join(ROOT, "src/components/SyncStatusBadge/SyncStatusBadge.tsx"),
+                "utf8",
+            );
+            expect(source).toMatch(
+                /import type \{[^}]*\bSyncStatusSource\b[^}]*\} from "@\/offline"/,
+            );
+
+            const failures = compileBlocks([
+                {
+                    page: "alias-probe.md",
+                    index: 1,
+                    fileName: join(ROOT, ".docs-blocks", "alias_probe__1.tsx"),
+                    code: [
+                        'import { SyncStatusBadge } from "tempest-react-sdk";',
+                        "",
+                        "export const probe = <SyncStatusBadge sync={42} />;",
+                    ].join("\n"),
+                },
+            ]);
+
+            expect(failures).toHaveLength(1);
+            expect(failures[0]).toMatch(/^alias-probe\.md \(block 1, line 3\): TS2322 /);
+        },
+    );
 });
 
 /**

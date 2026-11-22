@@ -181,6 +181,12 @@ async function writeFreshPackageJson(destDir, name, sdkVersion) {
  * it), and dropping them would leave a merged project with the `npm audit`
  * findings a fresh scaffold does not have. An override the project already
  * declares for the same package wins.
+ *
+ * A dependency the project already declares wins too, as `docs/scaffold.md`
+ * promises. It used to be the other way round, which went unnoticed while the
+ * template declared only the React peers; once it also declared `zod` (#747), a
+ * merge rewrote a project's `zod ^3` to `^4` without a word. `tempest-react-sdk`
+ * is the exception: it is always pinned to the SDK running the scaffold.
  */
 async function mergePackageJson(destDir, sdkVersion) {
     const tpl = JSON.parse(await readFile(join(TEMPLATE_DIR, "package.json"), "utf8"));
@@ -188,7 +194,7 @@ async function mergePackageJson(destDir, sdkVersion) {
 
     target.type ??= "module";
     target.scripts = { ...tpl.scripts, ...(target.scripts ?? {}) };
-    target.dependencies = { ...(target.dependencies ?? {}), ...tpl.dependencies };
+    target.dependencies = { ...tpl.dependencies, ...(target.dependencies ?? {}) };
     target.dependencies["tempest-react-sdk"] = `^${sdkVersion}`;
     target.devDependencies = { ...(target.devDependencies ?? {}), ...tpl.devDependencies };
     if (tpl.overrides) target.overrides = { ...tpl.overrides, ...(target.overrides ?? {}) };

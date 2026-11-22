@@ -591,6 +591,8 @@ export function ChatWithDictation({ messages, onSend }: ChatProps) {
   has none, and `detector` takes a polyfill.
 - `useBarcodeScanner` — the decoding half, over `useCameraStream`; a non-overlapping loop,
   `formats` resolved by intersecting with the engine.
+- `useCameraStream` — the raw camera, at the root: opens it, classifies the error and
+  releases it on unmount, without requiring `onnxruntime-web`.
 - `useTorch` — the torch is a live-track constraint, not a device; `supported` only means
   anything after the stream.
 - `useVideoRecorder` — the same engine as audio: a clock that subtracts paused time, a
@@ -605,4 +607,5 @@ export function ChatWithDictation({ messages, onSend }: ChatProps) {
 
 - [Audio](./audio.en.md) — microphone, voice recording, WAV, output routing
 - [Utility components](./components/utility.en.md) — `QRCode`, which encodes
-- [Vision (ONNX)](./vision.en.md) — the `useCameraStream` this module reuses
+- [Vision (ONNX)](./vision.en.md#usecamerastream-open-the-camera) — `useCameraStream`,
+  exported at the root by this module and documented next to luminance

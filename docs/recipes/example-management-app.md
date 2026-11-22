@@ -22,13 +22,13 @@ Elas abrem o app no computador da recepção e no celular, entre um atendimento 
 Cada tela cobre os cinco estados de uma tela real: **carregando**, **vazio**, **erro**, **sucesso** e **celular**.
 
 !!! info "O que você precisa"
-    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)) e o `zod`:
+    Um projeto criado com o [`create-tempest-app`](../scaffold.md). Os arquivos desta página **substituem** os gerados pelo scaffold e acrescentam os que faltam. Instale também o `recharts` (dependência opcional do [`/charts`](../charts.md)):
 
     ```bash
-    npm install recharts zod @tanstack/react-query
+    npm install recharts
     ```
 
-    O `@tanstack/react-query` já vem com o SDK; declarar no seu `package.json` deixa explícito que o app importa dele. Rode `npx tempest doctor` depois: ele avisa se o npm aninhou uma segunda cópia.
+    O `zod` e o `@tanstack/react-query` que esta página importa já vêm declarados no `package.json` do scaffold, na mesma faixa do SDK — veja [Dependências que o app importa direto](../scaffold.md#dependencias-que-o-app-importa-direto).
 
 ## O contrato com o backend
 
@@ -150,28 +150,11 @@ Um arquivo, espelhando o JSON do backend campo a campo. Os nomes ficam em inglê
 
 ```ts
 // src/lib/api.ts
-import { QueryClient } from "@tanstack/react-query";
-import {
-    CACHE_TIME,
-    STALE_TIME,
-    createQueryKeys,
-    createTempestAuth,
-    shouldRetryQuery,
-} from "tempest-react-sdk";
+import { createQueryClient, createQueryKeys, createTempestAuth } from "tempest-react-sdk";
 
 import type { User } from "@/types";
 
-export const queryClient = new QueryClient({
-    defaultOptions: {
-        queries: {
-            staleTime: STALE_TIME.DEFAULT,
-            gcTime: CACHE_TIME.DEFAULT,
-            retry: shouldRetryQuery,
-            refetchOnWindowFocus: false,
-        },
-        mutations: { retry: 0 },
-    },
-});
+export const queryClient = createQueryClient();
 
 export const auth = createTempestAuth<User>({
     baseURL: import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000",
@@ -203,8 +186,8 @@ Este arquivo é o coração do app. Pedaço por pedaço:
 - **`retry: true`** repete `GET` que falhou por rede ou `5xx`. Escrita nunca é repetida sozinha — um `POST` repetido poderia cadastrar o paciente duas vezes.
 - **`onSessionEnd`** limpa o cache de queries quando a sessão termina — no **Sair**, na expiração e na troca de conta. Sem isso, a recepcionista que entra depois da gestora veria, por um instante, o faturamento que ficou no cache.
 
-!!! warning "Por que criar o `QueryClient` à mão"
-    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio e o entrega ao provider. Os `defaultOptions` copiam os do SDK (`STALE_TIME.DEFAULT`, `CACHE_TIME.DEFAULT`, `shouldRetryQuery`), para o comportamento continuar o mesmo — veja [Query → Provider](../query.md#provider).
+!!! note "Por que o app cria o `QueryClient`"
+    O `AppProviders` cria um `QueryClient` sozinho, mas ele fica preso lá dentro, e o `onSessionEnd` precisa chamar `clear()` nele. Então o app cria o próprio com `createQueryClient()` e o entrega ao provider. É o mesmo client, com os mesmos defaults do SDK, sem redigitar nenhum — veja [`createQueryClient`](../query.md#createqueryclient-o-client-fora-do-react).
 
 **`createQueryKeys`** dá um prefixo comum a todas as chaves de cache. Repare na dupla `patients()` / `patientList(search)`: a lista é guardada por busca, e invalidar `patients()` derruba **todas** as buscas de uma vez depois de um cadastro.
 
@@ -459,7 +442,7 @@ Aqui moram as duas portas do app. 🚪
 
 **A porta da sessão** está na rota `/`, que envolve todas as outras. O guard `useSessionGuard` é um hook — por isso o nome começa com `use` — e assina o store: quando a sessão termina, por Sair ou por expiração, ele re-renderiza sozinho e manda para `/login`. O `preserveFrom: true` leva junto o endereço de onde a pessoa veio.
 
-O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo.
+O guard pede **token e usuário**. Entre o token chegar e o `/auth/me` responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo. É só esse instante: se o `/auth/me` falha, o `login()` desfaz a entrada antes de rejeitar, e o token não fica sozinho no store (#748).
 
 **A porta do papel** está em `pacientes`. O `useCan` responde numa passada de efeito, então no primeiro render ele ainda não sabe. O guard devolve `"pending"` nesse meio-tempo: o app mostra o spinner, em vez de mandar a recepcionista embora num piscar de olhos. Detalhes em [Roteamento → `"pending"`](../routing.md#forma-de-funcao-assincrona-o-terceiro-estado-pending).
 

@@ -609,7 +609,7 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
     return (
         <>
-            <SyncStatusBadge sync={notesSync} />
+            <SyncStatusBadge sync={notesSync as OfflineSync<unknown>} />
             <SyncStatusBadge tone={tone} pending={pending} />
         </>
     );
@@ -617,6 +617,8 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 ```
 
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
+
+O `as OfflineSync<unknown>` contorna a tipagem da prop `sync`, que ainda não aceita um motor tipado ([#718](https://github.com/mauriciobenjamin700/tempest-react-sdk/issues/718)); `useSyncStatus` aceita.
 
 ## `UpdatePrompt`
 

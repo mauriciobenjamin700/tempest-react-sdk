@@ -112,8 +112,8 @@ my-app/
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakeia uma sessão via useAuth.use.setSession() e navigate("/dashboard")
     ├── pages/Dashboard.tsx      # export default (lazy), rota protegida
-    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 ```
 
 ### Cada arquivo → o recurso do SDK que ele mostra
@@ -161,6 +161,7 @@ export function App() {
 
 ```ts
 import { createAuthStore, createSelectors } from "tempest-react-sdk";
+import { configureApiAuth } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -169,12 +170,19 @@ export interface User {
 }
 
 export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" }));
+
+configureApiAuth({
+  getToken: () => useAuth.getState().token,
+  onUnauthorized: () => useAuth.getState().logout(),
+});
 ```
 
 `createAuthStore<User>` cria uma store Zustand de autenticação persistida (`name: "app-auth"` é a chave de storage). `createSelectors` te dá acesso atômico via `useAuth.use.<campo>()` — é assim que `RootLayout.tsx` lê `useAuth.use.isAuthenticated()` e `Login.tsx` chama `useAuth.use.setSession()`. Mais padrões em [State](./state.md).
 
+O `configureApiAuth` no fim liga a store ao cliente HTTP: o `lib/api.ts` não importa nada de auth, então um projeto sem login apaga `stores/auth.ts` e o cliente segue funcionando sem token.
+
 !!! note "O resto se explica sozinho"
-    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` com `baseURL`/`getToken`/`onUnauthorized` e exporta `createQueryKeys` pra você organizar as chaves de cache.
+    `routes.tsx` usa `defineRoutes([...])` com uma rota index, uma de login e um `dashboard` que é ao mesmo tempo **lazy** e **protegido** por guard. `lib/api.ts` instancia `createApiClient` lendo o token pelo que o `configureApiAuth` registrou e exporta `queryKeys = createQueryKeys("app", { me })` pra você organizar as chaves de cache.
 
 ## Modo PWA (`--pwa`)
 
@@ -408,7 +416,16 @@ export const useCounter = createStore<{ count: number; inc: () => void }>((set) 
 
 ### 3. Busque dados com React Query + queryKeys + api
 
-Combine o cliente HTTP, as query keys e o `useQuery` (já disponível pelo `AppProviders`):
+O template só declara a chave `me`. Acrescente a sua em `src/lib/api.ts`:
+
+```ts
+export const queryKeys = createQueryKeys("app", {
+  me: () => ["me"],
+  users: () => ["users"],
+});
+```
+
+E combine o cliente HTTP, a chave e o `useQuery` (já disponível pelo `AppProviders`):
 
 ```tsx
 import { useQuery } from "@tanstack/react-query";
@@ -416,7 +433,7 @@ import { api, queryKeys } from "@/lib/api";
 
 export function UserList() {
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.users.all,
+    queryKey: queryKeys.users(),
     queryFn: () => api.get("/users"),
   });
 

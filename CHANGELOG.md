@@ -4,6 +4,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createApiClient`: 401 de request sem token cujo `refresh` falha depois de `login(B)` não
+  desloga mais B** (#696, auditoria run-18 §3.1). O `catch` em volta do `refresh()` só recusava o
+  401 quando outra sessão tinha sido instalada desde a tentativa, e essa checagem começava por
+  `sessionEndedSince`, que devolve `false` para toda tentativa sem token. Num `ApiClient` próprio
+  (sem `createTempestAuth`), uma request deslogada que levava 401 disparava o `refresh`; se o
+  `login(B)` terminava durante ele e o refresh falhava, o cliente chamava `onUnauthorized` — e o
+  `() => logout()` da doc encerrava a sessão de B por uma request anterior a ela. A checagem agora
+  usa `epochMovedSince`, que conta tentativas com e sem token: a request rejeita com
+  `SessionSupersededError` e `onUnauthorized` não roda. O refresh que falha sem ninguém entrar
+  continua deixando o 401 e chamando `onUnauthorized` (#646). O preset `createTempestAuth` não era
+  afetado.
+
 ### Interno
 
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O

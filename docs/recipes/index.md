@@ -46,7 +46,7 @@ Toda página segue o mesmo caminho, para você saber onde procurar:
 | [Cadastro BR + checkout](br-signup-checkout.md) | O cliente se cadastra com CPF, CEP e telefone e paga com Pix ou cartão. | inputs BR, `MoneyInput`, consulta de CEP, checkout Pix e cartão |
 | [Viagem ao vivo (mapa + WebSocket)](live-trip.md) | O motorista e o passageiro acompanham a viagem no mapa, em tempo real. | `LiveRouteMap`, `LiveRouteMapLegend`, WebSocket, encaixe na rua |
 | [Mensageiro em tempo real](messenger.md) | Um chat de atendimento com histórico, anexos e mensagens que chegam ao vivo. | componentes de conversa, WebSocket, envio otimista, upload |
-| [Compartilhar com prévia no WhatsApp](share-whatsapp.md) | O motorista divulga a carona no grupo, e a mensagem chega com imagem, título e link. | `ShareActions`, `ShareButton`, `useShare`, `whatsAppShareUrl`, página Open Graph no backend |
+| [Compartilhar com prévia no WhatsApp](share-whatsapp.md) | O motorista divulga a carona no grupo, e a mensagem chega com imagem, título e link; a moldura com QR vai como arquivo ou é baixada. | `ShareActions`, `ShareButton`, `useShare`, `whatsAppShareUrl`, `make_share_router` do `tempest-fastapi-sdk` (`/s/{id}`) |
 | [App de campo offline](field-app-offline.md) | Um técnico registra visitas sem sinal e sincroniza quando a rede volta. | fila offline, captura de foto, upload resumível, exportação em zip |
 
 ## Exemplo integrado

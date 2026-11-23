@@ -562,8 +562,8 @@ toWhatsAppNumber("+351 912 345 678"); // "351912345678"   — Portugal, untouche
 ```ts
 import { whatsAppShareUrl } from "tempest-react-sdk/br";
 
-whatsAppShareUrl("Ride Picos → Teresina, Fri 07:05: https://app.example.com/c/42");
-// "https://wa.me/?text=Ride%20Picos%20%E2%86%92%20Teresina%2C%20Fri%2007%3A05%3A%20https%3A%2F%2Fapp.example.com%2Fc%2F42"
+whatsAppShareUrl("Ride Picos → Teresina, Fri 07:05: https://app.example.com/s/42");
+// "https://wa.me/?text=Ride%20Picos%20%E2%86%92%20Teresina%2C%20Fri%2007%3A05%3A%20https%3A%2F%2Fapp.example.com%2Fs%2F42"
 
 whatsAppShareUrl(""); // "https://wa.me/" — blank composer
 ```

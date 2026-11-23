@@ -1,6 +1,6 @@
 # BR payments, fiscal & contact
 
-The four rails every Brazilian product ends up needing — **Pix**, **boleto**, the **NFe access key** and **holidays / business days** — plus the channel all of it reaches the customer through: **WhatsApp**. Pure TypeScript, **no new dependency** — the whole slice measures **9.22 KB brotli**, Pix alone (payload + CRC + QR component) measures **6.1 KB**, and the WhatsApp deep link measures **223 B**.
+The four rails every Brazilian product ends up needing — **Pix**, **boleto**, the **NFe access key** and **holidays / business days** — plus the channel all of it reaches the customer through: **WhatsApp**. Pure TypeScript, **no new dependency** — the whole slice measures **9.22 KB brotli**, Pix alone (payload + CRC + QR component) measures **6.1 KB**, and the WhatsApp deep link (all four helpers, `whatsAppShareUrl` included) measures **253 B**.
 
 !!! info "Import from the `tempest-react-sdk/br` subpath"
     Like the rest of the BR module, these helpers live in `tempest-react-sdk/br`, not on the root entry. If you don't import it, you don't pay for it.
@@ -555,6 +555,21 @@ toWhatsAppNumber("+351 912 345 678"); // "351912345678"   — Portugal, untouche
 !!! info "The ninth digit belongs to your database, not to the link"
     A mobile stored before 2016 has ten digits and reads as a landline here — the link is built and WhatsApp decides whether it finds the account. If your records go back that far, normalise the ninth digit **in the database**; a deep link cannot guess whether `1133334444` is a landline or a mobile missing its 9.
 
+### Spreading without a recipient: `whatsAppShareUrl`
+
+`whatsAppUrl` needs a number — and returns `""` without one, on purpose: a contact link with a typo must disable the button. Spreading a ride or a product has no recipient at all. That is what `whatsAppShareUrl(text)` is for: it builds `https://wa.me/?text=…`, and WhatsApp opens its **chat picker** with the text ready, so the person chooses the contact or group.
+
+```ts
+import { whatsAppShareUrl } from "tempest-react-sdk/br";
+
+whatsAppShareUrl("Ride Picos → Teresina, Fri 07:05: https://app.example.com/c/42");
+// "https://wa.me/?text=Ride%20Picos%20%E2%86%92%20Teresina%2C%20Fri%2007%3A05%3A%20https%3A%2F%2Fapp.example.com%2Fc%2F42"
+
+whatsAppShareUrl(""); // "https://wa.me/" — blank composer
+```
+
+When the text carries a link, WhatsApp builds the **preview card** (image, title, description) from that page's Open Graph tags — the image arrives without being attached. The whole flow, with the ready button and the preview page on the backend, is in the [Share with a WhatsApp preview](./recipes/share-whatsapp.md) recipe; the buttons are [`ShareActions`](./components/actions.md#shareactions).
+
 ### Recipe: asking for the deposit over WhatsApp
 
 The case that ties this part back to [Part 1](#part-1-pix) — the message body carries the Pix copy-and-paste string:
@@ -604,6 +619,6 @@ export function DepositRequestButton({ booking }: { booking: Booking }) {
 - **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convert 47↔44 and 48↔44 while verifying every check digit; cobrança and arrecadação are different layouts and the SDK never conflates them; the fator de vencimento has **two** bases since February 2025 and the choice is explicit.
 - **NFe** — `parseChaveNFe` opens the 44 digits and resolves `cUF` into the module's `UF` type; `validateChaveNFe` checks length, UF and check digit.
 - **Holidays** — `holidaysFor` returns the 9 national holidays plus the 4 movable banking days, labelled; state and municipal days come in through `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` do the arithmetic in the local calendar.
-- **WhatsApp** — `toWhatsAppNumber` puts `55` in front of a national number and returns `""` for anything undialable; `whatsAppUrl` builds the `wa.me` link with the text encoded; `openWhatsApp` opens the tab. It is a **deep link**, never a send: the person presses send.
+- **WhatsApp** — `toWhatsAppNumber` puts `55` in front of a national number and returns `""` for anything undialable; `whatsAppUrl` builds the `wa.me` link with the text encoded; `openWhatsApp` opens the tab; `whatsAppShareUrl` builds the recipient-less `wa.me/?text=` for spreading a link. It is a **deep link**, never a send: the person presses send.
 
 None of this talks to a bank. For the server side (registering a boleto, creating a Pix charge, authorising an invoice), see [FastAPI integration](./integration-fastapi.md).

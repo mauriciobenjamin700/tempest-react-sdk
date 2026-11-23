@@ -102,6 +102,7 @@ plugins:
                     Cadastro BR + checkout: BR sign-up + checkout
                     Viagem ao vivo (mapa + WebSocket): Live trip (map + WebSocket)
                     Mensageiro em tempo real: Real-time messenger
+                    Compartilhar com prévia no WhatsApp: Share with a WhatsApp preview
                     App de campo offline: Offline field app
                     Exemplo integrado: Integrated example
                     App de gestão: Management app
@@ -362,6 +363,7 @@ nav:
                 - Cadastro BR + checkout: recipes/br-signup-checkout.md
                 - Viagem ao vivo (mapa + WebSocket): recipes/live-trip.md
                 - Mensageiro em tempo real: recipes/messenger.md
+                - Compartilhar com prévia no WhatsApp: recipes/share-whatsapp.md
                 - App de campo offline: recipes/field-app-offline.md
           - Exemplo integrado:
                 - App de gestão: recipes/example-management-app.md

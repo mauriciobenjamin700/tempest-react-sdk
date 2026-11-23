@@ -462,7 +462,7 @@ export const SECTIONS: SectionEntry[] = [
         id: "meta",
         label: "Network · Clipboard · Share",
         keywords:
-            "useonline useclipboard usekeyboardshortcut useidle useintersectionobserver share",
+            "useonline useclipboard usekeyboardshortcut useidle useintersectionobserver share useshare shareactions sharebutton",
         group: "Hooks",
         Component: MetaSection,
     },

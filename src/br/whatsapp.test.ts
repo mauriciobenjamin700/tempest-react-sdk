@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { openWhatsApp, toWhatsAppNumber, whatsAppUrl } from "./whatsapp";
+import { openWhatsApp, toWhatsAppNumber, whatsAppShareUrl, whatsAppUrl } from "./whatsapp";
 
 describe("toWhatsAppNumber", () => {
     it("puts the country code in front of an eleven-digit mobile", () => {
@@ -87,5 +87,23 @@ describe("openWhatsApp", () => {
         vi.stubGlobal("window", undefined);
 
         expect(openWhatsApp("11999998888")).toBe(false);
+    });
+});
+
+describe("whatsAppShareUrl", () => {
+    it("opens the chat picker with the text encoded when there is no recipient", () => {
+        expect(whatsAppShareUrl("Carona Picos → Teresina: https://app.example/c/42?x=1&y=2")).toBe(
+            "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%3A%20https%3A%2F%2Fapp.example%2Fc%2F42%3Fx%3D1%26y%3D2",
+        );
+    });
+
+    it("keeps line breaks so a multi-line message arrives as typed", () => {
+        expect(whatsAppShareUrl("linha 1\nlinha 2")).toBe(
+            "https://wa.me/?text=linha%201%0Alinha%202",
+        );
+    });
+
+    it("returns the bare wa.me link for an empty text instead of a dangling query", () => {
+        expect(whatsAppShareUrl("")).toBe("https://wa.me/");
     });
 });

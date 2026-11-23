@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { writeToClipboard } from "@/share/write-to-clipboard";
+
 export interface UseClipboardOptions {
     /** Time (ms) before the `copied` flag resets back to false. Default: 1500. */
     resetAfter?: number;
@@ -15,9 +17,15 @@ export interface UseClipboardResult {
 }
 
 /**
- * Wrapper around `navigator.clipboard.writeText` with a transient `copied`
- * flag for UI feedback ("Copied!" toast). Falls back gracefully when the
- * Clipboard API is unavailable.
+ * Clipboard write with a transient `copied` flag for UI feedback ("Copied!"
+ * toast).
+ *
+ * Tries `navigator.clipboard.writeText` and, when it is missing **or rejects**
+ * (an embedded web view without the permission), `execCommand("copy")` on an
+ * off-screen `<textarea>` — the same chain `InstallCopyLink` and `ShareActions`
+ * use. `copy` resolves `false`, and `copied` stays `false`, when the browser
+ * refused both: an `execCommand` that returns `false` is a failed copy, not a
+ * success.
  */
 export function useClipboard(options: UseClipboardOptions = {}): UseClipboardResult {
     const { resetAfter = 1500 } = options;
@@ -36,28 +44,11 @@ export function useClipboard(options: UseClipboardOptions = {}): UseClipboardRes
 
     const copy = useCallback(
         async (text: string): Promise<boolean> => {
-            try {
-                if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(text);
-                } else if (typeof document !== "undefined") {
-                    const textarea = document.createElement("textarea");
-                    textarea.value = text;
-                    textarea.style.position = "fixed";
-                    textarea.style.opacity = "0";
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(textarea);
-                } else {
-                    return false;
-                }
-                setCopied(true);
-                if (timer.current) clearTimeout(timer.current);
-                timer.current = setTimeout(() => setCopied(false), resetAfter);
-                return true;
-            } catch {
-                return false;
-            }
+            if (!(await writeToClipboard(text))) return false;
+            setCopied(true);
+            if (timer.current) clearTimeout(timer.current);
+            timer.current = setTimeout(() => setCopied(false), resetAfter);
+            return true;
         },
         [resetAfter],
     );

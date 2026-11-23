@@ -766,6 +766,82 @@ Monte-o uma vez, na raiz do app. Ele abre sozinho quando o `installed` de `useBe
 !!! note "Só abre onde existe sinal de instalação"
     `appinstalled` é disparado pelos navegadores Chromium (Chrome, Edge, Samsung Internet), qualquer que tenha sido o caminho da instalação — prompt, ícone da barra de endereço ou menu. Safari (iOS e macOS) e Firefox não disparam o evento, então ali o overlay nunca abre: não há sinal em que se apoiar.
 
+## `ShareActions`
+
+<!-- gallery:meta -->
+[![Network · Clipboard · Share na gallery](../assets/gallery/meta.webp)](../gallery.md)
+
+*Seção `meta` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+> **Quando usar**: o usuário vai **divulgar** algo do app — uma carona, um produto, um evento — no WhatsApp ou em outra rede. Três botões prontos: WhatsApp, a folha de compartilhamento do sistema e "Copiar link".
+
+```tsx
+import { ShareActions } from "tempest-react-sdk";
+
+export function ShareRide({ id }: { id: string }) {
+  const url = `https://app.exemplo.com/c/${id}`;
+  return (
+    <ShareActions
+      title="Carona Picos → Teresina"
+      text="Sexta, 07:05 · R$ 25,00 por vaga · 3 vagas"
+      url={url}
+      imageUrl={`${url}/og.png`}
+    />
+  );
+}
+```
+
+| Prop            | Tipo                                         | Default                           |
+| --------------- | -------------------------------------------- | --------------------------------- |
+| `url`           | `string` — o link divulgado                  | —                                 |
+| `title`         | `string`                                     | —                                 |
+| `text`          | `string` — o `url` é anexado no WhatsApp     | —                                 |
+| `imageUrl`      | `string` — vai como arquivo onde o aparelho aceita | —                           |
+| `imageFileName` | `string`                                     | nome do caminho, ou `preview.<ext>` |
+| `actions`       | `("whatsapp" \| "native" \| "copy")[]`       | `["whatsapp", "native", "copy"]`  |
+| `labels`        | `Partial<ShareActionsLabels>`                | `tempest.share.*`                 |
+| `variant`       | `ButtonVariant`                              | `"outline"`                       |
+| `size`          | `ButtonSize`                                 | `"md"`                            |
+| `onShare`       | `(outcome: ShareOutcome) => void`            | —                                 |
+| `onCopy`        | `(copied: boolean) => void`                  | —                                 |
+
+O que cada botão faz:
+
+- **WhatsApp** é um link de verdade para `https://wa.me/?text=…` (montado por [`whatsAppShareUrl`](../br-pagamentos.md#divulgar-sem-destinatario-whatsappshareurl)), com o texto e o link. Por ser `<a>`, não depende de permissão de popup e abre o app no celular. A imagem da prévia vem das tags Open Graph da página do link — veja a [receita](../recipes/share-whatsapp.md).
+- **Compartilhar** abre a folha do sistema por [`useShare`](../share.md#useshare-compartilhar-com-imagem-e-fallback), com a imagem anexada onde o aparelho aceita arquivo. Só aparece onde existe `navigator.share`.
+- **Copiar link** tenta a Clipboard API, depois `execCommand("copy")`; quando os dois são recusados (navegador interno de alguns apps), mostra o link num campo somente-leitura, **já selecionado**, com a dica de tocar e segurar. O sucesso é anunciado numa região `role="status"`.
+
+!!! info "A escolha é por capacidade, não por user agent"
+    O botão "Compartilhar" aparece onde `navigator.share` existe — não onde o user agent diz "mobile". O Chrome desktop no Windows e no macOS tem a folha do sistema e ganha o botão; o Firefox desktop e o Chrome no Linux não têm e não ganham. Farejar "celular" erra os dois lados.
+
+!!! tip "Textos traduzíveis"
+    Os defaults passam pelo [`I18nProvider`](../i18n.md#textos-padrao-dos-componentes) (`tempest.share.whatsapp`, `.native`, `.copy`, `.copied`, `.manual`, `.field`): app em inglês recebe "Share on WhatsApp" sem configurar nada. `labels` vence os dois.
+
+## `ShareButton`
+
+> **Quando usar**: só cabe **um** botão — o ícone de compartilhar num card de lista, por exemplo.
+
+```tsx
+import { ShareButton } from "tempest-react-sdk";
+
+export function RideCardShare({ id }: { id: string }) {
+  const url = `https://app.exemplo.com/c/${id}`;
+  return <ShareButton iconOnly title="Carona Picos → Teresina" url={url} imageUrl={`${url}/og.png`} />;
+}
+```
+
+Onde `navigator.share` existe, abre a folha do sistema (com a imagem, onde o aparelho aceita). Onde não existe, **o mesmo botão vira o link `wa.me`** e diz isso: "Compartilhar no WhatsApp". Um rótulo que promete a folha do sistema e abre o WhatsApp Web seria mentira no Firefox desktop.
+
+| Prop       | Tipo                                    | Default      |
+| ---------- | --------------------------------------- | ------------ |
+| `url`      | `string`                                | —            |
+| `title`, `text`, `imageUrl`, `imageFileName` | como em `ShareActions` | — |
+| `labels`   | `Partial<{ native: string; whatsapp: string }>` | `tempest.share.*` |
+| `iconOnly` | `boolean` — o rótulo vira o nome acessível | `false`   |
+| `variant`, `size`, `fullWidth` | como em `Button`    | `"outline"`, `"md"` |
+| `onShare`  | `(outcome: ShareOutcome) => void` — só no caminho da folha | — |
+
 ## Resumo
 
 | Componente      | Use para                                       | Gatilho    |
@@ -775,6 +851,8 @@ Monte-o uma vez, na raiz do app. Ele abre sozinho quando o `installed` de `useBe
 | `InstallButton` | Instalar o PWA, ou ensinar como onde não há prompt | clique  |
 | `InstallBanner` | Convite dispensável pra instalar o PWA         | clique     |
 | `PostInstallPrompt` | Avisar, na aba, que o app já foi instalado  | `appinstalled` |
+| `ShareActions`  | Divulgar um link: WhatsApp, folha do sistema, copiar | clique |
+| `ShareButton`   | Um só botão de compartilhar, pelo caminho que o navegador tem | clique |
 | `Tooltip`       | Contexto não-crítico num controle              | hover/foco |
 | `DropdownMenu`  | Lista de ações secundárias (fecha ao escolher) | clique     |
 | `Popover`       | Painel flutuante com conteúdo arbitrário       | clique     |

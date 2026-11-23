@@ -155,6 +155,69 @@ The order is **file + text → text only → download**:
     Generate the spreadsheet with [`writeXlsx`](./utilities.en.md#spreadsheets-xlsx-writexlsx), wrap it in a `Blob`, and hand it to `shareOrDownloadBlob` — a full data export, from bytes to native sheet, with no extra dependency.
     With photos alongside, [`createZip`](./utilities.en.md#zip-archives-createzip) returns the `.zip` `Blob` directly, with progress.
 
+## `useShare` — sharing with an image and a fallback
+
+`share()` settles `navigator.share`. What every app wrote **around** it — downloading the preview image only when the device accepts files, not letting that download outlive the click's gesture, handling a cancel, copying the link — is `useShare()`:
+
+```tsx
+import { Button, useShare } from "tempest-react-sdk";
+
+export function ShareRide({ url }: { url: string }) {
+  const { canShare, share, copyLink, prefetchImage } = useShare();
+  const imageUrl = `${url}/og.png`;
+
+  async function handleClick(): Promise<void> {
+    const outcome = await share({ title: "Ride Picos → Teresina", text: "Friday, 07:05", url, imageUrl });
+    if (outcome === "unsupported") await copyLink(url);
+  }
+
+  return (
+    <Button onPointerEnter={() => prefetchImage(imageUrl)} onClick={handleClick}>
+      {canShare ? "Share" : "Copy link"}
+    </Button>
+  );
+}
+```
+
+| Returns         | Type                                             | What it is                                                 |
+| --------------- | ------------------------------------------------ | ---------------------------------------------------------- |
+| `canShare`      | `boolean`                                        | `navigator.share` exists                                   |
+| `canShareFiles` | `boolean`                                        | `navigator.canShare({ files })` accepts an image           |
+| `share`         | `(content: ShareContent) => Promise<ShareOutcome>` | opens the system sheet; **never rejects**                |
+| `copyLink`      | `(url: string) => Promise<boolean>`              | Clipboard API → `execCommand("copy")`                      |
+| `prefetchImage` | `(imageUrl: string) => void`                     | starts the image download before the click                 |
+
+`ShareContent` is `{ title?, text?, url?, imageUrl?, imageFileName? }`. `ShareOutcome`:
+
+| Value           | When                                                                    | What to do                        |
+| --------------- | ----------------------------------------------------------------------- | --------------------------------- |
+| `"shared"`      | the sheet closed with a target picked                                   | nothing, or a toast               |
+| `"cancelled"`   | the person closed the sheet (`AbortError`)                              | **nothing** — not an error        |
+| `"unsupported"` | the browser has no Web Share                                            | `wa.me` or "copy link"            |
+| `"failed"`      | the browser refused for another reason (expired gesture: `NotAllowedError`) | telemetry — the error goes to `onError` |
+
+!!! note "Four outcomes, not three"
+    The issue that asked for the hook (#800) listed `shared | cancelled | unsupported`. A `NotAllowedError` is none of them: the browser **has** Web Share and the person did not cancel. Calling it `unsupported` would make the app hide the button in a browser that shares; rejecting the promise would force a `try/catch` into every `onClick`. Hence `"failed"`, with the error in `useShare({ onError })`.
+
+### The image: only when it goes, and never blocking
+
+1. **Downloaded only when it can be sent.** `canShareFiles` asks `canShare` with an empty PNG — it judges a file by type and extension, not bytes — so where the device takes no files no request is made.
+2. **With an image, the link goes inside the text.** Most targets keep a file's caption and drop the separate `url`; the hook joins `text` + `url` (without repeating a link the text already carries).
+3. **Any failure shares without the image**: network, non-2xx status, CORS, a type the device refuses in `canShare` for the real file, or a download slower than `imageTimeoutMs` (default 3000 ms).
+4. **The file name has an extension.** Chromium decides by it whether a file is shareable: the default is the last path segment (`og.png`) or `preview.<ext>` from the `Content-Type`. `imageFileName` overrides it.
+
+!!! warning "The click's gesture expires — hence `prefetchImage`"
+    `navigator.share` only runs while the click's **transient activation** is alive. Measured in Playwright's headless Chromium 159 (23/11/2026), reading `navigator.userActivation.isActive` after an `await fetch` of controlled duration: alive after 4.5 s, **gone after 5.5 s** — the same on desktop and with Pixel 7 emulation. WebKit is stricter (not measured here). Hence the 3 s ceiling on the image, and `prefetchImage`: call it on `pointerenter`, `focus` or `pointerdown`, and the click finds the image ready. `ShareActions` and `ShareButton` already do.
+
+    To reproduce: open a page with a button whose `onclick` runs `await (await fetch("/slow?ms=5500")).blob()` and reads `navigator.userActivation.isActive`.
+
+### Capability, not user agent
+
+`canShare` is `navigator.share` existing — not the user agent saying "mobile". Desktop Chrome on Windows and macOS has the system sheet; desktop Firefox and Chrome on Linux do not; a phone browser without the API does not either. The ready buttons — [`ShareActions`](./components/actions.md#shareactions) and [`ShareButton`](./components/actions.md#sharebutton) — decide on that: with Web Share, the sheet; without it, the [`wa.me`](./br-pagamentos.md#spreading-without-a-recipient-whatsappshareurl) link.
+
+!!! info "`copyLink` and the third step"
+    `copyLink` tries the Clipboard API and, when it is missing **or rejects** (an in-app browser without the permission), `execCommand("copy")` on an off-screen `<textarea>`. It is the same chain as `useClipboard` and `InstallCopyLink`. When both are refused it resolves `false`: the third step — the link in a read-only field, already selected, for the person to press and hold — is UI, and `ShareActions` renders it.
+
 ## Recap
 
 - `share(payload)` wraps `navigator.share` and returns `ShareResult` instead of throwing.
@@ -164,6 +227,7 @@ The order is **file + text → text only → download**:
 - `SharePayload` accepts `title`, `text`, `url`, `files` (all optional).
 - `isShareSupported()` decides upfront between the native button and the fallback.
 - `files` is validated via `canShare` before trying; unsupported browsers return `unsupported: true`.
+- `useShare()` wraps the flow: the image only where the device takes files and never blocking, `"cancelled"` without an error, `copyLink` with its fallback; `ShareActions` / `ShareButton` are the ready buttons.
 - Requires HTTPS and a user gesture (call it from an `onClick`).
 
 ## See also

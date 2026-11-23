@@ -1,6 +1,6 @@
 # Pagamentos, fiscal & contato BR
 
-Os quatro trilhos que todo produto brasileiro acaba precisando — **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis** — mais o canal por onde tudo isso chega ao cliente: **WhatsApp**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, só Pix (payload + CRC + componente de QR) mede **6,1 KB**, e o deep link do WhatsApp mede **223 B**.
+Os quatro trilhos que todo produto brasileiro acaba precisando — **Pix**, **boleto**, **chave de acesso da NFe** e **feriados / dias úteis** — mais o canal por onde tudo isso chega ao cliente: **WhatsApp**. Tudo puro TypeScript, **sem nenhuma dependência nova** — a fatia inteira mede **9,22 KB brotli**, só Pix (payload + CRC + componente de QR) mede **6,1 KB**, e o deep link do WhatsApp (os quatro helpers, `whatsAppShareUrl` incluso) mede **253 B**.
 
 !!! info "Import pelo subpath `tempest-react-sdk/br`"
     Igual ao resto do módulo BR, estes helpers vivem em `tempest-react-sdk/br` — não na raiz. Quem não importa, não paga.
@@ -555,6 +555,21 @@ toWhatsAppNumber("+351 912 345 678"); // "351912345678"   — Portugal, intacto
 !!! info "O nono dígito é da sua base, não do link"
     Um celular gravado antes de 2016 tem dez dígitos e passa aqui como fixo — o link é montado e é o WhatsApp que decide se acha a conta. Se a sua base tem contato antigo, normalize o nono dígito **na base**; o deep link não tem como adivinhar se `1133334444` é fixo ou celular sem o 9.
 
+### Divulgar sem destinatário: `whatsAppShareUrl`
+
+`whatsAppUrl` exige número — e devolve `""` sem um, de propósito: link de contato com typo tem que desabilitar o botão. Divulgar uma carona ou um produto não tem destinatário nenhum. Para isso existe `whatsAppShareUrl(text)`, que monta `https://wa.me/?text=…`: o WhatsApp abre o **seletor de conversa** com o texto pronto, e a pessoa escolhe o contato ou o grupo.
+
+```ts
+import { whatsAppShareUrl } from "tempest-react-sdk/br";
+
+whatsAppShareUrl("Carona Picos → Teresina, sex 07:05: https://app.exemplo.com/c/42");
+// "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.exemplo.com%2Fc%2F42"
+
+whatsAppShareUrl(""); // "https://wa.me/" — composer em branco
+```
+
+Quando o texto carrega um link, o WhatsApp monta o **cartão de prévia** (imagem, título, descrição) a partir das tags Open Graph daquela página — a imagem chega sem ser anexada. O fluxo completo, com o botão pronto e a página de prévia no backend, está na receita [Compartilhar com prévia no WhatsApp](./recipes/share-whatsapp.md); os botões são o [`ShareActions`](./components/actions.md#shareactions).
+
 ### Receita: cobrar o sinal por WhatsApp
 
 O caso que junta esta parte com a [Parte 1](#parte-1-pix) — o texto da mensagem carrega o copia-e-cola do Pix:
@@ -604,6 +619,6 @@ export function DepositRequestButton({ booking }: { booking: Booking }) {
 - **Boleto** — `parseLinhaDigitavel` / `parseCodigoBarras` convertem 47↔44 e 48↔44 conferindo todo DV; cobrança e arrecadação são layouts diferentes e o SDK nunca confunde os dois; o fator de vencimento tem **duas** bases desde fev/2025 e a escolha é explícita.
 - **NFe** — `parseChaveNFe` abre os 44 dígitos e resolve o `cUF` no tipo `UF` do módulo; `validateChaveNFe` confere tamanho, UF e DV.
 - **Feriados** — `holidaysFor` devolve os 9 feriados nacionais + os 4 dias bancários móveis, marcados; estado e município entram por `extra`; `isBusinessDay` / `nextBusinessDay` / `addBusinessDays` fazem a conta no calendário local.
-- **WhatsApp** — `toWhatsAppNumber` põe o `55` no número nacional e devolve `""` no que não dá pra dialar; `whatsAppUrl` monta o `wa.me` com o texto codificado; `openWhatsApp` abre a aba. É **deep link**, nunca envio: quem aperta enviar é a pessoa.
+- **WhatsApp** — `toWhatsAppNumber` põe o `55` no número nacional e devolve `""` no que não dá pra dialar; `whatsAppUrl` monta o `wa.me` com o texto codificado; `openWhatsApp` abre a aba; `whatsAppShareUrl` monta o `wa.me/?text=` sem destinatário, para divulgar. É **deep link**, nunca envio: quem aperta enviar é a pessoa.
 
 Nada disso fala com banco. Para o lado servidor (registrar boleto, criar cobrança Pix, autorizar NF-e), veja [Integração FastAPI](./integration-fastapi.md).

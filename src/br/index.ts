@@ -137,7 +137,7 @@ export {
 export type { ChaveNFe } from "./nfe";
 
 // WhatsApp deep link (chat opened with the message ready, never an API send).
-export { openWhatsApp, toWhatsAppNumber, whatsAppUrl } from "./whatsapp";
+export { openWhatsApp, toWhatsAppNumber, whatsAppShareUrl, whatsAppUrl } from "./whatsapp";
 
 // National holidays + business-day arithmetic.
 export {

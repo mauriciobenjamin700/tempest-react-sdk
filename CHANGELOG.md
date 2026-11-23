@@ -36,9 +36,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   **rejeita** (navegador interno sem permissão) ia direto para `false` sem tentar o
   `execCommand`. Agora `useClipboard`, `InstallCopyLink` e `useShare().copyLink` usam a mesma
   cadeia (a do `InstallCopyLink`, extraída): Clipboard API → `execCommand` honrando o retorno.
+- **`captureFrame` lia o vídeo antes de ele ter um frame legível** (#795). O Chromium sobe o
+  `readyState` — e dispara `loadeddata` — antes de o player ter um frame que o `createImageBitmap`
+  consiga ler, e a captura saía com `ImageDecodeError` ("The image source is not usable"). Era
+  raro com `preload="auto"` (2 de 30 leituras dentro do `loadeddata`, legíveis 11–94 ms depois) e
+  **permanente** com vídeo pausado em `preload="metadata"`, que nunca decodifica frame sozinho.
+  Agora, quando a leitura é recusada, um vídeo pausado recebe **um** seek para a posição onde já
+  está (dispara `seeking`/`seeked`, não move o player) e a leitura se repete a cada ~16 ms,
+  honrando `signal` e `timeoutMs`; esgotado o prazo sai `FrameSeekError` com o `readyState` e a
+  rejeição original em `cause`. Outras falhas de leitura seguem imediatas. Medido com N=60 no
+  Chromium do Playwright (captura de `preload="metadata"` no `loadedmetadata`): 60/60 falhas antes,
+  0/60 depois. Estrangular CPU (`Emulation.setCPUThrottlingRate`, como no #680) **não** reproduz
+  (0/30 a 20×): a corrida é a página à frente do pipeline de mídia.
 
 ### Budgets
 
+- **#795, medido com `npm run build && npx size-limit --json` sobre a `main` em `0423868` e sobre
+  este branch**, bytes brotli: `slice: imaging — captureFrame alone` 2 372 → 2 566 (teto 2,5 → 2,7
+  kB); `imaging entry` 3 637 → 3 833 (teto 5 kB, sem mudança). Os bytes compram a leitura que
+  espera o primeiro frame legível e o seek que o destrava.
 - **Medido com `npm run build && npx size-limit --json` sobre a `main` em `6541473` e sobre este
   branch**, bytes brotli: `ceiling: full barrel ESM` 177 629 → 179 263 (teto 177,8 → 179,4 kB);
   `ceiling: full barrel CJS` 210 283 → 212 483 (teto 210,7 → 212,6 kB). Os bytes compram dois

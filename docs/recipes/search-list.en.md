@@ -93,7 +93,7 @@ export function Team() {
   and pagination in the browser. Columns with `sortable: true` sort when the header is
   clicked: asc → desc → unsorted.
 - `searchable` adds a search box above the table. It filters by a piece of the text,
-  case-insensitive. `searchKeys` limits the search to name and e-mail, so "gerente"
+  ignoring case and accents ("joao" finds "João"). `searchKeys` limits the search to name and e-mail, so "gerente"
   does not match the role column.
 - `loading={isLoading}` draws skeleton rows while the first answer has not arrived.
   "I am fetching" and "there is nothing" are different sentences, and `emptyMessage`
@@ -134,7 +134,6 @@ import {
   Page,
   formatCPF,
   formatCurrency,
-  useDebounce,
   usePaginatedQuery,
   type DataTableColumn,
   type DataTableSort,
@@ -181,12 +180,11 @@ const columns: DataTableColumn<Customer>[] = [
 ];
 
 export function Customers() {
-  const [term, setTerm] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
   const [sort, setSort] = useState<DataTableSort<Customer> | null>({
     key: "nome",
     direction: "asc",
   });
-  const search = useDebounce(term, 400);
 
   const customers = usePaginatedQuery<Customer>({
     queryKey: ["clientes", search, sort],
@@ -232,7 +230,8 @@ export function Customers() {
         initialSort={{ key: "nome", direction: "asc" }}
         onSortChange={setSort}
         searchable
-        onSearchChange={setTerm}
+        searchDebounceMs={400}
+        onSearchChange={setSearch}
         emptyMessage={`Nenhum cliente encontrado para "${search}"`}
         loading={customers.isFetching}
       />
@@ -254,10 +253,10 @@ props the table asks for. With `orderBy` set, it also sends `order_by` and `asce
 The previous page stays on screen while the next one loads, so the table does not
 flicker.
 
-**The search is debounced.** The table reports every keystroke in `onSearchChange`.
-`useDebounce(term, 400)` only hands over the term once the person stops typing for
-400 ms. Without it, "souza" would be five requests. See
-[`useDebounce`](../hooks.md#debounced-search-usedebounce).
+**The search is debounced.** With `searchDebounceMs={400}` the box shows every
+keystroke, but `onSearchChange` is only called once the person stops typing for 400 ms.
+Without it, "souza" would be five requests. The search also ignores accents: "joao"
+finds "João".
 
 **A new filter goes back to page 1.** `search` and `sort` are in the `queryKey`. When it
 changes, `usePaginatedQuery` goes back to page 1 in the same render, without first
@@ -299,7 +298,7 @@ computer, where there is room.
   does everything in the browser.
 - ✅ **Large list**: `totalItems` + `page` + `onPageChange` turn on server mode, and
   `usePaginatedQuery` hands over those props ready.
-- ✅ `useDebounce` holds the search; `search` and `sort` in the `queryKey` go back to
+- ✅ `searchDebounceMs` holds the search; `search` and `sort` in the `queryKey` go back to
   page 1.
 - ✅ `loading`, `EmptyState`, `emptyMessage` and `ErrorState` cover loading, empty,
   search with no result and error.

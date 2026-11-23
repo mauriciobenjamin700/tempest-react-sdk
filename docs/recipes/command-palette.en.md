@@ -34,15 +34,13 @@ import {
   Button,
   Command,
   Kbd,
+  formatShortcut,
   useKeyboardShortcut,
   useNavigate,
   useTheme,
   type CommandItem,
 } from "tempest-react-sdk";
 import { useAuth } from "@/stores/auth";
-
-const isApple: boolean =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 export function CommandPalette() {
   const [open, setOpen] = useState<boolean>(false);
@@ -51,14 +49,7 @@ export function CommandPalette() {
   const role: string | undefined = useAuth.use.user()?.role;
   const logout: () => void = useAuth.use.logout();
 
-  useKeyboardShortcut(
-    { key: "k", mod: true },
-    (event) => {
-      event.preventDefault();
-      setOpen(true);
-    },
-    { ignoreInput: false },
-  );
+  useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
 
   const items: CommandItem[] = [
     {
@@ -124,7 +115,7 @@ export function CommandPalette() {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        rightIcon={<Kbd size="sm">{isApple ? "⌘ K" : "Ctrl K"}</Kbd>}
+        rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
       >
         Buscar
       </Button>
@@ -132,6 +123,7 @@ export function CommandPalette() {
         open={open}
         onOpenChange={setOpen}
         placeholder="Ir para tela ou ação…"
+        label="Ir para tela ou ação"
         emptyMessage="Nada encontrado. Tente outro termo."
         items={items}
       />
@@ -179,7 +171,7 @@ You hand over a list of `CommandItem`s and control `open` / `onOpenChange`. The 
 its job:
 
 - it filters the items by a piece of the text in `label` **and** in `keywords`,
-  case-insensitive;
+  ignoring case **and accents** — "usuarios" finds "Usuários";
 - it groups the results by `group`, in the order the groups appear in the list;
 - it navigates with ↑ / ↓, runs with Enter and closes on Escape, click outside or
   selection;
@@ -189,8 +181,8 @@ Each `onSelect` is the item's action: `navigate(...)`, `toggle()` or `logout()`.
 
 !!! tip "`keywords` is where usability lives"
     Nobody remembers whether the screen is called "Clientes" or "Compradores". Put the
-    synonyms in `keywords`, including words without accents ("usuarios") if your team
-    types like that: the search compares the text as it is, accents included.
+    synonyms in `keywords`. No unaccented copy is needed: the search already ignores
+    accents on both sides.
 
 ### The shortcut works on any system
 
@@ -198,15 +190,17 @@ Each `onSelect` is the item's action: `navigate(...)`, `toggle()` or `logout()`.
 Ctrl+K on Windows and Linux**. The hook takes a `KeyboardShortcut` object, not a
 string.
 
-Two details make the shortcut ready for real use:
+Because the shortcut carries the modifier, the hook does two things on its own:
 
-- `event.preventDefault()`: Ctrl+K is a browser shortcut of its own (focus the search
-  in Chrome and Firefox). Without it, the palette opens **and** the browser steals the
-  focus.
-- `{ ignoreInput: false }`: by default the hook ignores keys typed inside a field, so
-  it does not hijack typing. For ⌘K that is the opposite of what you want: the person
-  has the focus in the orders search and wants to jump screens. Since the shortcut
-  needs the modifier, there is no risk of swallowing a typed letter.
+- it calls `event.preventDefault()`: Ctrl+K is a browser shortcut of its own (focus the
+  search in Chrome and Firefox), and without it the palette opens **and** the browser
+  steals the focus;
+- it fires with the focus in a field: the person is in the orders search and wants to
+  jump screens. A key without Ctrl/Cmd (`"/"`, `"?"`) still belongs to the field it is
+  typed in.
+
+To change either, pass `{ preventDefault: false }` or `{ ignoreInput: true }`. See
+[`useKeyboardShortcut`](../hooks.md#global-shortcut-usekeyboardshortcut).
 
 ### Items per role
 
@@ -221,19 +215,18 @@ The "Buscar" (search) button has two roles. On a computer, it **teaches** the sh
 with the right key for the system in use. On a phone, it is **the only way** to open
 the palette, since there is no physical keyboard. 📱
 
-!!! note "Why detect the platform by hand"
-    The hook's `mod` resolves Cmd vs. Ctrl when **listening** for the key. To **show**
-    the key, the app decides on its own, and a test on `navigator.userAgent` is enough.
-    The `typeof navigator` check avoids an error if the module is imported outside the
-    browser, in a Node test, for example.
+`formatShortcut` takes the same object the hook listens for and returns `⌘K` on Mac,
+iPhone and iPad, and `Ctrl+K` everywhere else. The label and the shortcut cannot drift
+apart.
 
 ## Recap
 
 - ✅ `Command` takes `items`, `open` and `onOpenChange` and handles search, groups,
   keyboard and focus.
-- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …, { ignoreInput: false })` opens the
-  palette from anywhere, with `preventDefault` to beat the browser's shortcut.
+- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …)` opens the palette from anywhere,
+  including from inside a field, and beats the browser's shortcut.
 - ✅ `keywords` finds the screen by synonym.
 - ✅ The list depends on the user, but the real protection lives in the guard and the
   backend.
-- ✅ A button with `Kbd` teaches the shortcut and is the way in on phones.
+- ✅ A button with `Kbd` and `formatShortcut` teaches the right shortcut for the system
+  and is the way in on phones.

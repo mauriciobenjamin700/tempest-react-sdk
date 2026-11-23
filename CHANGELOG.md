@@ -6,6 +6,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Adicionado
 
+- **`StorageFullError` e `isQuotaExceededError`: escrita do `OfflineStore` recusada por falta de
+  espaço vira um erro tipado** (parte de #726). Toda escrita do store (`put`, `bulkPut`, `update`,
+  `updateMany`, `delete`, `clear`) — e por tabela o `createOfflineDatabase`, e o `enqueue` do
+  `createOfflineSync`, cuja outbox é um store — rejeita com `StorageFullError`, com o erro original
+  em `cause`, para o app avisar "memória cheia, sincronize antes de continuar". A issue dizia que o
+  erro saía como `QuotaExceededError` cru; medido no Chromium 159 com a cota da origem em 1 MiB
+  (`Storage.overrideQuotaForOrigin`) e um registro de 4 MiB, as quatro escritas rejeitavam com o
+  **`AbortError`** do Dexie, com o `QuotaExceededError` só no `inner`: a cota é cobrada no commit.
+  Testar `name === "QuotaExceededError"` não pegava nenhuma. `isQuotaExceededError` reconhece essa
+  forma, o `QuotaExceededError` do Dexie e do navegador, `BulkError`/`ModifyError` com a cota em
+  `failures` e cadeias de `cause`, e serve para escrita feita por `raw`/`db`, que não converte
+  (`npx vitest run src/offline/create-offline-store.quota.test.ts src/offline/storage-full-error.test.ts`).
+  A receita [App de campo offline](docs/recipes/field-app-offline.md) separa "memória cheia" de
+  "foto ruim" no `catch` da câmera.
 - **`<StorageUsage>`: exibe uso, quota e bytes pendentes de envio do armazenamento do navegador**
   (parte de #726). Recebe tudo por prop (`usage`, `quota`, `pendingBytes`, `persisted`, `warnAt`,
   `onRequestPersist`) e não lê `navigator.storage` sozinho: o app decide o limite e o momento de
@@ -97,6 +111,21 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #793** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 176 472 B (teto 176.4 kB → 176.6 kB); `ceiling: full barrel CJS` 209 191 B (teto 208.7 kB → 209.3 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #765** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 424 B (teto 175.1 kB → 175.5 kB); `ceiling: full barrel CJS` 207 557 B (teto 207 kB → 207.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #764** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 039 B (teto 173.9 kB → 175.1 kB); `ceiling: full barrel CJS` 206 910 B (teto 205.6 kB → 207 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #765** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 174 283 B (teto 173.9 kB → 174.4 kB); `ceiling: full barrel CJS` 206 043 B (teto 205.6 kB → 206.1 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #763** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 758 B (teto 173.7 kB → 173.9 kB); `ceiling: full barrel CJS` 205 543 B (teto 205.4 kB → 205.6 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **Budgets remedidos sobre a soma com a `main` ao mergear #762** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 559 B (teto 173.3 kB → 173.7 kB); `ceiling: full barrel CJS` 205 275 B (teto 204.9 kB → 205.4 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
+- **#726 (`StorageFullError`), medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `9770a39` e sobre este branch**, em bytes brotli: `slice: offline + PWA surface` 5 366 → 5 577
+  (teto 6 kB, dentro); `ceiling: full barrel ESM` 173 112 → 173 276 (teto 173,3 kB, dentro);
+  `ceiling: full barrel CJS` 204 565 → 204 726 (teto 204,9 kB, dentro). `slice: device capture`
+  5 744 → 5 757 passou do teto de 5,75 kB sem carregar código novo: o bundle do size-limit dessa
+  fatia tem os **mesmos 17 134 bytes** minificados nos dois lados, e só os nomes curtos que o esbuild
+  dá a quatro identificadores mudam (`C`/`I` → `E`/`F`), o que muda o brotli em 13 B (conferido com
+  `npx size-limit --save-bundle <dir>` com só essa entrada no `.size-limit.checks.json`, e `diff`
+  dos dois `index.js`). Teto 5,75 → 5,8 kB.
 - **`<StorageUsage>` (parte de #726), medido com `npm run build && npx size-limit --json` sobre a
   `main` em `6a716c5` e sobre este branch**, bytes brotli: `ceiling: full barrel ESM` 173 112 →
   173 576 (teto 173,3 → 173,6 kB); `ceiling: full barrel CJS` 204 565 → 205 444 (teto 204,9 →
@@ -272,9 +301,332 @@ useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/ru
   este branch**, em bytes brotli: `ceiling: full barrel CJS` 203 908 → 204 221 (teto 204 →
   204,3 kB) pelos dois props e seus JSDoc no `.cjs` sem tree-shaking; `ceiling: full barrel ESM`
   172 596 → 172 439 (teto 172,7 kB, dentro).
+- **`/vite`: `tempestThemeInit()` injeta o script anti-flash do tema no `index.html`** (#734). O
+  `themeInitScript()` precisava ser colado à mão no `<head>`, e nem o template do
+  `create-tempest-app` o tinha: medido no app gerado pela 0.92.0 (`vite build` + `vite preview`,
+  Chromium, `localStorage["tempest-theme"] = "dark"`, 5 cargas), no primeiro
+  `requestAnimationFrame` o `data-tempest-theme` não existia e o `body` pintava
+  `rgb(255, 255, 255)` nas 5. O plugin põe o script no topo do `<head>` (antes de qualquer folha),
+  no `vite dev` e no build; o `tempestCsp()`, que roda como transform `post`, o libera pelo SHA-256,
+  sem `'unsafe-inline'` (teste com `vite build` real). Página que já tem o mesmo trecho não ganha
+  segundo. Os dois templates (`template/` e `template-pwa/`) passam a ligar
+  `plugins: [tempestThemeInit(), tempestCsp()]`; com o plugin, o primeiro quadro do app gerado já
+  sai com o atributo `dark` e o `body` em `rgb(11, 13, 18)` nas 5 cargas, sem erro de CSP no console. `themeInitScript` mudou de arquivo
+  (`theme/theme-init-script.ts`) para o `/vite` não arrastar o `storage` do navegador; o export é o
+  mesmo.
+- **`formatShortcut` e `isApplePlatform`** (#733): o rótulo do atalho na convenção do sistema
+  (`⌘K` / `⇧⌘P` no Mac, iPhone e iPad; `Ctrl+K` / `Ctrl+Shift+P` no resto), a partir do mesmo
+  objeto `KeyboardShortcut` que o `useKeyboardShortcut` escuta. A receita da paleta ⌘K testava
+  `navigator.userAgent` à mão.
+
+### Mudado
+
+- **`useKeyboardShortcut`: atalho com Ctrl/Cmd dispara com o foco num campo e cancela a ação do
+  navegador** (#729). Medido no jsdom sobre a 0.92.0: `{ key: "k", mod: true }` com o foco num
+  `<input>` não chamava o handler, e o `keydown` casado saía com `defaultPrevented: false` (Ctrl+K
+  foca a busca do Chrome e do Firefox). Toda paleta repetia `event.preventDefault()` e
+  `{ ignoreInput: false }`. Agora os defaults seguem o modificador: com `ctrl`/`meta`/`mod`,
+  `ignoreInput: false` e `preventDefault: true`; com `alt`, só `preventDefault: true`; tecla sem
+  modificador fica como era (ignorada em campo, sem `preventDefault`). Opção nova
+  `preventDefault`. **Quem liga uma combinação de edição** (`mod+z`, `mod+a`, `mod+c`) e quer
+  manter a do campo passa `{ ignoreInput: true }`.
+- **`ThemeProvider`: `themeColor` cria a `<meta name="theme-color">` quando ela falta** (#735).
+  Antes a prop não fazia nada, em silêncio, numa página sem a tag — o `index.html` do template
+  base é uma delas.
+
+### Budgets
+
+- Medidos com `npm run build && npx size-limit --json`, `main` (71727a7) → este branch:
+  `slice: typical app` 12 842 → 12 959 B (teto 12.94 → 13 kB; o `AppProviders` monta o
+  `ThemeProvider`, que agora cria a meta `theme-color`); `ceiling: full barrel ESM` 172 596 →
+  173 096 B (teto 172.7 → 173.2 kB); `ceiling: full barrel CJS` 203 908 → 204 597 B (teto 204 →
+  204.7 kB). O resto do barrel cresce com `formatShortcut`/`isApplePlatform` e as opções do
+  `useKeyboardShortcut`.
+
+### Documentação
+
+- `components/advanced-essentials.md`: o tip da paleta usava `useKeyboardShortcut("mod+k", …)`, mas o
+  hook recebe objeto (#736); virou exemplo completo, que o guard compila.
+- Receitas `command-palette.md` e `dark-mode.md` (PT e EN) sem os contornos: nem
+  `preventDefault`/`ignoreInput` à mão, nem detecção de plataforma, nem script colado no
+  `index.html`, nem meta `theme-color` obrigatória.
+- **`LiveRouteMap`: `vehicle.stale` para posição velha** (#702). A van com quatro minutos de idade
+  era desenhada igual à ao vivo — mesma cor, mesmo halo, mesmo nome falado. Com `stale: true` o
+  veículo fica onde foi visto por último, em `--tempest-live-route-stale` (padrão
+  `--tempest-text-muted`), sem halo, e o nome acessível ganha `staleLabel` (padrão
+  `"posição desatualizada"`). O mapa não ganhou relógio: quem decide "velho" é o app, que já tem o
+  `timestamp` e um `now`. Medido no Chromium headless (Playwright isolado sobre a gallery buildada,
+  390 e 1280 px, ida-e-volta claro → escuro → claro igual): corpo contra o fundo do mapa 6,92:1
+  (claro) / 7,43:1 (escuro), seta sobre o corpo 7,30 / 8,39:1.
+- **`LiveRouteMarker.visited` e `visitedLabel` no mapa** (#703). Parada já atendida ficava idêntica
+  à que vem pela frente; a receita escrevia "(já atendida)" no `label`. Agora o marcador mantém o
+  tipo e é pintado em `--tempest-live-route-visited` (padrão `--tempest-text-muted`), com
+  `glyphText`/`icon` em `--tempest-live-route-visited-ink` (padrão `--tempest-surface`), e o nome
+  falado ganha `visitedLabel` (padrão `"visita concluída"`). Mesmas medidas do item acima (6,92 /
+  7,43:1 contra o fundo, 7,30 / 8,39:1 do número). A separação da parada pendente é de matiz
+  (azul × cinza, 1,49 / 1,72:1 de luminância) e o estado também vai no nome falado.
+- **`LiveRouteMapLegend`: símbolo `"badge"`, e `visited`/`stale` nos itens** (#707). A legenda não
+  tinha como explicar o número sobre a parada. O selo da legenda e o do mapa saem do mesmo
+  `BadgeShape` (mesmo token, mesma largura de `"99+"`; medido no browser: mesmo `fill`, texto
+  10,46:1). `visited` vale para os tipos de marcador e `stale` para o veículo.
+- **`RelativeTime`: `now` e `updateEvery`** (#705). Sem nada que re-renderizasse, o texto ficava
+  parado — medido com timers falsos: 5 min depois, ainda "agora há pouco". `now` usa o relógio do
+  app; `updateEvery` (ms) liga um intervalo interno, opt-in para uma lista não acordar a página
+  uma vez por linha. No Chromium, `updateEvery={1000}` foi de "51 s atrás" a "54 s atrás" em 3 s.
+- **`ApiClient.wsUrl(path, params?)`** (#706): o `url()` com `http:` → `ws:` e `https:` → `wss:`,
+  mesmo `baseURL`, `prefix` e query; lança `TypeError` na chamada para esquema sem par de
+  WebSocket (`blob:`, `data:`), que o `.replace(/^http/, "ws")` à mão deixava passar. É método
+  obrigatório da interface: um mock de `ApiClient` escrito à mão precisa ganhar `wsUrl`, como
+  precisou de `url` na 0.80.0 (`docs/http.md`).
+- **`usePositionTracker`/`createPositionTracker`: `onPoint(point)`** (#708), chamado uma vez por
+  ponto aceito, na ordem. Um `useEffect` sobre `lastPoint` perde pontos: com duas leituras no
+  mesmo `act`, o efeito viu `[2, 3]` de `[1, 2, 3]` e o `onPoint` viu os três
+  (`src/geo/use-position-tracker.test.tsx`).
+
+### Corrigido
+
+- **`createWebSocket`/`useWebSocket`: o ping do servidor recusado pelo `schema` não dispara mais
+  `onValidationError`** (#704). Reproduzido: com um schema sem o ping, cada `{"type":"ping"}`
+  chamava o `onValidationError` uma vez (e o aviso de desenvolvimento, sem ele) — um falso "o
+  backend mudou o contrato" a cada heartbeat do `tempest-fastapi-sdk`. Com `respondToPing` ligado,
+  o ping é reconhecido antes da validação e a recusa é silenciosa; o `pong` sai como antes, um ping
+  que o schema declara continua chegando no `onMessage`, e com `respondToPing: false` a recusa
+  volta a ser reportada.
+
+### Documentação
+
+- Receita **Viagem ao vivo** (PT e EN) sem os contornos: o ping saiu do schema, `liveTripUrl` usa
+  `api.wsUrl()`, as paradas atendidas usam `visited` (o "(já atendida)" saiu do `label`), o mapa do
+  passageiro recebe `stale`, o `SignalStatus` usa `<RelativeTime now>`, a tela do motorista
+  transmite pelo `onPoint` e as legendas ganharam `badge`, `visited` e `stale`.
+
+### Budgets
+
+Medido com `npm run build && npx size-limit --json` na `main` (`71727a7`) e no branch, mesma
+máquina:
+
+| Check                    | `main`    | branch                                         | Teto              |
+| ------------------------ | --------- | ---------------------------------------------- | ----------------- |
+| slice: typical app       | 12 842 B  | 13 006 B (+164)                                | 12,94 → 13,1 kB   |
+| slice: http client       | 5 922 B   | 5 995 B (+73, `wsUrl`)                         | 5,95 → 6,05 kB    |
+| slice: LiveRouteMap      | 9 083 B   | 9 309 B (+226, `stale`/`visited`/`BadgeShape`) | 9,2 → 9,4 kB      |
+| ceiling: full barrel ESM | 172 596 B | 172 947 B (+351)                               | 172,7 → 173,05 kB |
+| ceiling: full barrel CJS | 203 908 B | 204 635 B (+727)                               | 204 → 204,75 kB   |
+| styles.css               | 32 526 B  | 32 620 B (+94, `.visited`/`.vehicleStale`)     | 32,6 → 32,7 kB    |
+
+- **`DataTable`: seleção de linhas e coluna de ações** (#711). `selectable` + `selectedKeys` +
+  `onSelectionChange` (controlados, os três juntos ou o `tsc` reprova) põem uma coluna de checkbox;
+  o do cabeçalho age na página visível, fica `indeterminate` quando só parte está marcada e preserva
+  as chaves de outras páginas. `rowActions` põe uma coluna final de ações. Nenhuma das duas usa um
+  campo de `T` como `key`: a receita do admin emprestava `sku` e `id`, e emprestar a mesma chave
+  duas vezes gera 4 avisos `Encountered two children with the same key` do React num render de 3
+  linhas (medido no jsdom). Clique no checkbox ou na coluna de ações não chega a `onRowClick`, nem
+  vindo de um menu em portal. Labels em PT-BR: `selectionLabel`, `selectAllLabel`, `rowActionsLabel`.
+- **`DataTable`: busca e ordenação controladas** (#712). `search` (com `onSearchChange`) e `sort`
+  (com `onSortChange`). A caixa abre com o termo e acompanha quando ele muda por fora; a seta segue
+  `sort` a cada render. Medido antes: trocar `initialSort` de `asc` para `desc` depois da montagem
+  deixava a primeira linha em "Ana" — `initialSort` continua lido só na montagem, e um teste fixa
+  isso. `searchDebounceMs` mostra cada tecla e publica o termo depois da pausa (uma requisição por
+  busca no modo servidor).
+- **`DataTable` repassa `stackOnMobile`, `onRowClick` e `scrollLabel` ao `Table`** (#713), e a coluna
+  ganha `className`. Eram as quatro props do `Table`/`TableColumn` que o `DataTable` descartava.
+  Validando os cartões no Chromium a 390 px apareceu o defeito maior: coluna `sortable` tem o
+  cabeçalho dentro de um botão, o `Table` só escrevia `data-label` para cabeçalho string, e o cartão
+  mostrava o valor sem o nome ao lado. `TableColumn` ganha `label` (default: o `header` quando é
+  texto), e o `DataTable` o preenche.
+- **`DataTable`: `searchPlaceholder` e `searchLabel`** (#732). A caixa não tinha nome acessível
+  (`aria-label` nulo, só o placeholder `"Buscar..."`); o default agora é `"Buscar na tabela"`.
+- **`useUrlState`** (#714): estado de tela na URL, tipado pelos defaults, com as escritas do mesmo
+  tique acumuladas numa navegação só. Medido com `react-router` 8.5.2: duas chamadas de
+  `setSearchParams` no mesmo clique, mesmo na forma de função, partindo de `?pagina=3`, terminam em
+  `?pagina=1` — a primeira escrita some. É o que o `DataTable` faz ao trocar o tamanho da página
+  (`onPageSizeChange` e depois `onPageChange(1)`). Com `useUrlState` a URL fica `?por_pagina=50`
+  (teste em `src/router/use-url-state.test.tsx`).
+- **`usePaginatedQuery`: página controlada** (#714). `page` + `onPageChange`; nesse modo `setPage`,
+  `next` e `prev` reportam, e uma `queryKey` nova não volta a página (quem é dono a volta).
+- **`Command`: prop `label`** (#731) para o nome acessível do diálogo, agora também aplicado ao
+  input de busca.
+
+### Mudado
+
+- **Busca sem acento em `Command`, `DataTable` e `useClientFilter`** (#730). Os três só usavam
+  `toLowerCase`: "joao" não achava "João" e "usuarios" não achava "Usuários" (reproduzido no jsdom:
+  0 opções no `Command`, 0 linhas no `DataTable`). Agora comparam sem diacríticos (`NFD` + remoção
+  das marcas). O predicado customizado do `useClientFilter` continua recebendo o termo só em
+  minúsculas. `Combobox` e `MultiSelect` têm o mesmo `toLowerCase` e ficam para outro PR.
+- **`Command`: textos padrão em PT-BR** (#731). `placeholder` `"Digite um comando…"`,
+  `emptyMessage` `"Nenhum resultado"` e nome acessível `"Paleta de comandos"`, no lugar de
+  `"Type a command…"`, `"No results"` e `"Command palette"`.
+
+### Corrigido
+
+- **Cabeçalho ordenável do `DataTable` em caixa alta, como o resto** (#716). O texto do cabeçalho
+  ordenável fica dentro de um `<button>`, e o user-agent zera `text-transform` em botão: medido no
+  Chromium da gallery, os cabeçalhos ordenáveis saíam com `text-transform: none` ("Nome") ao lado
+  de "CATEGORIA". O `.sortButton` herda `text-transform` e `letter-spacing`.
+- **`Drawer`, `Modal` e `Command` declaram a fonte do SDK** (#716). Eles vão para o `body` em
+  portal e herdavam a fonte dele; o SDK não aplica fonte no `body` (decisão do app). Num app que
+  também não aplica, o título do `Drawer` saía em `"Times New Roman"` (medido no Chromium, com a
+  fonte do `body` da gallery removida). O `BottomSheet` já declarava; os três agora também, e
+  `test/portal-inheritance.test.ts` guarda os quatro.
+- **`applyApiFieldErrors(form, error, options?)`** — copia o `error.fields` de um `422` para os
+  campos de qualquer formulário (`useZodForm` ou `useForm`), não só do `AuthForm` (#742). Marca só
+  nomes que o formulário tem (por padrão, os que `getValues` não devolve `undefined`; ou a lista
+  de `fields`), foca o primeiro (`focus: false` desliga) e devolve `{ marked, unmatched }`, com
+  as mensagens que não casaram chaveadas pelo nome. É a regra que era privada do `AuthForm`, que
+  agora usa o helper sem mudar de comportamento. Medido: três receitas reescreviam o laço de
+  `setError`, e discordavam — `br-signup-checkout` marcava todo nome (inclusive input que não
+  existe), `example-management-app` filtrava por uma lista fixa à parte do schema,
+  `admin-crud` por `field in EMPTY_PRODUCT`; nenhuma focava. As três (PT e EN) e
+  `integration-fastapi` passam a usar o helper.
+- **`formatTime(value, options?)`** — `HH:mm` em pt-BR, ao lado de `formatDate` e
+  `formatDateTime`, no mesmo cache de `Intl` (#709). Lê três formas: instante (`Date` ou ISO com
+  hora, convertido para o fuso local), hora do dia de uma coluna `time` (`"14:30:00"` →
+  `"14:30"`, sem conversão — `new Date("14:30:00")` é `Invalid Date`, então o formatador que a
+  receita montava à mão nem servia para esse campo) e data sem hora, que responde `""` em vez de
+  inventar `"00:00"`. Ausente responde `"—"`, como os irmãos. A receita **Viagem ao vivo** (PT e
+  EN) troca o `Intl.DateTimeFormat` próprio (`formatClock`) por ele.
+- **`Select` ganha `clearable`** (#743): a entrada do `placeholder` fica habilitada e visível no
+  topo da lista, e um campo opcional volta a `""` depois de escolhido. Sem `clearable` a entrada
+  continua `disabled hidden`, o certo para campo obrigatório. Medição: a issue pedia "não precisar
+  declarar uma opção com valor vazio", mas essa opção já existe (`withEmptyOption`) e é a certa
+  quando o vazio tem nome — o "Particular" da receita **Exemplo integrado: app de gestão**, que
+  passa a usá-la (PT e EN). O que faltava era o vazio que só quer dizer "não escolhido". Validado
+  no Chromium headless (Playwright, gallery em `:5183`, 390 e 1280 px): escolher a entrada do
+  placeholder devolve `""` e o controle volta a mostrar o placeholder. Gallery ganhou o exemplo
+  "Select — placeholder que volta ao vazio".
+
+### Mudado
+
+- **`useZodForm` tipa os campos pela entrada do schema e o submit pela saída** (#717). Campos,
+  `defaultValues`, `watch`, `setValue` e `setError` usam `z.input`; o `handleSubmit` recebe
+  `z.output` (o que o resolver já entregava em runtime). Select obrigatório que abre vazio vira
+  `z.union([z.enum(X), z.literal("")]).refine((value) => value !== "", msg)`: a entrada aceita o
+  `""` e a saída fica só com o enum. Medição: a issue dizia que o predicado de tipo "quebrava o
+  default"; o que quebrava era o tipo do formulário ser a **saída**. O contorno da receita
+  (`value.length > 0`, sem predicado) compilava, mas deixava `""` no tipo que o `save` recebia. E
+  havia um defeito maior: o tipo do formulário era **inferido do `defaultValues`** —
+  `{ status: "" }` tipava o campo como `string` e perdia o enum. `options` agora é `NoInfer`, e o
+  tipo vem só do schema. **Mudança de tipo:** valor inicial anotado com `z.infer` num schema com
+  `z.coerce`, `.default()` ou refine com predicado passa a pedir `z.input`; campo de
+  `z.coerce.number()` é `unknown` no `watch` (é o texto do input). A receita **Painel CRUD
+  (admin)** (PT e EN) troca `value.length > 0` por `value !== ""` e anota os iniciais com
+  `z.input`.
+
+### Corrigido
+
+- **`Select` não controlado com `placeholder` abria na primeira opção** (#743, achado ao medir). O
+  algoritmo de seleção do HTML pula a entrada `disabled` do placeholder e seleciona a primeira
+  opção habilitada: medido no Chromium (Playwright headless, a marcação antiga) e no jsdom,
+  `select.value === "a"`. `<Select placeholder="Selecione" options={…} />` sem `value` nem
+  `defaultValue` mostrava a primeira opção, e o submit mandava um valor que ninguém escolheu.
+  Agora começa em `""`; `value`/`defaultValue` explícitos continuam valendo.
+- **`formatDate`, `formatDateTime` e o `formatDate` do `createI18n`/`useI18n` mostravam o dia
+  anterior para data sem hora no Brasil** (#701). `"2026-11-16"` passava por `new Date`, que lê
+  meia-noite **UTC**; medido com `TZ=America/Sao_Paulo`: `formatDate` → `15/11/2026`,
+  `formatDateTime` → `15/11/2026, 21:00`, `i18n.formatDate` → `15/11/2026`. A issue citava só os
+  dois `formatDate`; o `formatDateTime` errava igual, e ainda mostrava uma hora que não existia.
+  Agora `yyyy-MM-dd` é dia do calendário: é montado em UTC e formatado com `timeZone: "UTC"`, o
+  mesmo dia em qualquer fuso (testado em `America/Sao_Paulo` e `Asia/Tokyo`). A correção proposta
+  na issue (`new Date(ano, mês - 1, dia)`, meia-noite local) foi descartada porque o
+  `formatDate` do i18n aceita `timeZone`: com um fuso a leste de UTC, a meia-noite local voltaria
+  um dia de novo. Por isso o `timeZone` do chamador é ignorado só para data sem hora; instante
+  continua no fuso pedido. Dia que o mês não tem (`"2026-02-30"`) passa a responder `""` em vez
+  de virar `01/03/2026`. A receita **Exemplo integrado: app de gestão** (PT e EN) perde o
+  `timeZone: "UTC"` que contornava o defeito.
+
+### Budgets
+
+- **#701, #742 e #743, medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `71727a7` e sobre este branch**, em bytes brotli: `slice: typical app (shell + 5 components +
+http + auth + hook)` 12 842 → 13 097 (teto 12,94 → 13,1 kB) — o `AppProviders` alcança o
+  `createI18n`, e o `formatDate` dele agora carrega `utils/calendar-date.js` (401 B minificados,
+  medido com o metafile do esbuild: é o único módulo que muda na fatia); `ceiling: full barrel
+ESM` 172 596 → 173 069 (teto 172,7 → 173,1 kB); `ceiling: full barrel CJS` 203 908 → 204 687
+  (teto 204 → 204,7 kB). `slice: auth screens` 8 947 → 9 030, dentro do teto.
+
+### Adicionado
+
+- **`/charts`: `labels` separa o nome da série da chave do dado** (#739). A legenda e o tooltip
+  mostravam a própria chave de `categories`, e para traduzir a receita do app de gestão remontava cada
+  linha com a frase traduzida como chave (`[t("…")]: day.done`). Agora
+  `labels={{ done: t("series.done") }}` vira o `name` de cada série e os dados ficam com as chaves da
+  API. Vale para `AreaChart`, `BarChart`, `LineChart` e `RadarChart`; categoria sem entrada mostra a
+  chave. Teste: `series-labels.test.tsx`.
+- **`/charts`: `yAxisWidth` e `yAxisFormatter` nos gráficos cartesianos** (#740). `yAxisWidth`
+  (default `"auto"`) e `yAxisFormatter` (formata só o eixo; default `valueFormatter`), para o eixo
+  levar `R$ 186 mil` enquanto o tooltip mostra `R$ 186.430,00`. Tipos novos: `ValueAxisProps`,
+  `CartesianAxisChartProps`.
+- **`Stat`: `higherIsBetter`** (#745). Com `false`, a alta pinta de vermelho e a queda de verde —
+  taxa de faltas, churn, tempo de resposta. A direção (`trend`, texto do delta) não muda. O delta
+  ganha `data-trend` e `data-tone` (`positive`/`negative`/`neutral`). Contraste medido no Chromium,
+  transições desligadas, ida e volta claro → escuro → claro: alta ruim 9,51:1 (claro) / 6,48:1
+  (escuro); queda boa 8,65:1 / 10,28:1 — são os tokens `--tempest-danger-fg`/`--tempest-success-fg`
+  de antes.
+- **`BottomNavigation`: `href` e `match="route"`, o mesmo contrato de item da `Sidebar`** (#744).
+  Item com `href` vira `<a>` (clique simples vai para `onChange` sem recarregar; ctrl/cmd-clique fica
+  com o navegador; `disabled` e esquema fora da allowlist do `safeLinkUrl` continuam botão), e
+  `match="route"` acende o `href` mais longo que cobre o `pathname`, pela regra do `activeNavKey`.
+  `onChange` e `value` passam a ser opcionais. A receita do app de gestão deixa de calcular o item
+  ativo com `activeNavKey`.
+- **Textos padrão dos componentes passam pelo i18n, com tabela embutida em pt-BR e en** (#746,
+  parcial). `ErrorState`, `ConfirmDialog`, `Spinner`, `Pagination` (com plural), `Modal`, `Drawer`,
+  `Banner`, `Alert`, `Tag`, `SearchBar` e os landmarks de `BottomNavigation`/`Sidebar` leem
+  `tempest.*` do catálogo do app; na falta, respondem em inglês com locale `en`/`en-*` e em pt-BR
+  nos outros casos e sem provider — o que todo app via antes. Prop explícita continua vencendo.
+  `TEMPEST_MESSAGES` (raiz) exporta a tabela para quem traduz para um terceiro idioma. Cada
+  componente importa só a própria tabela, então a fatia que renderiza um `ErrorState` leva três
+  frases, não o catálogo inteiro. Ainda fora: `DataTable`, `Table`, `Command`, `Chat`, `FilterBar`,
+  auth, captura e PWA, entre outros — a #746 segue aberta.
+
+### Corrigido
+
+- **`Card`: blocos irmãos não encostam mais um no outro** (#710). Medido no Chromium (390 e 1280 px,
+  claro e escuro): `Stat` seguido de `Timeline` dentro de um `Card` ficavam a **0 px**. A causa não
+  era o `Stat` nem a `Timeline`: todo componente do SDK zera a própria margem e o corpo do `Card` é
+  um bloco simples, então **quaisquer** dois blocos encostavam — 12 dos 61 `<Card>` de docs, gallery
+  e templates têm mais de um filho direto. Agora filhos em bloco ficam a `--tempest-space-4` (16 px),
+  por `margin-block-start` (conteúdo inline continua na mesma linha; `flush` fica sem espaçamento).
+- **`/charts`: o eixo Y cortava valor formatado longo** (#740). Medido no Chromium: com
+  `valueFormatter` em BRL, `"R$ 50.000"` começava 10 px e `"R$ 200.000"` 18 px **antes** da borda do
+  SVG — em 390 **e** em 1280 px, não só no celular como a issue e a receita diziam: o recharts
+  reserva 60 px fixos. Com o novo default `yAxisWidth="auto"`, o rótulo mais longo começa 5 px dentro
+  do gráfico. A dica da receita ("notação compacta cabe no eixo do celular") vira `yAxisFormatter`.
+- **`Alert`: o rótulo do botão fechar era `"Dismiss"`, em inglês, num SDK pt-BR.** Agora vem de
+  `tempest.common.close` ("Fechar" / "Close").
+
+### Alterado
+
+- **Peer `recharts` sobe para `^3.2.0`** (era `^2.0.0 || ^3.0.0`). O `width="auto"` do `YAxis`
+  existe a partir do 3.2.0: o `YAxis` do 2.15.4 soma a largura como número e o do 3.0.0/3.1.0 não
+  trata `"auto"` (conferido no código publicado de cada versão, `npm pack recharts@<v>`). Nenhuma
+  versão 2.x era exercitada pela suíte — o dev dep é 3.11.
+
+### Budgets
+
+- **#710/#739/#740/#744/#745/#746, medido com `npm run build && npx size-limit --json` sobre a
+  `main` em `71727a7` e sobre este branch**, bytes brotli: `slice: typical app` 12 842 → 13 139
+  (teto 12,94 → 13,2 kB); `slice: auth screens` 8 947 → 9 203 (teto 9,2 → 9,3 kB); `slice: Pix
+checkout screen` 6 280 → 6 550 (teto 6,4 → 6,6 kB); `slice: DataTable with inline editing` 6 001 →
+  6 422 (teto 6,1 → 6,45 kB); `ceiling: full barrel ESM` 172 596 → 173 420 (teto 172,7 → 173,5 kB);
+  `ceiling: full barrel CJS` 203 908 → 205 394 (teto 204 → 205,5 kB); `charts entry` 1 784 → 1 855
+  (teto 3 kB, dentro). O custo é o contexto do i18n e as frases em dois idiomas de cada componente
+  da fatia (a `Pagination`, no `DataTable`, leva sete). A primeira versão, com uma tabela única,
+  custava +656 B na fatia `typical app`; separar por componente baixou para +297 B.
+- **Tetos do barrel remedidos sobre a soma com a `main` em `50a4572`** (`npm run build && npx size-limit --json`):
+  `ceiling: full barrel ESM` 173 520 B (teto 173,5 → 173,6 kB); `ceiling: full barrel CJS` 205 729 B
+  (teto 205,5 → 205,8 kB). Só os tetos do barrel; as fatias seguem dentro dos tetos acima.
 
 ### Interno
 
+- **Gallery: demos de `Stat` com polaridade dentro de `Card`, `BottomNavigation` por rota e
+  `LineChart`/`BarChart` com `labels` e eixo compacto**, mais `e2e/card-chart-layout.spec.ts`, que mede
+  no Chromium (390 e 1280 px) o espaço de 16 px entre `Stat` e `Timeline` num `Card` e que nenhum
+  rótulo do eixo Y começa fora do gráfico. O `e2e/axe-baseline.json` sobe `incomplete ·
+color-contrast` em 19–22 nós por célula (98 → 117 em 1280, 112 → 132/134 em 390): são os 22 textos
+  SVG do gráfico novo, que o axe não consegue avaliar ("background could not be determined"). Medindo
+  à mão, o texto do eixo fica a 3,38:1 no tema escuro porque os gráficos não aplicam
+  `--tempest-chart-axis` — registrado na #766.
 - **`make docs-deploy` para antes do push quando o GitHub Pages não publicaria a `gh-pages`.** O
   Pages publica a branch pelo workflow embutido `pages-build-deployment`, que roda no Actions; com o
   Actions desligado (13 a 22/11/2026) o push entrava, nenhum build acontecia e o script terminava com
@@ -314,6 +666,20 @@ useAuth.use.isAuthenticated(); }` (nomeada `use…` por causa do `react-hooks/ru
   minificado (`D(e)` → `O(e)` em `dist/http/api-client.js`); trocar só esse arquivo no `dist` da
   `main` reproduz os +103 B do `typical app`, então o salto é do brotli sobre o bundle do esbuild,
   não código novo.
+- **Soma de #765 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` em
+  `12a29a8` + este branch, bytes brotli): `slice: typical app` 13 192 B (teto 13,1 → 13,2 kB);
+  `slice: device capture` 5 757 B (teto 5,75 → 5,8 kB). Nenhum dos dois estourava sozinho.
+
+### Budgets
+
+- **Quatro tetos sobem pela seleção, ações e busca controlada do `DataTable` e pelo `useUrlState`**
+  (`npm run build && npx size-limit --json`, bytes brotli): `slice: DataTable with inline editing +
+server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 B são o `Checkbox`
+  que a coluna de seleção monta e 328 B o `VisuallyHidden` do cabeçalho de ações, medidos isolados
+  com esbuild + brotli sobre o mesmo `dist/`); `ceiling: full barrel ESM` 173 686 (teto 172,7 →
+  173,9 kB); `ceiling: full barrel CJS` 205 381 (teto 204 → 205,6 kB); `styles.css` 32 610 (teto
+  32,6 → 32,7 kB, a fonte declarada em `Drawer`/`Modal`/`Command` e as regras das colunas novas).
+- **Soma de #767 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #764 e #765 + este branch, bytes brotli): `slice: typical app` 13 376 B (teto 13.2 kB → 13.5 kB); `slice: DataTable with inline editing + server mode` 7 605 B (teto 7.3 KB → 7.7 kB); `slice: createZip + writeXlsx` 6 962 B (teto 6.95 KB → 7.1 kB); `ceiling: full barrel ESM` 176 264 B (teto 175.5 kB → 176.4 kB); `ceiling: full barrel CJS` 208 649 B (teto 207.7 kB → 208.7 kB). Nenhum estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

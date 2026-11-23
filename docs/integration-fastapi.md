@@ -84,7 +84,7 @@ O backend **sabe** qual campo derrubou a requisição — ele diz o nome. O que 
 Agora as três chaves singulares que o `tempest-fastapi-sdk` usa entram no mesmo `error.fields`:
 
 ```tsx
-import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+import { applyApiFieldErrors, createApiClient, describeApiError } from "tempest-react-sdk";
 
 const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -92,17 +92,13 @@ async function salvarEndereco(values: { city: string; phone: string }): Promise<
     try {
         await api.post("/api/enderecos", { body: values });
     } catch (err) {
-        if (isApiError(err) && err.fields) {
-            for (const [field, message] of Object.entries(err.fields)) {
-                setError(field, { message });
-            }
-        }
+        applyApiFieldErrors(form, err);
         toast.error(describeApiError(err, "Não foi possível salvar o endereço"));
     }
 }
 ```
 
-Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `setError("city", …)` cola a frase no input certo.
+Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `applyApiFieldErrors(form, err)` cola a frase no input certo (um nome que o formulário não tem volta em `unmatched`, em vez de marcar um input que não existe).
 
 !!! note "A ordem de precedência"
     `detail[].loc` (lista do FastAPI) → `detail.field` → `field` → `details.field`. A lista ganha porque um app `tempest-fastapi-sdk` sem handler de `RequestValidationError` continua respondendo o 422 padrão do FastAPI. O `details` responde por último: ele é o saco de contexto genérico do `AppException`, e o `field` dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.
@@ -203,6 +199,9 @@ O hook **controla o estado de página** internamente, envia `page` + `size` para
 
 !!! check "Filtro novo começa da página 1"
     Ponha os filtros aplicados na `queryKey` (`["users", filtros]`). Quando ela muda estruturalmente, a página volta para 1 **no mesmo render** — sem a requisição intermediária da página antiga. Até a 0.68.0 a página sobrevivia: filtrar na página 7 pedia a página 7 de um resultado de duas. Para separar rascunho de aplicado, veja [`useDraftFilters`](./hooks.md#rascunho-aplicado-usedraftfilters).
+
+!!! tip "Página na URL: `page` + `onPageChange`"
+    Passe `page` e o hook deixa de guardar a página: `setPage`, `next` e `prev` viram chamadas a `onPageChange`, e quem lê a URL decide. Nesse modo uma `queryKey` nova **não** volta a página para 1 — quem é dono da página escreve o filtro e `pagina: null` na mesma atualização, que o [`useUrlState`](./routing.md#estado-da-tela-na-url-com-useurlstate) transforma numa navegação só.
 
 !!! tip "`size` vs `page_size`"
     O default segue o `fastapi-pagination` (`?size=`). Se o seu backend usa `page_size`, passe `sizeParam: "page_size"`. O `order_by`/`ascending` só são enviados quando você define `orderBy`.

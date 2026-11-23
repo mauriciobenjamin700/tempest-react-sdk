@@ -39,21 +39,139 @@ const columns: DataTableColumn<User>[] = [
 />;
 ```
 
-| Prop           | Tipo                                  | Default | Descrição                                               |
-| -------------- | ------------------------------------- | ------- | ------------------------------------------------------- |
-| `data`         | `T[]`                                 | —       | Dataset completo; sort/filtro/paginação são client-side |
-| `columns`      | `DataTableColumn<T>[]`                | —       | Definições de coluna                                    |
-| `pageSize`     | `number`                              | `10`    | Linhas por página                                       |
-| `searchable`   | `boolean`                             | `false` | Renderiza um input de busca acima da tabela             |
-| `searchKeys`   | `(keyof T)[]`                         | —       | Chaves buscadas; default = colunas string/number        |
-| `initialSort`  | `DataTableSort<T>`                    | —       | Ordenação inicial antes de interagir com o cabeçalho    |
-| `rowKey`       | `(row: T, index) => string \| number` | índice  | Extrator de chave estável por linha                     |
-| `emptyMessage` | `ReactNode`                           | —       | Conteúdo exibido quando nenhuma linha combina           |
+| Prop                | Tipo                                  | Default              | Descrição                                                    |
+| ------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| `data`              | `T[]`                                 | —                    | Dataset completo; sort/filtro/paginação são client-side      |
+| `columns`           | `DataTableColumn<T>[]`                | —                    | Definições de coluna                                         |
+| `pageSize`          | `number`                              | `10`                 | Linhas por página                                            |
+| `searchable`        | `boolean`                             | `false`              | Renderiza um input de busca acima da tabela                  |
+| `searchKeys`        | `(keyof T)[]`                         | —                    | Chaves buscadas; default = colunas string/number             |
+| `searchPlaceholder` | `string`                              | `"Buscar..."`        | Placeholder da caixa de busca                                |
+| `searchLabel`       | `string`                              | `"Buscar na tabela"` | Nome acessível da caixa de busca                             |
+| `searchDebounceMs`  | `number`                              | `0`                  | Espera sem digitar antes de o termo valer                    |
+| `search`            | `string`                              | —                    | Termo controlado (exige `onSearchChange`)                    |
+| `initialSort`       | `DataTableSort<T>`                    | —                    | Ordenação inicial, lida **só na montagem**                   |
+| `sort`              | `DataTableSort<T> \| null`            | —                    | Ordenação controlada (exige `onSortChange`)                  |
+| `rowKey`            | `(row: T, index) => string \| number` | índice               | Extrator de chave estável por linha                          |
+| `selectable`        | `true`                                | —                    | Coluna de checkbox (com `selectedKeys` e `onSelectionChange`) |
+| `rowActions`        | `(row: T) => ReactNode`               | —                    | Coluna final de ações, sem `key` emprestada                  |
+| `rowActionsLabel`   | `string`                              | `"Ações"`            | Cabeçalho (visualmente oculto) da coluna de ações            |
+| `stackOnMobile`     | `boolean`                             | `false`              | Abaixo de 768 px, cada linha vira um cartão                  |
+| `onRowClick`        | `(row: T) => void`                    | —                    | Clique na linha                                              |
+| `scrollLabel`       | `string`                              | —                    | Nome acessível da região rolável                             |
+| `emptyMessage`      | `ReactNode`                           | —                    | Conteúdo exibido quando nenhuma linha combina                |
 
-`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
+`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number; className?: string }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
 
 !!! info "Comportamento"
-    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
+    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina trecho do texto nas `searchKeys` (ou em toda coluna string/number quando omitidas), **sem diferenciar maiúscula nem acento**: "joao" acha "João", "usuarios" acha "Usuários". A paginação some quando o resultado cabe em uma única página.
+
+### Seleção de linhas e coluna de ações
+
+`selectable` põe uma coluna de checkbox no começo; `rowActions` põe uma coluna de ações no fim. Nenhuma das duas usa um campo da linha como `key`, então não há coluna duplicada nem chave repetida.
+
+```tsx
+import { useState } from "react";
+import { Button, DataTable, type DataTableRowKey } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+}
+
+export function ProductTable({ products }: { products: Product[] }) {
+  const [selected, setSelected] = useState<DataTableRowKey[]>([]);
+
+  return (
+    <DataTable<Product>
+      data={products}
+      columns={[
+        { key: "sku", header: "SKU" },
+        { key: "name", header: "Produto", sortable: true },
+      ]}
+      rowKey={(product) => product.id}
+      selectable
+      selectedKeys={selected}
+      onSelectionChange={setSelected}
+      selectionLabel={(product) => `Selecionar ${product.name}`}
+      rowActions={(product) => (
+        <Button variant="ghost" size="sm" onClick={() => console.log("editar", product.id)}>
+          Editar
+        </Button>
+      )}
+      stackOnMobile
+    />
+  );
+}
+```
+
+- A seleção é **controlada** e guarda o retorno de `rowKey`. Passe um `rowKey` que devolva o id do registro; com o índice (default), a seleção segue a posição e muda de registro quando a página ou a ordem mudam.
+- O checkbox do cabeçalho marca e desmarca **a página que está na tela**, e fica `indeterminate` quando só parte dela está marcada. Chaves marcadas em outras páginas ficam como estão: "selecionar todos" alcançando linhas que a pessoa nunca viu é como uma exclusão em lote apaga o registro errado.
+- Clique no checkbox ou dentro da coluna de ações **não** dispara `onRowClick` — nem num `DropdownMenu` aberto em portal a partir dela.
+
+| Prop                | Tipo                                   | Default                                    | Descrição                           |
+| ------------------- | -------------------------------------- | ------------------------------------------ | ----------------------------------- |
+| `selectable`        | `true`                                 | —                                          | Liga a coluna de seleção            |
+| `selectedKeys`      | `readonly (string \| number)[]`        | —                                          | Chaves marcadas, de todas as páginas |
+| `onSelectionChange` | `(keys: (string \| number)[]) => void` | —                                          | Recebe a seleção inteira nova       |
+| `selectionLabel`    | `(row: T) => string`                   | `"Selecionar linha N"`                     | Nome acessível do checkbox da linha |
+| `selectAllLabel`    | `string`                               | `"Selecionar todas as linhas desta página"` | Nome acessível do checkbox do cabeçalho |
+
+!!! check "O tipo recusa a seleção pela metade"
+    `selectable` sem `selectedKeys` seria uma coluna de checkbox que nunca marca. Os três vêm juntos, ou o `tsc` reprova na chamada.
+
+### Busca e ordenação controladas
+
+Quando a busca e a ordenação moram fora da tabela — na URL, por exemplo —, passe `search` e `sort`. A caixa abre com o termo e acompanha quando ele muda por fora (botão voltar, link "Limpar filtros"); a seta do cabeçalho segue `sort` a cada render. `initialSort` continua existindo, mas é lido uma vez só, na montagem.
+
+```tsx
+import { DataTable, useUrlState, type DataTableSort } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+  city: string;
+}
+
+export function Members({ members }: { members: Member[] }) {
+  const { state, set } = useUrlState({ busca: "", ordem: "", dir: "" });
+  const sort: DataTableSort<Member> | null =
+    state.ordem === "name" || state.ordem === "city"
+      ? { key: state.ordem, direction: state.dir === "desc" ? "desc" : "asc" }
+      : null;
+
+  return (
+    <DataTable<Member>
+      data={members}
+      columns={[
+        { key: "name", header: "Nome", sortable: true },
+        { key: "city", header: "Cidade", sortable: true },
+      ]}
+      rowKey={(member) => member.id}
+      searchable
+      searchLabel="Buscar membros"
+      searchPlaceholder="Nome ou cidade"
+      search={state.busca}
+      searchDebounceMs={300}
+      onSearchChange={(busca) => set({ busca }, { replace: true })}
+      sort={sort}
+      onSortChange={(next) =>
+        set({ ordem: next ? String(next.key) : null, dir: next?.direction ?? null })
+      }
+    />
+  );
+}
+```
+
+`searchDebounceMs` deixa a caixa mostrar cada tecla e só publica o termo depois da pausa. No modo servidor, é o que faz uma busca custar **uma** requisição, e não uma por letra.
+
+!!! check "Par controlado sem destino não compila"
+    `sort` sem `onSortChange` (ou `search` sem `onSearchChange`) seria uma seta ou uma caixa que nunca mudam. Os dois tipos recusam.
+
+### No celular 📱
+
+`stackOnMobile` é repassado ao [`Table`](./data.md#tablet): abaixo de 768 px cada linha vira um cartão com rótulo e valor, em vez de uma tabela que rola para o lado. O rótulo vem do `header` quando ele é texto, inclusive em coluna `sortable` (cujo cabeçalho vira botão). A coluna de seleção e a de ações não ganham rótulo — o checkbox e o botão já dizem o que fazem. No modo cartão o cabeçalho fica visualmente oculto, então o "selecionar todos" da página só é alcançável por leitor de tela; ponha um botão próprio se a tela de celular precisa dele.
 
 ## `Wizard`
 

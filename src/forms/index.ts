@@ -5,6 +5,12 @@ export { validateForm } from "./validate-form";
 export type { ValidateFormFailure, ValidateFormResult, ValidateFormSuccess } from "./validate-form";
 export { zodResolver } from "./zod-resolver";
 export { useZodForm } from "./use-zod-form";
+export { applyApiFieldErrors } from "./apply-api-field-errors";
+export type {
+    ApiFieldErrorsTarget,
+    ApplyApiFieldErrorsOptions,
+    ApplyApiFieldErrorsResult,
+} from "./apply-api-field-errors";
 
 export { validateCPF, validateCNPJ, formatCEP, formatCNPJ, unmask } from "./br-validators";
 

@@ -242,14 +242,13 @@ import {
   Input,
   PhoneInput,
   SegmentedControl,
+  applyApiFieldErrors,
   describeApiError,
-  isApiError,
   unmask,
   useBreakpoint,
   useViaCEP,
   useWatch,
   useZodForm,
-  type Path,
   type SubmitHandler,
 } from "tempest-react-sdk";
 import { EMPTY_SIGNUP, signupSchema, type SignupValues } from "@/checkout/signup-schema";
@@ -321,11 +320,7 @@ export function SignupStep({ onCreated }: SignupStepProps) {
       });
       onCreated(customer);
     } catch (error) {
-      if (isApiError(error) && error.fields) {
-        for (const [field, message] of Object.entries(error.fields)) {
-          setError(field as Path<SignupValues>, { message });
-        }
-      }
+      applyApiFieldErrors(form, error);
       setSubmitError(
         describeApiError(error, "Não foi possível criar sua conta", { codes: SIGNUP_ERRORS }),
       );
@@ -433,7 +428,7 @@ Peça por peça:
    livres para digitar.
 5. **`unmask` antes de enviar.** A tela mostra `529.982.247-25`; o backend recebe `52998224725`.
 6. **Erro do backend em dois lugares.** O que nomeia um campo (`error.fields`) vai para o input
-   certo com `setError`. A frase geral vai para o `<Alert>` do topo, montada pelo
+   certo com `applyApiFieldErrors`. A frase geral vai para o `<Alert>` do topo, montada pelo
    `describeApiError` com o `code` `DOCUMENT_TAKEN` traduzido.
 
 !!! tip "CEP de cidade pequena não tem rua"

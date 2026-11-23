@@ -8,6 +8,8 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/Button";
 import { Modal } from "@/components/Modal";
+import { CONFIRM_DIALOG_MESSAGES } from "@/i18n/messages/confirm-dialog";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export interface ConfirmDialogProps {
     open: boolean;
@@ -52,14 +54,15 @@ export function ConfirmDialog({
     open,
     title,
     description,
-    confirmLabel = "Confirmar",
-    cancelLabel = "Cancelar",
+    confirmLabel,
+    cancelLabel,
     variant = "primary",
     confirmIcon,
     loading = false,
     onConfirm,
     onCancel,
 }: ConfirmDialogProps) {
+    const text = useTempestText(CONFIRM_DIALOG_MESSAGES);
     return (
         <Modal
             open={open}
@@ -72,7 +75,7 @@ export function ConfirmDialog({
             footer={
                 <>
                     <Button variant="secondary" onClick={onCancel} disabled={loading}>
-                        {cancelLabel}
+                        {cancelLabel ?? text.t("tempest.confirmDialog.cancel")}
                     </Button>
                     <Button
                         variant={variant}
@@ -80,7 +83,7 @@ export function ConfirmDialog({
                         leftIcon={confirmIcon}
                         onClick={() => void onConfirm()}
                     >
-                        {confirmLabel}
+                        {confirmLabel ?? text.t("tempest.confirmDialog.confirm")}
                     </Button>
                 </>
             }

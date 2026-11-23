@@ -580,10 +580,48 @@ export function BarraInferior({ cartCount }: { cartCount: number }) {
 | ------------ | ------------------------------ | ------- |
 | `items`      | `BottomNavigationItem[]` (3–5) | —       |
 | `value`      | `string`                       | —       |
+| `match`      | `"key" \| "route"`             | `"key"` |
 | `onChange`   | `(key: string) => void`        | —       |
 | `showLabels` | `boolean`                      | `true`  |
 
-Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled? }`.
+Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled?, href? }` — o
+mesmo contrato do `SidebarItem`, então uma lista só alimenta os dois.
+
+### Links e item ativo pela rota
+
+Com `href`, o item vira um `<a>` de verdade: segurar e "abrir em nova aba" funciona
+no celular e o leitor de tela anuncia link. Com `onChange`, o clique simples é do
+router do app (o `href` não recarrega a página); ctrl/cmd-clique fica com o
+navegador. Com `match="route"`, `value` é o `pathname` e o item aceso é o de `href`
+mais longo que cobre a rota, pela mesma regra do
+[`activeNavKey`](#activenavkey-a-mesma-resolucao-fora-do-sidebar):
+
+```tsx
+import { BottomNavigation, useLocation, useNavigate } from "tempest-react-sdk";
+import { LayoutDashboard, Users } from "lucide-react";
+
+export function AbasDoApp() {
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
+
+    return (
+        <BottomNavigation
+            match="route"
+            value={pathname}
+            items={[
+                { key: "/", href: "/", label: "Painel", icon: <LayoutDashboard size={20} /> },
+                { key: "/pacientes", href: "/pacientes", label: "Pacientes", icon: <Users size={20} /> },
+            ]}
+            onChange={(key) => navigate(key)}
+        />
+    );
+}
+```
+
+Em `/pacientes/42?aba=consultas`, "Pacientes" fica aceso; `/` só acende em `/`. O
+nome do landmark vem de `tempest.bottomNavigation.label` no catálogo do
+[i18n](../i18n.md#textos-padrao-dos-componentes) ("Navegação principal" /
+"Main navigation"); `aria-label` o substitui.
 
 **Safe-area**: aplica `padding-bottom: env(safe-area-inset-bottom)` automático.
 

@@ -26,41 +26,20 @@ tema **antes da primeira pintura**.
 
 ### 1. O script no `<head>`
 
-=== "Vite (`index.html`)"
+=== "Vite (`vite.config.ts`)"
 
-    ```html
-    <!-- index.html -->
-    <!doctype html>
-    <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#ffffff" />
-        <title>Painel · Loja Aurora</title>
-        <script>
-          (function () {
-            try {
-              var key = "tempest-theme";
-              var def = "system";
-              var stored = localStorage.getItem(key);
-              var mode = stored || def;
-              var resolved =
-                mode === "dark" || mode === "light"
-                  ? mode
-                  : matchMedia("(prefers-color-scheme: dark)").matches
-                    ? "dark"
-                    : "light";
-              document.documentElement.setAttribute("data-tempest-theme", resolved);
-            } catch (e) {}
-          })();
-        </script>
-      </head>
-      <body>
-        <div id="root"></div>
-        <script type="module" src="/src/main.tsx"></script>
-      </body>
-    </html>
+    ```ts
+    // vite.config.ts
+    import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
+
+    export default createViteConfig({
+      plugins: [tempestThemeInit(), tempestCsp()],
+    });
     ```
+
+    O `tempestThemeInit()` escreve o script no topo do `<head>` do `index.html`, no
+    `vite dev` e no build. O `index.html` fica como está, sem script colado à mão. O app
+    gerado pelo `create-tempest-app` já vem com essa linha.
 
 === "SSR (React no servidor)"
 
@@ -78,7 +57,6 @@ tema **antes da primeira pintura**.
         <html lang="pt-BR">
           <head>
             <meta charSet="UTF-8" />
-            <meta name="theme-color" content="#ffffff" />
             <title>Painel · Loja Aurora</title>
             <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
           </head>
@@ -161,8 +139,8 @@ Ele roda **antes do CSS e antes do React**. Lê a escolha salva em
 navegador com `prefers-color-scheme`. No fim, escreve `data-tempest-theme="dark"` (ou
 `"light"`) no `<html>`. Quando a primeira pintura acontece, os tokens já estão certos.
 
-O conteúdo da aba **Vite** é exatamente o que `themeInitScript()` devolve, só
-formatado. Na aba **SSR**, você injeta a própria função, e o script nunca sai de
+Na aba **Vite**, o plugin `tempestThemeInit()` injeta o que `themeInitScript()` devolve.
+Na aba **SSR**, você injeta a própria função. Nos dois casos o script nunca sai de
 sincronia com o SDK.
 
 !!! warning "Síncrono e cedo, sempre"
@@ -170,8 +148,8 @@ sincronia com o SDK.
     primeira pintura, senão o flash volta.
 
 !!! check "Com `tempestCsp()`, o script inline já é liberado"
-    O plugin de CSP do SDK calcula o SHA-256 de todo script inline do `index.html` e o
-    coloca na política. Você não precisa de `'unsafe-inline'`. Veja
+    O plugin de CSP do SDK calcula o SHA-256 de todo script inline do `index.html`,
+    inclusive o que o `tempestThemeInit()` injeta, e o coloca na política. Você não precisa de `'unsafe-inline'`. Veja
     [Script inline entra por hash](../csp.md#script-inline-entra-por-hash).
 
 ### O seletor usa o contexto do tema
@@ -196,13 +174,14 @@ O `<AppProviders>` monta o `ThemeProvider` por padrão. A prop `theme` só ajust
   provider escuta `prefers-color-scheme` e troca na hora em que o sistema operacional
   muda.
 - `themeColor` atualiza a `<meta name="theme-color">`, que pinta a barra do navegador
-  no Android e a barra de status do app instalado. 📱 Ele só **atualiza** a tag: ela
-  precisa existir no `<head>`, por isso as duas abas do passo 1 a declaram.
+  no Android e a barra de status do app instalado. 📱 Se a página não tem a tag, o provider
+  a cria no `<head>`.
 
 !!! tip "Mesma chave nos dois lados"
     O script e o provider precisam ler a mesma chave do `localStorage`. Os dois usam
     `"tempest-theme"` por padrão. Se você trocar, passe `storageKey` aos dois:
-    `themeInitScript({ storageKey: "aurora-theme" })` e
+    `tempestThemeInit({ storageKey: "aurora-theme" })` (ou
+    `themeInitScript({ storageKey: "aurora-theme" })` no SSR) e
     `theme={{ storageKey: "aurora-theme" }}`.
 
 ### O seu CSS usa os mesmos tokens
@@ -215,8 +194,8 @@ tema escuro é sempre esse atributo, nunca `class="dark"`. Veja
 
 ## Recap
 
-- ✅ O script de `themeInitScript()` no `<head>` aplica o tema antes da primeira
-  pintura: sem flash.
+- ✅ `tempestThemeInit()` no `vite.config.ts` (ou `themeInitScript()` no SSR) põe o
+  script no `<head>`, que aplica o tema antes da primeira pintura: sem flash.
 - ✅ `useTheme()` dá `theme`, `resolvedTheme`, `setTheme` e `toggle`.
 - ✅ `SegmentedControl` + `setTheme` viram o seletor **Claro / Escuro / Sistema**.
 - ✅ `<AppProviders theme={{ defaultTheme, themeColor }}>` acompanha o sistema e pinta a

@@ -76,7 +76,12 @@ await api.delete<void>(`/users/${encodeIdSegment(id)}`);
 // URL absoluta, sem enviar nada (EventSource, <img src>, link de download)
 api.url("/files/relatorio.pdf", { inline: true });
 // → "<VITE_API_URL>/files/relatorio.pdf?inline=true" — sem Authorization, sem token na query
+// URL do WebSocket no mesmo servidor: http → ws, https → wss
+api.wsUrl("/trips/42/watch");
+// → "wss://<host de VITE_API_URL>/trips/42/watch" quando a base é https
 ```
+
+`wsUrl(path, params?)` (0.84.0, #706) é o `url()` com o esquema trocado — `http:` vira `ws:`, `https:` vira `wss:`, e host, porta, `prefix` e query ficam iguais. É para o [`useWebSocket`](./websocket.md), que recebe URL e não cliente: o socket servido ao lado da API REST fica sob o mesmo `baseURL`, sem uma segunda variável de ambiente para o staging apontar para a produção. Com `baseURL` relativo (`"/api"`), resolve contra a página. Um esquema sem par de WebSocket (`blob:`, `data:`) lança `TypeError` na chamada, em vez de virar "URL de WebSocket inválida" lá no `new WebSocket`. O `.replace(/^http/, "ws")` à mão acertava os dois casos comuns e deixava esse passar.
 
 Comportamento:
 
@@ -122,9 +127,9 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
 
 É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
 
-!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0)"
-    O `url(path, params?)` entrou na interface `ApiClient` como método
-    obrigatório. Quem usa `createApiClient` não muda nada; um objeto que
+!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0) e `wsUrl` (0.84.0)"
+    O `url(path, params?)` e depois o `wsUrl(path, params?)` entraram na
+    interface `ApiClient` como métodos obrigatórios. Quem usa `createApiClient` não muda nada; um objeto que
     **finge** ser o cliente — o mock de teste mais comum — passa a dar erro de
     tipo até ganhar o método:
 
@@ -143,6 +148,7 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
         arrayBuffer: vi.fn(),
         upload: vi.fn(),
         url: (path) => `https://api.exemplo.com${path}`,
+        wsUrl: (path) => `wss://api.exemplo.com${path}`,
     };
     ```
 

@@ -1,12 +1,20 @@
 import type { HTMLAttributes, ReactElement, ReactNode } from "react";
 import { cn } from "@/utils/cn";
-import { MarkerShape, VehicleShape } from "./live-route-glyphs";
-import { hasInnerMark, markerGeometry, resolveMarkerScale } from "./live-route-symbols";
+import { BadgeShape, MarkerShape, VehicleShape } from "./live-route-glyphs";
+import {
+    badgeHalfWidth,
+    hasInnerMark,
+    markerGeometry,
+    resolveMarkerScale,
+} from "./live-route-symbols";
 import type { LiveRouteMarkerKind } from "./LiveRouteMap";
 import styles from "./LiveRouteMap.module.css";
 
-/** What a legend entry shows: a marker kind, the vehicle, or one of the two lines. */
-export type LiveRouteLegendSymbol = LiveRouteMarkerKind | "vehicle" | "route" | "trail";
+/**
+ * What a legend entry shows: a marker kind, the vehicle, one of the two lines,
+ * or the count badge a marker carries.
+ */
+export type LiveRouteLegendSymbol = LiveRouteMarkerKind | "vehicle" | "route" | "trail" | "badge";
 
 /** One entry of `LiveRouteMapLegend`. */
 export interface LiveRouteLegendItem {
@@ -20,6 +28,12 @@ export interface LiveRouteLegendItem {
     glyphText?: string;
     /** For a marker kind: SVG content inside the glyph, as `LiveRouteMarker.icon` does. */
     icon?: ReactNode;
+    /** For a marker kind: draw it as already visited, as `LiveRouteMarker.visited` does. */
+    visited?: boolean;
+    /** For `"vehicle"`: draw it with an old position, as `LiveVehicle.stale` does. */
+    stale?: boolean;
+    /** For `"badge"`: the number drawn in the pill. Default: `1`. */
+    badge?: number;
 }
 
 export interface LiveRouteMapLegendProps extends Omit<
@@ -49,6 +63,7 @@ const DEFAULT_ITEMS: readonly LiveRouteLegendItem[] = [
 
 const LINE_HALF_LENGTH = 14;
 const VEHICLE_HALF_SIZE = 18;
+const DEFAULT_BADGE_COUNT = 1;
 
 /**
  * Half the size of the box a symbol needs, before `markerScale`.
@@ -59,6 +74,7 @@ const VEHICLE_HALF_SIZE = 18;
 function symbolHalfSize(item: LiveRouteLegendItem): number {
     if (item.symbol === "vehicle") return VEHICLE_HALF_SIZE;
     if (item.symbol === "route" || item.symbol === "trail") return LINE_HALF_LENGTH;
+    if (item.symbol === "badge") return badgeHalfWidth(item.badge ?? DEFAULT_BADGE_COUNT) + 2;
     const inner = hasInnerMark(item.glyphText, item.icon);
     return markerGeometry(item.symbol, item.emphasis === true, inner).outer + 2;
 }
@@ -70,7 +86,14 @@ function symbolHalfSize(item: LiveRouteLegendItem): number {
  * @returns The SVG content.
  */
 function LegendSymbol({ item }: { item: LiveRouteLegendItem }): ReactElement {
-    if (item.symbol === "vehicle") return <VehicleShape heading={0} />;
+    if (item.symbol === "vehicle") {
+        return (
+            <g className={item.stale === true ? styles.vehicleStale : undefined}>
+                <VehicleShape heading={0} />
+            </g>
+        );
+    }
+    if (item.symbol === "badge") return <BadgeShape count={item.badge ?? DEFAULT_BADGE_COUNT} />;
     if (item.symbol === "route" || item.symbol === "trail") {
         const casing = item.symbol === "route" ? styles.routeCasing : styles.trailCasing;
         const line = item.symbol === "route" ? styles.route : styles.trail;
@@ -82,7 +105,7 @@ function LegendSymbol({ item }: { item: LiveRouteLegendItem }): ReactElement {
         );
     }
     return (
-        <g className={styles[item.symbol]}>
+        <g className={cn(styles[item.symbol], item.visited === true && styles.visited)}>
             <MarkerShape
                 kind={item.symbol}
                 emphasis={item.emphasis}
@@ -102,6 +125,11 @@ function LegendSymbol({ item }: { item: LiveRouteLegendItem }): ReactElement {
  * override of `--tempest-info-solid` on a common ancestor recolors both. Each
  * symbol is decorative (`aria-hidden`); the text is what a screen reader reads.
  *
+ * The states the map draws have entries too: `visited` on a marker kind,
+ * `stale` on the vehicle, and the `"badge"` symbol for the count pill — each
+ * read from the same rules as the map, so the legend explains the number on a
+ * stop instead of leaving it to guesswork.
+ *
  * @example
  * <LiveRouteMapLegend
  *   items={[
@@ -109,6 +137,8 @@ function LegendSymbol({ item }: { item: LiveRouteLegendItem }): ReactElement {
  *     { symbol: "stop", label: "Parada (ordem da viagem)", glyphText: "1" },
  *     { symbol: "destination", label: "Chegada" },
  *     { symbol: "vehicle", label: "Ônibus" },
+ *     { symbol: "stop", label: "Parada atendida", visited: true },
+ *     { symbol: "badge", label: "Embarques na parada", badge: 3 },
  *   ]}
  * />
  */

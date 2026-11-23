@@ -9,3 +9,5 @@ export type {
 } from "./create-i18n";
 export { I18nProvider, useI18n, useOptionalI18n, useTranslate } from "./I18nProvider";
 export type { I18nContextValue, I18nProviderProps } from "./I18nProvider";
+export { TEMPEST_MESSAGES } from "./tempest-messages";
+export type { TempestMessageKey } from "./tempest-messages";

@@ -78,3 +78,33 @@ describe("portalled panels keep what they used to inherit", () => {
         expect(declarations(css, "wrapper").get("font-family")).toBe("var(--tempest-font-sans)");
     });
 });
+
+/**
+ * Overlays portalled into `body` with no in-flow root to copy from.
+ *
+ * Their text inherits whatever `body` declares, and the SDK does not declare a
+ * font on `body` (that is the app's call, see `docs/styles.md`). In an app that
+ * sets none, the `Drawer` title rendered in `"Times New Roman"` while every
+ * in-flow component used the SDK stack (#716, measured in Chromium with the
+ * gallery's body font removed). `BottomSheet` already declared the font on its
+ * surface; these are the siblings that did not.
+ */
+const SURFACES = [
+    { component: "Drawer", surface: "panel" },
+    { component: "Modal", surface: "dialog" },
+    { component: "Command", surface: "dialog" },
+    { component: "BottomSheet", surface: "sheet" },
+] as const;
+
+describe("body-portalled overlays declare the SDK font themselves", () => {
+    it.each(SURFACES)(
+        "$component.$surface sets font-family to the SDK stack",
+        ({ component, surface }) => {
+            const css = readFileSync(
+                resolve(__dirname, `../src/components/${component}/${component}.module.css`),
+                "utf8",
+            );
+            expect(declarations(css, surface).get("font-family")).toBe("var(--tempest-font-sans)");
+        },
+    );
+});

@@ -26,6 +26,12 @@ export interface TableColumn<T> {
      * `tablet` hides below md (< 768px), `desktop` hides below lg (< 1024px).
      */
     priority?: TablePriority;
+    /**
+     * Text of the label each stacked mobile card prints beside this cell. Defaults
+     * to `header` when it is a string; set it when the header is markup (a sort
+     * button, an icon), or the card shows the value with no name next to it.
+     */
+    label?: string;
 }
 
 export interface TableProps<T> {
@@ -134,9 +140,10 @@ export function Table<T>({
                                                 column.className,
                                             )}
                                             data-label={
-                                                typeof column.header === "string"
+                                                column.label ??
+                                                (typeof column.header === "string"
                                                     ? column.header
-                                                    : undefined
+                                                    : undefined)
                                             }
                                         >
                                             {content}

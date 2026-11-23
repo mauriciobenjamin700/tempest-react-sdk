@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { TrackPoint } from "./types";
 import { usePositionTracker } from "./use-position-tracker";
 
 function installGeolocation(): {
@@ -142,5 +144,49 @@ describe("usePositionTracker", () => {
         expect(result.current.status).toBe("error");
         expect(result.current.lastError?.code).toBe(1);
         expect(geo.clearWatch).toHaveBeenCalledWith(7);
+    });
+
+    it("forwards both readings that land before one render through onPoint, where lastPoint keeps only the second", () => {
+        const geo = installGeolocation();
+        const forwarded: number[] = [];
+        const watched: number[] = [];
+        renderHook(() => {
+            const gps = usePositionTracker({
+                autoStart: true,
+                minDistanceKm: 0,
+                onPoint: (point) => forwarded.push(point.latitude),
+            });
+            const last: TrackPoint | null = gps.lastPoint;
+            useEffect(() => {
+                if (last) watched.push(last.latitude);
+            }, [last]);
+            return gps;
+        });
+
+        act(() => {
+            geo.emit(1, 0);
+            geo.emit(2, 0);
+        });
+        act(() => geo.emit(3, 0));
+
+        expect(forwarded).toEqual([1, 2, 3]);
+        expect(watched).toEqual([2, 3]);
+    });
+
+    it("calls the onPoint of the latest render", () => {
+        const geo = installGeolocation();
+        const first = vi.fn();
+        const second = vi.fn();
+        const { rerender } = renderHook(
+            ({ onPoint }: { onPoint: (point: TrackPoint) => void }) =>
+                usePositionTracker({ autoStart: true, minDistanceKm: 0, onPoint }),
+            { initialProps: { onPoint: first } },
+        );
+        rerender({ onPoint: second });
+
+        act(() => geo.emit(1, 0));
+
+        expect(first).not.toHaveBeenCalled();
+        expect(second).toHaveBeenCalledTimes(1);
     });
 });

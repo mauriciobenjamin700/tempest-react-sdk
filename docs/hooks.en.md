@@ -141,11 +141,43 @@ function CommandPalette() {
 
 `mod: true` accepts Ctrl or Cmd, simplifying cross-OS.
 
-!!! note "Doesn't fire inside inputs"
-    By default (`ignoreInput: true`) the shortcut is ignored when focus is in an
-    `<input>`, `<textarea>`, `<select>` or `[contenteditable]` — so it doesn't steal
-    the "k" the user is typing. Pass `{ ignoreInput: false }` if you want the
-    opposite.
+The defaults depend on the shortcut's modifier:
+
+| Option           | Shortcut with `ctrl`/`meta`/`mod` | With `alt` | Key without modifier (`"/"`, `"?"`) |
+| ---------------- | --------------------------------- | ---------- | ----------------------------------- |
+| `ignoreInput`    | `false`: fires in a field         | `true`     | `true`: the field keeps the key     |
+| `preventDefault` | `true`                            | `true`     | `false`                             |
+
+Ctrl/Cmd types nothing, so ⌘K fires even with the focus in the search box, and
+`preventDefault` stops the browser from acting on the same key (Ctrl+K focuses Chrome's
+and Firefox's search). A plain key typed in an `<input>`, `<textarea>`, `<select>` or
+`[contenteditable]` still belongs to the field.
+
+!!! warning "Editing shortcut: give the key back to the field"
+    When binding a combination the field itself uses (`mod+z`, `mod+a`, `mod+c`),
+    pass `{ ignoreInput: true }`: without it, Cmd+Z inside a `<textarea>` calls your
+    handler instead of undoing the text.
+
+#### Showing the shortcut — `formatShortcut` and `isApplePlatform`
+
+```tsx
+import { Kbd, formatShortcut, isApplePlatform } from "tempest-react-sdk";
+
+export function SearchHint() {
+  return (
+    <span>
+      Search <Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>
+      {isApplePlatform() ? null : " (on Mac, ⌘K)"}
+    </span>
+  );
+}
+```
+
+`formatShortcut` takes the same object as the hook and returns the label in the
+system's convention: `⌘K` / `⇧⌘P` on Mac, iPhone and iPad (modifiers in the order
+⌃ ⌥ ⇧ ⌘, no separator) and `Ctrl+K` / `Ctrl+Shift+P` everywhere else.
+`{ platform: "apple" | "other" }` pins the convention, for a test or a help page.
+`isApplePlatform()` answers the same question raw; outside a browser it returns `false`.
 
 ### Debounced search — `useDebounce`
 

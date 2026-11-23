@@ -13,6 +13,8 @@ import { useFocusTrap } from "@/hooks/use-focus-trap";
 import { cn } from "@/utils/cn";
 import styles from "./Modal.module.css";
 import { usePortalHost } from "../Portal/portal-host";
+import { COMMON_MESSAGES } from "@/i18n/messages/common";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export type ModalSize = "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
 
@@ -69,6 +71,7 @@ export function Modal({
     fullscreenOnMobile = false,
     "aria-label": ariaLabel,
 }: ModalProps) {
+    const text = useTempestText(COMMON_MESSAGES);
     const titleId = useId();
     const dialogRef = useRef<HTMLDivElement>(null);
     useFocusTrap(dialogRef, open);
@@ -121,7 +124,7 @@ export function Modal({
                             <button
                                 type="button"
                                 className={styles.close}
-                                aria-label="Fechar"
+                                aria-label={text.t("tempest.common.close")}
                                 onClick={onClose}
                             >
                                 <CloseIcon />

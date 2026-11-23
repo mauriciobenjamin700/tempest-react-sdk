@@ -4,6 +4,8 @@
  * layout modes it switches between.
  */
 import { useId, type HTMLAttributes, type ReactNode } from "react";
+import { NAVIGATION_MESSAGES } from "@/i18n/messages/navigation";
+import { useTempestText } from "@/i18n/use-tempest-text";
 import { cn } from "@/utils/cn";
 import { activeNavIndex } from "./active-nav-key";
 import styles from "./Sidebar.module.css";
@@ -245,6 +247,7 @@ export function Sidebar({
     ...props
 }: SidebarProps) {
     const baseId = useId();
+    const text = useTempestText(NAVIGATION_MESSAGES);
     const blocks = toBlocks(items);
     const activeKey = resolveActiveKey(items, value, match);
     const finalWidth =
@@ -261,7 +264,7 @@ export function Sidebar({
             {...props}
         >
             {header && <div className={styles.header}>{header}</div>}
-            <nav className={styles.nav} aria-label="Navegação lateral">
+            <nav className={styles.nav} aria-label={text.t("tempest.sidebar.label")}>
                 {blocks.map((block) => {
                     if (block.kind === "separator") {
                         return <hr key={block.key} className={styles.separator} />;

@@ -14,6 +14,8 @@ import { useBreakpoint } from "@/hooks/use-breakpoint";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import styles from "./Drawer.module.css";
 import { usePortalHost } from "../Portal/portal-host";
+import { COMMON_MESSAGES } from "@/i18n/messages/common";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export type DrawerPlacement = "right" | "left" | "top" | "bottom";
 
@@ -58,6 +60,7 @@ export function Drawer({
     mobilePlacement,
     showHandle = false,
 }: DrawerProps) {
+    const text = useTempestText(COMMON_MESSAGES);
     const { isMobile } = useBreakpoint();
     const effectivePlacement: DrawerPlacement =
         isMobile && mobilePlacement ? mobilePlacement : placement;
@@ -109,7 +112,7 @@ export function Drawer({
                         {!hideCloseButton && (
                             <button
                                 type="button"
-                                aria-label="Fechar"
+                                aria-label={text.t("tempest.common.close")}
                                 className={styles.close}
                                 onClick={onClose}
                             >

@@ -42,12 +42,18 @@ import { RelativeTime } from "tempest-react-sdk";
 
 <RelativeTime date={post.createdAt} />; // pt-BR
 <RelativeTime date={post.createdAt} locale="en" />;
+<RelativeTime date={position.timestamp} updateEvery={15_000} />; // conta sozinho
+<RelativeTime date={position.timestamp} now={clock} />; // usa o relógio do app
 ```
 
-| Prop     | Tipo                       | Default | Notas                        |
-| -------- | -------------------------- | ------- | ---------------------------- |
-| `date`   | `Date \| string \| number` | —       | Instante a renderizar.       |
-| `locale` | `"pt" \| "en"`             | `"pt"`  | `"pt"` mapeia pra `"pt-BR"`. |
+| Prop          | Tipo                       | Default    | Notas                                                                           |
+| ------------- | -------------------------- | ---------- | ------------------------------------------------------------------------------- |
+| `date`        | `Date \| string \| number` | —          | Instante a renderizar.                                                          |
+| `locale`      | `"pt" \| "en"`             | `"pt"`     | `"pt"` mapeia pra `"pt-BR"`.                                                    |
+| `now`         | `Date \| number`           | o render   | O "agora" do app (um relógio para a lista inteira, ou o de um teste). Vence `updateEvery`. |
+| `updateEvery` | `number` (ms)              | desligado  | Re-renderiza sozinho nesse intervalo. Valor que não é número positivo desliga.  |
+
+Sem `now` nem `updateEvery`, o texto é calculado no render e **fica parado** até algo re-renderizar o componente — medido: 5 min depois, ainda "agora há pouco". O relógio interno é opt-in de propósito: cem linhas com um intervalo cada acordariam a página cem vezes por tick; numa lista, um `now` do pai é o formato barato, e `updateEvery` é para o horário solitário que não tem nada acima para re-renderizá-lo. O timer é limpo no unmount.
 
 Estende `HTMLAttributes<HTMLTimeElement>`.
 

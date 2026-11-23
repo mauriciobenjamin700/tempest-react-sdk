@@ -10,8 +10,8 @@ import {
 } from "recharts";
 import { cn } from "@/utils/cn";
 import { useChartColors } from "./use-chart-colors";
-import { toTooltipFormatter } from "./types";
-import type { CartesianChartProps } from "./types";
+import { seriesName, toTooltipFormatter } from "./types";
+import type { CartesianAxisChartProps } from "./types";
 
 /**
  * LineChart — themed wrapper over recharts `LineChart`.
@@ -33,14 +33,17 @@ export function LineChart({
     showGrid = true,
     showTooltip = true,
     valueFormatter,
+    labels,
+    yAxisWidth = "auto",
+    yAxisFormatter,
     className,
-}: CartesianChartProps) {
+}: CartesianAxisChartProps) {
     const palette = useChartColors(colors);
     const chart = (
         <RLineChart data={data} width={width} height={height}>
             {showGrid ? <CartesianGrid strokeDasharray="3 3" /> : null}
             <XAxis dataKey={index} />
-            <YAxis tickFormatter={valueFormatter} />
+            <YAxis width={yAxisWidth} tickFormatter={yAxisFormatter ?? valueFormatter} />
             {showTooltip ? <Tooltip formatter={toTooltipFormatter(valueFormatter)} /> : null}
             {showLegend ? <Legend /> : null}
             {categories.map((category, i) => (
@@ -48,6 +51,7 @@ export function LineChart({
                     key={category}
                     type="monotone"
                     dataKey={category}
+                    name={seriesName(labels, category)}
                     stroke={palette[i % palette.length]}
                     dot={false}
                 />

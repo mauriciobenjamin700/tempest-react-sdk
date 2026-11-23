@@ -26,6 +26,7 @@ export type {
 } from "./inverse-render";
 export { getThemePreset, themePresets } from "./theme-presets";
 export type { ThemePresetName } from "./theme-presets";
-export { getInitialTheme, themeInitScript } from "./initial-theme";
-export type { GetInitialThemeOptions } from "./initial-theme";
+export { getInitialTheme } from "./initial-theme";
+export { themeInitScript } from "./theme-init-script";
+export type { GetInitialThemeOptions } from "./theme-init-script";
 export type { ResolvedTheme, ThemeMode } from "./types";

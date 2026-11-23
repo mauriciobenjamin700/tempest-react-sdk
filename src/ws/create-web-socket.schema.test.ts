@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
+import { resetFrameWarnings } from "../utils/json-frame";
 import { createWebSocket } from "./create-web-socket";
 
 class WSMock {
@@ -107,6 +108,96 @@ describe("createWebSocket — schema", () => {
         socket.onmessage?.({ data: JSON.stringify({ type: "ping" }) } as MessageEvent);
 
         expect(socket.send).not.toHaveBeenCalled();
+        controller.close();
+        vi.unstubAllGlobals();
+    });
+
+    it("does not report a heartbeat ping the schema leaves out as a broken contract", () => {
+        vi.stubGlobal("WebSocket", WSMock);
+        const onValidationError = vi.fn();
+        const onMessage = vi.fn();
+        const controller = createWebSocket<Frame>("ws://x", {
+            schema: frameSchema,
+            onValidationError,
+            onMessage,
+        });
+        const socket = WSMock.last!;
+
+        socket.onmessage?.({ data: JSON.stringify({ type: "ping" }) } as MessageEvent);
+        socket.onmessage?.({ data: '{ "type": "ping", "ts": 1 }' } as MessageEvent);
+
+        expect(onValidationError).not.toHaveBeenCalled();
+        expect(onMessage).not.toHaveBeenCalled();
+        expect(socket.send).toHaveBeenCalledTimes(2);
+        expect(socket.send).toHaveBeenCalledWith(JSON.stringify({ type: "pong" }));
+        controller.close();
+        vi.unstubAllGlobals();
+    });
+
+    it("keeps the development warning for refused frames free of heartbeats", () => {
+        vi.stubGlobal("WebSocket", WSMock);
+        resetFrameWarnings();
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        const controller = createWebSocket<Frame>("ws://x", { schema: frameSchema });
+        const socket = WSMock.last!;
+
+        socket.onmessage?.({ data: JSON.stringify({ type: "ping" }) } as MessageEvent);
+        expect(warn).not.toHaveBeenCalled();
+        socket.onmessage?.({ data: JSON.stringify({ kind: "chat" }) } as MessageEvent);
+        expect(warn).toHaveBeenCalledTimes(1);
+
+        warn.mockRestore();
+        controller.close();
+        vi.unstubAllGlobals();
+    });
+
+    it("still reports a refused frame that is not the heartbeat", () => {
+        vi.stubGlobal("WebSocket", WSMock);
+        const onValidationError = vi.fn();
+        const controller = createWebSocket<Frame>("ws://x", {
+            schema: frameSchema,
+            onValidationError,
+        });
+
+        WSMock.last?.onmessage?.({
+            data: JSON.stringify({ type: "pong", kind: "chat" }),
+        } as MessageEvent);
+
+        expect(onValidationError).toHaveBeenCalledTimes(1);
+        controller.close();
+        vi.unstubAllGlobals();
+    });
+
+    it("delivers a ping the schema declares and answers it once", () => {
+        vi.stubGlobal("WebSocket", WSMock);
+        const onMessage = vi.fn();
+        const withPing = z.union([frameSchema, z.object({ type: z.literal("ping") })]);
+        const controller = createWebSocket<Frame | { type: "ping" }>("ws://x", {
+            schema: withPing,
+            onMessage,
+        });
+        const socket = WSMock.last!;
+
+        socket.onmessage?.({ data: JSON.stringify({ type: "ping" }) } as MessageEvent);
+
+        expect(onMessage).toHaveBeenCalledWith(expect.objectContaining({ data: { type: "ping" } }));
+        expect(socket.send).toHaveBeenCalledTimes(1);
+        controller.close();
+        vi.unstubAllGlobals();
+    });
+
+    it("reports a ping the schema refuses when the app answers pings itself", () => {
+        vi.stubGlobal("WebSocket", WSMock);
+        const onValidationError = vi.fn();
+        const controller = createWebSocket<Frame>("ws://x", {
+            schema: frameSchema,
+            respondToPing: false,
+            onValidationError,
+        });
+
+        WSMock.last?.onmessage?.({ data: JSON.stringify({ type: "ping" }) } as MessageEvent);
+
+        expect(onValidationError).toHaveBeenCalledTimes(1);
         controller.close();
         vi.unstubAllGlobals();
     });

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.93.0] — 2026-11-23
+
 ### Segurança
 
 - **`createTempestAuth`: desfazer um `login()` cujo `mePath` falhou não revoga nem limpa mais a
@@ -52,8 +54,6 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   sobre a `main` em `808393e` e sobre este branch**, em bytes brotli: `slice: offline + PWA surface`
   6 091 → 6 239 (teto 6.2 kB → 6.3 kB); `ceiling: full barrel CJS` 210 503 → 210 634 (teto 210.6 kB
   → 210.7 kB). `ceiling: full barrel ESM` 177 722 → 177 701, teto mantido.
-
-## [0.93.0] — 2026-11-23
 
 ### Adicionado
 

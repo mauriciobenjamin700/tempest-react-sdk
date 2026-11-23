@@ -36,6 +36,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   **rejeita** (navegador interno sem permissão) ia direto para `false` sem tentar o
   `execCommand`. Agora `useClipboard`, `InstallCopyLink` e `useShare().copyLink` usam a mesma
   cadeia (a do `InstallCopyLink`, extraída): Clipboard API → `execCommand` honrando o retorno.
+- **`create-tempest-auth.restore-tabs.test.ts` deixa de gerar `SessionSupersededError` não
+  tratado sob carga (#803).** Defeito do teste, não do SDK: o último caso guardava as promises de
+  `tab1.restore()`/`tab2.restore()` sem handler durante o `setTimeout` de 7 ms e o `logout()`, e a
+  de `tab1` às vezes rejeitava antes do `await expect(first).rejects`. Medido com um
+  `process.on("unhandledRejection")` que identifica a promise: 239 rejeições soltas em 48 000
+  execuções (3 rodadas de 16 cópias × 1000 do caso, 16 processos de CPU ocupada em 24 núcleos),
+  **todas** na promise devolvida ao teste e **nenhuma** em promise interna do SDK (`trackSignIn`
+  já aguarda a sua, e `awaitLogins` usa `Promise.allSettled`). O caso agora observa as duas com
+  `Promise.allSettled` no instante em que começam: 0 em 48 000 no mesmo método. Sem mudança no
+  pacote publicado.
 
 ### Budgets
 

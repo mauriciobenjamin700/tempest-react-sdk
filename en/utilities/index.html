@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4465,6 +4488,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#date-without-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dates without a time, and times of day — formatDate, formatDateTime, formatTime
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#dates-for-input-typedate-formatdateforinput" class="md-nav__link">
     <span class="md-ellipsis">
       Dates for &lt;input type="date"&gt; — formatDateForInput
@@ -4824,6 +4856,15 @@
   <a href="#absent-values-one-answer" class="md-nav__link">
     <span class="md-ellipsis">
       Absent values — one answer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#date-without-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dates without a time, and times of day — formatDate, formatDateTime, formatTime
     </span>
   </a>
   
@@ -5509,7 +5550,7 @@ hands it to <code>Intl.NumberFormat</code>, which formats a decimal string exact
 
 <span class="nx">ABSENT_TEXT</span><span class="p">;</span><span class="w"> </span><span class="c1">// "—", for when your own cell has to match</span>
 </code></pre></div>
-<p>It applies to <code>formatCurrency</code>, <code>formatBytes</code>, <code>formatCompactNumber</code>, <code>formatPercent</code>, <code>formatDate</code> and <code>formatDateTime</code>. The two that feed an <code>&lt;input&gt;</code> — <code>formatDateForInput</code> and <code>formatDateTimeForInput</code> — answer <strong><code>""</code></strong>, because that is what an input reads as "no value"; an em dash would arrive as content the user has to delete before typing.</p>
+<p>It applies to <code>formatCurrency</code>, <code>formatBytes</code>, <code>formatCompactNumber</code>, <code>formatPercent</code>, <code>formatDate</code>, <code>formatDateTime</code> and <code>formatTime</code>. The two that feed an <code>&lt;input&gt;</code> — <code>formatDateForInput</code> and <code>formatDateTimeForInput</code> — answer <strong><code>""</code></strong>, because that is what an input reads as "no value"; an em dash would arrive as content the user has to delete before typing.</p>
 <div class="admonition danger">
 <p class="admonition-title">Before 0.66.0, absent became a plausible number</p>
 <p>Measured on 0.65.0 — what reached the screen for a column the backend left null:</p>
@@ -5546,6 +5587,26 @@ hands it to <code>Intl.NumberFormat</code>, which formats a decimal string exact
 <div class="admonition tip">
 <p class="admonition-title">Absent and invalid are not the same thing</p>
 <p>A value that is present and unparseable — a corrupted ISO string — still answers <strong><code>""</code></strong>, deliberately. While reading a log, "nobody filled this in" and "what they filled in is broken" are different findings, and the second is the one worth chasing. A blank cell and a <code>—</code> stop meaning the same thing.</p>
+</div>
+<hr />
+<h2 id="date-without-time">Dates without a time, and times of day — <code>formatDate</code>, <code>formatDateTime</code>, <code>formatTime</code></h2>
+<p>A backend sends three different shapes, and each formatter reads them as what they are:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">formatDate</span><span class="p">,</span><span class="w"> </span><span class="nx">formatDateTime</span><span class="p">,</span><span class="w"> </span><span class="nx">formatTime</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="nx">formatDate</span><span class="p">(</span><span class="s2">"2026-11-16"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "16/11/2026" — a `date` column, in any time zone</span>
+<span class="nx">formatDateTime</span><span class="p">(</span><span class="s2">"2026-11-16T20:30:00Z"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "16/11/2026, 17:30" in America/Sao_Paulo</span>
+<span class="nx">formatTime</span><span class="p">(</span><span class="s2">"2026-11-16T20:30:00Z"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "17:30" in America/Sao_Paulo</span>
+<span class="nx">formatTime</span><span class="p">(</span><span class="s2">"08:05:00"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "08:05" — a `time` column, no zone conversion</span>
+<span class="nx">formatTime</span><span class="p">(</span><span class="s2">"2026-11-16"</span><span class="p">);</span><span class="w"> </span><span class="c1">// "" — a date without a time has no time to show</span>
+</code></pre></div>
+<ul>
+<li><strong>Date without a time</strong> (<code>yyyy-MM-dd</code>) is a calendar day, not an instant: it prints as the day it names, in every time zone. A day the month does not have (<code>"2026-02-30"</code>) answers <code>""</code>.</li>
+<li><strong>Instant</strong> (a <code>Date</code>, or a string with a date <strong>and</strong> a time) is converted to the viewer's time zone.</li>
+<li><strong>Time of day</strong> (<code>HH:mm</code>, <code>HH:mm:ss</code>) is only read by <code>formatTime</code>, and prints as it came.</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">Up to 0.92.0, every <code>date</code> column showed one day early in Brazil</p>
+<p><code>new Date("2026-11-16")</code> is <strong>UTC</strong> midnight, which in UTC-3 is the 15th at 21:00. Measured with <code>TZ=America/Sao_Paulo node -e 'console.log(new Intl.DateTimeFormat("pt-BR").format(new Date("2026-11-16")))'</code>: <code>15/11/2026</code>. <code>formatDate</code> showed <code>15/11/2026</code>, <code>formatDateTime</code> showed <code>15/11/2026, 21:00</code>, and the <code>formatDate</code> of <code>createI18n</code>/<code>useI18n</code> was wrong the same way. A date without a time is now formatted in UTC — the same day in every zone — and a <code>timeZone</code> passed to the i18n <code>formatDate</code> does not move it.</p>
 </div>
 <hr />
 <h2 id="dates-for-input-typedate-formatdateforinput">Dates for <code>&lt;input type="date"&gt;</code> — <code>formatDateForInput</code></h2>
@@ -6020,7 +6081,7 @@ even JSON can represent (a cycle) loses the write.</p>
 <li><strong>ZIP</strong>: <code>createZip(entries, { onProgress })</code> packs spreadsheet + photos in ~8 ms slices without freezing the screen, and stores already-compressed files instead of recompressing them.</li>
 <li><strong>CSV</strong>: <code>toCsv(rows, columns)</code> writes the file with RFC 4180 escaping and a BOM, and neutralizes formulas by default; <code>downloadCsv(...)</code> hands it straight to the user.</li>
 <li><strong>User URLs</strong>: <code>safeLinkUrl</code>, <code>safeImageUrl</code> and <code>safeAttachmentUrl</code> return the URL or <code>null</code> — a scheme allowlist before any <code>href</code>/<code>src</code>.</li>
-<li><strong>Dates and percentages</strong>: <code>formatDateForInput</code> gives the <code>yyyy-MM-dd</code> an <code>&lt;input type="date"&gt;</code> insists on and <code>formatDateTimeForInput</code> gives the <code>yyyy-MM-ddTHH:mm</code> an <code>&lt;input type="datetime-local"&gt;</code> wants (both from local parts, without the UTC shift); <code>percentOf</code> returns <code>0</code> instead of <code>NaN</code> when the base is zero; <code>formatPercent(v, { mode: "truncate" })</code> cuts without floating-point error; <code>relativeDayLabel</code> gives "Hoje"/"Ontem"/the date by local calendar day.</li>
+<li><strong>Dates and percentages</strong>: <code>formatDate("2026-11-16")</code> shows the 16th in every time zone and <code>formatTime</code> gives <code>HH:mm</code> from an instant or a <code>time</code> column; <code>formatDateForInput</code> gives the <code>yyyy-MM-dd</code> an <code>&lt;input type="date"&gt;</code> insists on and <code>formatDateTimeForInput</code> gives the <code>yyyy-MM-ddTHH:mm</code> an <code>&lt;input type="datetime-local"&gt;</code> wants (both from local parts, without the UTC shift); <code>percentOf</code> returns <code>0</code> instead of <code>NaN</code> when the base is zero; <code>formatPercent(v, { mode: "truncate" })</code> cuts without floating-point error; <code>relativeDayLabel</code> gives "Hoje"/"Ontem"/the date by local calendar day.</li>
 <li><strong>Compressed storage</strong>: <code>compressedStorage.get/set</code> gzips what it writes; the self-describing format (<code>~tgz1:</code>) reads older values with no migration. In React, <code>useLocalStorage(key, def, compressedStorageCodec)</code>.</li>
 <li><strong>Arrays/Objects</strong>: <code>groupBy</code>, <code>uniqueBy</code>, <code>chunk</code>, <code>range</code>, <code>pick</code>, <code>omit</code>, <code>deepMerge</code>, <code>isEmpty</code> — always immutable; <code>deepMerge</code> replaces arrays instead of merging them.</li>
 <li><strong>Guards</strong>: <code>isDefined</code>, <code>isString</code>, <code>isNumber</code>, <code>isPlainObject</code>, <code>assertNever</code> — safe narrowing + <code>switch</code> exhaustiveness.</li>

@@ -3949,6 +3949,8 @@
       
         
       
+        
+      
     
     
       
@@ -4057,6 +4059,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4891,7 +4914,7 @@
 </code></pre></div>
 <p>Each field of the auth state (<code>user</code>, <code>token</code>, <code>isAuthenticated</code>, <code>logout</code>, ...) becomes an isolated hook under <code>useAuth.use</code>.</p>
 <h2 id="reading-state-outside-react-getstate">Reading state outside React — <code>getState()</code></h2>
-<p>Not all code that needs state is a component. An HTTP interceptor, a route guard, a utility — these run outside the React tree and can't call hooks. For them, use <code>getState()</code> on the bound hook:</p>
+<p>Not all code that needs state is a component. An HTTP interceptor, an <code>onUnauthorized</code> callback, a utility — these run outside the React tree and can't call hooks. For them, use <code>getState()</code> on the bound hook:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"./auth-store"</span><span class="p">;</span>
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">requireAuth</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">{</span>
@@ -4899,7 +4922,8 @@
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>This is exactly how a route guard reads the auth session: it needs the value <em>now</em>, once, without subscribing for re-renders. <code>getState()</code> gives you a snapshot. (To <em>react</em> to changes outside React, use <code>useStore.subscribe()</code>.)</p>
+<p>This is how the HTTP client reads the token on every request: it needs the value <em>now</em>, once, without subscribing for re-renders. <code>getState()</code> gives you a snapshot. (To <em>react</em> to changes outside React, use <code>useStore.subscribe()</code>.)</p>
+<p>A route guard is <strong>not</strong> that case: it runs during the route's render and has to react to logout, so it reads the store through a hook — see <a href="../routing/#the-async-function-form-the-third-state-pending">Routing</a>.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>getState()</code> does not subscribe</p>
 <p><code>getState()</code> reads once and won't re-render anything when state changes later. Inside components, always prefer the hook (<code>useStore(...)</code> or <code>useStore.use.field()</code>) so the UI stays in sync. Reserve <code>getState()</code> for non-React code.</p>

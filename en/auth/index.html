@@ -4051,6 +4051,8 @@
       
         
       
+        
+      
     
     
       
@@ -4159,6 +4161,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5241,6 +5264,7 @@ a route tree of typed pages goes through <code>defineRoutes</code> without a cas
 <p>Why the hook runs <strong>before</strong> the new account is installed: the previous account's teardown — clearing the persisted cache, the background-sync queue — has to finish before the new account's requests start filling them; in the reverse order it would wipe (or race with) the new account's data. The cost is a window in which <code>isAuthenticated</code> is <code>false</code> while the hook runs — a route guard may react to it, so keep the hook short. A hook error here is swallowed: the login itself succeeded.</p>
 <p>A <code>logout()</code> whose teardown is still running is awaited the same way: <code>logout()</code> followed by <code>login()</code> without <code>await</code> does not install the new account before the previous one's hook finished — the hook clearing account A's state never runs alongside account B.</p>
 <p>A <code>login()</code> whose session moved while its request was in flight — a <code>logout()</code> in between, for example — rejects with <code>SessionSupersededError</code> and installs nothing. The same holds for the <code>mePath</code> <code>GET</code> that <code>login()</code> sends after installing the token: a profile that arrives after a <code>logout()</code> (or after <code>logout()</code> + another account's <code>login()</code>) is discarded, instead of landing in the store next to the next account's token.</p>
+<p>And when the <code>mePath</code> <code>GET</code> <strong>fails</strong> — a 500, a 401, the network dropping —, <code>login()</code> undoes the sign-in before rejecting with that error: the refresh token it brought is revoked (<code>logoutPath</code>, in body mode), the store and the stored refresh token are cleared, and <code>onSessionEnd</code> runs with <code>"expired"</code> for it, since its token already notified the store's listeners. When <code>login()</code> rejects, no session is left — not even the previous one, which already ended with <code>"switch"</code> once the new credentials were accepted. Up to 0.92.0 the new token stayed installed next to a <code>null</code> user, with <code>isAuthenticated</code> <code>true</code> for nobody (#748). The same holds for <code>restore()</code> and for the account switch a <code>refresh()</code> detects. Before undoing, the tab checks the shared storage, as <code>logout()</code> does: when another tab signed in with another account while <code>mePath</code> was answering, this tab's session ended there — <code>onSessionEnd</code> runs with <code>"switch"</code> and <code>elsewhere: true</code>, <code>login()</code> rejects with <code>SessionSupersededError</code>, and the other account's session is neither revoked nor cleared.</p>
 <h3 id="refresh-in-flight-and-account-switching-sessionsupersedederror">Refresh in flight and account switching — <code>SessionSupersededError</code></h3>
 <p>A refresh is a network round trip, and the session can end in the middle of it. Every refresh is bound to a <strong>session epoch</strong>, which <code>logout()</code> and a <code>login()</code> whose credentials were accepted increment. A refresh that resolves after its epoch ended discards what it brought back and rejects with <code>SessionSupersededError</code> — and the client passes that error through <strong>without</strong> calling <code>onUnauthorized</code>, because the current session (maybe another account that just signed in) did nothing wrong. A request sent during an ended session that comes back 401 is refused the same way — the replay after a refresh included — instead of being replayed as whoever is signed in now or ending their session. And a request sent <strong>without</strong> a token that comes back 401 after an account signed in just rejects with the 401: it neither refreshes nor ends the new session.</p>
 <p>The same holds for a <strong>successful</strong> response: a request sent with the token of a session that ended before the response landed rejects with <code>SessionSupersededError</code> instead of resolving. The data is the signed-out account's, and the caller's continuation — a <code>mutation</code>'s <code>onSuccess</code> with <code>setQueryData</code>, a <code>setState</code> — would hand it to the account signed in now; up to 0.86.0, an A <code>mutation</code> crossing <code>logout()</code> wrote A's data into B's cache, on screen and in the offline snapshot (security audit run-14, #609). A request sent without a token belongs to no account and resolves as usual. Reproduced in <code>src/query/offline-persistence.session-end.test.ts</code> (<code>npx vitest run src/query/offline-persistence.session-end.test.ts</code>).</p>

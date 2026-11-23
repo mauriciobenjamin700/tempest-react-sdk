@@ -2232,6 +2232,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#shareactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareActions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sharebutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareButton
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#recap" class="md-nav__link">
     <span class="md-ellipsis">
       Recap
@@ -4031,6 +4049,8 @@
       
         
       
+        
+      
     
     
       
@@ -4139,6 +4159,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4851,6 +4892,24 @@
   <a href="#postinstallprompt" class="md-nav__link">
     <span class="md-ellipsis">
       PostInstallPrompt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shareactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareActions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sharebutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareButton
     </span>
   </a>
   
@@ -6046,6 +6105,162 @@ follows the trigger, and <code>Shift+Tab</code> walks back the same way.</p>
 <p class="admonition-title">It only opens where there is an install signal</p>
 <p><code>appinstalled</code> is fired by Chromium browsers (Chrome, Edge, Samsung Internet), whatever the install path was — prompt, address-bar icon or menu. Safari (iOS and macOS) and Firefox do not fire it, so there the overlay never opens: there is no signal to rely on.</p>
 </div>
+<h2 id="shareactions"><code>ShareActions</code></h2>
+<!-- gallery:meta -->
+<p><a href="../../gallery/"><img alt="Network · Clipboard · Share in the gallery" src="../../../assets/gallery/meta.webp" /></a></p>
+<p><em>Section <code>meta</code> of the <a href="../../gallery/">gallery</a> — run it locally to interact.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>When to use</strong>: the user is about to <strong>spread</strong> something from the app — a ride, a product, an event — on WhatsApp or another network. Three ready buttons: WhatsApp, the system share sheet and "Copy link".</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ShareActions</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ShareRide</span><span class="p">({</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`https://app.example.com/c/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">ShareActions</span>
+<span class="w">      </span><span class="na">title</span><span class="o">=</span><span class="s">"Ride Picos → Teresina"</span>
+<span class="w">      </span><span class="na">text</span><span class="o">=</span><span class="s">"Friday, 07:05 · R$ 25.00 per seat · 3 seats"</span>
+<span class="w">      </span><span class="na">url</span><span class="o">=</span><span class="p">{</span><span class="nx">url</span><span class="p">}</span>
+<span class="w">      </span><span class="na">imageUrl</span><span class="o">=</span><span class="p">{</span><span class="sb">`</span><span class="si">${</span><span class="nx">url</span><span class="si">}</span><span class="sb">/og.png`</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td><code>string</code> — the link being shared</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td><code>string</code> — <code>url</code> is appended on WhatsApp</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>imageUrl</code></td>
+<td><code>string</code> — sent as a file where the device accepts one</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>imageFileName</code></td>
+<td><code>string</code></td>
+<td>path name, or <code>preview.&lt;ext&gt;</code></td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td><code>("whatsapp" \| "native" \| "copy")[]</code></td>
+<td><code>["whatsapp", "native", "copy"]</code></td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;ShareActionsLabels&gt;</code></td>
+<td><code>tempest.share.*</code></td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>ButtonVariant</code></td>
+<td><code>"outline"</code></td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>ButtonSize</code></td>
+<td><code>"md"</code></td>
+</tr>
+<tr>
+<td><code>onShare</code></td>
+<td><code>(outcome: ShareOutcome) =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onCopy</code></td>
+<td><code>(copied: boolean) =&gt; void</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>What each button does:</p>
+<ul>
+<li><strong>WhatsApp</strong> is a real link to <code>https://wa.me/?text=…</code> (built by <a href="../../br-pagamentos/#spreading-without-a-recipient-whatsappshareurl"><code>whatsAppShareUrl</code></a>), carrying the text and the link. Being an <code>&lt;a&gt;</code>, it needs no popup permission and opens the app on a phone. The preview image comes from the Open Graph tags of the linked page — see the <a href="../../recipes/share-whatsapp/">recipe</a>.</li>
+<li><strong>Share</strong> opens the system sheet through <a href="../../share/#useshare-sharing-with-an-image-and-a-fallback"><code>useShare</code></a>, with the image attached where the device accepts files. It renders only where <code>navigator.share</code> exists.</li>
+<li><strong>Copy link</strong> tries the Clipboard API, then <code>execCommand("copy")</code>; when both are refused (some in-app browsers) it shows the link in a read-only field, <strong>already selected</strong>, with a hint to press and hold. Success is announced through a <code>role="status"</code> region.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">The choice is by capability, not user agent</p>
+<p>The "Share" button renders where <code>navigator.share</code> exists — not where the user agent says "mobile". Desktop Chrome on Windows and macOS has the system sheet and gets the button; desktop Firefox and Chrome on Linux do not. Sniffing "phone" gets both sides wrong.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Translatable texts</p>
+<p>The defaults go through <a href="../../i18n/#component-default-texts"><code>I18nProvider</code></a> (<code>tempest.share.whatsapp</code>, <code>.native</code>, <code>.copy</code>, <code>.copied</code>, <code>.manual</code>, <code>.field</code>): an English app gets "Share on WhatsApp" with no setup. <code>labels</code> wins over both.</p>
+</div>
+<h2 id="sharebutton"><code>ShareButton</code></h2>
+<blockquote>
+<p><strong>When to use</strong>: there is room for <strong>one</strong> button only — the share icon on a list card, for example.</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ShareButton</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">RideCardShare</span><span class="p">({</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`https://app.example.com/c/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">ShareButton</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Ride Picos → Teresina"</span><span class="w"> </span><span class="na">url</span><span class="o">=</span><span class="p">{</span><span class="nx">url</span><span class="p">}</span><span class="w"> </span><span class="na">imageUrl</span><span class="o">=</span><span class="p">{</span><span class="sb">`</span><span class="si">${</span><span class="nx">url</span><span class="si">}</span><span class="sb">/og.png`</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Where <code>navigator.share</code> exists it opens the system sheet (with the image, where the device accepts it). Where it does not, <strong>the same button becomes the <code>wa.me</code> link</strong> and says so: "Share on WhatsApp". A label promising the system sheet that opens WhatsApp Web would be a lie on desktop Firefox.</p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code>, <code>text</code>, <code>imageUrl</code>, <code>imageFileName</code></td>
+<td>as in <code>ShareActions</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;{ native: string; whatsapp: string }&gt;</code></td>
+<td><code>tempest.share.*</code></td>
+</tr>
+<tr>
+<td><code>iconOnly</code></td>
+<td><code>boolean</code> — the label becomes the accessible name</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>variant</code>, <code>size</code>, <code>fullWidth</code></td>
+<td>as in <code>Button</code></td>
+<td><code>"outline"</code>, <code>"md"</code></td>
+</tr>
+<tr>
+<td><code>onShare</code></td>
+<td><code>(outcome: ShareOutcome) =&gt; void</code> — sheet path only</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
 <h2 id="recap">Recap</h2>
 <table>
 <thead>
@@ -6080,6 +6295,16 @@ follows the trigger, and <code>Shift+Tab</code> walks back the same way.</p>
 <td><code>PostInstallPrompt</code></td>
 <td>Tell the tab the app is already installed</td>
 <td><code>appinstalled</code></td>
+</tr>
+<tr>
+<td><code>ShareActions</code></td>
+<td>Spread a link: WhatsApp, system sheet, copy</td>
+<td>click</td>
+</tr>
+<tr>
+<td><code>ShareButton</code></td>
+<td>One share button, through the path the browser has</td>
+<td>click</td>
 </tr>
 <tr>
 <td><code>Tooltip</code></td>

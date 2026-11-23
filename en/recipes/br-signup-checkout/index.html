@@ -3798,6 +3798,8 @@
       
         
       
+        
+      
     
     
       
@@ -4096,6 +4098,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5108,14 +5131,13 @@ fills itself from the CEP.</p>
 <span class="w">  </span><span class="nx">Input</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">PhoneInput</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">SegmentedControl</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">applyApiFieldErrors</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">describeApiError</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">isApiError</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">unmask</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useBreakpoint</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useViaCEP</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useWatch</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useZodForm</span><span class="p">,</span>
-<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">Path</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">SubmitHandler</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">EMPTY_SIGNUP</span><span class="p">,</span><span class="w"> </span><span class="nx">signupSchema</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">SignupValues</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/checkout/signup-schema"</span><span class="p">;</span>
@@ -5187,11 +5209,7 @@ fills itself from the CEP.</p>
 <span class="w">      </span><span class="p">});</span>
 <span class="w">      </span><span class="nx">onCreated</span><span class="p">(</span><span class="nx">customer</span><span class="p">);</span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isApiError</span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">error</span><span class="p">.</span><span class="nx">fields</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">field</span><span class="p">,</span><span class="w"> </span><span class="nx">message</span><span class="p">]</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nb">Object</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">error</span><span class="p">.</span><span class="nx">fields</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
-<span class="w">          </span><span class="nx">setError</span><span class="p">(</span><span class="nx">field</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">Path</span><span class="p">&lt;</span><span class="nt">SignupValues</span><span class="p">&gt;,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">message</span><span class="w"> </span><span class="p">});</span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">      </span><span class="p">}</span>
+<span class="w">      </span><span class="nx">applyApiFieldErrors</span><span class="p">(</span><span class="nx">form</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
 <span class="w">      </span><span class="nx">setSubmitError</span><span class="p">(</span>
 <span class="w">        </span><span class="nx">describeApiError</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span><span class="w"> </span><span class="s2">"Não foi possível criar sua conta"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">codes</span><span class="o">:</span><span class="w"> </span><span class="kt">SIGNUP_ERRORS</span><span class="w"> </span><span class="p">}),</span>
 <span class="w">      </span><span class="p">);</span>
@@ -5301,7 +5319,7 @@ fills itself from the CEP.</p>
 <li><strong><code>unmask</code> before sending.</strong> The screen shows <code>529.982.247-25</code>; the backend gets
    <code>52998224725</code>.</li>
 <li><strong>Backend errors land in two places.</strong> The ones naming a field (<code>error.fields</code>) go to the
-   right input through <code>setError</code>. The overall sentence goes to the <code>&lt;Alert&gt;</code> at the top, built
+   right input through <code>applyApiFieldErrors</code>. The overall sentence goes to the <code>&lt;Alert&gt;</code> at the top, built
    by <code>describeApiError</code> with the <code>DOCUMENT_TAKEN</code> code translated.</li>
 </ol>
 <div class="admonition tip">

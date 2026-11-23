@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4757,7 +4780,7 @@ ships in <a href="../../app-providers/"><code>&lt;AppProviders&gt;</code></a>. I
   and pagination in the browser. Columns with <code>sortable: true</code> sort when the header is
   clicked: asc → desc → unsorted.</li>
 <li><code>searchable</code> adds a search box above the table. It filters by a piece of the text,
-  case-insensitive. <code>searchKeys</code> limits the search to name and e-mail, so "gerente"
+  ignoring case and accents ("joao" finds "João"). <code>searchKeys</code> limits the search to name and e-mail, so "gerente"
   does not match the role column.</li>
 <li><code>loading={isLoading}</code> draws skeleton rows while the first answer has not arrived.
   "I am fetching" and "there is nothing" are different sentences, and <code>emptyMessage</code>
@@ -4794,7 +4817,6 @@ looks like it does not exist.</p>
 <span class="w">  </span><span class="nx">Page</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">formatCPF</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">formatCurrency</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">useDebounce</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">usePaginatedQuery</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableColumn</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableSort</span><span class="p">,</span>
@@ -4841,12 +4863,11 @@ looks like it does not exist.</p>
 <span class="p">];</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Customers</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">term</span><span class="p">,</span><span class="w"> </span><span class="nx">setTerm</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">string</span><span class="p">&gt;(</span><span class="s2">""</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">search</span><span class="p">,</span><span class="w"> </span><span class="nx">setSearch</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">string</span><span class="p">&gt;(</span><span class="s2">""</span><span class="p">);</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">sort</span><span class="p">,</span><span class="w"> </span><span class="nx">setSort</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">DataTableSort</span><span class="err">&lt;</span><span class="na">Customer</span><span class="p">&gt;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="o">&gt;</span><span class="p">({</span>
 <span class="w">    </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"nome"</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">direction</span><span class="o">:</span><span class="w"> </span><span class="s2">"asc"</span><span class="p">,</span>
 <span class="w">  </span><span class="p">});</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">search</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDebounce</span><span class="p">(</span><span class="nx">term</span><span class="p">,</span><span class="w"> </span><span class="mf">400</span><span class="p">);</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">customers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">usePaginatedQuery</span><span class="p">&lt;</span><span class="nt">Customer</span><span class="p">&gt;({</span>
 <span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"clientes"</span><span class="p">,</span><span class="w"> </span><span class="nx">search</span><span class="p">,</span><span class="w"> </span><span class="nx">sort</span><span class="p">],</span>
@@ -4892,7 +4913,8 @@ looks like it does not exist.</p>
 <span class="w">        </span><span class="na">initialSort</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"nome"</span><span class="p">,</span><span class="w"> </span><span class="nx">direction</span><span class="o">:</span><span class="w"> </span><span class="s2">"asc"</span><span class="w"> </span><span class="p">}}</span>
 <span class="w">        </span><span class="na">onSortChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setSort</span><span class="p">}</span>
 <span class="w">        </span><span class="na">searchable</span>
-<span class="w">        </span><span class="na">onSearchChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setTerm</span><span class="p">}</span>
+<span class="w">        </span><span class="na">searchDebounceMs</span><span class="o">=</span><span class="p">{</span><span class="mf">400</span><span class="p">}</span>
+<span class="w">        </span><span class="na">onSearchChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setSearch</span><span class="p">}</span>
 <span class="w">        </span><span class="na">emptyMessage</span><span class="o">=</span><span class="p">{</span><span class="sb">`Nenhum cliente encontrado para "</span><span class="si">${</span><span class="nx">search</span><span class="si">}</span><span class="sb">"`</span><span class="p">}</span>
 <span class="w">        </span><span class="na">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">customers</span><span class="p">.</span><span class="nx">isFetching</span><span class="p">}</span>
 <span class="w">      </span><span class="p">/&gt;</span>
@@ -4910,10 +4932,10 @@ to your <code>queryFn</code> and returns <code>items</code>, <code>total</code>,
 props the table asks for. With <code>orderBy</code> set, it also sends <code>order_by</code> and <code>ascending</code>.
 The previous page stays on screen while the next one loads, so the table does not
 flicker.</p>
-<p><strong>The search is debounced.</strong> The table reports every keystroke in <code>onSearchChange</code>.
-<code>useDebounce(term, 400)</code> only hands over the term once the person stops typing for
-400 ms. Without it, "souza" would be five requests. See
-<a href="../../hooks/#debounced-search-usedebounce"><code>useDebounce</code></a>.</p>
+<p><strong>The search is debounced.</strong> With <code>searchDebounceMs={400}</code> the box shows every
+keystroke, but <code>onSearchChange</code> is only called once the person stops typing for 400 ms.
+Without it, "souza" would be five requests. The search also ignores accents: "joao"
+finds "João".</p>
 <p><strong>A new filter goes back to page 1.</strong> <code>search</code> and <code>sort</code> are in the <code>queryKey</code>. When it
 changes, <code>usePaginatedQuery</code> goes back to page 1 in the same render, without first
 asking for page 7 of a result that only has 2.</p>
@@ -4956,7 +4978,7 @@ your backend uses <code>page_size</code> instead of <code>size</code>, pass <cod
   does everything in the browser.</li>
 <li>✅ <strong>Large list</strong>: <code>totalItems</code> + <code>page</code> + <code>onPageChange</code> turn on server mode, and
   <code>usePaginatedQuery</code> hands over those props ready.</li>
-<li>✅ <code>useDebounce</code> holds the search; <code>search</code> and <code>sort</code> in the <code>queryKey</code> go back to
+<li>✅ <code>searchDebounceMs</code> holds the search; <code>search</code> and <code>sort</code> in the <code>queryKey</code> go back to
   page 1.</li>
 <li>✅ <code>loading</code>, <code>EmptyState</code>, <code>emptyMessage</code> and <code>ErrorState</code> cover loading, empty,
   search with no result and error.</li>

@@ -3329,6 +3329,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#divulgar-sem-destinatario-whatsappshareurl" class="md-nav__link">
+    <span class="md-ellipsis">
+      Divulgar sem destinatário: whatsAppShareUrl
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#receita-cobrar-o-sinal-por-whatsapp" class="md-nav__link">
     <span class="md-ellipsis">
       Receita: cobrar o sinal por WhatsApp
@@ -4147,6 +4156,8 @@
       
         
       
+        
+      
     
     
       
@@ -4255,6 +4266,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5058,6 +5090,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#divulgar-sem-destinatario-whatsappshareurl" class="md-nav__link">
+    <span class="md-ellipsis">
+      Divulgar sem destinatário: whatsAppShareUrl
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#receita-cobrar-o-sinal-por-whatsapp" class="md-nav__link">
     <span class="md-ellipsis">
       Receita: cobrar o sinal por WhatsApp
@@ -5112,7 +5153,7 @@
 
 
 <h1 id="pagamentos-fiscal-contato-br">Pagamentos, fiscal &amp; contato BR</h1>
-<p>Os quatro trilhos que todo produto brasileiro acaba precisando — <strong>Pix</strong>, <strong>boleto</strong>, <strong>chave de acesso da NFe</strong> e <strong>feriados / dias úteis</strong> — mais o canal por onde tudo isso chega ao cliente: <strong>WhatsApp</strong>. Tudo puro TypeScript, <strong>sem nenhuma dependência nova</strong> — a fatia inteira mede <strong>9,22 KB brotli</strong>, só Pix (payload + CRC + componente de QR) mede <strong>6,1 KB</strong>, e o deep link do WhatsApp mede <strong>223 B</strong>.</p>
+<p>Os quatro trilhos que todo produto brasileiro acaba precisando — <strong>Pix</strong>, <strong>boleto</strong>, <strong>chave de acesso da NFe</strong> e <strong>feriados / dias úteis</strong> — mais o canal por onde tudo isso chega ao cliente: <strong>WhatsApp</strong>. Tudo puro TypeScript, <strong>sem nenhuma dependência nova</strong> — a fatia inteira mede <strong>9,22 KB brotli</strong>, só Pix (payload + CRC + componente de QR) mede <strong>6,1 KB</strong>, e o deep link do WhatsApp (os quatro helpers, <code>whatsAppShareUrl</code> incluso) mede <strong>253 B</strong>.</p>
 <div class="admonition info">
 <p class="admonition-title">Import pelo subpath <code>tempest-react-sdk/br</code></p>
 <p>Igual ao resto do módulo BR, estes helpers vivem em <code>tempest-react-sdk/br</code> — não na raiz. Quem não importa, não paga.</p>
@@ -5681,6 +5722,16 @@ caso excepcional.</p>
 <p class="admonition-title">O nono dígito é da sua base, não do link</p>
 <p>Um celular gravado antes de 2016 tem dez dígitos e passa aqui como fixo — o link é montado e é o WhatsApp que decide se acha a conta. Se a sua base tem contato antigo, normalize o nono dígito <strong>na base</strong>; o deep link não tem como adivinhar se <code>1133334444</code> é fixo ou celular sem o 9.</p>
 </div>
+<h3 id="divulgar-sem-destinatario-whatsappshareurl">Divulgar sem destinatário: <code>whatsAppShareUrl</code></h3>
+<p><code>whatsAppUrl</code> exige número — e devolve <code>""</code> sem um, de propósito: link de contato com typo tem que desabilitar o botão. Divulgar uma carona ou um produto não tem destinatário nenhum. Para isso existe <code>whatsAppShareUrl(text)</code>, que monta <code>https://wa.me/?text=…</code>: o WhatsApp abre o <strong>seletor de conversa</strong> com o texto pronto, e a pessoa escolhe o contato ou o grupo.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">whatsAppShareUrl</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">"Carona Picos → Teresina, sex 07:05: https://app.exemplo.com/c/42"</span><span class="p">);</span>
+<span class="c1">// "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.exemplo.com%2Fc%2F42"</span>
+
+<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">""</span><span class="p">);</span><span class="w"> </span><span class="c1">// "https://wa.me/" — composer em branco</span>
+</code></pre></div>
+<p>Quando o texto carrega um link, o WhatsApp monta o <strong>cartão de prévia</strong> (imagem, título, descrição) a partir das tags Open Graph daquela página — a imagem chega sem ser anexada. O fluxo completo, com o botão pronto e a página de prévia no backend, está na receita <a href="../recipes/share-whatsapp/">Compartilhar com prévia no WhatsApp</a>; os botões são o <a href="../components/actions/#shareactions"><code>ShareActions</code></a>.</p>
 <h3 id="receita-cobrar-o-sinal-por-whatsapp">Receita: cobrar o sinal por WhatsApp</h3>
 <p>O caso que junta esta parte com a <a href="#parte-1-pix">Parte 1</a> — o texto da mensagem carrega o copia-e-cola do Pix:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">openWhatsApp</span><span class="p">,</span><span class="w"> </span><span class="nx">pixPayload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
@@ -5726,7 +5777,7 @@ caso excepcional.</p>
 <li><strong>Boleto</strong> — <code>parseLinhaDigitavel</code> / <code>parseCodigoBarras</code> convertem 47↔44 e 48↔44 conferindo todo DV; cobrança e arrecadação são layouts diferentes e o SDK nunca confunde os dois; o fator de vencimento tem <strong>duas</strong> bases desde fev/2025 e a escolha é explícita.</li>
 <li><strong>NFe</strong> — <code>parseChaveNFe</code> abre os 44 dígitos e resolve o <code>cUF</code> no tipo <code>UF</code> do módulo; <code>validateChaveNFe</code> confere tamanho, UF e DV.</li>
 <li><strong>Feriados</strong> — <code>holidaysFor</code> devolve os 9 feriados nacionais + os 4 dias bancários móveis, marcados; estado e município entram por <code>extra</code>; <code>isBusinessDay</code> / <code>nextBusinessDay</code> / <code>addBusinessDays</code> fazem a conta no calendário local.</li>
-<li><strong>WhatsApp</strong> — <code>toWhatsAppNumber</code> põe o <code>55</code> no número nacional e devolve <code>""</code> no que não dá pra dialar; <code>whatsAppUrl</code> monta o <code>wa.me</code> com o texto codificado; <code>openWhatsApp</code> abre a aba. É <strong>deep link</strong>, nunca envio: quem aperta enviar é a pessoa.</li>
+<li><strong>WhatsApp</strong> — <code>toWhatsAppNumber</code> põe o <code>55</code> no número nacional e devolve <code>""</code> no que não dá pra dialar; <code>whatsAppUrl</code> monta o <code>wa.me</code> com o texto codificado; <code>openWhatsApp</code> abre a aba; <code>whatsAppShareUrl</code> monta o <code>wa.me/?text=</code> sem destinatário, para divulgar. É <strong>deep link</strong>, nunca envio: quem aperta enviar é a pessoa.</li>
 </ul>
 <p>Nada disso fala com banco. Para o lado servidor (registrar boleto, criar cobrança Pix, autorizar NF-e), veja <a href="../integration-fastapi/">Integração FastAPI</a>.</p>
 

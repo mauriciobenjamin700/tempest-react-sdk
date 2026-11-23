@@ -2766,6 +2766,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Global shortcut — useKeyboardShortcut">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#showing-the-shortcut-formatshortcut-and-isappleplatform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Showing the shortcut — formatShortcut and isApplePlatform
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -4258,6 +4273,8 @@
       
         
       
+        
+      
     
     
       
@@ -4366,6 +4383,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4985,6 +5023,21 @@
       Global shortcut — useKeyboardShortcut
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Global shortcut — useKeyboardShortcut">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#showing-the-shortcut-formatshortcut-and-isappleplatform" class="md-nav__link">
+    <span class="md-ellipsis">
+      Showing the shortcut — formatShortcut and isApplePlatform
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -5643,13 +5696,58 @@ first client render may briefly show the default (e.g. <code>width: 0</code>).</
 <span class="p">}</span>
 </code></pre></div>
 <p><code>mod: true</code> accepts Ctrl or Cmd, simplifying cross-OS.</p>
-<div class="admonition note">
-<p class="admonition-title">Doesn't fire inside inputs</p>
-<p>By default (<code>ignoreInput: true</code>) the shortcut is ignored when focus is in an
-<code>&lt;input&gt;</code>, <code>&lt;textarea&gt;</code>, <code>&lt;select&gt;</code> or <code>[contenteditable]</code> — so it doesn't steal
-the "k" the user is typing. Pass <code>{ ignoreInput: false }</code> if you want the
-opposite.</p>
+<p>The defaults depend on the shortcut's modifier:</p>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>Shortcut with <code>ctrl</code>/<code>meta</code>/<code>mod</code></th>
+<th>With <code>alt</code></th>
+<th>Key without modifier (<code>"/"</code>, <code>"?"</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ignoreInput</code></td>
+<td><code>false</code>: fires in a field</td>
+<td><code>true</code></td>
+<td><code>true</code>: the field keeps the key</td>
+</tr>
+<tr>
+<td><code>preventDefault</code></td>
+<td><code>true</code></td>
+<td><code>true</code></td>
+<td><code>false</code></td>
+</tr>
+</tbody>
+</table>
+<p>Ctrl/Cmd types nothing, so ⌘K fires even with the focus in the search box, and
+<code>preventDefault</code> stops the browser from acting on the same key (Ctrl+K focuses Chrome's
+and Firefox's search). A plain key typed in an <code>&lt;input&gt;</code>, <code>&lt;textarea&gt;</code>, <code>&lt;select&gt;</code> or
+<code>[contenteditable]</code> still belongs to the field.</p>
+<div class="admonition warning">
+<p class="admonition-title">Editing shortcut: give the key back to the field</p>
+<p>When binding a combination the field itself uses (<code>mod+z</code>, <code>mod+a</code>, <code>mod+c</code>),
+pass <code>{ ignoreInput: true }</code>: without it, Cmd+Z inside a <code>&lt;textarea&gt;</code> calls your
+handler instead of undoing the text.</p>
 </div>
+<h4 id="showing-the-shortcut-formatshortcut-and-isappleplatform">Showing the shortcut — <code>formatShortcut</code> and <code>isApplePlatform</code></h4>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Kbd</span><span class="p">,</span><span class="w"> </span><span class="nx">formatShortcut</span><span class="p">,</span><span class="w"> </span><span class="nx">isApplePlatform</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">SearchHint</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="nx">Search</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">formatShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">isApplePlatform</span><span class="p">()</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">" (on Mac, ⌘K)"</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>formatShortcut</code> takes the same object as the hook and returns the label in the
+system's convention: <code>⌘K</code> / <code>⇧⌘P</code> on Mac, iPhone and iPad (modifiers in the order
+⌃ ⌥ ⇧ ⌘, no separator) and <code>Ctrl+K</code> / <code>Ctrl+Shift+P</code> everywhere else.
+<code>{ platform: "apple" | "other" }</code> pins the convention, for a test or a help page.
+<code>isApplePlatform()</code> answers the same question raw; outside a browser it returns <code>false</code>.</p>
 <h3 id="debounced-search-usedebounce">Debounced search — <code>useDebounce</code></h3>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="p">,</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useDebounce</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
@@ -5688,6 +5786,7 @@ opposite.</p>
 <span class="w">  </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
+<p>The copy tries the Clipboard API and, when it is missing <strong>or rejects</strong> (an in-app browser without the permission), <code>execCommand("copy")</code> — the same chain as <code>InstallCopyLink</code> and <a href="../share/#useshare-sharing-with-an-image-and-a-fallback"><code>useShare</code></a>. <code>copy</code> returns <code>false</code> (and <code>copied</code> stays off) when the browser refuses both.</p>
 <h3 id="responsive-usebreakpoint">Responsive — <code>useBreakpoint</code></h3>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useBreakpoint</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 

@@ -2232,6 +2232,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#shareactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareActions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sharebutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareButton
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#resumo" class="md-nav__link">
     <span class="md-ellipsis">
       Resumo
@@ -4031,6 +4049,8 @@
       
         
       
+        
+      
     
     
       
@@ -4139,6 +4159,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4851,6 +4892,24 @@
   <a href="#postinstallprompt" class="md-nav__link">
     <span class="md-ellipsis">
       PostInstallPrompt
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#shareactions" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareActions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sharebutton" class="md-nav__link">
+    <span class="md-ellipsis">
+      ShareButton
     </span>
   </a>
   
@@ -6039,6 +6098,162 @@ para o que vem depois do gatilho, e <code>Shift+Tab</code> faz o caminho inverso
 <p class="admonition-title">Só abre onde existe sinal de instalação</p>
 <p><code>appinstalled</code> é disparado pelos navegadores Chromium (Chrome, Edge, Samsung Internet), qualquer que tenha sido o caminho da instalação — prompt, ícone da barra de endereço ou menu. Safari (iOS e macOS) e Firefox não disparam o evento, então ali o overlay nunca abre: não há sinal em que se apoiar.</p>
 </div>
+<h2 id="shareactions"><code>ShareActions</code></h2>
+<!-- gallery:meta -->
+<p><a href="../../gallery/"><img alt="Network · Clipboard · Share na gallery" src="../../assets/gallery/meta.webp" /></a></p>
+<p><em>Seção <code>meta</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<blockquote>
+<p><strong>Quando usar</strong>: o usuário vai <strong>divulgar</strong> algo do app — uma carona, um produto, um evento — no WhatsApp ou em outra rede. Três botões prontos: WhatsApp, a folha de compartilhamento do sistema e "Copiar link".</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ShareActions</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ShareRide</span><span class="p">({</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`https://app.exemplo.com/c/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">ShareActions</span>
+<span class="w">      </span><span class="na">title</span><span class="o">=</span><span class="s">"Carona Picos → Teresina"</span>
+<span class="w">      </span><span class="na">text</span><span class="o">=</span><span class="s">"Sexta, 07:05 · R$ 25,00 por vaga · 3 vagas"</span>
+<span class="w">      </span><span class="na">url</span><span class="o">=</span><span class="p">{</span><span class="nx">url</span><span class="p">}</span>
+<span class="w">      </span><span class="na">imageUrl</span><span class="o">=</span><span class="p">{</span><span class="sb">`</span><span class="si">${</span><span class="nx">url</span><span class="si">}</span><span class="sb">/og.png`</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td><code>string</code> — o link divulgado</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td><code>string</code> — o <code>url</code> é anexado no WhatsApp</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>imageUrl</code></td>
+<td><code>string</code> — vai como arquivo onde o aparelho aceita</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>imageFileName</code></td>
+<td><code>string</code></td>
+<td>nome do caminho, ou <code>preview.&lt;ext&gt;</code></td>
+</tr>
+<tr>
+<td><code>actions</code></td>
+<td><code>("whatsapp" \| "native" \| "copy")[]</code></td>
+<td><code>["whatsapp", "native", "copy"]</code></td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;ShareActionsLabels&gt;</code></td>
+<td><code>tempest.share.*</code></td>
+</tr>
+<tr>
+<td><code>variant</code></td>
+<td><code>ButtonVariant</code></td>
+<td><code>"outline"</code></td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>ButtonSize</code></td>
+<td><code>"md"</code></td>
+</tr>
+<tr>
+<td><code>onShare</code></td>
+<td><code>(outcome: ShareOutcome) =&gt; void</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>onCopy</code></td>
+<td><code>(copied: boolean) =&gt; void</code></td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p>O que cada botão faz:</p>
+<ul>
+<li><strong>WhatsApp</strong> é um link de verdade para <code>https://wa.me/?text=…</code> (montado por <a href="../../br-pagamentos/#divulgar-sem-destinatario-whatsappshareurl"><code>whatsAppShareUrl</code></a>), com o texto e o link. Por ser <code>&lt;a&gt;</code>, não depende de permissão de popup e abre o app no celular. A imagem da prévia vem das tags Open Graph da página do link — veja a <a href="../../recipes/share-whatsapp/">receita</a>.</li>
+<li><strong>Compartilhar</strong> abre a folha do sistema por <a href="../../share/#useshare-compartilhar-com-imagem-e-fallback"><code>useShare</code></a>, com a imagem anexada onde o aparelho aceita arquivo. Só aparece onde existe <code>navigator.share</code>.</li>
+<li><strong>Copiar link</strong> tenta a Clipboard API, depois <code>execCommand("copy")</code>; quando os dois são recusados (navegador interno de alguns apps), mostra o link num campo somente-leitura, <strong>já selecionado</strong>, com a dica de tocar e segurar. O sucesso é anunciado numa região <code>role="status"</code>.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">A escolha é por capacidade, não por user agent</p>
+<p>O botão "Compartilhar" aparece onde <code>navigator.share</code> existe — não onde o user agent diz "mobile". O Chrome desktop no Windows e no macOS tem a folha do sistema e ganha o botão; o Firefox desktop e o Chrome no Linux não têm e não ganham. Farejar "celular" erra os dois lados.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Textos traduzíveis</p>
+<p>Os defaults passam pelo <a href="../../i18n/#textos-padrao-dos-componentes"><code>I18nProvider</code></a> (<code>tempest.share.whatsapp</code>, <code>.native</code>, <code>.copy</code>, <code>.copied</code>, <code>.manual</code>, <code>.field</code>): app em inglês recebe "Share on WhatsApp" sem configurar nada. <code>labels</code> vence os dois.</p>
+</div>
+<h2 id="sharebutton"><code>ShareButton</code></h2>
+<blockquote>
+<p><strong>Quando usar</strong>: só cabe <strong>um</strong> botão — o ícone de compartilhar num card de lista, por exemplo.</p>
+</blockquote>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ShareButton</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">RideCardShare</span><span class="p">({</span><span class="w"> </span><span class="nx">id</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`https://app.exemplo.com/c/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">ShareButton</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Carona Picos → Teresina"</span><span class="w"> </span><span class="na">url</span><span class="o">=</span><span class="p">{</span><span class="nx">url</span><span class="p">}</span><span class="w"> </span><span class="na">imageUrl</span><span class="o">=</span><span class="p">{</span><span class="sb">`</span><span class="si">${</span><span class="nx">url</span><span class="si">}</span><span class="sb">/og.png`</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Onde <code>navigator.share</code> existe, abre a folha do sistema (com a imagem, onde o aparelho aceita). Onde não existe, <strong>o mesmo botão vira o link <code>wa.me</code></strong> e diz isso: "Compartilhar no WhatsApp". Um rótulo que promete a folha do sistema e abre o WhatsApp Web seria mentira no Firefox desktop.</p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>url</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>title</code>, <code>text</code>, <code>imageUrl</code>, <code>imageFileName</code></td>
+<td>como em <code>ShareActions</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;{ native: string; whatsapp: string }&gt;</code></td>
+<td><code>tempest.share.*</code></td>
+</tr>
+<tr>
+<td><code>iconOnly</code></td>
+<td><code>boolean</code> — o rótulo vira o nome acessível</td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>variant</code>, <code>size</code>, <code>fullWidth</code></td>
+<td>como em <code>Button</code></td>
+<td><code>"outline"</code>, <code>"md"</code></td>
+</tr>
+<tr>
+<td><code>onShare</code></td>
+<td><code>(outcome: ShareOutcome) =&gt; void</code> — só no caminho da folha</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
 <h2 id="resumo">Resumo</h2>
 <table>
 <thead>
@@ -6073,6 +6288,16 @@ para o que vem depois do gatilho, e <code>Shift+Tab</code> faz o caminho inverso
 <td><code>PostInstallPrompt</code></td>
 <td>Avisar, na aba, que o app já foi instalado</td>
 <td><code>appinstalled</code></td>
+</tr>
+<tr>
+<td><code>ShareActions</code></td>
+<td>Divulgar um link: WhatsApp, folha do sistema, copiar</td>
+<td>clique</td>
+</tr>
+<tr>
+<td><code>ShareButton</code></td>
+<td>Um só botão de compartilhar, pelo caminho que o navegador tem</td>
+<td>clique</td>
 </tr>
 <tr>
 <td><code>Tooltip</code></td>

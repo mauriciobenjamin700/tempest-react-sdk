@@ -3329,6 +3329,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spreading-without-a-recipient-whatsappshareurl" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spreading without a recipient: whatsAppShareUrl
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#recipe-asking-for-the-deposit-over-whatsapp" class="md-nav__link">
     <span class="md-ellipsis">
       Recipe: asking for the deposit over WhatsApp
@@ -4147,6 +4156,8 @@
       
         
       
+        
+      
     
     
       
@@ -4255,6 +4266,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5058,6 +5090,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#spreading-without-a-recipient-whatsappshareurl" class="md-nav__link">
+    <span class="md-ellipsis">
+      Spreading without a recipient: whatsAppShareUrl
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#recipe-asking-for-the-deposit-over-whatsapp" class="md-nav__link">
     <span class="md-ellipsis">
       Recipe: asking for the deposit over WhatsApp
@@ -5112,7 +5153,7 @@
 
 
 <h1 id="br-payments-fiscal-contact">BR payments, fiscal &amp; contact</h1>
-<p>The four rails every Brazilian product ends up needing — <strong>Pix</strong>, <strong>boleto</strong>, the <strong>NFe access key</strong> and <strong>holidays / business days</strong> — plus the channel all of it reaches the customer through: <strong>WhatsApp</strong>. Pure TypeScript, <strong>no new dependency</strong> — the whole slice measures <strong>9.22 KB brotli</strong>, Pix alone (payload + CRC + QR component) measures <strong>6.1 KB</strong>, and the WhatsApp deep link measures <strong>223 B</strong>.</p>
+<p>The four rails every Brazilian product ends up needing — <strong>Pix</strong>, <strong>boleto</strong>, the <strong>NFe access key</strong> and <strong>holidays / business days</strong> — plus the channel all of it reaches the customer through: <strong>WhatsApp</strong>. Pure TypeScript, <strong>no new dependency</strong> — the whole slice measures <strong>9.22 KB brotli</strong>, Pix alone (payload + CRC + QR component) measures <strong>6.1 KB</strong>, and the WhatsApp deep link (all four helpers, <code>whatsAppShareUrl</code> included) measures <strong>253 B</strong>.</p>
 <div class="admonition info">
 <p class="admonition-title">Import from the <code>tempest-react-sdk/br</code> subpath</p>
 <p>Like the rest of the BR module, these helpers live in <code>tempest-react-sdk/br</code>, not on the root entry. If you don't import it, you don't pay for it.</p>
@@ -5681,6 +5722,16 @@ exceptional case.</p>
 <p class="admonition-title">The ninth digit belongs to your database, not to the link</p>
 <p>A mobile stored before 2016 has ten digits and reads as a landline here — the link is built and WhatsApp decides whether it finds the account. If your records go back that far, normalise the ninth digit <strong>in the database</strong>; a deep link cannot guess whether <code>1133334444</code> is a landline or a mobile missing its 9.</p>
 </div>
+<h3 id="spreading-without-a-recipient-whatsappshareurl">Spreading without a recipient: <code>whatsAppShareUrl</code></h3>
+<p><code>whatsAppUrl</code> needs a number — and returns <code>""</code> without one, on purpose: a contact link with a typo must disable the button. Spreading a ride or a product has no recipient at all. That is what <code>whatsAppShareUrl(text)</code> is for: it builds <code>https://wa.me/?text=…</code>, and WhatsApp opens its <strong>chat picker</strong> with the text ready, so the person chooses the contact or group.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">whatsAppShareUrl</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
+
+<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">"Ride Picos → Teresina, Fri 07:05: https://app.example.com/c/42"</span><span class="p">);</span>
+<span class="c1">// "https://wa.me/?text=Ride%20Picos%20%E2%86%92%20Teresina%2C%20Fri%2007%3A05%3A%20https%3A%2F%2Fapp.example.com%2Fc%2F42"</span>
+
+<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">""</span><span class="p">);</span><span class="w"> </span><span class="c1">// "https://wa.me/" — blank composer</span>
+</code></pre></div>
+<p>When the text carries a link, WhatsApp builds the <strong>preview card</strong> (image, title, description) from that page's Open Graph tags — the image arrives without being attached. The whole flow, with the ready button and the preview page on the backend, is in the <a href="../recipes/share-whatsapp/">Share with a WhatsApp preview</a> recipe; the buttons are <a href="../components/actions/#shareactions"><code>ShareActions</code></a>.</p>
 <h3 id="recipe-asking-for-the-deposit-over-whatsapp">Recipe: asking for the deposit over WhatsApp</h3>
 <p>The case that ties this part back to <a href="#part-1-pix">Part 1</a> — the message body carries the Pix copy-and-paste string:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">openWhatsApp</span><span class="p">,</span><span class="w"> </span><span class="nx">pixPayload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
@@ -5726,7 +5777,7 @@ exceptional case.</p>
 <li><strong>Boleto</strong> — <code>parseLinhaDigitavel</code> / <code>parseCodigoBarras</code> convert 47↔44 and 48↔44 while verifying every check digit; cobrança and arrecadação are different layouts and the SDK never conflates them; the fator de vencimento has <strong>two</strong> bases since February 2025 and the choice is explicit.</li>
 <li><strong>NFe</strong> — <code>parseChaveNFe</code> opens the 44 digits and resolves <code>cUF</code> into the module's <code>UF</code> type; <code>validateChaveNFe</code> checks length, UF and check digit.</li>
 <li><strong>Holidays</strong> — <code>holidaysFor</code> returns the 9 national holidays plus the 4 movable banking days, labelled; state and municipal days come in through <code>extra</code>; <code>isBusinessDay</code> / <code>nextBusinessDay</code> / <code>addBusinessDays</code> do the arithmetic in the local calendar.</li>
-<li><strong>WhatsApp</strong> — <code>toWhatsAppNumber</code> puts <code>55</code> in front of a national number and returns <code>""</code> for anything undialable; <code>whatsAppUrl</code> builds the <code>wa.me</code> link with the text encoded; <code>openWhatsApp</code> opens the tab. It is a <strong>deep link</strong>, never a send: the person presses send.</li>
+<li><strong>WhatsApp</strong> — <code>toWhatsAppNumber</code> puts <code>55</code> in front of a national number and returns <code>""</code> for anything undialable; <code>whatsAppUrl</code> builds the <code>wa.me</code> link with the text encoded; <code>openWhatsApp</code> opens the tab; <code>whatsAppShareUrl</code> builds the recipient-less <code>wa.me/?text=</code> for spreading a link. It is a <strong>deep link</strong>, never a send: the person presses send.</li>
 </ul>
 <p>None of this talks to a bank. For the server side (registering a boleto, creating a Pix charge, authorising an invoice), see <a href="../integration-fastapi/">FastAPI integration</a>.</p>
 

@@ -3884,6 +3884,8 @@
       
         
       
+        
+      
     
     
       
@@ -3992,6 +3994,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4765,6 +4788,14 @@
 <div class="admonition tip">
 <p class="admonition-title">Use <code>flush</code> para hospedar tabelas e listas</p>
 <p>Cards têm padding interno por padrão. Ao colocar uma <code>Table</code> ou lista que já tem suas próprias margens, ative <code>flush</code> para o conteúdo encostar nas bordas do card sem padding duplo.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Blocos dentro do card ganham espaçamento</p>
+<p>Dois ou mais filhos em bloco — um <code>Stat</code> e uma <code>Timeline</code>, um parágrafo e uma
+lista — ficam a <code>--tempest-space-4</code> (16 px) um do outro, sem precisar de
+<code>Stack</code>. Conteúdo inline (<code>Olá &lt;strong&gt;Ana&lt;/strong&gt;</code>) continua na mesma linha, e
+o card <code>flush</code> não ganha espaçamento. Antes, como todo componente do SDK zera a
+própria margem, os blocos encostavam (#710).</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title"><code>interactive</code> torna o card inteiro um botão</p>

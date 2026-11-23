@@ -2996,6 +2996,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#excluir-uma-selecao-usedeletemany" class="md-nav__link">
+    <span class="md-ellipsis">
+      Excluir uma seleção: useDeleteMany
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#as-chaves-de-cache-quando-voce-precisa-delas" class="md-nav__link">
     <span class="md-ellipsis">
       As chaves de cache, quando você precisa delas
@@ -3967,6 +3976,8 @@
       
         
       
+        
+      
     
     
       
@@ -4075,6 +4086,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4671,6 +4703,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#excluir-uma-selecao-usedeletemany" class="md-nav__link">
+    <span class="md-ellipsis">
+      Excluir uma seleção: useDeleteMany
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#as-chaves-de-cache-quando-voce-precisa-delas" class="md-nav__link">
     <span class="md-ellipsis">
       As chaves de cache, quando você precisa delas
@@ -4870,6 +4911,10 @@
 <td><code>deleteOne("posts", id)</code></td>
 <td><code>DELETE /posts/{id}</code></td>
 </tr>
+<tr>
+<td><code>deleteMany("posts", ids)</code></td>
+<td>um <code>DELETE /posts/{id}</code> por id, em paralelo, cada um com o próprio resultado</td>
+</tr>
 </tbody>
 </table>
 <h3 id="o-id-nunca-sai-do-proprio-segmento">O <code>id</code> nunca sai do próprio segmento</h3>
@@ -4959,6 +5004,7 @@
 <li><code>useCreate&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate(data)</code></li>
 <li><code>useUpdate&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate({ id, data })</code></li>
 <li><code>useDelete&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate(id)</code></li>
+<li><code>useDeleteMany&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate(ids)</code> resolve com <code>{ deleted, failed }</code></li>
 </ul>
 <p>As mutations já invalidam o cache certo no sucesso:</p>
 <table>
@@ -4981,12 +5027,45 @@
 <td><code>useDelete</code></td>
 <td>a lista do recurso</td>
 </tr>
+<tr>
+<td><code>useDeleteMany</code></td>
+<td>a lista do recurso, <strong>uma vez</strong> para o lote todo</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
 <p class="admonition-title">Você ainda passa opções do TanStack Query</p>
-<p>Cada hook aceita um último argumento <code>options</code> que é repassado para o <code>useQuery</code>/<code>useMutation</code> por baixo (menos <code>queryKey</code>/<code>queryFn</code>/<code>mutationFn</code>, que o SDK controla). Então <code>staleTime</code>, <code>placeholderData</code>, <code>onError</code>, <code>onSuccess</code> (chamado <strong>depois</strong> da invalidação do SDK) continuam funcionando normalmente.</p>
+<p>Cada hook aceita um último argumento <code>options</code> que é repassado para o <code>useQuery</code>/<code>useMutation</code> por baixo (menos <code>queryKey</code>/<code>queryFn</code>/<code>mutationFn</code>, que o SDK controla). Então <code>staleTime</code>, <code>placeholderData</code>, <code>onError</code> e <code>onSuccess</code> funcionam normalmente. O <code>onSuccess</code> do app roda <strong>depois</strong> de o SDK disparar a invalidação, nunca no lugar dela: até a 0.92.0 ele substituía o do SDK, e a lista ficava velha depois de criar, editar ou excluir (#699).</p>
 </div>
+<h3 id="excluir-uma-selecao-usedeletemany">Excluir uma seleção: <code>useDeleteMany</code></h3>
+<p>Excluir uma seleção chamando <code>useDelete().mutateAsync</code> para cada id invalida a lista uma vez por id, e cada invalidação refaz o <code>GET</code> da lista montada: medido com 10 ids, 10 <code>invalidateQueries</code> e 10 <code>getList</code>. O <code>useDeleteMany</code> exclui o lote e invalida <strong>uma</strong> vez:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useDeleteMany</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Product</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">DeleteSelection</span><span class="p">({</span><span class="w"> </span><span class="nx">ids</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">deleteMany</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDeleteMany</span><span class="p">&lt;</span><span class="nt">Product</span><span class="p">&gt;(</span><span class="s2">"products"</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">confirm</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">deleted</span><span class="p">,</span><span class="w"> </span><span class="nx">failed</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">deleteMany</span><span class="p">.</span><span class="nx">mutateAsync</span><span class="p">(</span><span class="nx">ids</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">deleted</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> excluídos, </span><span class="si">${</span><span class="nx">failed</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> recusados`</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="nx">deleteMany</span><span class="p">.</span><span class="nx">isPending</span><span class="p">}</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">confirm</span><span class="p">()}&gt;</span>
+<span class="w">      </span><span class="nx">Excluir</span><span class="w"> </span><span class="p">{</span><span class="nx">ids</span><span class="p">.</span><span class="nx">length</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>Cada id tem o próprio resultado.</strong> Um produto que o backend recusa (pedido em aberto) vai para <code>failed</code> com o erro, e não esconde os nove que saíram. A mutation só rejeita quando a chamada do provider inteira falha — e aí nada é invalidado.</li>
+<li><strong>A lista é invalidada mesmo quando todos falharam</strong>: um <code>404</code> pode significar que outra sessão já excluiu o registro.</li>
+<li><strong>Backend com rota de exclusão em lote?</strong> Implemente <code>deleteMany(resource, ids)</code> no seu <code>DataProvider</code> e devolva o mesmo <code>{ deleted, failed }</code>. É opcional: sem ele, o hook faz um <code>deleteOne</code> por id, em paralelo.</li>
+</ul>
 <h3 id="as-chaves-de-cache-quando-voce-precisa-delas">As chaves de cache, quando você precisa delas</h3>
 <p>Os hooks montam as próprias chaves, mas invalidar de fora — depois de um
 WebSocket avisar que um registro mudou, por exemplo — exige a mesma chave que
@@ -4999,9 +5078,16 @@ eles usaram. <code>listQueryKey</code> e <code>oneQueryKey</code> são exatament
 <span class="nx">queryClient</span><span class="p">.</span><span class="nx">invalidateQueries</span><span class="p">({</span><span class="w"> </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">listQueryKey</span><span class="p">(</span><span class="s2">"posts"</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
 <span class="nx">queryClient</span><span class="p">.</span><span class="nx">invalidateQueries</span><span class="p">({</span><span class="w"> </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">oneQueryKey</span><span class="p">(</span><span class="s2">"posts"</span><span class="p">,</span><span class="w"> </span><span class="mf">42</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
 </code></pre></div>
-<p><code>listQueryKey(resource, params?)</code> devolve <code>["data", &lt;recurso&gt;, "list", params]</code>
-e <code>oneQueryKey(resource, id)</code> devolve <code>["data", &lt;recurso&gt;, "one", id]</code>. Montar
+<p><code>listQueryKey(resource)</code> devolve <code>["data", &lt;recurso&gt;, "list"]</code>, o prefixo de
+<strong>toda</strong> lista do recurso, então invalida todas as páginas, ordenações e
+filtros de uma vez. Com <code>params</code>, <code>listQueryKey(resource, params)</code> devolve
+<code>["data", &lt;recurso&gt;, "list", params]</code>, a chave exata de uma lista. E
+<code>oneQueryKey(resource, id)</code> devolve <code>["data", &lt;recurso&gt;, "one", id]</code>. Montar
 esse array à mão funciona até o dia em que o formato mudar — as funções não.</p>
+<div class="admonition note">
+<p class="admonition-title">Até a 0.92.0, <code>listQueryKey(\"posts\")</code> não invalidava nada</p>
+<p>Sem <code>params</code>, a chave terminava num <code>undefined</code> literal (<code>["data", "posts", "list", undefined]</code>), e o filtro do <code>invalidateQueries</code> compara esse quarto elemento como qualquer outro: casava com <strong>0</strong> das listas que o <code>useList</code> monta com paginação (#700). Hoje a chave para em <code>"list"</code>.</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Paginação e ordenação ganham do filtro com o mesmo nome</p>
 <p>Os <code>filters</code> entram na query <strong>antes</strong> de <code>pagination</code> e <code>sort</code>. Um filtro com a chave de um desses parâmetros (<code>page</code>, <code>size</code>, <code>order_by</code>, <code>ascending</code> no default) é sobrescrito quando o valor estruturado vem preenchido. Até a 0.81.0 era o contrário: <code>filters: { page: 1 }</code> vindo do estado de filtros de uma tabela prendia toda requisição na página 1. Sem <code>pagination</code>, o filtro continua indo como veio.</p>
@@ -5136,7 +5222,9 @@ esse array à mão funciona até o dia em que o formato mudar — as funções n
 <li><code>createDataProvider(client, options?)</code> transforma um <code>apiClient</code> num provider CRUD no estilo Refine, com defaults alinhados ao <code>tempest-fastapi-sdk</code> (<code>page</code>/<code>size</code>/<code>order_by</code>/<code>ascending</code>, <code>ascending</code> booleano, PATCH no update).</li>
 <li>Envolva a árvore com <code>&lt;TempestDataProvider provider={…}&gt;</code> <strong>abaixo</strong> de um <code>&lt;QueryProvider&gt;</code>.</li>
 <li><code>useList</code> resolve um <code>OffsetPage&lt;T&gt;</code> (<code>items</code>/<code>total</code>/<code>page</code>/<code>pages</code>); <code>useOne</code> busca um registro e se desabilita sem <code>id</code>.</li>
-<li><code>useCreate</code> / <code>useUpdate</code> / <code>useDelete</code> são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update).</li>
+<li><code>useCreate</code> / <code>useUpdate</code> / <code>useDelete</code> são mutations que invalidam o cache certo no sucesso — lista (create/delete) ou lista + registro (update). O <code>onSuccess</code> do app roda depois da invalidação, não no lugar dela.</li>
+<li><code>useDeleteMany</code> exclui uma seleção e invalida a lista uma vez; cada id volta em <code>deleted</code> ou <code>failed</code>.</li>
+<li><code>listQueryKey(resource)</code> invalida todas as listas do recurso; com <code>params</code>, é a chave de uma lista só.</li>
 <li>Backends fora da convenção? Ajuste <code>pageParam</code>/<code>sizeParam</code>/<code>sortFieldParam</code>/<code>sortOrderParam</code>/<code>sortOrderAsBoolean</code>/<code>updateMethod</code>/<code>buildPath</code>.</li>
 <li>Todo <code>id</code> passa por <code>encodeIdSegment</code>: fica num segmento só, e <code>""</code>/<code>"."</code>/<code>".."</code> são rejeitados antes da requisição.</li>
 </ul>

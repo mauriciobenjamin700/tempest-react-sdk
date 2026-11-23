@@ -3949,6 +3949,8 @@
       
         
       
+        
+      
     
     
       
@@ -4057,6 +4059,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4891,7 +4914,7 @@
 </code></pre></div>
 <p>Cada campo do estado de auth (<code>user</code>, <code>token</code>, <code>isAuthenticated</code>, <code>logout</code>, ...) vira um hook isolado sob <code>useAuth.use</code>.</p>
 <h2 id="lendo-estado-fora-do-react-getstate">Lendo estado fora do React — <code>getState()</code></h2>
-<p>Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um guard de rota, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use <code>getState()</code> no hook ligado:</p>
+<p>Nem todo código que precisa de estado é um componente. Um interceptor de HTTP, um callback de <code>onUnauthorized</code>, um utilitário — esses rodam fora da árvore React e não podem chamar hooks. Para eles, use <code>getState()</code> no hook ligado:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"./auth-store"</span><span class="p">;</span>
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">requireAuth</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">{</span>
@@ -4899,7 +4922,8 @@
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">;</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>É exatamente assim que um guard de rota lê a sessão de auth: ele precisa do valor <em>agora</em>, uma vez, sem assinar para re-renders. <code>getState()</code> te dá um snapshot. (Para <em>reagir</em> a mudanças fora do React, use <code>useStore.subscribe()</code>.)</p>
+<p>É assim que o cliente HTTP lê o token a cada requisição: ele precisa do valor <em>agora</em>, uma vez, sem assinar para re-renders. <code>getState()</code> te dá um snapshot. (Para <em>reagir</em> a mudanças fora do React, use <code>useStore.subscribe()</code>.)</p>
+<p>O guard de rota <strong>não</strong> é esse caso: ele roda durante a renderização da rota e precisa reagir ao logout, então lê a store por hook — veja <a href="../routing/#forma-de-funcao-assincrona-o-terceiro-estado-pending">Roteamento</a>.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>getState()</code> não assina</p>
 <p><code>getState()</code> lê uma vez e não re-renderiza nada quando o estado muda depois. Dentro de componentes, prefira sempre o hook (<code>useStore(...)</code> ou <code>useStore.use.campo()</code>) para que a UI se mantenha em sincronia. Reserve <code>getState()</code> para o código fora do React.</p>

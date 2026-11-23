@@ -3979,6 +3979,8 @@
       
         
       
+        
+      
     
     
       
@@ -4087,6 +4089,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5093,6 +5116,14 @@ transporte com o servidor, não do app com o payload dele: o
 então a resposta é decidida do texto do frame, antes do schema. O ping em si
 não chega ao seu <code>onMessage</code> quando o schema o recusa — o que é o certo, já
 que você não o declarou.</p>
+<p>E a recusa <strong>não</strong> é reportada (0.84.0, #704): com <code>respondToPing</code> ligado, um
+ping que o schema não descreve não dispara <code>onValidationError</code> nem o aviso de
+desenvolvimento. Antes, cada heartbeat — um a cada 30 s contra o
+<code>tempest-fastapi-sdk</code> — chegava no <code>onValidationError</code> como "o backend mudou o
+contrato", e o único jeito de calar era declarar o ping no schema do app. Se o
+schema declara o ping, ele continua chegando no <code>onMessage</code>; com
+<code>respondToPing: false</code> (o app responde ao ping sozinho), a recusa volta a ser
+reportada, porque aí o ping é payload do app.</p>
 </div>
 <div class="admonition check">
 <p class="admonition-title">Sinal que existe em produção, não só em dev</p>
@@ -5113,7 +5144,7 @@ chega no seu logger em produção, onde ninguém está olhando console.</p>
 <li><code>onReconnecting</code> é estado discreto; <code>onLost</code> é o que merece UI e um botão de "tentar de novo".</li>
 <li><code>opened</code> separa "não consegui entrar" de "caiu no meio" — a primeira é erro, a segunda reconecta sozinha.</li>
 <li><code>pingInterval</code> + <code>pingPayload</code> mantêm a conexão viva.</li>
-<li><code>schema</code> valida cada frame antes de entregar — o <code>pong</code> do heartbeat continua saindo mesmo quando o schema recusa o ping.</li>
+<li><code>schema</code> valida cada frame antes de entregar — o <code>pong</code> do heartbeat continua saindo mesmo quando o schema recusa o ping, e essa recusa não vira <code>onValidationError</code>.</li>
 <li><code>useWebSocket</code> amarra tudo ao componente e expõe <code>status</code>/<code>lastMessage</code>/<code>send</code>/<code>reconnect</code>/<code>setSilenceTimeout</code>.</li>
 </ul>
 <h2 id="veja-tambem">Veja também</h2>

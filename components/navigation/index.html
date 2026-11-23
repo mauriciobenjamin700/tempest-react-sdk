@@ -2184,6 +2184,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="BottomNavigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#links-e-item-ativo-pela-rota" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links e item ativo pela rota
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4034,6 +4049,8 @@
       
         
       
+        
+      
     
     
       
@@ -4142,6 +4159,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4790,6 +4828,21 @@
       BottomNavigation
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="BottomNavigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#links-e-item-ativo-pela-rota" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links e item ativo pela rota
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -5671,6 +5724,11 @@ diferencia maiúsculas, como caminho de URL. Com <code>basename</code> no router
 <td>—</td>
 </tr>
 <tr>
+<td><code>match</code></td>
+<td><code>"key" \| "route"</code></td>
+<td><code>"key"</code></td>
+</tr>
+<tr>
 <td><code>onChange</code></td>
 <td><code>(key: string) =&gt; void</code></td>
 <td>—</td>
@@ -5682,7 +5740,39 @@ diferencia maiúsculas, como caminho de URL. Com <code>basename</code> no router
 </tr>
 </tbody>
 </table>
-<p>Tipo <code>BottomNavigationItem = { key, label, icon?, badge?, disabled? }</code>.</p>
+<p>Tipo <code>BottomNavigationItem = { key, label, icon?, badge?, disabled?, href? }</code> — o
+mesmo contrato do <code>SidebarItem</code>, então uma lista só alimenta os dois.</p>
+<h3 id="links-e-item-ativo-pela-rota">Links e item ativo pela rota</h3>
+<p>Com <code>href</code>, o item vira um <code>&lt;a&gt;</code> de verdade: segurar e "abrir em nova aba" funciona
+no celular e o leitor de tela anuncia link. Com <code>onChange</code>, o clique simples é do
+router do app (o <code>href</code> não recarrega a página); ctrl/cmd-clique fica com o
+navegador. Com <code>match="route"</code>, <code>value</code> é o <code>pathname</code> e o item aceso é o de <code>href</code>
+mais longo que cobre a rota, pela mesma regra do
+<a href="#activenavkey-a-mesma-resolucao-fora-do-sidebar"><code>activeNavKey</code></a>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BottomNavigation</span><span class="p">,</span><span class="w"> </span><span class="nx">useLocation</span><span class="p">,</span><span class="w"> </span><span class="nx">useNavigate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LayoutDashboard</span><span class="p">,</span><span class="w"> </span><span class="nx">Users</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">AbasDoApp</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pathname</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLocation</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">navigate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useNavigate</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">BottomNavigation</span>
+<span class="w">            </span><span class="na">match</span><span class="o">=</span><span class="s">"route"</span>
+<span class="w">            </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">pathname</span><span class="p">}</span>
+<span class="w">            </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"/"</span><span class="p">,</span><span class="w"> </span><span class="nx">href</span><span class="o">:</span><span class="w"> </span><span class="s2">"/"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Painel"</span><span class="p">,</span><span class="w"> </span><span class="nx">icon</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">LayoutDashboard</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">20</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"/pacientes"</span><span class="p">,</span><span class="w"> </span><span class="nx">href</span><span class="o">:</span><span class="w"> </span><span class="s2">"/pacientes"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pacientes"</span><span class="p">,</span><span class="w"> </span><span class="nx">icon</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Users</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">20</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">            </span><span class="p">]}</span>
+<span class="w">            </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">key</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">navigate</span><span class="p">(</span><span class="nx">key</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Em <code>/pacientes/42?aba=consultas</code>, "Pacientes" fica aceso; <code>/</code> só acende em <code>/</code>. O
+nome do landmark vem de <code>tempest.bottomNavigation.label</code> no catálogo do
+<a href="../../i18n/#textos-padrao-dos-componentes">i18n</a> ("Navegação principal" /
+"Main navigation"); <code>aria-label</code> o substitui.</p>
 <p><strong>Safe-area</strong>: aplica <code>padding-bottom: env(safe-area-inset-bottom)</code> automático.</p>
 <h2 id="tabs"><code>Tabs</code></h2>
 <p><strong>Quando usar:</strong> alternar entre painéis de conteúdo <strong>dentro de uma mesma tela</strong> (visão geral / detalhes / logs). Não use para navegar entre rotas.</p>

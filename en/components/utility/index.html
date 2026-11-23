@@ -4076,6 +4076,8 @@
       
         
       
+        
+      
     
     
       
@@ -4184,6 +4186,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5047,6 +5070,8 @@
 
 <span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">post</span><span class="p">.</span><span class="nx">createdAt</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span><span class="w"> </span><span class="c1">// pt-BR</span>
 <span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">post</span><span class="p">.</span><span class="nx">createdAt</span><span class="p">}</span><span class="w"> </span><span class="na">locale</span><span class="o">=</span><span class="s">"en"</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">position</span><span class="p">.</span><span class="nx">timestamp</span><span class="p">}</span><span class="w"> </span><span class="na">updateEvery</span><span class="o">=</span><span class="p">{</span><span class="mf">15</span><span class="nx">_000</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span><span class="w"> </span><span class="c1">// keeps counting</span>
+<span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">position</span><span class="p">.</span><span class="nx">timestamp</span><span class="p">}</span><span class="w"> </span><span class="na">now</span><span class="o">=</span><span class="p">{</span><span class="nx">clock</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;;</span><span class="w"> </span><span class="c1">// uses the app's clock</span>
 </code></pre></div>
 <table>
 <thead>
@@ -5070,8 +5095,21 @@
 <td><code>"pt"</code></td>
 <td><code>"pt"</code> maps to <code>"pt-BR"</code>.</td>
 </tr>
+<tr>
+<td><code>now</code></td>
+<td><code>Date \| number</code></td>
+<td>the render</td>
+<td>The app's "now" (one clock for a whole list, or a test's). Wins over <code>updateEvery</code>.</td>
+</tr>
+<tr>
+<td><code>updateEvery</code></td>
+<td><code>number</code> (ms)</td>
+<td>off</td>
+<td>Re-renders on its own at this interval. A value that is not a positive number turns it off.</td>
+</tr>
 </tbody>
 </table>
+<p>Without <code>now</code> or <code>updateEvery</code> the text is computed at render and <strong>stays put</strong> until something re-renders the component — measured: 5 min later, still "agora há pouco". The internal clock is opt-in on purpose: a hundred rows with an interval each would wake the page a hundred times per tick; in a list, one <code>now</code> from the parent is the cheap shape, and <code>updateEvery</code> is for the lone timestamp with nothing above it to re-render it. The timer is cleared on unmount.</p>
 <p>Extends <code>HTMLAttributes&lt;HTMLTimeElement&gt;</code>.</p>
 <h3 id="money"><code>Money</code></h3>
 <p>Renders a monetary amount given <strong>in cents</strong> as a localized currency string inside a <code>&lt;span&gt;</code>.</p>

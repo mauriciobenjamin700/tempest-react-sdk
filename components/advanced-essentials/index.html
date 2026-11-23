@@ -3913,6 +3913,8 @@
       
         
       
+        
+      
     
     
       
@@ -4021,6 +4023,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5077,7 +5100,7 @@ ficar no gatilho. Setas ↑/↓ percorrem os itens selecionáveis e dão a volta
 <p>O card é uma <code>role="dialog"</code> rotulada; o gatilho permanece focável por teclado.</p>
 </div>
 <h2 id="command-paleta-k"><code>Command</code> (paleta ⌘K)</h2>
-<p>Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por substring (label + keywords), agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.</p>
+<p>Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por trecho do texto (label + keywords), sem diferenciar maiúscula nem acento — "usuarios" acha "Usuários" —, agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Command</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
 
@@ -5131,14 +5154,20 @@ ficar no gatilho. Setas ↑/↓ percorrem os itens selecionáveis e dão a volta
 <tr>
 <td><code>placeholder</code></td>
 <td><code>string</code></td>
-<td><code>"Type a command…"</code></td>
+<td><code>"Digite um comando…"</code></td>
 <td>Placeholder do input de busca</td>
 </tr>
 <tr>
 <td><code>emptyMessage</code></td>
 <td><code>ReactNode</code></td>
-<td><code>"No results"</code></td>
+<td><code>"Nenhum resultado"</code></td>
 <td>Exibido quando nada combina com a busca</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td><code>"Paleta de comandos"</code></td>
+<td>Nome acessível do diálogo e do input de busca</td>
 </tr>
 <tr>
 <td><code>className</code></td>
@@ -5151,7 +5180,33 @@ ficar no gatilho. Setas ↑/↓ percorrem os itens selecionáveis e dão a volta
 <p><code>CommandItem</code> = <code>{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () =&gt; void; icon?: ReactNode }</code>.</p>
 <div class="admonition tip">
 <p class="admonition-title">Gatilho global</p>
-<p>Combine com <code>useKeyboardShortcut("mod+k", () =&gt; setOpen(true))</code> para abrir via ⌘K / Ctrl+K.</p>
+<p>Combine com <code>useKeyboardShortcut</code>, que recebe um objeto <code>KeyboardShortcut</code>, para abrir via ⌘K / Ctrl+K:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Command</span><span class="p">,</span><span class="w"> </span><span class="nx">Kbd</span><span class="p">,</span><span class="w"> </span><span class="nx">formatShortcut</span><span class="p">,</span><span class="w"> </span><span class="nx">useKeyboardShortcut</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Palette</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">boolean</span><span class="p">&gt;(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">));</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Button</span>
+<span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span>
+<span class="w">        </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">)}</span>
+<span class="w">        </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">formatShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;}</span>
+<span class="w">      </span><span class="p">&gt;</span>
+<span class="w">        </span><span class="nx">Buscar</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Command</span><span class="w"> </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span><span class="w"> </span><span class="na">onOpenChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setOpen</span><span class="p">}</span><span class="w"> </span><span class="na">items</span><span class="o">=</span><span class="p">{[]}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O hook já chama <code>preventDefault</code> e dispara com o foco num campo, porque o atalho leva Ctrl/Cmd. <code>formatShortcut</code> mostra <code>⌘K</code> ou <code>Ctrl+K</code> conforme o sistema. Veja <a href="../../hooks/#atalho-global-usekeyboardshortcut"><code>useKeyboardShortcut</code></a>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Textos padrão em PT-BR</p>
+<p>Até a versão anterior, <code>placeholder</code>, <code>emptyMessage</code> e o nome acessível vinham fixos em inglês (<code>"Type a command…"</code>, <code>"No results"</code>, <code>"Command palette"</code>). Um leitor de tela em PT-BR anunciava o diálogo em outra língua. Os três agora têm default em PT-BR e aceitam prop.</p>
 </div>
 <h2 id="recap">Recap</h2>
 <ul>

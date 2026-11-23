@@ -1389,6 +1389,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dependencies-the-app-imports-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies the app imports directly
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4155,6 +4164,8 @@
       
         
       
+        
+      
     
     
       
@@ -4263,6 +4274,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4849,6 +4881,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dependencies-the-app-imports-directly" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependencies the app imports directly
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5287,13 +5328,16 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 </tr>
 </tbody>
 </table>
+<h3 id="dependencies-the-app-imports-directly">Dependencies the app imports directly</h3>
+<p>Besides the peers (<code>react</code>, <code>react-dom</code>, <code>react-router</code>), the generated <code>package.json</code> declares <code>@tanstack/react-query</code>, <code>react-hook-form</code> and <code>zod</code>. All three already come with the SDK, but the docs import them from app code (<code>useQuery</code>, <code>useForm</code>, <code>z.object</code>), and importing what you do not declare only works by accident: npm and yarn resolve it through the copy the SDK leaves at the root of <code>node_modules</code>; <strong>pnpm</strong>, which only exposes what the app declares, fails <code>tsc</code> with <code>Cannot find module</code>. The declared range is <strong>the SDK's own</strong>, so every manager installs a single copy — which matters for <code>@tanstack/react-query</code> and <code>react-hook-form</code>, which carry React context. When you upgrade the SDK, run <code>npx tempest doctor</code>: it warns when one of the app's ranges fell behind and npm nested a second copy.</p>
+<p><code>lucide-react</code> is left out on purpose — see <a href="../icons/#do-not-install-lucide-react-yourself">Icons</a>.</p>
 <h2 id="tour-of-what-gets-generated">Tour of what gets generated</h2>
 <p>The generated project is lean on purpose: each file exists to <strong>demonstrate an SDK feature</strong> you'll reuse. Here's the full structure:</p>
 <div class="highlight"><pre><span></span><code>my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # @ -&gt; ./src alias in "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -5304,8 +5348,8 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakes a session via useAuth.use.setSession() then navigate("/dashboard")
     ├── pages/Dashboard.tsx      # default export (lazy), protected route
-    ├── stores/auth.ts           # createSelectors(createAuthStore&lt;User&gt;({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore&lt;User&gt;({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 </code></pre></div>
 <h3 id="each-file-the-sdk-feature-it-shows">Each file → the SDK feature it shows</h3>
 <table>
@@ -5340,13 +5384,13 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 </table>
 <p>Let's look at the three most important ones.</p>
 <h4 id="viteconfigts-createviteconfig"><code>vite.config.ts</code> → <code>createViteConfig</code></h4>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestThemeInit</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestCsp</span><span class="p">()],</span>
+<span class="w">    </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestThemeInit</span><span class="p">(),</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">()],</span>
 <span class="p">});</span>
 </code></pre></div>
-<p>One call. <code>createViteConfig</code> already wires up the React plugin, the <code>@ -&gt; ./src</code> alias, and the defaults the SDK expects. See the <a href="../vite-config/">Vite Config</a> page to customize. <code>tempestCsp()</code> writes the Content-Security-Policy into <code>index.html</code>, in dev and build alike, with <code>connect-src</code> taken from the <code>VITE_*</code> URLs in <code>.env</code> — which is why the first step's <code>cp .env.example .env</code> matters. See <a href="../csp/">Content-Security-Policy</a>.</p>
+<p>One call. <code>createViteConfig</code> already wires up the React plugin, the <code>@ -&gt; ./src</code> alias, and the defaults the SDK expects. See the <a href="../vite-config/">Vite Config</a> page to customize. <code>tempestCsp()</code> writes the Content-Security-Policy into <code>index.html</code>, in dev and build alike, with <code>connect-src</code> taken from the <code>VITE_*</code> URLs in <code>.env</code> — which is why the first step's <code>cp .env.example .env</code> matters. See <a href="../csp/">Content-Security-Policy</a>. <code>tempestThemeInit()</code> puts the theme's anti-flash script in the <code>&lt;head&gt;</code>, so whoever picked dark never sees a light frame on load. See <a href="../theme/#no-flash-avoiding-the-wrong-theme-flash">No-flash</a>.</p>
 <h4 id="srcapptsx-appproviders-approuter"><code>src/App.tsx</code> → <code>AppProviders</code> + <code>AppRouter</code></h4>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AppProviders</span><span class="p">,</span><span class="w"> </span><span class="nx">AppRouter</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">routes</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/routes"</span><span class="p">;</span>
@@ -5362,6 +5406,7 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <p><code>AppProviders</code> mounts React Query, the error boundary, the theme, and the router in one shot. <code>AppRouter</code> consumes the routes array and renders the <code>fallback</code> while <code>lazy</code> routes load. Details in <a href="../app-providers/">App Providers</a>.</p>
 <h4 id="srcstoresauthts-createauthstore-createselectors"><code>src/stores/auth.ts</code> → <code>createAuthStore</code> + <code>createSelectors</code></h4>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createAuthStore</span><span class="p">,</span><span class="w"> </span><span class="nx">createSelectors</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">configureApiAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/api"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
@@ -5370,11 +5415,17 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createSelectors</span><span class="p">(</span><span class="nx">createAuthStore</span><span class="o">&lt;</span><span class="nx">User</span><span class="o">&gt;</span><span class="p">({</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"app-auth"</span><span class="w"> </span><span class="p">}));</span>
+
+<span class="nx">configureApiAuth</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">getToken</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">token</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">onUnauthorized</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">logout</span><span class="p">(),</span>
+<span class="p">});</span>
 </code></pre></div>
 <p><code>createAuthStore&lt;User&gt;</code> creates a persisted Zustand auth store (<code>name: "app-auth"</code> is the storage key). <code>createSelectors</code> gives you atomic access via <code>useAuth.use.&lt;field&gt;()</code> — that's how <code>RootLayout.tsx</code> reads <code>useAuth.use.isAuthenticated()</code> and <code>Login.tsx</code> calls <code>useAuth.use.setSession()</code>. More patterns in <a href="../state/">State</a>.</p>
+<p>The <code>configureApiAuth</code> call at the end wires the store into the HTTP client: <code>lib/api.ts</code> imports nothing from auth, so a project without login deletes <code>stores/auth.ts</code> and the client keeps working without a token.</p>
 <div class="admonition note">
 <p class="admonition-title">The rest is self-explanatory</p>
-<p><code>routes.tsx</code> uses <code>defineRoutes([...])</code> with an index route, a login route, and a <code>dashboard</code> that is both <strong>lazy</strong> and <strong>guarded</strong>. <code>lib/api.ts</code> instantiates <code>createApiClient</code> with <code>baseURL</code>/<code>getToken</code>/<code>onUnauthorized</code> and exports <code>createQueryKeys</code> so you can organize your cache keys.</p>
+<p><code>routes.tsx</code> uses <code>defineRoutes([...])</code> with an index route, a login route, and a <code>dashboard</code> that is both <strong>lazy</strong> and <strong>guarded</strong>. <code>lib/api.ts</code> instantiates <code>createApiClient</code> reading the token through whatever <code>configureApiAuth</code> registered, and exports <code>queryKeys = createQueryKeys("app", { me })</code> so you can organize your cache keys.</p>
 </div>
 <h2 id="pwa-mode-pwa">PWA mode (<code>--pwa</code>)</h2>
 <p>Want the app to be <strong>installable</strong> (home-screen icon), able to <strong>emit web push notifications</strong>, and to <strong>work offline</strong> (app shell + cache) out of the box? Pass the <code>--pwa</code> flag:</p>
@@ -5395,6 +5446,7 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 │   └── icon.svg                # source icon (swap for yours — the PNGs come from it)
 └── src/
     ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── sw-sync-scope.ts        # what background sync queues (and what stays with the page)
     ├── main.tsx                # (overwritten) registers /sw.js in dev and prod
     ├── vite-env.d.ts           # (overwritten) types VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (overwritten) Install button + notifications toggle
@@ -5568,6 +5620,14 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <span class="p">});</span>
 </code></pre></div>
 <p>The original fetch still <strong>rejects</strong> for now (your app shows an offline state), but the request is replayed later. <code>maxRetentionMinutes</code> drops stale entries; 4xx responses are discarded (a client error won't fix itself).</p>
+<div class="admonition warning">
+<p class="admonition-title">One queue per mutation: the scaffold leaves to the page what it already resends</p>
+<p>The worker does not know what the page does after the rejection. If the page resends too, the same mutation goes out of <strong>both</strong> queues: the outbox (<code>createOfflineSync</code>) sends the newest version of the record when the network returns, and the worker later replays, in its own order, every attempt made offline — including versions the outbox has already superseded, overriding its conflict policy. That is why <code>--pwa</code> does not use the <code>match</code> above: the generated <code>src/sw.ts</code> calls <code>queuesInTheWorker</code> (<code>src/sw-sync-scope.ts</code>), which only queues this origin's <code>/api/</code> and <strong>never</strong>:</p>
+<ul>
+<li>a <strong>tus</strong> request (the <code>Tus-Resumable</code> header, which <code>createResumableUpload</code> sends on every request): the upload client already resumes by itself, re-reading the offset with <code>HEAD</code>; a <code>PATCH</code> kept by the worker comes back with the <code>Upload-Offset</code> it failed at and with the whole chunk (5 MiB by default) stored in IndexedDB for every attempt;</li>
+<li>a prefix in <code>RETRIED_BY_THE_PAGE</code>, which ships empty. <strong>When the app gains an outbox, add the prefix it delivers there</strong> (<code>"/api/visits/"</code>).</li>
+</ul>
+</div>
 <h4 id="range-requests-offline-audiovideo-seeking">Range requests — offline audio/video seeking</h4>
 <p>Mark a route with <code>rangeRequests: true</code> to serve <code>206 Partial Content</code> by slicing the cached resource — without it, media can't seek offline:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">installRuntimeCache</span><span class="p">([</span>
@@ -5610,13 +5670,19 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <span class="p">}));</span>
 </code></pre></div>
 <h3 id="3-fetch-data-with-react-query-querykeys-api">3. Fetch data with React Query + queryKeys + api</h3>
-<p>Combine the HTTP client, the query keys, and <code>useQuery</code> (already available through <code>AppProviders</code>):</p>
+<p>The template only declares the <code>me</code> key. Add yours in <code>src/lib/api.ts</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">queryKeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createQueryKeys</span><span class="p">(</span><span class="s2">"app"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">me</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">[</span><span class="s2">"me"</span><span class="p">],</span>
+<span class="w">  </span><span class="nx">users</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">[</span><span class="s2">"users"</span><span class="p">],</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Then combine the HTTP client, the key, and <code>useQuery</code> (already available through <code>AppProviders</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">api</span><span class="p">,</span><span class="w"> </span><span class="nx">queryKeys</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/api"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">UserList</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">data</span><span class="p">,</span><span class="w"> </span><span class="nx">isLoading</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">queryKeys.users.all</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">queryKeys.users</span><span class="p">(),</span>
 <span class="w">    </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"/users"</span><span class="p">),</span>
 <span class="w">  </span><span class="p">});</span>
 

@@ -3900,6 +3900,8 @@
       
         
       
+        
+      
     
     
       
@@ -4008,6 +4010,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4628,7 +4651,7 @@
 
 
 <h1 id="tutorial-estado">Tutorial — Estado</h1>
-<p>Na página anterior, o guard do dashboard leu <code>useAuth.getState().isAuthenticated</code>
+<p>Na página anterior, o guard do dashboard leu <code>useAuth.use.isAuthenticated()</code>
 — mas a store <code>useAuth</code> ainda não existe. Vamos criá-la agora. De passagem, você
 aprende as duas peças de estado do SDK: <code>createStore</code> (uma store genérica) e
 <code>createAuthStore</code> (a store de autenticação pronta), ambas em cima do
@@ -4832,18 +4855,20 @@ quando o auth mudar:</p>
 <span class="p">}</span>
 </code></pre></div>
 <h2 id="lendo-a-store-fora-do-react-getstate">Lendo a store fora do React — <code>getState()</code></h2>
-<p>Nem todo código que precisa do estado é um componente. O guard de rota da página
-anterior roda <strong>fora</strong> da árvore React e não pode chamar hooks. Para esses casos,
-use <code>getState()</code> no hook ligado — um snapshot pontual, sem assinatura:</p>
-<div class="highlight"><pre><span></span><code><span class="c1">// trecho do guard, da página de roteamento</span>
-<span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<p>Nem todo código que precisa do estado é um componente. O cliente HTTP, que você
+monta mais adiante, roda <strong>fora</strong> da árvore React e não pode chamar hooks. Para
+esses casos, use <code>getState()</code> no hook ligado — um snapshot pontual, sem assinatura:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// trecho do cliente HTTP, da página de dados</span>
+<span class="nx">onUnauthorized</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">logout</span><span class="p">(),</span>
 </code></pre></div>
+<p>O guard da página anterior <strong>não</strong> é esse caso: ele roda durante a renderização da
+rota e precisa reagir ao logout, por isso lê pelo hook <code>useAuth.use.isAuthenticated()</code>.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>getState()</code> não assina — use só fora do React</p>
 <p><code>getState()</code> lê uma vez e <strong>não</strong> re-renderiza nada quando o estado muda
 depois. Dentro de componentes, prefira sempre o hook (<code>useAuth.use.campo()</code>)
-para a UI ficar em sincronia. Reserve <code>getState()</code> para guards de rota,
-interceptors de HTTP e outros códigos fora da árvore React.</p>
+para a UI ficar em sincronia. Reserve <code>getState()</code> para interceptors de
+HTTP e outros códigos fora da árvore React.</p>
 </div>
 <h2 id="recap">Recap</h2>
 <ul>

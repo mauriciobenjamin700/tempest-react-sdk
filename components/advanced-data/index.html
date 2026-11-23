@@ -2387,6 +2387,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="DataTable<T>">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selecao-de-linhas-e-coluna-de-acoes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Seleção de linhas e coluna de ações
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#busca-e-ordenacao-controladas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Busca e ordenação controladas
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-celular" class="md-nav__link">
+    <span class="md-ellipsis">
+      No celular 📱
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3946,6 +3979,8 @@
       
         
       
+        
+      
     
     
       
@@ -4054,6 +4089,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4595,6 +4651,39 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="DataTable<T>">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#selecao-de-linhas-e-coluna-de-acoes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Seleção de linhas e coluna de ações
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#busca-e-ordenacao-controladas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Busca e ordenação controladas
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#no-celular" class="md-nav__link">
+    <span class="md-ellipsis">
+      No celular 📱
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4799,16 +4888,82 @@
 <td>Chaves buscadas; default = colunas string/number</td>
 </tr>
 <tr>
+<td><code>searchPlaceholder</code></td>
+<td><code>string</code></td>
+<td><code>"Buscar..."</code></td>
+<td>Placeholder da caixa de busca</td>
+</tr>
+<tr>
+<td><code>searchLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Buscar na tabela"</code></td>
+<td>Nome acessível da caixa de busca</td>
+</tr>
+<tr>
+<td><code>searchDebounceMs</code></td>
+<td><code>number</code></td>
+<td><code>0</code></td>
+<td>Espera sem digitar antes de o termo valer</td>
+</tr>
+<tr>
+<td><code>search</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Termo controlado (exige <code>onSearchChange</code>)</td>
+</tr>
+<tr>
 <td><code>initialSort</code></td>
 <td><code>DataTableSort&lt;T&gt;</code></td>
 <td>—</td>
-<td>Ordenação inicial antes de interagir com o cabeçalho</td>
+<td>Ordenação inicial, lida <strong>só na montagem</strong></td>
+</tr>
+<tr>
+<td><code>sort</code></td>
+<td><code>DataTableSort&lt;T&gt; \| null</code></td>
+<td>—</td>
+<td>Ordenação controlada (exige <code>onSortChange</code>)</td>
 </tr>
 <tr>
 <td><code>rowKey</code></td>
 <td><code>(row: T, index) =&gt; string \| number</code></td>
 <td>índice</td>
 <td>Extrator de chave estável por linha</td>
+</tr>
+<tr>
+<td><code>selectable</code></td>
+<td><code>true</code></td>
+<td>—</td>
+<td>Coluna de checkbox (com <code>selectedKeys</code> e <code>onSelectionChange</code>)</td>
+</tr>
+<tr>
+<td><code>rowActions</code></td>
+<td><code>(row: T) =&gt; ReactNode</code></td>
+<td>—</td>
+<td>Coluna final de ações, sem <code>key</code> emprestada</td>
+</tr>
+<tr>
+<td><code>rowActionsLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Ações"</code></td>
+<td>Cabeçalho (visualmente oculto) da coluna de ações</td>
+</tr>
+<tr>
+<td><code>stackOnMobile</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+<td>Abaixo de 768 px, cada linha vira um cartão</td>
+</tr>
+<tr>
+<td><code>onRowClick</code></td>
+<td><code>(row: T) =&gt; void</code></td>
+<td>—</td>
+<td>Clique na linha</td>
+</tr>
+<tr>
+<td><code>scrollLabel</code></td>
+<td><code>string</code></td>
+<td>—</td>
+<td>Nome acessível da região rolável</td>
 </tr>
 <tr>
 <td><code>emptyMessage</code></td>
@@ -4818,11 +4973,144 @@
 </tr>
 </tbody>
 </table>
-<p><code>DataTableColumn&lt;T&gt;</code> = <code>{ key: keyof T; header: ReactNode; render?: (row: T) =&gt; ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }</code>. <code>DataTableSort&lt;T&gt;</code> = <code>{ key: keyof T; direction: "asc" | "desc" }</code>.</p>
+<p><code>DataTableColumn&lt;T&gt;</code> = <code>{ key: keyof T; header: ReactNode; render?: (row: T) =&gt; ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number; className?: string }</code>. <code>DataTableSort&lt;T&gt;</code> = <code>{ key: keyof T; direction: "asc" | "desc" }</code>.</p>
 <div class="admonition info">
 <p class="admonition-title">Comportamento</p>
-<p>Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas <code>searchKeys</code> (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.</p>
+<p>Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina trecho do texto nas <code>searchKeys</code> (ou em toda coluna string/number quando omitidas), <strong>sem diferenciar maiúscula nem acento</strong>: "joao" acha "João", "usuarios" acha "Usuários". A paginação some quando o resultado cabe em uma única página.</p>
 </div>
+<h3 id="selecao-de-linhas-e-coluna-de-acoes">Seleção de linhas e coluna de ações</h3>
+<p><code>selectable</code> põe uma coluna de checkbox no começo; <code>rowActions</code> põe uma coluna de ações no fim. Nenhuma das duas usa um campo da linha como <code>key</code>, então não há coluna duplicada nem chave repetida.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">DataTable</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableRowKey</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Product</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">sku</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ProductTable</span><span class="p">({</span><span class="w"> </span><span class="nx">products</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">products</span><span class="o">:</span><span class="w"> </span><span class="kt">Product</span><span class="p">[]</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">selected</span><span class="p">,</span><span class="w"> </span><span class="nx">setSelected</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">DataTableRowKey</span><span class="err">[]</span><span class="p">&gt;([]);</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">DataTable</span><span class="err">&lt;</span><span class="na">Product</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="nx">data</span><span class="o">=</span><span class="p">{</span><span class="nx">products</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">columns</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"sku"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"SKU"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Produto"</span><span class="p">,</span><span class="w"> </span><span class="nx">sortable</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="p">]}</span>
+<span class="w">      </span><span class="nx">rowKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">selectable</span>
+<span class="w">      </span><span class="nx">selectedKeys</span><span class="o">=</span><span class="p">{</span><span class="nx">selected</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">onSelectionChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setSelected</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">selectionLabel</span><span class="o">=</span><span class="p">{(</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`Selecionar </span><span class="si">${</span><span class="nx">product</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">rowActions</span><span class="o">=</span><span class="p">{(</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"editar"</span><span class="p">,</span><span class="w"> </span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">)}&gt;</span>
+<span class="w">          </span><span class="nx">Editar</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">)}</span>
+<span class="w">      </span><span class="nx">stackOnMobile</span>
+<span class="w">    </span><span class="o">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li>A seleção é <strong>controlada</strong> e guarda o retorno de <code>rowKey</code>. Passe um <code>rowKey</code> que devolva o id do registro; com o índice (default), a seleção segue a posição e muda de registro quando a página ou a ordem mudam.</li>
+<li>O checkbox do cabeçalho marca e desmarca <strong>a página que está na tela</strong>, e fica <code>indeterminate</code> quando só parte dela está marcada. Chaves marcadas em outras páginas ficam como estão: "selecionar todos" alcançando linhas que a pessoa nunca viu é como uma exclusão em lote apaga o registro errado.</li>
+<li>Clique no checkbox ou dentro da coluna de ações <strong>não</strong> dispara <code>onRowClick</code> — nem num <code>DropdownMenu</code> aberto em portal a partir dela.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+<th>Descrição</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>selectable</code></td>
+<td><code>true</code></td>
+<td>—</td>
+<td>Liga a coluna de seleção</td>
+</tr>
+<tr>
+<td><code>selectedKeys</code></td>
+<td><code>readonly (string \| number)[]</code></td>
+<td>—</td>
+<td>Chaves marcadas, de todas as páginas</td>
+</tr>
+<tr>
+<td><code>onSelectionChange</code></td>
+<td><code>(keys: (string \| number)[]) =&gt; void</code></td>
+<td>—</td>
+<td>Recebe a seleção inteira nova</td>
+</tr>
+<tr>
+<td><code>selectionLabel</code></td>
+<td><code>(row: T) =&gt; string</code></td>
+<td><code>"Selecionar linha N"</code></td>
+<td>Nome acessível do checkbox da linha</td>
+</tr>
+<tr>
+<td><code>selectAllLabel</code></td>
+<td><code>string</code></td>
+<td><code>"Selecionar todas as linhas desta página"</code></td>
+<td>Nome acessível do checkbox do cabeçalho</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition check">
+<p class="admonition-title">O tipo recusa a seleção pela metade</p>
+<p><code>selectable</code> sem <code>selectedKeys</code> seria uma coluna de checkbox que nunca marca. Os três vêm juntos, ou o <code>tsc</code> reprova na chamada.</p>
+</div>
+<h3 id="busca-e-ordenacao-controladas">Busca e ordenação controladas</h3>
+<p>Quando a busca e a ordenação moram fora da tabela — na URL, por exemplo —, passe <code>search</code> e <code>sort</code>. A caixa abre com o termo e acompanha quando ele muda por fora (botão voltar, link "Limpar filtros"); a seta do cabeçalho segue <code>sort</code> a cada render. <code>initialSort</code> continua existindo, mas é lido uma vez só, na montagem.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">DataTable</span><span class="p">,</span><span class="w"> </span><span class="nx">useUrlState</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableSort</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Member</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">city</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Members</span><span class="p">({</span><span class="w"> </span><span class="nx">members</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">members</span><span class="o">:</span><span class="w"> </span><span class="kt">Member</span><span class="p">[]</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">state</span><span class="p">,</span><span class="w"> </span><span class="nx">set</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useUrlState</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">ordem</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">dir</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">sort</span><span class="o">:</span><span class="w"> </span><span class="kt">DataTableSort</span><span class="p">&lt;</span><span class="nt">Member</span><span class="p">&gt;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="nx">state</span><span class="p">.</span><span class="nx">ordem</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"name"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">ordem</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"city"</span>
+<span class="w">      </span><span class="o">?</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">state.ordem</span><span class="p">,</span><span class="w"> </span><span class="nx">direction</span><span class="o">:</span><span class="w"> </span><span class="kt">state.dir</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"desc"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"desc"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"asc"</span><span class="w"> </span><span class="p">}</span>
+<span class="w">      </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">DataTable</span><span class="err">&lt;</span><span class="na">Member</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="nx">data</span><span class="o">=</span><span class="p">{</span><span class="nx">members</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">columns</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nome"</span><span class="p">,</span><span class="w"> </span><span class="nx">sortable</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"city"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Cidade"</span><span class="p">,</span><span class="w"> </span><span class="nx">sortable</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="p">]}</span>
+<span class="w">      </span><span class="nx">rowKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">member</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">member</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">searchable</span>
+<span class="w">      </span><span class="nx">searchLabel</span><span class="o">=</span><span class="s2">"Buscar membros"</span>
+<span class="w">      </span><span class="nx">searchPlaceholder</span><span class="o">=</span><span class="s2">"Nome ou cidade"</span>
+<span class="w">      </span><span class="nx">search</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">busca</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">searchDebounceMs</span><span class="o">=</span><span class="p">{</span><span class="mf">300</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">onSearchChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">busca</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">      </span><span class="nx">sort</span><span class="o">=</span><span class="p">{</span><span class="nx">sort</span><span class="p">}</span>
+<span class="w">      </span><span class="nx">onSortChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">next</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">        </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">ordem</span><span class="o">:</span><span class="w"> </span><span class="kt">next</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nb">String</span><span class="p">(</span><span class="nx">next</span><span class="p">.</span><span class="nx">key</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nx">dir</span><span class="o">:</span><span class="w"> </span><span class="kt">next?.direction</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="p">})</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="o">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p><code>searchDebounceMs</code> deixa a caixa mostrar cada tecla e só publica o termo depois da pausa. No modo servidor, é o que faz uma busca custar <strong>uma</strong> requisição, e não uma por letra.</p>
+<div class="admonition check">
+<p class="admonition-title">Par controlado sem destino não compila</p>
+<p><code>sort</code> sem <code>onSortChange</code> (ou <code>search</code> sem <code>onSearchChange</code>) seria uma seta ou uma caixa que nunca mudam. Os dois tipos recusam.</p>
+</div>
+<h3 id="no-celular">No celular 📱</h3>
+<p><code>stackOnMobile</code> é repassado ao <a href="../data/#tablet"><code>Table</code></a>: abaixo de 768 px cada linha vira um cartão com rótulo e valor, em vez de uma tabela que rola para o lado. O rótulo vem do <code>header</code> quando ele é texto, inclusive em coluna <code>sortable</code> (cujo cabeçalho vira botão). A coluna de seleção e a de ações não ganham rótulo — o checkbox e o botão já dizem o que fazem. No modo cartão o cabeçalho fica visualmente oculto, então o "selecionar todos" da página só é alcançável por leitor de tela; ponha um botão próprio se a tela de celular precisa dele.</p>
 <h2 id="wizard"><code>Wizard</code></h2>
 <!-- gallery:hierarchy-flow -->
 <p><a href="../../gallery/"><img alt="TreeView · Wizard na gallery" src="../../assets/gallery/hierarchy-flow.webp" /></a></p>

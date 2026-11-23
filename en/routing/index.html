@@ -2668,6 +2668,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#screen-state-in-the-url-with-useurlstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Screen state in the URL with useUrlState
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#choosing-the-router-kind" class="md-nav__link">
     <span class="md-ellipsis">
       Choosing the router kind
@@ -3988,6 +3997,8 @@
       
         
       
+        
+      
     
     
       
@@ -4096,6 +4107,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4736,6 +4768,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#screen-state-in-the-url-with-useurlstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Screen state in the URL with useUrlState
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#choosing-the-router-kind" class="md-nav__link">
     <span class="md-ellipsis">
       Choosing the router kind
@@ -5071,7 +5112,9 @@ the tree without a cast. Props the route needs to supply still come from the
 <span class="w">      </span><span class="p">{</span>
 <span class="w">        </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">        </span><span class="nx">lazy</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">"@/pages/Dashboard"</span><span class="p">),</span>
-<span class="w">        </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">        </span><span class="p">},</span>
 <span class="w">        </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="w">      </span><span class="p">},</span>
 <span class="w">    </span><span class="p">],</span>
@@ -5079,8 +5122,8 @@ the tree without a cast. Props the route needs to supply still come from the
 <span class="p">]);</span>
 </code></pre></div>
 <div class="admonition warning">
-<p class="admonition-title">The guard runs on render — read your store via <code>getState()</code> or a hook</p>
-<p>The <code>guard</code> function is evaluated <strong>during the route's render</strong>. So it must read the state <em>at that moment</em>: use <code>useAuth.getState().isAuthenticated</code> (an imperative read, outside React) or call a hook straight in the guard function, which runs inside the render cycle — see the next section. Don't capture the value once outside the function: you'd freeze the auth state at initial load.</p>
+<p class="admonition-title">The guard runs on render — read your store through a hook</p>
+<p>The <code>guard</code> function is evaluated <strong>during the route's render</strong>, so it can call hooks. Read the store through a hook (<code>useAuth.use.isAuthenticated()</code>): that is what <strong>subscribes</strong> the route, so a <code>logout()</code> — the sign-out button or a <code>401</code> in the HTTP client — redirects whatever protected screen is open. <code>useAuth.getState().isAuthenticated</code> reads the value once and does not subscribe: after logout the screen stays up until the next navigation. Name the function <code>use…</code>, as in the example, for the reason in the next section.</p>
 </div>
 <p>When <code>guard</code> is falsy, the user is redirected to <code>redirectTo</code> (default <code>"/"</code>). In the example above, anyone not authenticated who tries to open <code>/dashboard</code> lands on <code>/login</code>.</p>
 <h3 id="the-async-function-form-the-third-state-pending">The async function form: the third state <code>"pending"</code></h3>
@@ -5129,7 +5172,7 @@ function component nor a custom React Hook function.
 <div class="highlight"><pre><span></span><code><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useFinanceGuard</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">}</span><span class="w">   </span><span class="c1">// ✅ passes</span>
 <span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="nx">useCan</span><span class="p">()</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">}</span><span class="w">             </span><span class="c1">// ❌ lint error</span>
 </code></pre></div>
-<p>A guard with <strong>no</strong> hook (<code>() =&gt; useAuth.getState().isAuthenticated</code>) can stay an anonymous arrow — <code>getState()</code> is not a hook.</p>
+<p><code>getState()</code> is not a hook, so <code>() =&gt; useAuth.getState().isAuthenticated</code> passes lint — but it does not work as a session guard: with no subscription, a logout mid-screen does not redirect.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">One spinner covers <code>lazy</code> and <code>pending</code></p>
@@ -5207,7 +5250,7 @@ function component nor a custom React Hook function.
 </table>
 <div class="admonition tip">
 <p class="admonition-title">Same state-reading rule</p>
-<p>Here you're inside a React component, so read the store with the hook (<code>useAuth((state) =&gt; state.isAuthenticated)</code>) to re-render when auth changes. The tree's <code>guard</code> runs <strong>inside</strong> the render too, so it has both options: <code>getState()</code> for a simple imperative read, or hooks — as long as the function is named <code>use…</code>, as in the <code>"pending"</code> section above.</p>
+<p>Here you're inside a React component, so read the store with the hook (<code>useAuth((state) =&gt; state.isAuthenticated)</code>) to re-render when auth changes. The tree's <code>guard</code> runs <strong>inside</strong> the render too, and the same rule applies: a hook, with the function named <code>use…</code>, as in the <code>"pending"</code> section above.</p>
 </div>
 <h2 id="going-back-to-where-you-were-after-signing-in">Going back to where you were after signing in</h2>
 <p>The classic flow: someone opens <code>/reports/42?year=2026</code>, is not signed in, lands on <code>/login</code> — and after signing in should <strong>go back to <code>/reports/42?year=2026</code></strong>, not to the home page. For that, the redirect has to carry where it came from, and the login screen has to read it back.</p>
@@ -5227,7 +5270,9 @@ function component nor a custom React Hook function.
 <span class="w">  </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">element</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Dashboard</span><span class="w"> </span><span class="p">/&gt;,</span>
-<span class="w">    </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">preserveFrom</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
 <span class="w">  </span><span class="p">},</span>
@@ -5260,6 +5305,55 @@ function component nor a custom React Hook function.
 <p class="admonition-title">Use the value with <code>navigate</code>, not <code>window.location</code></p>
 <p>The path is relative to the router's <code>basename</code>, exactly like <code>useLocation()</code>. <code>navigate()</code> puts the <code>basename</code> back; <code>window.location</code> does not.</p>
 </div>
+<h2 id="screen-state-in-the-url-with-useurlstate">Screen state in the URL with <code>useUrlState</code></h2>
+<p>A list's page, page size, search, filters and sort belong in the URL: it is what makes the back button work and a pasted link open the same screen. <code>useUrlState</code> reads those parameters already typed and writes to them without one write erasing another.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// MembersPage.tsx</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">DataTable</span><span class="p">,</span><span class="w"> </span><span class="nx">useUrlState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Member</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">MembersPage</span><span class="p">({</span><span class="w"> </span><span class="nx">members</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">members</span><span class="o">:</span><span class="w"> </span><span class="kt">Member</span><span class="p">[];</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">state</span><span class="p">,</span><span class="w"> </span><span class="nx">set</span><span class="p">,</span><span class="w"> </span><span class="nx">reset</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useUrlState</span><span class="p">({</span><span class="w"> </span><span class="nx">q</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span><span class="w"> </span><span class="nx">size</span><span class="o">:</span><span class="w"> </span><span class="kt">20</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">"button"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">reset</span><span class="p">()}&gt;</span>
+<span class="w">        </span><span class="nx">Clear</span><span class="w"> </span><span class="nx">filters</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">DataTable</span><span class="err">&lt;</span><span class="na">Member</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="nx">data</span><span class="o">=</span><span class="p">{</span><span class="nx">members</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">columns</span><span class="o">=</span><span class="p">{[{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Name"</span><span class="w"> </span><span class="p">}]}</span>
+<span class="w">        </span><span class="nx">rowKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">member</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">member</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">totalItems</span><span class="o">=</span><span class="p">{</span><span class="nx">total</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">page</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">page</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">onPageChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">page</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">page</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">        </span><span class="nx">pageSize</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">size</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">pageSizeOptions</span><span class="o">=</span><span class="p">{[</span><span class="mf">20</span><span class="p">,</span><span class="w"> </span><span class="mf">50</span><span class="p">]}</span>
+<span class="w">        </span><span class="nx">onPageSizeChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">size</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">size</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">        </span><span class="nx">searchable</span>
+<span class="w">        </span><span class="nx">search</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">q</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">searchDebounceMs</span><span class="o">=</span><span class="p">{</span><span class="mf">300</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">onSearchChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">q</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">q</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">      </span><span class="o">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>The type comes from the default.</strong> <code>page: 1</code> turns <code>?page=3</code> into the number <code>3</code>; <code>?page=abc</code> falls back to <code>1</code> instead of breaking the screen. Booleans read <code>"true"</code>/<code>"false"</code>.</li>
+<li><strong>Defaults leave the URL.</strong> <code>set({ page: 1 })</code> or <code>set({ page: null })</code> removes <code>page</code>, so the unfiltered screen is the bare URL.</li>
+<li><strong>Writes in the same tick become one navigation.</strong> One history entry per gesture, and no write lost.</li>
+<li><strong><code>{ replace: true }</code></strong> replaces the current entry instead of pushing — right for typed search. In a batch, one write without <code>replace</code> makes the batch push.</li>
+<li>Parameters the hook does not know are left untouched.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Why not <code>setSearchParams</code> directly</p>
+<p>React Router's <code>setSearchParams</code> builds the next URL from the parameters <strong>of the last render</strong> — even in its function form. When <code>DataTable</code> changes the page size it calls <code>onPageSizeChange(50)</code> and <code>onPageChange(1)</code> in the same click; starting from <code>?page=3</code>, the final URL was <code>?page=1</code> and the size was gone (measured with <code>react-router</code> 8.5.2, test in <code>src/router/use-url-state.test.tsx</code>). <code>useUrlState</code> accumulates the writes on a pending copy and navigates once.</p>
+</div>
+<p>The controlled page also exists in <a href="../integration-fastapi/#offset-usepaginatedquery"><code>usePaginatedQuery</code></a>: pass <code>page</code> and <code>onPageChange</code> and it stops keeping the page itself.</p>
 <h2 id="choosing-the-router-kind">Choosing the router kind</h2>
 <p><code>&lt;AppRouter&gt;</code> accepts three kinds via the <code>router</code> prop:</p>
 <ul>
@@ -5362,6 +5456,7 @@ function component nor a custom React Hook function.
 <li>A permission that resolves asynchronously answers <code>"pending"</code>: the decision is held and <code>guardFallback</code> (or the <code>&lt;AppRouter&gt;</code> <code>fallback</code>) shows, instead of redirecting someone who has access or leaking the screen to someone who does not.</li>
 <li>Pick the router with the <code>router</code> prop: <code>"browser"</code> in production, <code>"memory"</code> + <code>initialEntries</code> in tests.</li>
 <li>Need <code>matchPath</code>, <code>generatePath</code>, <code>useOutletContext</code> or any other client-side React Router name? It also comes from <code>"tempest-react-sdk"</code>; its <code>Form</code> ships as <code>RouterForm</code>.</li>
+<li>List state (page, search, filters, sort) lives in the URL with <code>useUrlState</code>: typed by its defaults, and writes from one click become a single navigation.</li>
 </ul>
 
 

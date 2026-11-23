@@ -3960,6 +3960,8 @@
       
         
       
+        
+      
     
     
       
@@ -4068,6 +4070,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4975,7 +4998,7 @@ injects CSS.</p>
 </code></pre></div>
 <h2 id="inline-scripts-enter-by-hash">Inline scripts enter by hash</h2>
 <p>An inline <code>&lt;script&gt;</code> in <code>index.html</code> — the <code>themeInitScript()</code> anti-flash script,
-say — is allowed by the <strong>SHA-256 of its content</strong>, never by <code>'unsafe-inline'</code>.
+pasted by hand or injected by <code>tempestThemeInit()</code>, say — is allowed by the <strong>SHA-256 of its content</strong>, never by <code>'unsafe-inline'</code>.
 The plugin runs as a <code>post</code> transform, so it sees the final HTML. In dev, the
 React Refresh preamble is allowed the same way.</p>
 <div class="admonition note">

@@ -3621,6 +3621,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#textos-padrao-dos-componentes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Textos padrão dos componentes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plurais" class="md-nav__link">
     <span class="md-ellipsis">
       Plurais
@@ -3946,6 +3955,8 @@
       
         
       
+        
+      
     
     
       
@@ -4054,6 +4065,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4634,6 +4666,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#textos-padrao-dos-componentes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Textos padrão dos componentes
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#plurais" class="md-nav__link">
     <span class="md-ellipsis">
       Plurais
@@ -4826,6 +4867,207 @@ placeholder faz — e nesse caso o seu default vence uma tradução que existia.
 <code>default</code> e deixe ela responder. Este é o caminho que as strings internas do
 próprio SDK usam (<code>tempest.error.offline</code>, em <code>useDescribeApiError</code>).</p>
 </div>
+<h2 id="textos-padrao-dos-componentes">Textos padrão dos componentes</h2>
+<p>Componentes do SDK têm texto padrão: o título do <code>ErrorState</code>, os botões do
+<code>ConfirmDialog</code>, o "Fechar" do <code>Modal</code>. Com um <code>I18nProvider</code> montado, esses
+textos passam pelo catálogo, numa ordem só:</p>
+<ol>
+<li><strong>Prop explícita</strong> (<code>title</code>, <code>retryLabel</code>, <code>confirmLabel</code>…) — sempre vence.</li>
+<li><strong>O seu catálogo</strong>, pela chave <code>tempest.*</code> (locale ativo, depois <code>fallbackLocale</code>).</li>
+<li><strong>A tabela embutida do SDK</strong>, em inglês quando o locale é <code>en</code> ou <code>en-*</code>.</li>
+<li>A mesma tabela em <strong>pt-BR</strong> — também o que aparece sem provider nenhum.</li>
+</ol>
+<p>Ou seja: um app em inglês recebe os textos padrão em inglês sem configurar nada,
+e um app em outro idioma traduz copiando as chaves para o próprio catálogo:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ErrorState</span><span class="p">,</span><span class="w"> </span><span class="nx">I18nProvider</span><span class="p">,</span><span class="w"> </span><span class="nx">TEMPEST_MESSAGES</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">es</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="p">...</span><span class="nx">TEMPEST_MESSAGES</span><span class="p">.</span><span class="nx">en</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"tempest.errorState.title"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Algo salió mal"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"tempest.errorState.retry"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Reintentar"</span><span class="p">,</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="p">};</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">App</span><span class="p">({</span><span class="w"> </span><span class="nx">refetch</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">refetch</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">I18nProvider</span><span class="w"> </span><span class="na">locale</span><span class="o">=</span><span class="s">"es"</span><span class="w"> </span><span class="na">messages</span><span class="o">=</span><span class="p">{</span><span class="nx">messages</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">ErrorState</span><span class="w"> </span><span class="na">onRetry</span><span class="o">=</span><span class="p">{</span><span class="nx">refetch</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">I18nProvider</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>As chaves, com o padrão em pt-BR / en:</p>
+<table>
+<thead>
+<tr>
+<th>Chave</th>
+<th>pt-BR</th>
+<th>en</th>
+<th>Onde</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tempest.common.close</code></td>
+<td>Fechar</td>
+<td>Close</td>
+<td>botão fechar de <code>Modal</code>, <code>Drawer</code>, <code>Banner</code>, <code>Alert</code></td>
+</tr>
+<tr>
+<td><code>tempest.errorState.title</code></td>
+<td>Algo deu errado</td>
+<td>Something went wrong</td>
+<td><code>ErrorState</code></td>
+</tr>
+<tr>
+<td><code>tempest.errorState.description</code></td>
+<td>Não foi possível carregar essas informações.</td>
+<td>We couldn't load this information.</td>
+<td><code>ErrorState</code></td>
+</tr>
+<tr>
+<td><code>tempest.errorState.retry</code></td>
+<td>Tentar novamente</td>
+<td>Try again</td>
+<td><code>ErrorState</code></td>
+</tr>
+<tr>
+<td><code>tempest.confirmDialog.confirm</code></td>
+<td>Confirmar</td>
+<td>Confirm</td>
+<td><code>ConfirmDialog</code></td>
+</tr>
+<tr>
+<td><code>tempest.confirmDialog.cancel</code></td>
+<td>Cancelar</td>
+<td>Cancel</td>
+<td><code>ConfirmDialog</code></td>
+</tr>
+<tr>
+<td><code>tempest.spinner.label</code></td>
+<td>Carregando</td>
+<td>Loading</td>
+<td><code>Spinner</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.results_one</code></td>
+<td>{count} resultado</td>
+<td>{count} result</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.results_other</code></td>
+<td>{count} resultados</td>
+<td>{count} results</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.pageOf</code></td>
+<td>Página {page} de {total}</td>
+<td>Page {page} of {total}</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.previous</code></td>
+<td>Página anterior</td>
+<td>Previous page</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.next</code></td>
+<td>Próxima página</td>
+<td>Next page</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.pageSize</code></td>
+<td>Itens por página</td>
+<td>Items per page</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.pagination.pageSizeOption</code></td>
+<td>{size} / página</td>
+<td>{size} / page</td>
+<td><code>Pagination</code></td>
+</tr>
+<tr>
+<td><code>tempest.bottomNavigation.label</code></td>
+<td>Navegação principal</td>
+<td>Main navigation</td>
+<td><code>BottomNavigation</code></td>
+</tr>
+<tr>
+<td><code>tempest.sidebar.label</code></td>
+<td>Navegação lateral</td>
+<td>Side navigation</td>
+<td><code>Sidebar</code></td>
+</tr>
+<tr>
+<td><code>tempest.tag.remove</code></td>
+<td>Remover</td>
+<td>Remove</td>
+<td><code>Tag</code></td>
+</tr>
+<tr>
+<td><code>tempest.searchBar.clear</code></td>
+<td>Limpar busca</td>
+<td>Clear search</td>
+<td><code>SearchBar</code></td>
+</tr>
+<tr>
+<td><code>tempest.searchBar.placeholder</code></td>
+<td>Buscar...</td>
+<td>Search...</td>
+<td><code>SearchBar</code></td>
+</tr>
+<tr>
+<td><code>tempest.share.whatsapp</code></td>
+<td>Compartilhar no WhatsApp</td>
+<td>Share on WhatsApp</td>
+<td><code>ShareActions</code>, <code>ShareButton</code></td>
+</tr>
+<tr>
+<td><code>tempest.share.native</code></td>
+<td>Compartilhar</td>
+<td>Share</td>
+<td><code>ShareActions</code>, <code>ShareButton</code></td>
+</tr>
+<tr>
+<td><code>tempest.share.copy</code></td>
+<td>Copiar link</td>
+<td>Copy link</td>
+<td><code>ShareActions</code></td>
+</tr>
+<tr>
+<td><code>tempest.share.copied</code></td>
+<td>Link copiado</td>
+<td>Link copied</td>
+<td><code>ShareActions</code></td>
+</tr>
+<tr>
+<td><code>tempest.share.manual</code></td>
+<td>Toque e segure o link para copiar.</td>
+<td>Press and hold the link to copy it.</td>
+<td><code>ShareActions</code></td>
+</tr>
+<tr>
+<td><code>tempest.share.field</code></td>
+<td>Link para compartilhar</td>
+<td>Link to share</td>
+<td><code>ShareActions</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Ainda fora do catálogo</p>
+<p><code>DataTable</code>, <code>Table</code>, <code>Command</code>, <code>Chat</code>, <code>FilterBar</code>, as telas de auth, os
+componentes de captura e de PWA, entre outros, ainda têm o texto padrão fixo em
+pt-BR — passe as props de texto deles. A migração continua no #746. As mensagens
+do <a href="../http/"><code>useDescribeApiError</code></a> já passavam pelo catálogo
+(<code>tempest.error.offline</code>, <code>tempest.error.validation</code>), mas sem tabela em inglês.</p>
+</div>
 <h2 id="plurais">Plurais</h2>
 <p><code>plural(key, count, params?)</code> escolhe entre <code>${key}_one</code> (quando <code>count === 1</code>) e <code>${key}_other</code> (qualquer outro valor), com <code>{count}</code> disponível na interpolação:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">plural</span><span class="p">(</span><span class="s2">"alos"</span><span class="p">,</span><span class="w"> </span><span class="mf">1</span><span class="p">);</span><span class="w"> </span><span class="c1">// "1 Alô"   → usa alos_one</span>
@@ -4844,6 +5086,7 @@ próprio SDK usam (<code>tempest.error.offline</code>, em <code>useDescribeApiEr
 
 <span class="nx">i18n</span><span class="p">.</span><span class="nx">t</span><span class="p">(</span><span class="s2">"greet"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"Mau"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// "Olá, Mau"</span>
 <span class="nx">i18n</span><span class="p">.</span><span class="nx">formatDate</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">(),</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">dateStyle</span><span class="o">:</span><span class="w"> </span><span class="s2">"long"</span><span class="w"> </span><span class="p">});</span>
+<span class="nx">i18n</span><span class="p">.</span><span class="nx">formatDate</span><span class="p">(</span><span class="s2">"2026-11-16"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">weekday</span><span class="o">:</span><span class="w"> </span><span class="s2">"short"</span><span class="p">,</span><span class="w"> </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="s2">"2-digit"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// "seg., 16" — data sem hora mantém o dia em qualquer fuso</span>
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">en</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">i18n</span><span class="p">.</span><span class="nx">withLocale</span><span class="p">(</span><span class="s2">"en"</span><span class="p">);</span><span class="w"> </span><span class="c1">// novo I18n, mesmo catálogo</span>
 <span class="nx">en</span><span class="p">.</span><span class="nx">t</span><span class="p">(</span><span class="s2">"greet"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"Mau"</span><span class="w"> </span><span class="p">});</span><span class="w"> </span><span class="c1">// "Hi, Mau"</span>
@@ -4860,6 +5103,7 @@ próprio SDK usam (<code>tempest.error.offline</code>, em <code>useDescribeApiEr
 <li><code>t</code> interpola <code>{placeholder}</code>, cai no fallback e por fim devolve a própria chave — nunca quebra.</li>
 <li><code>plural</code> usa os sufixos <code>_one</code> / <code>_other</code>; plurais complexos pedem <code>i18next</code>.</li>
 <li><code>createI18n</code> roda fora do React; <code>withLocale</code> clona o objeto em outro idioma.</li>
+<li>Os textos padrão dos componentes (<code>tempest.*</code>) passam pelo catálogo, com tabela embutida em pt-BR e en (<code>TEMPEST_MESSAGES</code>); prop explícita sempre vence.</li>
 </ul>
 <h2 id="veja-tambem">Veja também</h2>
 <ul>

@@ -3918,6 +3918,8 @@
       
         
       
+        
+      
     
     
       
@@ -4026,6 +4028,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4671,7 +4694,7 @@ this final page we <strong>stitch it all</strong> into a complete flow: login �
 → logout, plus automatic logout when the backend responds <strong>401</strong>.</p>
 <h2 id="the-full-cycle-in-one-picture">The full cycle, in one picture</h2>
 <div class="highlight"><pre><span></span><code>1. User opens /dashboard with no session
-        → guard reads useAuth.getState().isAuthenticated (false)
+        → guard reads useAuth.use.isAuthenticated() (false)
         → redirect to /login
 2. User submits login
         → api.post("/auth/login")  → { user, token }
@@ -4798,7 +4821,9 @@ the gate that reads the store <strong>at render time</strong>:</p>
 <span class="p">{</span>
 <span class="w">  </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">lazy</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">"@/pages/Dashboard"</span><span class="p">),</span>
-<span class="w">  </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="p">},</span>
 </code></pre></div>
@@ -4806,12 +4831,14 @@ the gate that reads the store <strong>at render time</strong>:</p>
 <code>/login</code>. After <code>setSession</code>, the next attempt to open <code>/dashboard</code> finds <code>true</code> →
 the Dashboard renders.</p>
 <div class="admonition warning">
-<p class="admonition-title">Why the guard uses <code>getState()</code> and not the hook</p>
-<p>The <code>guard</code> runs <strong>outside</strong> the hooks cycle (during route mounting), so it
-can't call <code>useAuth.use.isAuthenticated()</code>. It reads the current snapshot with
-<code>getState()</code>. Inside <strong>components</strong> — like <code>RootLayout</code> — you use the <code>.use</code>
-hook to re-render when auth changes. Same store, two ways to read depending on
-the context. 💡</p>
+<p class="admonition-title">Why the guard uses the hook and not <code>getState()</code></p>
+<p>The <code>guard</code> runs <strong>inside</strong> the route's render, so it can call a hook — and it
+has to: <code>useAuth.use.isAuthenticated()</code> subscribes the route, which is what
+makes the logout in Step 4 and the 401 in Step 5 take the person off the
+protected screen. <code>getState()</code> would read the value once: after logout, the
+Dashboard would stay open, with an empty user, until the next navigation.
+<code>getState()</code> is for code that runs <strong>outside</strong> React, like the client's
+<code>onUnauthorized</code>. 💡</p>
 </div>
 <h2 id="step-4-manual-logout">Step 4 — Manual logout</h2>
 <p><code>RootLayout</code> (from the state chapter) already shows a "Sign out" button when there
@@ -4861,8 +4888,9 @@ advanced pattern.</p>
   <strong>same</strong> <code>useAuth</code>. ✅</li>
 <li><strong>Login</strong>: <code>api.post("/auth/login")</code> → <code>setSession({ user, token })</code> →
   <code>navigate("/dashboard")</code>.</li>
-<li><strong>Protected area</strong>: the <code>guard</code> reads <code>useAuth.getState().isAuthenticated</code> on
-  render and redirects with <code>redirectTo</code> when false.</li>
+<li><strong>Protected area</strong>: the <code>guard</code> reads <code>useAuth.use.isAuthenticated()</code> on
+  render and redirects with <code>redirectTo</code> when false — mid-screen too, when the
+  session ends.</li>
 <li><strong>Manual logout</strong>: <code>useAuth.use.logout()</code> on a button; <code>RootLayout</code> re-renders
   because it reads via the <code>.use</code> hook.</li>
 <li><strong>Automatic logout</strong>: <code>onUnauthorized: () =&gt; useAuth.getState().logout()</code> on the

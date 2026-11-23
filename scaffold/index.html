@@ -1389,6 +1389,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dependencias-que-o-app-importa-direto" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependências que o app importa direto
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4155,6 +4164,8 @@
       
         
       
+        
+      
     
     
       
@@ -4263,6 +4274,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4849,6 +4881,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#dependencias-que-o-app-importa-direto" class="md-nav__link">
+    <span class="md-ellipsis">
+      Dependências que o app importa direto
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -5287,13 +5328,16 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 </tr>
 </tbody>
 </table>
+<h3 id="dependencias-que-o-app-importa-direto">Dependências que o app importa direto</h3>
+<p>Além dos peers (<code>react</code>, <code>react-dom</code>, <code>react-router</code>), o <code>package.json</code> gerado declara <code>@tanstack/react-query</code>, <code>react-hook-form</code> e <code>zod</code>. Os três já vêm com o SDK, mas a documentação importa deles no código do app (<code>useQuery</code>, <code>useForm</code>, <code>z.object</code>), e importar o que não se declara só funciona por acaso: no npm e no yarn resolve pela cópia que o SDK deixa na raiz do <code>node_modules</code>; no <strong>pnpm</strong>, que só expõe o que o app declara, o <code>tsc</code> reprova com <code>Cannot find module</code>. A faixa declarada é <strong>a mesma do SDK</strong>, então qualquer gerenciador instala uma cópia só — o que importa para <code>@tanstack/react-query</code> e <code>react-hook-form</code>, que carregam contexto React. Ao atualizar o SDK, rode <code>npx tempest doctor</code>: ele avisa quando uma faixa do app ficou para trás e o npm aninhou uma segunda cópia.</p>
+<p>O <code>lucide-react</code> fica de fora de propósito — veja <a href="../icons/#nao-instale-lucide-react-voce-mesmo">Ícones</a>.</p>
 <h2 id="tour-pelo-que-foi-gerado">Tour pelo que foi gerado</h2>
 <p>O projeto gerado é enxuto de propósito: cada arquivo existe pra <strong>demonstrar um recurso do SDK</strong> que você vai reaproveitar. Esta é a estrutura completa:</p>
 <div class="highlight"><pre><span></span><code>my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # alias @ -&gt; ./src em "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -5304,8 +5348,8 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakeia uma sessão via useAuth.use.setSession() e navigate("/dashboard")
     ├── pages/Dashboard.tsx      # export default (lazy), rota protegida
-    ├── stores/auth.ts           # createSelectors(createAuthStore&lt;User&gt;({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore&lt;User&gt;({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 </code></pre></div>
 <h3 id="cada-arquivo-o-recurso-do-sdk-que-ele-mostra">Cada arquivo → o recurso do SDK que ele mostra</h3>
 <table>
@@ -5340,13 +5384,13 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 </table>
 <p>Vamos olhar os três mais importantes.</p>
 <h4 id="viteconfigts-createviteconfig"><code>vite.config.ts</code> → <code>createViteConfig</code></h4>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestThemeInit</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestCsp</span><span class="p">()],</span>
+<span class="w">    </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestThemeInit</span><span class="p">(),</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">()],</span>
 <span class="p">});</span>
 </code></pre></div>
-<p>Uma chamada. O <code>createViteConfig</code> já liga o plugin de React, o alias <code>@ -&gt; ./src</code> e os defaults que o SDK espera. Veja a página <a href="../vite-config/">Vite Config</a> pra customizar. O <code>tempestCsp()</code> escreve a Content-Security-Policy no <code>index.html</code>, no dev e no build, com o <code>connect-src</code> tirado das URLs <code>VITE_*</code> do <code>.env</code> — por isso o <code>cp .env.example .env</code> do primeiro passo importa. Veja <a href="../csp/">Content-Security-Policy</a>.</p>
+<p>Uma chamada. O <code>createViteConfig</code> já liga o plugin de React, o alias <code>@ -&gt; ./src</code> e os defaults que o SDK espera. Veja a página <a href="../vite-config/">Vite Config</a> pra customizar. O <code>tempestCsp()</code> escreve a Content-Security-Policy no <code>index.html</code>, no dev e no build, com o <code>connect-src</code> tirado das URLs <code>VITE_*</code> do <code>.env</code> — por isso o <code>cp .env.example .env</code> do primeiro passo importa. Veja <a href="../csp/">Content-Security-Policy</a>. O <code>tempestThemeInit()</code> põe o script anti-flash do tema no <code>&lt;head&gt;</code>, então quem escolheu o escuro não vê um quadro claro ao carregar. Veja <a href="../theme/#no-flash-evitar-o-flash-do-tema-errado">No-flash</a>.</p>
 <h4 id="srcapptsx-appproviders-approuter"><code>src/App.tsx</code> → <code>AppProviders</code> + <code>AppRouter</code></h4>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">AppProviders</span><span class="p">,</span><span class="w"> </span><span class="nx">AppRouter</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">routes</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/routes"</span><span class="p">;</span>
@@ -5362,6 +5406,7 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <p><code>AppProviders</code> monta numa tacada só o React Query, o error boundary, o tema e o roteador. <code>AppRouter</code> consome o array de rotas e renderiza o <code>fallback</code> enquanto rotas <code>lazy</code> carregam. Detalhes em <a href="../app-providers/">App Providers</a>.</p>
 <h4 id="srcstoresauthts-createauthstore-createselectors"><code>src/stores/auth.ts</code> → <code>createAuthStore</code> + <code>createSelectors</code></h4>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createAuthStore</span><span class="p">,</span><span class="w"> </span><span class="nx">createSelectors</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">configureApiAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/api"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
@@ -5370,11 +5415,17 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createSelectors</span><span class="p">(</span><span class="nx">createAuthStore</span><span class="o">&lt;</span><span class="nx">User</span><span class="o">&gt;</span><span class="p">({</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">"app-auth"</span><span class="w"> </span><span class="p">}));</span>
+
+<span class="nx">configureApiAuth</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">getToken</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">token</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">onUnauthorized</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">logout</span><span class="p">(),</span>
+<span class="p">});</span>
 </code></pre></div>
 <p><code>createAuthStore&lt;User&gt;</code> cria uma store Zustand de autenticação persistida (<code>name: "app-auth"</code> é a chave de storage). <code>createSelectors</code> te dá acesso atômico via <code>useAuth.use.&lt;campo&gt;()</code> — é assim que <code>RootLayout.tsx</code> lê <code>useAuth.use.isAuthenticated()</code> e <code>Login.tsx</code> chama <code>useAuth.use.setSession()</code>. Mais padrões em <a href="../state/">State</a>.</p>
+<p>O <code>configureApiAuth</code> no fim liga a store ao cliente HTTP: o <code>lib/api.ts</code> não importa nada de auth, então um projeto sem login apaga <code>stores/auth.ts</code> e o cliente segue funcionando sem token.</p>
 <div class="admonition note">
 <p class="admonition-title">O resto se explica sozinho</p>
-<p><code>routes.tsx</code> usa <code>defineRoutes([...])</code> com uma rota index, uma de login e um <code>dashboard</code> que é ao mesmo tempo <strong>lazy</strong> e <strong>protegido</strong> por guard. <code>lib/api.ts</code> instancia <code>createApiClient</code> com <code>baseURL</code>/<code>getToken</code>/<code>onUnauthorized</code> e exporta <code>createQueryKeys</code> pra você organizar as chaves de cache.</p>
+<p><code>routes.tsx</code> usa <code>defineRoutes([...])</code> com uma rota index, uma de login e um <code>dashboard</code> que é ao mesmo tempo <strong>lazy</strong> e <strong>protegido</strong> por guard. <code>lib/api.ts</code> instancia <code>createApiClient</code> lendo o token pelo que o <code>configureApiAuth</code> registrou e exporta <code>queryKeys = createQueryKeys("app", { me })</code> pra você organizar as chaves de cache.</p>
 </div>
 <h2 id="modo-pwa-pwa">Modo PWA (<code>--pwa</code>)</h2>
 <p>Quer que o app já nasça <strong>instalável</strong> (ícone na home screen), capaz de <strong>emitir notificações web push</strong> e <strong>funcionar offline</strong> (app shell + cache)? Passe a flag <code>--pwa</code>:</p>
@@ -5395,6 +5446,7 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 │   └── icon.svg                # ícone-fonte (troque pelo seu — os PNGs saem daqui)
 └── src/
     ├── sw.ts                   # service worker: push + notificationclick + skip-waiting + cache
+    ├── sw-sync-scope.ts        # o que o background sync enfileira (e o que fica com a página)
     ├── main.tsx                # (sobrescrito) registra /sw.js em dev e produção
     ├── vite-env.d.ts           # (sobrescrito) tipa VITE_VAPID_PUBLIC_KEY
     └── pages/Dashboard.tsx     # (sobrescrito) botão Instalar + toggle de notificações
@@ -5568,6 +5620,14 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <span class="p">});</span>
 </code></pre></div>
 <p>O fetch original ainda <strong>rejeita</strong> no momento (seu app mostra estado offline), mas a requisição é replayada depois. <code>maxRetentionMinutes</code> descarta entradas velhas; respostas 4xx são dropadas (erro do cliente não se conserta sozinho).</p>
+<div class="admonition warning">
+<p class="admonition-title">Uma fila por mutação: o scaffold deixa para a página o que ela já reenvia</p>
+<p>O worker não sabe o que a página faz depois da rejeição. Se a página também reenvia, a mesma mutação sai das <strong>duas</strong> filas: a outbox (<code>createOfflineSync</code>) manda a versão mais nova do registro quando a rede volta, e o worker reenvia depois, na ordem dele, cada tentativa feita offline — inclusive versões que a outbox já superou, passando por cima da política de conflito dela. Por isso o <code>--pwa</code> não usa o <code>match</code> acima: o <code>src/sw.ts</code> gerado chama <code>queuesInTheWorker</code> (<code>src/sw-sync-scope.ts</code>), que só enfileira o <code>/api/</code> da própria origem e <strong>nunca</strong>:</p>
+<ul>
+<li>requisição <strong>tus</strong> (cabeçalho <code>Tus-Resumable</code>, que o <code>createResumableUpload</code> manda em todas): o cliente de upload já retoma sozinho, relendo o offset com <code>HEAD</code>; o <code>PATCH</code> guardado pelo worker volta com o <code>Upload-Offset</code> de quando falhou e com o chunk inteiro (5 MiB por padrão) salvo no IndexedDB a cada tentativa;</li>
+<li>um prefixo de <code>RETRIED_BY_THE_PAGE</code>, que nasce vazio. <strong>Quando o app ganhar uma outbox, acrescente ali o prefixo que ela entrega</strong> (<code>"/api/visitas/"</code>).</li>
+</ul>
+</div>
 <h4 id="range-requests-seek-de-audiovideo-offline">Range requests — seek de áudio/vídeo offline</h4>
 <p>Marque uma rota com <code>rangeRequests: true</code> pra servir <code>206 Partial Content</code> fatiando o recurso cacheado — sem isso, mídia não dá seek offline:</p>
 <div class="highlight"><pre><span></span><code><span class="nx">installRuntimeCache</span><span class="p">([</span>
@@ -5610,13 +5670,19 @@ npx<span class="w"> </span>create-tempest-app<span class="w"> </span>.
 <span class="p">}));</span>
 </code></pre></div>
 <h3 id="3-busque-dados-com-react-query-querykeys-api">3. Busque dados com React Query + queryKeys + api</h3>
-<p>Combine o cliente HTTP, as query keys e o <code>useQuery</code> (já disponível pelo <code>AppProviders</code>):</p>
+<p>O template só declara a chave <code>me</code>. Acrescente a sua em <code>src/lib/api.ts</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">queryKeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createQueryKeys</span><span class="p">(</span><span class="s2">"app"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">me</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">[</span><span class="s2">"me"</span><span class="p">],</span>
+<span class="w">  </span><span class="nx">users</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">[</span><span class="s2">"users"</span><span class="p">],</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>E combine o cliente HTTP, a chave e o <code>useQuery</code> (já disponível pelo <code>AppProviders</code>):</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">api</span><span class="p">,</span><span class="w"> </span><span class="nx">queryKeys</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/api"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">UserList</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">data</span><span class="p">,</span><span class="w"> </span><span class="nx">isLoading</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">queryKeys.users.all</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">queryKeys.users</span><span class="p">(),</span>
 <span class="w">    </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"/users"</span><span class="p">),</span>
 <span class="w">  </span><span class="p">});</span>
 

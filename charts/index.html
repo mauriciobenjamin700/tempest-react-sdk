@@ -3403,6 +3403,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#rotulo-da-serie-separado-da-chave-do-dado-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rótulo da série separado da chave do dado (labels)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eixo-de-valor-largura-e-formato" class="md-nav__link">
+    <span class="md-ellipsis">
+      Eixo de valor: largura e formato
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4030,6 +4048,8 @@
       
         
       
+        
+      
     
     
       
@@ -4138,6 +4158,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4742,6 +4783,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#rotulo-da-serie-separado-da-chave-do-dado-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rótulo da série separado da chave do dado (labels)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#eixo-de-valor-largura-e-formato" class="md-nav__link">
+    <span class="md-ellipsis">
+      Eixo de valor: largura e formato
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4929,6 +4988,12 @@ não o traz junto. Se você importar de <code>tempest-react-sdk/charts</code> se
 rodado <code>npm i recharts</code>, o build quebra com <code>Cannot find module 'recharts'</code>.
 Instale-o no app que de fato usa gráficos.</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">recharts 3.2 ou mais novo</p>
+<p>O peer é <code>recharts@^3.2.0</code>: o eixo Y que se ajusta ao rótulo (<code>yAxisWidth="auto"</code>)
+só existe a partir dessa versão: o código do <code>YAxis</code> do 2.15 e do 3.0/3.1 não
+trata <code>"auto"</code> e soma a largura como número.</p>
+</div>
 <h2 id="a-familia-cartesiana-area-bar-line">A família cartesiana: Area, Bar, Line</h2>
 <p><code>AreaChart</code>, <code>BarChart</code> e <code>LineChart</code> compartilham a <strong>mesma</strong> interface de
 props, <code>CartesianChartProps</code>. Aprenda uma e você sabe as três — troca só o nome
@@ -5094,6 +5159,24 @@ a <strong>ignora</strong> — linhas empilhadas raramente fazem sentido. Use <co
 <td>Formata valores numéricos no tooltip e no eixo Y.</td>
 </tr>
 <tr>
+<td><code>labels</code></td>
+<td><code>Record&lt;string, string&gt;</code></td>
+<td>—</td>
+<td>Nome de cada série na legenda e no tooltip, por chave de <code>categories</code>.</td>
+</tr>
+<tr>
+<td><code>yAxisWidth</code></td>
+<td><code>number \| "auto"</code></td>
+<td><code>"auto"</code></td>
+<td>Largura do eixo Y em px, ou <code>"auto"</code> para caber o maior rótulo. Não no Radar.</td>
+</tr>
+<tr>
+<td><code>yAxisFormatter</code></td>
+<td><code>(value: number) =&gt; string</code></td>
+<td><code>valueFormatter</code></td>
+<td>Formata só os rótulos do eixo Y. Não no Radar.</td>
+</tr>
+<tr>
 <td><code>className</code></td>
 <td><code>string</code></td>
 <td>—</td>
@@ -5109,6 +5192,68 @@ chave de coluna a um rótulo (string) ou valor (number).</p>
 (<code>categories={["receita"]}</code>) desenha um gráfico simples; várias desenham
 séries comparativas, cada uma com a próxima cor da paleta.</p>
 </div>
+<h3 id="rotulo-da-serie-separado-da-chave-do-dado-labels">Rótulo da série separado da chave do dado (<code>labels</code>)</h3>
+<p>A legenda e o tooltip mostram o <strong>nome da série</strong>, que por padrão é a própria
+chave (<code>"done"</code>). Para traduzir, passe <code>labels</code> — um mapa chave → texto. Os dados
+continuam com as chaves que a API mandou:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BarChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">semana</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"seg"</span><span class="p">,</span><span class="w"> </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">34</span><span class="p">,</span><span class="w"> </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">dia</span><span class="o">:</span><span class="w"> </span><span class="s2">"ter"</span><span class="p">,</span><span class="w"> </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">29</span><span class="p">,</span><span class="w"> </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">5</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Atendimentos</span><span class="p">({</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">t</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">BarChart</span>
+<span class="w">            </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">semana</span><span class="p">}</span>
+<span class="w">            </span><span class="na">index</span><span class="o">=</span><span class="s">"dia"</span>
+<span class="w">            </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"done"</span><span class="p">,</span><span class="w"> </span><span class="s2">"noShow"</span><span class="p">]}</span>
+<span class="w">            </span><span class="na">labels</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"series.done"</span><span class="p">),</span><span class="w"> </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"series.noShow"</span><span class="p">)</span><span class="w"> </span><span class="p">}}</span>
+<span class="w">            </span><span class="na">stack</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Categoria sem entrada em <code>labels</code> mostra a chave. Vale para <code>AreaChart</code>,
+<code>BarChart</code>, <code>LineChart</code> e <code>RadarChart</code>. O <code>PieChart</code> não precisa: o nome de
+cada fatia já vem da coluna <code>index</code>.</p>
+<h3 id="eixo-de-valor-largura-e-formato">Eixo de valor: largura e formato</h3>
+<p>Sem configuração, o eixo Y <strong>se ajusta ao maior rótulo</strong> (<code>yAxisWidth="auto"</code>).
+Antes ele reservava 60 px fixos, e <code>"R$ 50.000"</code> perdia os primeiros 10 px —
+em qualquer largura de tela, não só no celular (medido no Chromium, #740).</p>
+<p>Rótulo longo ocupa espaço do gráfico no celular. Para o eixo, use um formato
+curto em <code>yAxisFormatter</code>; o tooltip continua com o valor exato do
+<code>valueFormatter</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LineChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">brl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Intl</span><span class="p">.</span><span class="nx">NumberFormat</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s2">"currency"</span><span class="p">,</span><span class="w"> </span><span class="nx">currency</span><span class="o">:</span><span class="w"> </span><span class="s2">"BRL"</span><span class="w"> </span><span class="p">});</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">brlCompacto</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Intl</span><span class="p">.</span><span class="nx">NumberFormat</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s2">"currency"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">currency</span><span class="o">:</span><span class="w"> </span><span class="s2">"BRL"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">notation</span><span class="o">:</span><span class="w"> </span><span class="s2">"compact"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">meses</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">mes</span><span class="o">:</span><span class="w"> </span><span class="s2">"out"</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">164750</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">mes</span><span class="o">:</span><span class="w"> </span><span class="s2">"nov"</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">186430</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Faturamento</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">LineChart</span>
+<span class="w">            </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">meses</span><span class="p">}</span>
+<span class="w">            </span><span class="na">index</span><span class="o">=</span><span class="s">"mes"</span>
+<span class="w">            </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"total"</span><span class="p">]}</span>
+<span class="w">            </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">brl</span><span class="p">.</span><span class="nx">format</span><span class="p">(</span><span class="nx">v</span><span class="p">)}</span>
+<span class="w">            </span><span class="na">yAxisFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">brlCompacto</span><span class="p">.</span><span class="nx">format</span><span class="p">(</span><span class="nx">v</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O eixo mostra <code>R$ 186 mil</code>; o tooltip, <code>R$ 186.430,00</code>. Para alinhar as áreas de
+plotagem de gráficos empilhados, fixe a largura com um número
+(<code>yAxisWidth={72}</code>).</p>
 <h2 id="piechart">PieChart</h2>
 <p>A <code>PieChart</code> tem uma forma de dados diferente: <strong>uma linha por fatia</strong>. Em vez de
 <code>categories</code>, você diz qual chave segura o <strong>valor</strong> (<code>category</code>) e qual segura o
@@ -5478,6 +5623,8 @@ onde não há layout calculado. Para uma página normal no navegador, <strong>om
 <li><code>AreaChart</code>, <code>BarChart</code> e <code>LineChart</code> compartilham <code>CartesianChartProps</code>:
   <code>data</code> + <code>index</code> (eixo X) + <code>categories</code> (séries). <code>stack</code> empilha em
   Area/Bar; o <code>LineChart</code> o ignora.</li>
+<li><code>labels</code> dá nome às séries sem trocar as chaves dos dados; o eixo Y se ajusta
+  ao maior rótulo e <code>yAxisFormatter</code> formata só o eixo.</li>
 <li><code>PieChart</code> usa <code>category</code> (valor) + <code>index</code> (rótulo), uma linha por fatia, com
   <code>donut</code> opcional.</li>
 <li><code>RadarChart</code> reusa <code>CartesianChartProps</code> (<code>index</code> = eixo angular); ignora

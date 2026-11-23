@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4986,7 +5009,8 @@ os dados vieram.</p>
 <p>Por padrão, o TanStack Query <strong>pausa</strong> uma query quando o navegador está offline: a
 <code>queryFn</code> nem roda. Num app comum, isso é bom. Aqui, seria um spinner eterno, porque é
 justamente a <code>queryFn</code> que lê o IndexedDB. <code>networkMode: "always"</code> manda a query rodar
-de qualquer jeito, e o fallback para o cache acontece.</p>
+de qualquer jeito, e o fallback para o cache acontece. A medição, e por que não é o default
+do SDK, estão em <a href="../../query/#query-que-le-so-o-indexeddb-networkmode-always">Query → <code>networkMode</code></a>.</p>
 <div class="admonition tip">
 <p class="admonition-title">A volta do sinal atualiza sozinha</p>
 <p><code>refetchOnReconnect</code> vem ligado no TanStack Query. Quando o sinal volta, a query

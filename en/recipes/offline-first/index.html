@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4990,7 +5013,8 @@ the data came from.</p>
 <code>queryFn</code> does not even run. In a regular app, that is good. Here it would be an
 endless spinner, because the <code>queryFn</code> is exactly what reads IndexedDB.
 <code>networkMode: "always"</code> makes the query run anyway, and the fallback to the cache
-happens.</p>
+happens. The measurement, and why it is not the SDK default, are in
+<a href="../../query/#a-query-that-reads-only-indexeddb-networkmode-always">Query → <code>networkMode</code></a>.</p>
 <div class="admonition tip">
 <p class="admonition-title">The signal coming back refreshes on its own</p>
 <p><code>refetchOnReconnect</code> is on in TanStack Query. When the signal comes back, the query

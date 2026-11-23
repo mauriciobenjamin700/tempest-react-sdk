@@ -3957,6 +3957,8 @@
       
         
       
+        
+      
     
     
       
@@ -4065,6 +4067,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5161,6 +5184,12 @@ no build padrão, o <code>build:sw</code> separado fica redundante e pode sair d
 <p class="admonition-title">Content-Security-Policy</p>
 <p>O <code>tempestCsp()</code> mora no mesmo subpath e deriva o <code>connect-src</code> das variáveis
 <code>VITE_*</code> que o app lê em runtime. Veja <a href="../csp/">Content-Security-Policy</a>.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tema sem flash</p>
+<p>O <code>tempestThemeInit()</code> também mora aqui: injeta o <code>themeInitScript()</code> no topo do
+<code>&lt;head&gt;</code>, e o <code>tempestCsp()</code> o libera pelo hash. Veja
+<a href="../theme/#no-flash-evitar-o-flash-do-tema-errado">No-flash</a>.</p>
 </div>
 <h2 id="recap">Recap</h2>
 <ul>

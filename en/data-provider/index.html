@@ -2996,6 +2996,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#deleting-a-selection-usedeletemany" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deleting a selection: useDeleteMany
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-cache-keys-when-you-need-them" class="md-nav__link">
     <span class="md-ellipsis">
       The cache keys, when you need them
@@ -3967,6 +3976,8 @@
       
         
       
+        
+      
     
     
       
@@ -4075,6 +4086,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4671,6 +4703,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#deleting-a-selection-usedeletemany" class="md-nav__link">
+    <span class="md-ellipsis">
+      Deleting a selection: useDeleteMany
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#the-cache-keys-when-you-need-them" class="md-nav__link">
     <span class="md-ellipsis">
       The cache keys, when you need them
@@ -4870,6 +4911,10 @@
 <td><code>deleteOne("posts", id)</code></td>
 <td><code>DELETE /posts/{id}</code></td>
 </tr>
+<tr>
+<td><code>deleteMany("posts", ids)</code></td>
+<td>one <code>DELETE /posts/{id}</code> per id, in parallel, each with its own outcome</td>
+</tr>
 </tbody>
 </table>
 <h3 id="the-id-never-leaves-its-own-segment">The <code>id</code> never leaves its own segment</h3>
@@ -4959,6 +5004,7 @@
 <li><code>useCreate&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate(data)</code></li>
 <li><code>useUpdate&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate({ id, data })</code></li>
 <li><code>useDelete&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate(id)</code></li>
+<li><code>useDeleteMany&lt;T&gt;(resource, options?)</code> → mutation; <code>mutate(ids)</code> resolves with <code>{ deleted, failed }</code></li>
 </ul>
 <p>The mutations invalidate the right cache on success:</p>
 <table>
@@ -4981,12 +5027,45 @@
 <td><code>useDelete</code></td>
 <td>the resource list</td>
 </tr>
+<tr>
+<td><code>useDeleteMany</code></td>
+<td>the resource list, <strong>once</strong> for the whole batch</td>
+</tr>
 </tbody>
 </table>
 <div class="admonition tip">
 <p class="admonition-title">You still pass TanStack Query options</p>
-<p>Each hook accepts a final <code>options</code> argument that flows through to the underlying <code>useQuery</code>/<code>useMutation</code> (minus <code>queryKey</code>/<code>queryFn</code>/<code>mutationFn</code>, which the SDK controls). So <code>staleTime</code>, <code>placeholderData</code>, <code>onError</code>, and <code>onSuccess</code> (called <strong>after</strong> the SDK's invalidation) all keep working.</p>
+<p>Each hook accepts a final <code>options</code> argument that flows through to the underlying <code>useQuery</code>/<code>useMutation</code> (minus <code>queryKey</code>/<code>queryFn</code>/<code>mutationFn</code>, which the SDK controls). So <code>staleTime</code>, <code>placeholderData</code>, <code>onError</code> and <code>onSuccess</code> all keep working. The app's <code>onSuccess</code> runs <strong>after</strong> the SDK starts the invalidation, never instead of it: up to 0.92.0 it replaced the SDK's, and the list went stale after every create, update or delete (#699).</p>
 </div>
+<h3 id="deleting-a-selection-usedeletemany">Deleting a selection: <code>useDeleteMany</code></h3>
+<p>Deleting a selection with one <code>useDelete().mutateAsync</code> per id invalidates the list once per id, and every invalidation refetches the mounted list: measured with 10 ids, 10 <code>invalidateQueries</code> and 10 <code>getList</code> calls. <code>useDeleteMany</code> deletes the batch and invalidates <strong>once</strong>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useDeleteMany</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Product</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">DeleteSelection</span><span class="p">({</span><span class="w"> </span><span class="nx">ids</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[]</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">deleteMany</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDeleteMany</span><span class="p">&lt;</span><span class="nt">Product</span><span class="p">&gt;(</span><span class="s2">"products"</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">confirm</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">deleted</span><span class="p">,</span><span class="w"> </span><span class="nx">failed</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">deleteMany</span><span class="p">.</span><span class="nx">mutateAsync</span><span class="p">(</span><span class="nx">ids</span><span class="p">);</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">deleted</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> deleted, </span><span class="si">${</span><span class="nx">failed</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> refused`</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="nx">deleteMany</span><span class="p">.</span><span class="nx">isPending</span><span class="p">}</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">confirm</span><span class="p">()}&gt;</span>
+<span class="w">      </span><span class="nx">Delete</span><span class="w"> </span><span class="p">{</span><span class="nx">ids</span><span class="p">.</span><span class="nx">length</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>Each id gets its own outcome.</strong> A product the backend refuses (open orders) lands in <code>failed</code> with its error, and does not hide the nine that went through. The mutation rejects only when the provider call as a whole fails — and then nothing is invalidated.</li>
+<li><strong>The list is invalidated even when every id failed</strong>: a <code>404</code> may mean another session already deleted the record.</li>
+<li><strong>Backend with a bulk delete route?</strong> Implement <code>deleteMany(resource, ids)</code> on your <code>DataProvider</code> and return the same <code>{ deleted, failed }</code>. It is optional: without it the hook runs one <code>deleteOne</code> per id, in parallel.</li>
+</ul>
 <h3 id="the-cache-keys-when-you-need-them">The cache keys, when you need them</h3>
 <p>The hooks build their own keys, but invalidating from the outside — after a
 WebSocket says a record changed, say — needs the very key they used.
@@ -4999,10 +5078,17 @@ WebSocket says a record changed, say — needs the very key they used.
 <span class="nx">queryClient</span><span class="p">.</span><span class="nx">invalidateQueries</span><span class="p">({</span><span class="w"> </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">listQueryKey</span><span class="p">(</span><span class="s2">"posts"</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
 <span class="nx">queryClient</span><span class="p">.</span><span class="nx">invalidateQueries</span><span class="p">({</span><span class="w"> </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="kt">oneQueryKey</span><span class="p">(</span><span class="s2">"posts"</span><span class="p">,</span><span class="w"> </span><span class="mf">42</span><span class="p">)</span><span class="w"> </span><span class="p">});</span>
 </code></pre></div>
-<p><code>listQueryKey(resource, params?)</code> returns <code>["data", &lt;resource&gt;, "list", params]</code>
-and <code>oneQueryKey(resource, id)</code> returns <code>["data", &lt;resource&gt;, "one", id]</code>.
+<p><code>listQueryKey(resource)</code> returns <code>["data", &lt;resource&gt;, "list"]</code>, the prefix of
+<strong>every</strong> list of the resource, so it invalidates all pages, sorts and filters
+at once. With <code>params</code>, <code>listQueryKey(resource, params)</code> returns
+<code>["data", &lt;resource&gt;, "list", params]</code>, the exact key of one list. And
+<code>oneQueryKey(resource, id)</code> returns <code>["data", &lt;resource&gt;, "one", id]</code>.
 Hand-writing that array works right up to the day the shape changes — the
 functions do not.</p>
+<div class="admonition note">
+<p class="admonition-title">Up to 0.92.0, <code>listQueryKey(\"posts\")</code> invalidated nothing</p>
+<p>Without <code>params</code> the key ended in a literal <code>undefined</code> (<code>["data", "posts", "list", undefined]</code>), and the <code>invalidateQueries</code> filter compares that fourth element like any other: it matched <strong>0</strong> of the lists <code>useList</code> mounts with pagination (#700). The key now stops at <code>"list"</code>.</p>
+</div>
 <div class="admonition warning">
 <p class="admonition-title">Pagination and sort win over a filter with the same name</p>
 <p><code>filters</code> go into the query <strong>before</strong> <code>pagination</code> and <code>sort</code>. A filter keyed like one of those params (<code>page</code>, <code>size</code>, <code>order_by</code>, <code>ascending</code> by default) is overridden when the structured value is set. Until 0.81.0 it was the other way round: <code>filters: { page: 1 }</code> from a table's filter state pinned every request to page 1. Without <code>pagination</code>, the filter is sent as given.</p>
@@ -5137,7 +5223,9 @@ functions do not.</p>
 <li><code>createDataProvider(client, options?)</code> turns an <code>apiClient</code> into a Refine-style CRUD provider with defaults aligned to the <code>tempest-fastapi-sdk</code> (<code>page</code>/<code>size</code>/<code>order_by</code>/<code>ascending</code>, boolean <code>ascending</code>, PATCH on update).</li>
 <li>Wrap the tree with <code>&lt;TempestDataProvider provider={…}&gt;</code> <strong>below</strong> a <code>&lt;QueryProvider&gt;</code>.</li>
 <li><code>useList</code> resolves an <code>OffsetPage&lt;T&gt;</code> (<code>items</code>/<code>total</code>/<code>page</code>/<code>pages</code>); <code>useOne</code> fetches a record and disables itself without an <code>id</code>.</li>
-<li><code>useCreate</code> / <code>useUpdate</code> / <code>useDelete</code> are mutations that invalidate the right cache on success — list (create/delete) or list + record (update).</li>
+<li><code>useCreate</code> / <code>useUpdate</code> / <code>useDelete</code> are mutations that invalidate the right cache on success — list (create/delete) or list + record (update). The app's <code>onSuccess</code> runs after the invalidation, not instead of it.</li>
+<li><code>useDeleteMany</code> deletes a selection and invalidates the list once; each id comes back in <code>deleted</code> or <code>failed</code>.</li>
+<li><code>listQueryKey(resource)</code> invalidates every list of the resource; with <code>params</code>, it is the key of a single list.</li>
 <li>Backend off-convention? Tweak <code>pageParam</code>/<code>sizeParam</code>/<code>sortFieldParam</code>/<code>sortOrderParam</code>/<code>sortOrderAsBoolean</code>/<code>updateMethod</code>/<code>buildPath</code>.</li>
 <li>Every <code>id</code> goes through <code>encodeIdSegment</code>: it stays in one segment, and <code>""</code>/<code>"."</code>/<code>".."</code> are rejected before the request.</li>
 </ul>

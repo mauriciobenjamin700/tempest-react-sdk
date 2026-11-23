@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4948,7 +4971,7 @@ local do backend: <code>FILE_TOO_LARGE</code> (<code>413</code>), <code>FILE_TOO
 <h3 id="o-campo-culpado-que-o-backend-nomeia-e-o-front-costumava-jogar-fora">O campo culpado, que o backend nomeia e o front costumava jogar fora</h3>
 <p>O backend <strong>sabe</strong> qual campo derrubou a requisição — ele diz o nome. O que faltava era o front escutar: antes, o <code>error.fields</code> só era preenchido quando o corpo trazia a lista do FastAPI cru (<code>detail: [{ loc, msg }]</code>), que é justamente a forma que um app com handler próprio <strong>não</strong> manda. O nome ficava dentro de <code>error.body</code>, e cada tela voltava a fazer cast e parsear prosa.</p>
 <p>Agora as três chaves singulares que o <code>tempest-fastapi-sdk</code> usa entram no mesmo <code>error.fields</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createApiClient</span><span class="p">,</span><span class="w"> </span><span class="nx">describeApiError</span><span class="p">,</span><span class="w"> </span><span class="nx">isApiError</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">applyApiFieldErrors</span><span class="p">,</span><span class="w"> </span><span class="nx">createApiClient</span><span class="p">,</span><span class="w"> </span><span class="nx">describeApiError</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">api</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createApiClient</span><span class="p">({</span><span class="w"> </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="kt">import.meta.env.VITE_API_URL</span><span class="w"> </span><span class="p">});</span>
 
@@ -4956,16 +4979,12 @@ local do backend: <code>FILE_TOO_LARGE</code> (<code>413</code>), <code>FILE_TOO
 <span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">"/api/enderecos"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">values</span><span class="w"> </span><span class="p">});</span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isApiError</span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">err</span><span class="p">.</span><span class="nx">fields</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">field</span><span class="p">,</span><span class="w"> </span><span class="nx">message</span><span class="p">]</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nb">Object</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">err</span><span class="p">.</span><span class="nx">fields</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
-<span class="w">                </span><span class="nx">setError</span><span class="p">(</span><span class="nx">field</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">message</span><span class="w"> </span><span class="p">});</span>
-<span class="w">            </span><span class="p">}</span>
-<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nx">applyApiFieldErrors</span><span class="p">(</span><span class="nx">form</span><span class="p">,</span><span class="w"> </span><span class="nx">err</span><span class="p">);</span>
 <span class="w">        </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">describeApiError</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span><span class="w"> </span><span class="s2">"Não foi possível salvar o endereço"</span><span class="p">));</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>Com o corpo <code>{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }</code>, o <code>err.fields</code> vale <code>{ city: "Cidade não encontrada para o estado informado." }</code> — e o <code>setError("city", …)</code> cola a frase no input certo.</p>
+<p>Com o corpo <code>{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }</code>, o <code>err.fields</code> vale <code>{ city: "Cidade não encontrada para o estado informado." }</code> — e o <code>applyApiFieldErrors(form, err)</code> cola a frase no input certo (um nome que o formulário não tem volta em <code>unmatched</code>, em vez de marcar um input que não existe).</p>
 <div class="admonition note">
 <p class="admonition-title">A ordem de precedência</p>
 <p><code>detail[].loc</code> (lista do FastAPI) → <code>detail.field</code> → <code>field</code> → <code>details.field</code>. A lista ganha porque um app <code>tempest-fastapi-sdk</code> sem handler de <code>RequestValidationError</code> continua respondendo o 422 padrão do FastAPI. O <code>details</code> responde por último: ele é o saco de contexto genérico do <code>AppException</code>, e o <code>field</code> dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.</p>
@@ -5050,6 +5069,10 @@ local do backend: <code>FILE_TOO_LARGE</code> (<code>413</code>), <code>FILE_TOO
 <div class="admonition check">
 <p class="admonition-title">Filtro novo começa da página 1</p>
 <p>Ponha os filtros aplicados na <code>queryKey</code> (<code>["users", filtros]</code>). Quando ela muda estruturalmente, a página volta para 1 <strong>no mesmo render</strong> — sem a requisição intermediária da página antiga. Até a 0.68.0 a página sobrevivia: filtrar na página 7 pedia a página 7 de um resultado de duas. Para separar rascunho de aplicado, veja <a href="../hooks/#rascunho-aplicado-usedraftfilters"><code>useDraftFilters</code></a>.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Página na URL: <code>page</code> + <code>onPageChange</code></p>
+<p>Passe <code>page</code> e o hook deixa de guardar a página: <code>setPage</code>, <code>next</code> e <code>prev</code> viram chamadas a <code>onPageChange</code>, e quem lê a URL decide. Nesse modo uma <code>queryKey</code> nova <strong>não</strong> volta a página para 1 — quem é dono da página escreve o filtro e <code>pagina: null</code> na mesma atualização, que o <a href="../routing/#estado-da-tela-na-url-com-useurlstate"><code>useUrlState</code></a> transforma numa navegação só.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title"><code>size</code> vs <code>page_size</code></p>

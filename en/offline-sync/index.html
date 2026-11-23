@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4850,7 +4873,7 @@ stops when that tab also calls <code>resetWatermark()</code>/<code>clearOutbox()
 </tr>
 <tr>
 <td>somebody else</td>
-<td>deleted unsent (<code>summary.dropped</code>)</td>
+<td>deleted unsent (<code>summary.dropped</code>) — or, with <code>foreignEntries: "hold"</code>, stays queued (<code>summary.held</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -4879,6 +4902,41 @@ stops when that tab also calls <code>resetWatermark()</code>/<code>clearOutbox()
 </code></pre></div>
 <p>An entry queued before you turned the option on carries no stamp and is delivered as before: it is the user's own edit, and holding it would strand every queue on upgrade.</p>
 </div>
+<div class="admonition tip">
+<p class="admonition-title">Shared device: <code>foreignEntries: \"hold\"</code></p>
+<p>The <code>"drop"</code> default suits a personal device: the previous account's queue would only pile up. On a <strong>shared tablet</strong> it deletes work — Carlos signs out with no signal and three inspections queued, Ana signs in, syncs, and the three are gone unsent (#724). With <code>foreignEntries: "hold"</code>, somebody else's entry <strong>stays queued</strong> and goes out when its owner signs back in, under their own session:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">let</span><span class="w"> </span><span class="nx">technicianId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"carlos"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sync</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="o">&lt;</span><span class="p">{</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">}</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"VisitsOutbox"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">watermark</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">storageKey</span><span class="o">:</span><span class="w"> </span><span class="s2">"visits.watermark"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">deliver</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/visits/</span><span class="si">${</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">"PUT"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">JSON.stringify</span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">payload</span><span class="p">),</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">pullPage</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="nx">nextCursor</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span><span class="w"> </span><span class="nx">serverTime</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">    </span><span class="nx">applyRemote</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="kc">undefined</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">getPrincipal</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">technicianId</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">foreignEntries</span><span class="o">:</span><span class="w"> </span><span class="s2">"hold"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">enqueue</span><span class="p">(</span><span class="s2">"update"</span><span class="p">,</span><span class="w"> </span><span class="s2">"v1"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">"Carlos's inspection"</span><span class="w"> </span><span class="p">});</span>
+<span class="nx">technicianId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"ana"</span><span class="p">;</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">((</span><span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">flush</span><span class="p">()).</span><span class="nx">held</span><span class="p">);</span><span class="w"> </span><span class="c1">// 1 — stays queued, never goes out under Ana's session</span>
+<span class="nx">technicianId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"carlos"</span><span class="p">;</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">((</span><span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">flush</span><span class="p">()).</span><span class="nx">succeeded</span><span class="p">);</span><span class="w"> </span><span class="c1">// 1 — goes out when Carlos is back</span>
+</code></pre></div>
+<p>Under neither policy does an entry go out under somebody else's session. What changes:</p>
+<ul>
+<li><strong>Per-record order still holds.</strong> A held entry also holds back the later entries <strong>of the same record</strong> (<code>summary.deferred</code>), like a failure: if Ana's newer edit went out first, Carlos's older one would overwrite it when he returns. This applies to the default too: an edit made while signed out no longer jumps ahead of the owner's held edit.</li>
+<li><strong><code>pendingCount()</code> and <code>useOfflineSync</code>'s <code>pending</code> count held entries</strong> — Ana's badge shows that Carlos's work is on the device. <code>clearOutbox()</code> is still what empties the queue.</li>
+<li>With <code>"hold"</code>, an entry queued <strong>while signed out</strong> is held as well (the default deletes it), and goes out only while nobody is signed in again.</li>
+</ul>
+</div>
 <div class="admonition danger">
 <p class="admonition-title">Per-record order survives a failure — it did not before</p>
 <p>When an entry fails, the <strong>remaining entries for that same record</strong> are left
@@ -4892,6 +4950,228 @@ the replayed <code>create</code> then overwrote it with the <strong>older</stron
 edit vanished with nothing reported.</p>
 <p>The block is <strong>per record, not per pass</strong>: a record the server keeps rejecting
 does not hold up any other record's changes.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Ten edits, one request: <code>coalesce</code></p>
+<p>Offline, the technician edits the same visit ten times. By default that is
+<strong>ten</strong> <code>deliver</code> calls when the signal comes back — nine of them sending a
+snapshot the tenth overwrites. With <code>coalesce: true</code>, each run of
+<code>create</code>/<code>update</code> entries of a record becomes <strong>one</strong> <code>deliver</code>:</p>
+<table>
+<thead>
+<tr>
+<th>What <code>deliver</code> receives</th>
+<th>Where it comes from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>op</code></td>
+<td>the <strong>oldest</strong> entry — <code>create</code> followed by <code>update</code>s is still <code>create</code></td>
+</tr>
+<tr>
+<td><code>payload</code></td>
+<td>the <strong>newest</strong> one (<code>true</code>) or the fold of all of them, oldest first (function)</td>
+</tr>
+<tr>
+<td><code>id</code>, <code>attempts</code>, <code>lastError</code></td>
+<td>the oldest entry — an idempotency key taken from <code>entry.id</code> does not change between retries</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Note</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">text?</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">pinned?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sync</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="o">&lt;</span><span class="nx">Note</span><span class="p">,</span><span class="w"> </span><span class="nx">never</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"NotesOutbox"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">watermark</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">storageKey</span><span class="o">:</span><span class="w"> </span><span class="s2">"notes.watermark"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">deliver</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/notes/</span><span class="si">${</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="kt">entry.op</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"delete"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"DELETE"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"PUT"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">JSON.stringify</span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">payload</span><span class="p">),</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">pullPage</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="nx">nextCursor</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span><span class="w"> </span><span class="nx">serverTime</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">    </span><span class="nx">applyRemote</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="kc">undefined</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">coalesce</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">enqueue</span><span class="p">(</span><span class="s2">"create"</span><span class="p">,</span><span class="w"> </span><span class="s2">"n1"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"n1"</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">"a"</span><span class="w"> </span><span class="p">});</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">enqueue</span><span class="p">(</span><span class="s2">"update"</span><span class="p">,</span><span class="w"> </span><span class="s2">"n1"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"n1"</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">"b"</span><span class="w"> </span><span class="p">});</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">enqueue</span><span class="p">(</span><span class="s2">"update"</span><span class="p">,</span><span class="w"> </span><span class="s2">"n1"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"n1"</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">"c"</span><span class="w"> </span><span class="p">});</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">summary</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">sync</span><span class="p">.</span><span class="nx">flush</span><span class="p">();</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">summary</span><span class="p">.</span><span class="nx">succeeded</span><span class="p">,</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">coalesced</span><span class="p">);</span><span class="w"> </span><span class="c1">// 1 2 — one PUT with text "c"</span>
+</code></pre></div>
+<p>If the queue holds <strong>patches</strong> instead of snapshots, pass a merge function:
+<code>coalesce: (folded, next) =&gt; ({ ...folded, ...next })</code>.</p>
+<p>What is <strong>not</strong> folded, on purpose:</p>
+<ul>
+<li><strong>A <code>delete</code> never joins the fold</strong> and closes the run: <code>create</code>, <code>update</code>,
+  <code>delete</code> becomes <code>create</code> (newest payload) then <code>delete</code>, two requests in
+  order. Dropping the pair would orphan the record on the server whenever the
+  <code>create</code> had landed and only its response was lost.</li>
+<li><strong>Entries of different owners</strong> (<code>getPrincipal</code>) are not folded together.</li>
+<li><strong>Whatever is queued during the delivery</strong> waits for the next flush. Folding
+  happens when the run delivers, not when <code>enqueue</code> writes — so
+  <code>pendingCount()</code> still counts every entry until the flush. Rewriting the
+  entry in <code>enqueue</code> would risk deleting, along with the rest, an edit that
+  arrived while that record was in flight.</li>
+</ul>
+<p>On failure the folded entries stay queued: only the oldest one gets <code>attempts</code>
+bumped, and the rest count in <code>summary.deferred</code>. On success they all leave,
+and the absorbed ones count in <code>summary.coalesced</code>.</p>
+<p>The folded delivery goes out <strong>at the oldest entry's position</strong>, carrying the
+newest state. If a recent edit of record A points at a record B created
+<strong>after</strong> A was queued, A may reach the server before B. Leave the option off
+when the server validates that kind of reference on write.</p>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Files with the record: <code>attachments</code></p>
+<p>The inspection has photos, and the visit's <code>PUT</code> carries their URLs. Queueing each
+photo as an <strong>entry of its own</strong> breaks the order: the engine only orders entries
+of the <strong>same record</strong>, and a failing record never holds up the others — the visit
+reaches the server pointing at a photo that never arrived. With <code>attachments</code>, the
+engine uploads the files with <a href="../resumable-upload/"><code>createResumableUpload</code></a>
+<strong>before</strong> the entry's <code>deliver</code>, and hands the URLs in <code>entry.attachments</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list(entry)</code></td>
+<td>reads the entry's attachments from the <strong>app's store</strong>: <code>{ id, blob, uploadedUrl }[]</code>. One that has <code>uploadedUrl</code> is not sent again</td>
+</tr>
+<tr>
+<td><code>upload(attachment)</code></td>
+<td>returns the <code>createResumableUpload</code> options (<code>endpoint</code>, <code>getToken</code>, <code>chunkSize</code>…). <code>file</code> is the blob; <code>key</code> defaults to <code>outbox-attachment:&lt;id&gt;</code></td>
+</tr>
+<tr>
+<td><code>onUploaded(attachment, url)</code></td>
+<td>stores the URL in the app's store — and is where you release the blob, or keep only a thumbnail</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="p">,</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Visit</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">photoIds</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span>
+<span class="p">}</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Photo</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">Blob</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">uploadUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">photos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="o">&lt;</span><span class="nx">Photo</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Visits"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">tableName</span><span class="o">:</span><span class="w"> </span><span class="s2">"photos"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">indexes</span><span class="o">:</span><span class="w"> </span><span class="s2">"&amp;id"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">keyPath</span><span class="o">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">sync</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="o">&lt;</span><span class="nx">Visit</span><span class="p">,</span><span class="w"> </span><span class="nx">never</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"VisitsOutbox"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">watermark</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">storageKey</span><span class="o">:</span><span class="w"> </span><span class="s2">"visits.watermark"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">attachments</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">list</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">ids</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">entry</span><span class="p">.</span><span class="nx">payload</span><span class="o">?</span><span class="p">.</span><span class="nx">photoIds</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">[];</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">(</span><span class="nx">ids</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">id</span><span class="p">)));</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nx">rows</span><span class="p">.</span><span class="nx">flatMap</span><span class="p">((</span><span class="nx">photo</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">                </span><span class="nx">photo</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.id</span><span class="p">,</span><span class="w"> </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob</span><span class="p">,</span><span class="w"> </span><span class="nx">uploadedUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.uploadUrl</span><span class="w"> </span><span class="p">}]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">[],</span>
+<span class="w">            </span><span class="p">);</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">        </span><span class="nx">upload</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">endpoint</span><span class="o">:</span><span class="w"> </span><span class="s2">"/api/uploads"</span><span class="p">,</span><span class="w"> </span><span class="nx">chunkSize</span><span class="o">:</span><span class="w"> </span><span class="kt">256</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1024</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">        </span><span class="nx">onUploaded</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">photo</span><span class="p">,</span><span class="w"> </span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">await</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">photo</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">uploadUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">url</span><span class="p">,</span><span class="w"> </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">});</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">deliver</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/visits/</span><span class="si">${</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s2">"PUT"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">JSON.stringify</span><span class="p">({</span>
+<span class="w">                </span><span class="p">...</span><span class="nx">entry</span><span class="p">.</span><span class="nx">payload</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">photos</span><span class="o">:</span><span class="w"> </span><span class="kt">entry.attachments?.map</span><span class="p">((</span><span class="nx">ref</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">ref</span><span class="p">.</span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">[],</span>
+<span class="w">            </span><span class="p">}),</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="nx">pullPage</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="p">[],</span><span class="w"> </span><span class="nx">nextCursor</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span><span class="w"> </span><span class="nx">serverTime</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">    </span><span class="nx">applyRemote</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="kc">undefined</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="nx">sync</span><span class="p">.</span><span class="nx">subscribe</span><span class="p">((</span><span class="nx">state</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">uploadedBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">totalBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">pendingBytes</span><span class="p">);</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>The attachment inherits everything the entry already has:</p>
+<ul>
+<li><strong>A failure is the entry's failure.</strong> A refused upload, or a <code>start()</code> that
+  resolves <code>null</code> (paused or aborted), counts as a <code>deliver</code> that threw:
+  <code>attempts</code> goes up, the record's next edits wait, the next flush retries — and
+  <code>deliver</code> is <strong>not</strong> called, because the visit would point at nothing.</li>
+<li><strong>A dropped connection resumes from the offset.</strong> The per-attachment <code>key</code> is
+  the same across runs, so the next flush sends <code>HEAD</code> + <code>PATCH</code> from where it
+  stopped, not a new <code>POST</code>.</li>
+<li><strong>Owner and <code>coalesce</code> come first.</strong> An entry held or dropped by
+  <code>getPrincipal</code>/<code>foreignEntries</code> uploads nothing; with <code>coalesce</code>, <code>list</code>
+  receives the folded entry, with the newest payload.</li>
+<li><strong>A switch of account mid-upload stops it too.</strong> The owner is checked again
+  after every step of the attachment phase (<code>list</code>, <code>upload</code>, each file) and
+  right before <code>deliver</code>: when somebody else signed in — in another tab, or
+  through a sign-in after an expired token without <code>resetWatermark()</code> —, the
+  remaining files are not uploaded and the entry stays queued (<code>summary.held</code>,
+  holding back the record's later edits) or is deleted (<code>summary.dropped</code>), per
+  <code>foreignEntries</code>. The engine's <code>getPrincipal</code> also binds an upload whose
+  options carry no <code>getPrincipal</code> (nor the preset's <code>getToken</code>): the file in
+  flight stops before its next chunk instead of finishing with the new account's
+  token. What already reached the server stays there, and the owner finishes the
+  rest when they come back.</li>
+<li><strong>Logout mid-upload</strong> (<code>clearOutbox()</code>/<code>resetWatermark()</code>) stops the run before
+  <code>deliver</code> and skips <code>onUploaded</code>, which would write into the next user's store.
+  The resume record keeps the final offset, so the owner's upload finishes
+  without resending a byte when they come back.</li>
+</ul>
+<p>The <strong>blob lives in the app's store</strong>, never in the outbox: the queue keeps only
+the record snapshot, without copying the file. Progress shows up in <code>SyncState</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uploadedBytes</code> / <code>totalBytes</code></td>
+<td>bytes of the attachment <strong>uploading now</strong> (<code>0</code>/<code>0</code> when none)</td>
+</tr>
+<tr>
+<td><code>pendingBytes</code></td>
+<td>sum of the attachments not uploaded yet, from <code>list()</code> over every queued entry, each file once</td>
+</tr>
+<tr>
+<td><code>persisted</code></td>
+<td><code>navigator.storage.persisted()</code>, or <code>null</code> where the API is missing</td>
+</tr>
+</tbody>
+</table>
+<p>The engine <strong>reads</strong> <code>persisted</code> but never asks for persistence: in Firefox
+<code>requestPersistentStorage()</code> opens a permission prompt, and a prompt that pops up
+out of nowhere during a background sync is a prompt the user denies. Call it at
+login or install. The <a href="../recipes/field-app-offline/">Offline field app</a> recipe
+builds all of it: compression before storing, the blob released in <code>onUploaded</code>
+and the storage warning with <code>pendingBytes</code>.</p>
 </div>
 <p>The sections below show <strong>what the engine does under the hood</strong> (and how to wire it by hand when you need fine-grained control — multiple stores, per-field merges, etc.).</p>
 <h2 id="prerequisites">Prerequisites</h2>
@@ -5051,7 +5331,7 @@ does not hold up any other record's changes.</p>
 <p>If the backend fires a <strong>web push</strong> on change, swap the <code>setInterval</code> for a <code>pullAnalyses</code> inside the notification handler — near real-time sync, no polling. See <a href="../push/">Web Push</a> + <code>usePushSubscription</code>.</p>
 </div>
 <h2 id="reactive-ui-and-auto-flush">Reactive UI and auto-flush</h2>
-<p>Don't wire sync state by hand: <code>useOfflineSync(sync, opts)</code> subscribes the component to the engine (via <code>subscribe</code>/<code>getState</code>) and exposes <code>{ phase, pending, syncing, lastSummary, lastError, flush, enqueue }</code>, with optional flush on mount, on the <code>online</code> event and on an interval. <code>useSyncStatus(sync)</code> returns a ready <code>{ tone, pending, syncing }</code> for <code>&lt;SyncStatusBadge&gt;</code>. For the offline bar and the SW update prompt, see <strong><a href="../pwa/">PWA &amp; Offline-First</a></strong>.</p>
+<p>Don't wire sync state by hand: <code>useOfflineSync(sync, opts)</code> subscribes the component to the engine (via <code>subscribe</code>/<code>getState</code>) and exposes <code>{ phase, pending, syncing, lastSummary, lastError, uploadedBytes, totalBytes, pendingBytes, persisted, flush, enqueue }</code>, with optional flush on mount, on the <code>online</code> event and on an interval. <code>useSyncStatus(sync)</code> returns a ready <code>{ tone, pending, syncing }</code> for <code>&lt;SyncStatusBadge&gt;</code>. For the offline bar and the SW update prompt, see <strong><a href="../pwa/">PWA &amp; Offline-First</a></strong>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="p">,</span><span class="w"> </span><span class="nx">SyncStatusBadge</span><span class="p">,</span><span class="w"> </span><span class="nx">useSyncStatus</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">sync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/sync/engine"</span><span class="p">;</span>
 
@@ -5074,13 +5354,35 @@ does not hold up any other record's changes.</p>
 <h2 id="conflicts-last-write-wins">Conflicts: last-write-wins</h2>
 <p>The backend resolves by <code>updated_at</code> (the most recent write wins). On the client, the pull does <code>bulkPut</code>, which <strong>overwrites</strong> the local record with the server version — so an unconfirmed local edit can be replaced by a newer server version. If your domain needs finer merging (independent fields, CRDTs), handle it in the <code>saveAnalysis</code>/pull layer; the SDK gives you the blocks, it doesn't impose the policy.</p>
 <p>For the two common cases, the SDK exports ready-made resolvers to use inside <code>applyRemote</code> (ties → remote wins):</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">lastWriteWins</span><span class="p">,</span><span class="w"> </span><span class="nx">higherVersionWins</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="p">,</span><span class="w"> </span><span class="nx">higherVersionWins</span><span class="p">,</span><span class="w"> </span><span class="nx">lastWriteWins</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
-<span class="nx">applyRemote</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">dto</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Analysis</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">user_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">updated_at</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// the same store as section 2</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">analyses</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="o">&lt;</span><span class="nx">Analysis</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"FamachaOffline"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">tableName</span><span class="o">:</span><span class="w"> </span><span class="s2">"analyses"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">indexes</span><span class="o">:</span><span class="w"> </span><span class="s2">"&amp;id, user_id, updated_at"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">ownerField</span><span class="o">:</span><span class="w"> </span><span class="s2">"user_id"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="c1">// pass it as `applyRemote` to `createOfflineSync`</span>
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">applyRemote</span><span class="p">(</span><span class="nx">dto</span><span class="o">:</span><span class="w"> </span><span class="kt">Analysis</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="ow">void</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">analyses</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">dto</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
-<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">analyses</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="nx">lastWriteWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">updatedAt</span><span class="p">));</span>
-<span class="w">  </span><span class="c1">// or: higherVersionWins(local, dto, (r) =&gt; r.version)</span>
-<span class="p">};</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">analyses</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">lastWriteWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">updated_at</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">// or, with a version counter on the record</span>
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">applyRemoteByVersion</span><span class="p">(</span><span class="nx">dto</span><span class="o">:</span><span class="w"> </span><span class="kt">Analysis</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="ow">void</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">analyses</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">dto</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">analyses</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">higherVersionWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">version</span><span class="p">));</span>
+<span class="p">}</span>
 </code></pre></div>
 <h2 id="recap">Recap</h2>
 <ul>

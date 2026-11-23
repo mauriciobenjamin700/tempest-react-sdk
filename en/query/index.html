@@ -2920,6 +2920,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Provider">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#createqueryclient-the-client-outside-react" class="md-nav__link">
+    <span class="md-ellipsis">
+      createQueryClient: the client outside React
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-query-that-reads-only-indexeddb-networkmode-always" class="md-nav__link">
+    <span class="md-ellipsis">
+      A query that reads only IndexedDB: networkMode: "always"
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3952,6 +3976,8 @@
       
         
       
+        
+      
     
     
       
@@ -4060,6 +4086,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4601,6 +4648,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Provider">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#createqueryclient-the-client-outside-react" class="md-nav__link">
+    <span class="md-ellipsis">
+      createQueryClient: the client outside React
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#a-query-that-reads-only-indexeddb-networkmode-always" class="md-nav__link">
+    <span class="md-ellipsis">
+      A query that reads only IndexedDB: networkMode: "always"
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4762,9 +4833,8 @@
 <p>The classification comes from <code>isRetriableStatus</code>, the same one <code>createApiClient({ retry: true })</code> and the <code>retry()</code> helper use. Through v0.44.0 this was a local copy <strong>missing <code>425</code></strong> — so the same <code>425 Too Early</code> was replayed by the client and not by the query.</p>
 <p>If your app relied on retrying 4xx, the override is the usual one: <code>defaultOptions={{ queries: { retry: 1 } }}</code>.</p>
 </div>
-<p>To override, pass <code>defaultOptions</code> (merged on top of the defaults) or a ready-made <code>client</code> (ignores the SDK defaults):</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">QueryClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">QueryProvider</span><span class="p">,</span><span class="w"> </span><span class="nx">STALE_TIME</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<p>To override, pass <code>defaultOptions</code> (merged on top of the defaults) or a ready-made <code>client</code>. A <code>client</code> built with <code>new QueryClient()</code> ignores the SDK defaults; built with <code>createQueryClient()</code>, it keeps them:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createQueryClient</span><span class="p">,</span><span class="w"> </span><span class="nx">QueryProvider</span><span class="p">,</span><span class="w"> </span><span class="nx">STALE_TIME</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="c1">// Option A — tweak only some defaults</span>
 <span class="p">&lt;</span><span class="nt">QueryProvider</span><span class="w"> </span><span class="na">defaultOptions</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">queries</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">staleTime</span><span class="o">:</span><span class="w"> </span><span class="kt">STALE_TIME.LONG</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">}}&gt;</span>
@@ -4772,7 +4842,7 @@
 <span class="p">&lt;/</span><span class="nt">QueryProvider</span><span class="p">&gt;;</span>
 
 <span class="c1">// Option B — bring your own client (share across roots, plug devtools, etc.)</span>
-<span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">QueryClient</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createQueryClient</span><span class="p">();</span>
 <span class="p">&lt;</span><span class="nt">QueryProvider</span><span class="w"> </span><span class="na">client</span><span class="o">=</span><span class="p">{</span><span class="nx">client</span><span class="p">}&gt;</span>
 <span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="p">&lt;/</span><span class="nt">QueryProvider</span><span class="p">&gt;;</span>
@@ -4788,6 +4858,72 @@
 </code></pre></div>
 <p>With the provider plainly mounted three lines up. Nothing in that message points at the duplicate, which is why it costs an afternoon.</p>
 <p>From v0.52.1 the SDK detects it and warns in development: a client from the other copy duck-types perfectly while failing <code>instanceof</code>, which is exactly the right discriminator. The fix is <code>npm dedupe</code>, and <code>npx tempest doctor</code> lists every duplicated dependency.</p>
+</div>
+<h3 id="createqueryclient-the-client-outside-react"><code>createQueryClient</code>: the client outside React</h3>
+<p><code>QueryProvider</code> builds its client inside, and there it stays. When the app needs it <strong>outside</strong> React — <code>queryClient.clear()</code> in the session's <code>onSessionEnd</code>, <code>persistQueryClientOffline({ queryClient })</code>, a prefetch in a route loader —, build it with <code>createQueryClient()</code> and hand it to the provider. It is the same client the provider would build, with the same defaults:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createQueryClient</span><span class="p">,</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="p">,</span><span class="w"> </span><span class="nx">QueryProvider</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ReactNode</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">queryClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createQueryClient</span><span class="p">();</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="s2">"https://api.example.com"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">onSessionEnd</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">queryClient</span><span class="p">.</span><span class="nx">clear</span><span class="p">();</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Providers</span><span class="p">({</span><span class="w"> </span><span class="nx">children</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">children</span><span class="o">:</span><span class="w"> </span><span class="kt">ReactNode</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">QueryProvider</span><span class="w"> </span><span class="na">client</span><span class="o">=</span><span class="p">{</span><span class="nx">queryClient</span><span class="p">}&gt;{</span><span class="nx">children</span><span class="p">}&lt;/</span><span class="nt">QueryProvider</span><span class="p">&gt;;</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>Takes the same overrides as the provider</strong>: <code>createQueryClient({ queries: { staleTime: STALE_TIME.LONG } })</code> merges per key, inside <code>queries</code> and <code>mutations</code>, and keeps the defaults you did not name.</li>
+<li><strong>A new client per call.</strong> Create it once, at module level, and import it where needed.</li>
+<li><strong>No retyping the defaults.</strong> Before it, an app that needed the client copied <code>STALE_TIME.DEFAULT</code>, <code>CACHE_TIME.DEFAULT</code> and <code>shouldRetryQuery</code> into a <code>new QueryClient({ … })</code>, and the copy drifted the day one of them changed (#741). The client also comes from the same copy of <code>@tanstack/react-query</code> the SDK uses, so it cannot hit the duplicate-copy "No QueryClient set" described above.</li>
+</ul>
+<h3 id="a-query-that-reads-only-indexeddb-networkmode-always">A query that reads only IndexedDB: <code>networkMode: "always"</code></h3>
+<p>TanStack Query <strong>pauses</strong> a query while the browser is offline: with the default <code>networkMode</code> (<code>"online"</code>), the <code>queryFn</code> does not even run. For a query that reaches the network that is right — it waits for the signal instead of burning a request that will fail. For a query whose <code>queryFn</code> reads <strong>only</strong> IndexedDB, it is an endless skeleton. Measured offline (<code>src/query/create-query-client.test.tsx</code>):</p>
+<table>
+<thead>
+<tr>
+<th><code>networkMode</code></th>
+<th><code>queryFn</code> calls</th>
+<th>State</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"online"</code></td>
+<td>0</td>
+<td><code>pending</code> / <code>paused</code></td>
+</tr>
+<tr>
+<td><code>"offlineFirst"</code></td>
+<td>1</td>
+<td><code>success</code></td>
+</tr>
+<tr>
+<td><code>"always"</code></td>
+<td>1</td>
+<td><code>success</code></td>
+</tr>
+</tbody>
+</table>
+<p>Mark the local query, not the whole client:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">useDrafts</span><span class="p">(</span><span class="nx">readDrafts</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="kt">string</span><span class="p">[]</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">queryKey</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"drafts"</span><span class="p">],</span>
+<span class="w">    </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="kt">readDrafts</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">networkMode</span><span class="o">:</span><span class="w"> </span><span class="s2">"always"</span><span class="p">,</span>
+<span class="w">  </span><span class="p">});</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Why it is not the SDK default</p>
+<p><code>defaultOptions={{ queries: { networkMode: "always" } }}</code> has always worked on <code>QueryProvider</code> and <code>createQueryClient</code>, but it applies to <strong>every</strong> query: the ones that reach the network start firing offline and failing, instead of pausing until the signal returns. The SDK keeps <code>"online"</code> and the local query says it does not depend on the network.</p>
 </div>
 <h2 id="time-presets">Time presets</h2>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
@@ -5027,6 +5163,8 @@
 <h2 id="recap">Recap</h2>
 <ul>
 <li><code>&lt;QueryProvider&gt;</code> at the root — one per app — ships calibrated defaults; override via <code>defaultOptions</code> or <code>client</code>.</li>
+<li><code>createQueryClient()</code> gives the same client with the same defaults, for use outside React (<code>clear()</code> at session end, persistence, prefetch).</li>
+<li>A query that reads only IndexedDB takes <code>networkMode: "always"</code>; the ones that reach the network keep pausing offline.</li>
 <li><code>STALE_TIME</code> / <code>CACHE_TIME</code> / <code>REFETCH_TIME</code> replace magic numbers with named presets.</li>
 <li><code>createQueryKeys(scope, builders)</code> generates typed, consistent keys, with an automatic <code>all</code> for broad invalidation.</li>
 <li>Combine <code>setQueryData</code> (immediate response) with <code>invalidateQueries</code> (revalidation) using the same key factory.</li>

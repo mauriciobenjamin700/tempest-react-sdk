@@ -2074,6 +2074,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#select-placeholder" class="md-nav__link">
+    <span class="md-ellipsis">
+      Placeholder e campo opcional — placeholder, clearable
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#variante-chip-linha-de-configuracoes" class="md-nav__link">
     <span class="md-ellipsis">
       Variante chip — linha de configurações
@@ -2210,6 +2219,21 @@
       FileUpload
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="FileUpload">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abrir-a-camera-do-celular-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abrir a câmera do celular: capture
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -4133,6 +4157,8 @@
       
         
       
+        
+      
     
     
       
@@ -4241,6 +4267,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4822,6 +4869,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#select-placeholder" class="md-nav__link">
+    <span class="md-ellipsis">
+      Placeholder e campo opcional — placeholder, clearable
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#variante-chip-linha-de-configuracoes" class="md-nav__link">
     <span class="md-ellipsis">
       Variante chip — linha de configurações
@@ -4958,6 +5014,21 @@
       FileUpload
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="FileUpload">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#abrir-a-camera-do-celular-capture" class="md-nav__link">
+    <span class="md-ellipsis">
+      Abrir a câmera do celular: capture
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -5250,8 +5321,51 @@
 <td><code>string</code></td>
 <td>—</td>
 </tr>
+<tr>
+<td><code>placeholder</code></td>
+<td><code>string</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>clearable</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+</tr>
 </tbody>
 </table>
+<h3 id="select-placeholder">Placeholder e campo opcional — <code>placeholder</code>, <code>clearable</code></h3>
+<p>O <code>placeholder</code> é o texto do estado vazio (<code>""</code>). Por padrão a entrada dele é <code>disabled hidden</code>: lê como "nada escolhido ainda" e não volta a ser escolhida — certo para campo obrigatório. Num campo <strong>opcional</strong>, <code>clearable</code> deixa a entrada selecionável, e a pessoa volta ao vazio depois de ter escolhido:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Select</span><span class="p">,</span><span class="w"> </span><span class="nx">toOptions</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">SALAS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">a</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sala A"</span><span class="p">,</span><span class="w"> </span><span class="nx">b</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sala B"</span><span class="w"> </span><span class="p">};</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Consulta</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">sala</span><span class="p">,</span><span class="w"> </span><span class="nx">setSala</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="s2">"a"</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Select</span>
+<span class="w">                </span><span class="na">label</span><span class="o">=</span><span class="s">"Sala (opcional)"</span>
+<span class="w">                </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Nenhuma"</span>
+<span class="w">                </span><span class="na">clearable</span>
+<span class="w">                </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">sala</span><span class="p">}</span>
+<span class="w">                </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setSala</span><span class="p">(</span><span class="nx">e</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">)}</span>
+<span class="w">                </span><span class="na">options</span><span class="o">=</span><span class="p">{</span><span class="nx">toOptions</span><span class="p">(</span><span class="nx">SALAS</span><span class="p">)}</span>
+<span class="w">            </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">Select</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Sala"</span><span class="w"> </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Selecione a sala"</span><span class="w"> </span><span class="na">options</span><span class="o">=</span><span class="p">{</span><span class="nx">toOptions</span><span class="p">(</span><span class="nx">SALAS</span><span class="p">)}</span><span class="w"> </span><span class="na">required</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">&lt;/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong><code>clearable</code></strong> põe uma entrada <code>""</code> com o texto do <code>placeholder</code> no topo da lista, habilitada e visível.</li>
+<li><strong>Sem <code>value</code> nem <code>defaultValue</code></strong>, um <code>Select</code> com <code>placeholder</code> começa vazio, mostrando o placeholder.</li>
+<li>Quando o vazio <strong>tem nome</strong> no domínio — "Particular", "Nenhum convênio" —, ele é um valor, não um aviso: use uma opção de verdade com <code>withEmptyOption(options, "Particular")</code>.</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">Até a 0.92.0, <code>placeholder</code> sem <code>value</code> mostrava a primeira opção</p>
+<p>O algoritmo de seleção do HTML pula a entrada <code>disabled</code> e seleciona <strong>a primeira opção</strong> habilitada. Medido no Chromium (Playwright headless, <code>&lt;select&gt;&lt;option value="" disabled hidden&gt;Selecione&lt;/option&gt;&lt;option value="a"&gt;A&lt;/option&gt;…</code>): <code>select.value === "a"</code> — e no jsdom, o mesmo. Um <code>&lt;Select label="UF" placeholder="Selecione" options={ufs} /&gt;</code> não controlado abria em "São Paulo", e o submit mandava um valor que ninguém escolheu. Agora ele começa em <code>""</code>.</p>
+</div>
 <h3 id="variante-chip-linha-de-configuracoes">Variante <code>chip</code> — linha de configurações</h3>
 <p>Numa linha de configurações — ícone e rótulo à esquerda, controle compacto à direita — o campo completo empilha <strong>dois campos rotulados dentro do mesmo item de lista</strong>. <code>variant="chip"</code> renderiza só o controle, dimensionado pelo conteúdo:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ListTile</span><span class="p">,</span><span class="w"> </span><span class="nx">Select</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
@@ -5329,7 +5443,7 @@
 </ul>
 <div class="admonition danger">
 <p class="admonition-title">Sem entrada vazia, salvar o formulário grava um valor que ninguém escolheu</p>
-<p>Medido no jsdom (que implementa o algoritmo de seleção do HTML): um <code>&lt;select&gt;</code> controlado com <code>value=""</code> e sem opção vazia devolve <strong>a primeira opção</strong> (<code>select.value === "a"</code>). Abrir um formulário de edição e salvar grava esse valor. O <code>placeholder</code> do <code>Select</code> não resolve: a entrada dele é <code>disabled hidden</code>, então depois de escolher algo o campo <strong>nunca mais volta a vazio</strong>. Campo anulável usa <code>withEmptyOption</code>.</p>
+<p>Medido no jsdom (que implementa o algoritmo de seleção do HTML): um <code>&lt;select&gt;</code> controlado com <code>value=""</code> e sem opção vazia devolve <strong>a primeira opção</strong> (<code>select.value === "a"</code>). Abrir um formulário de edição e salvar grava esse valor. Campo anulável usa <code>withEmptyOption</code> — ou, quando o vazio é só "não escolhido", <code>placeholder</code> com <a href="#select-placeholder"><code>clearable</code></a>.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Objeto reordena chave numérica — use <code>Map</code> para escala</p>
@@ -5864,6 +5978,37 @@ e nenhum prop precisa existir para isso.</p>
 <span class="w">    </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
+<h3 id="abrir-a-camera-do-celular-capture">Abrir a câmera do celular: <code>capture</code></h3>
+<p><code>capture</code> vai direto para o <code>&lt;input type="file"&gt;</code> e, no celular, pula o seletor de arquivos
+e abre o app de câmera: <code>"environment"</code> é a traseira, <code>"user"</code> a frontal, <code>true</code> deixa o
+navegador escolher. Você ganha foco, flash e a resolução total da câmera sem pedir permissão
+nenhuma — quem fotografa é o app do sistema. O mesmo prop existe no <a href="#dropzone"><code>Dropzone</code></a>.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">FileUpload</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">FotoDoDocumento</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">files</span><span class="p">,</span><span class="w"> </span><span class="nx">setFiles</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">File</span><span class="err">[]</span><span class="p">&gt;([]);</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">FileUpload</span>
+<span class="w">            </span><span class="na">label</span><span class="o">=</span><span class="s">"Foto do documento"</span>
+<span class="w">            </span><span class="na">accept</span><span class="o">=</span><span class="s">"image/*"</span>
+<span class="w">            </span><span class="na">capture</span><span class="o">=</span><span class="s">"environment"</span>
+<span class="w">            </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">files</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setFiles</span><span class="p">}</span>
+<span class="w">            </span><span class="na">title</span><span class="o">=</span><span class="s">"Toque para fotografar"</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">No desktop, <code>capture</code> não faz nada</p>
+<p>O navegador de desktop ignora o atributo e abre o seletor de arquivos de sempre — o
+componente continua funcionando, só sem o atalho para a câmera. Combine com
+<code>accept="image/*"</code> (ou <code>video/*</code>): o atributo só tem sentido para mídia. E conte com
+<strong>uma foto por abertura</strong>, mesmo com <code>multiple</code>; para várias fotos, o usuário toca de
+novo.</p>
+</div>
 <h2 id="slider"><code>Slider</code></h2>
 <p><strong>Quando usar:</strong> escolher um único valor numa faixa contínua (volume, brilho, etc.). Para uma faixa de dois valores use <code>RangeSlider</code>.</p>
 <p>Slider de thumb único sobre <code>&lt;input type="range"&gt;</code> nativo.</p>
@@ -6012,6 +6157,11 @@ teclado. Filtra por <code>maxSize</code> antes de chamar <code>onDrop</code>; re
 <td><code>multiple</code></td>
 <td><code>boolean</code></td>
 <td><code>true</code></td>
+</tr>
+<tr>
+<td><code>capture</code></td>
+<td><code>boolean \| "user" \| "environment"</code></td>
+<td>— (<a href="#abrir-a-camera-do-celular-capture">abre a câmera</a>)</td>
 </tr>
 <tr>
 <td><code>maxSize</code></td>

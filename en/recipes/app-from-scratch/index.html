@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4969,12 +4992,6 @@ When the session goes away, the route re-renders and sends to <code>/login</code
 <code>preserveFrom: true</code>, the redirect carries the requested address, and the login screen
 can go back to it with <code>useReturnTo</code>. See
 <a href="../../routing/#going-back-to-where-you-were-after-signing-in">Going back to where you were</a>.</p>
-<div class="admonition tip">
-<p class="admonition-title">The template reads the store with <code>getState()</code></p>
-<p>The generated <code>src/routes.tsx</code> uses <code>guard: () =&gt; useAuth.getState().isAuthenticated</code>.
-It works on navigation, but does not react to a logout in the middle of a screen.
-The hook form, used above, re-renders the route right away.</p>
-</div>
 <h3 id="the-screen-has-the-four-states">The screen has the four states</h3>
 <ul>
 <li>⏳ <strong>Loading</strong>: <code>loading={isLoading}</code> draws skeleton rows.</li>

@@ -3979,6 +3979,8 @@
       
         
       
+        
+      
     
     
       
@@ -4087,6 +4089,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5094,6 +5117,14 @@ transport's contract with the server, not the app's with its payload:
 the reply is decided from the frame's text, before the schema. The ping itself
 does not reach your <code>onMessage</code> when the schema refuses it — which is right,
 since you never declared it.</p>
+<p>And the refusal is <strong>not</strong> reported (0.84.0, #704): with <code>respondToPing</code> on, a
+ping the schema does not describe fires neither <code>onValidationError</code> nor the
+development warning. Before, every heartbeat — one every 30 s against
+<code>tempest-fastapi-sdk</code> — reached <code>onValidationError</code> as "the backend changed the
+contract", and the only way to silence it was declaring the ping in the app's
+schema. A schema that declares the ping still gets it in <code>onMessage</code>; with
+<code>respondToPing: false</code> (the app answers pings itself), the refusal is reported
+again, because the ping is then the app's payload.</p>
 </div>
 <div class="admonition check">
 <p class="admonition-title">A signal that exists in production, not only in dev</p>
@@ -5115,7 +5146,7 @@ production, where nobody is watching a console.</p>
 <li><code>onReconnecting</code> is a quiet state; <code>onLost</code> is what deserves UI and a "try again" button.</li>
 <li><code>opened</code> separates "could not join" from "dropped mid-session" — the first is an error, the second reconnects on its own.</li>
 <li><code>pingInterval</code> + <code>pingPayload</code> keep the connection alive.</li>
-<li><code>schema</code> validates each frame before delivering it — the heartbeat <code>pong</code> still goes out even when the schema refuses the ping.</li>
+<li><code>schema</code> validates each frame before delivering it — the heartbeat <code>pong</code> still goes out even when the schema refuses the ping, and that refusal does not become an <code>onValidationError</code>.</li>
 <li><code>useWebSocket</code> ties everything to the component and exposes <code>status</code>/<code>lastMessage</code>/<code>send</code>/<code>reconnect</code>/<code>setSilenceTimeout</code>.</li>
 </ul>
 <h2 id="see-also">See also</h2>

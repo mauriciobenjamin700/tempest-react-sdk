@@ -4052,6 +4052,8 @@
       
         
       
+        
+      
     
     
       
@@ -4160,6 +4162,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5094,6 +5117,11 @@
 <td><code>tablet</code>: escondida em &lt; md. <code>desktop</code>: escondida em &lt; lg.</td>
 </tr>
 <tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td>Rótulo do cartão empilhado no celular; default = <code>header</code> quando é texto.</td>
+</tr>
+<tr>
 <td><code>width</code></td>
 <td><code>string \| number</code></td>
 <td>CSS width (<code>120px</code>, <code>20%</code>, <code>auto</code>)</td>
@@ -5626,7 +5654,7 @@ páginas vem desse número, e ordenação e busca são delegadas a você.</p>
 <tr>
 <td><code>onSearchChange</code></td>
 <td><code>(term: string) =&gt; void</code></td>
-<td>Termo digitado; debounce é seu.</td>
+<td>Termo digitado, depois de <code>searchDebounceMs</code> quando definido.</td>
 </tr>
 <tr>
 <td><code>loading</code></td>

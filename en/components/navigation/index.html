@@ -2184,6 +2184,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="BottomNavigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#links-and-the-active-item-from-the-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links and the active item from the route
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4034,6 +4049,8 @@
       
         
       
+        
+      
     
     
       
@@ -4142,6 +4159,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4790,6 +4828,21 @@
       BottomNavigation
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="BottomNavigation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#links-and-the-active-item-from-the-route" class="md-nav__link">
+    <span class="md-ellipsis">
+      Links and the active item from the route
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -5698,6 +5751,11 @@ labels. Each item stacks an icon over its label; the active one gets
 <td>—</td>
 </tr>
 <tr>
+<td><code>match</code></td>
+<td><code>"key" \| "route"</code></td>
+<td><code>"key"</code></td>
+</tr>
+<tr>
 <td><code>onChange</code></td>
 <td><code>(key: string) =&gt; void</code></td>
 <td>—</td>
@@ -5709,7 +5767,39 @@ labels. Each item stacks an icon over its label; the active one gets
 </tr>
 </tbody>
 </table>
-<p>Type <code>BottomNavigationItem = { key, label, icon?, badge?, disabled? }</code>.</p>
+<p>Type <code>BottomNavigationItem = { key, label, icon?, badge?, disabled?, href? }</code> — the
+same contract as <code>SidebarItem</code>, so one list feeds both.</p>
+<h3 id="links-and-the-active-item-from-the-route">Links and the active item from the route</h3>
+<p>With <code>href</code>, the item is a real <code>&lt;a&gt;</code>: long-press "open in new tab" works on a
+phone and a screen reader announces a link. With <code>onChange</code>, a plain click belongs
+to the app's router (the <code>href</code> does not reload the page); ctrl/cmd-click stays
+with the browser. With <code>match="route"</code>, <code>value</code> is the <code>pathname</code> and the lit item
+is the one whose <code>href</code> is the longest covering the route, by the same rule as
+<a href="#activenavkey-the-same-resolution-outside-sidebar"><code>activeNavKey</code></a>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BottomNavigation</span><span class="p">,</span><span class="w"> </span><span class="nx">useLocation</span><span class="p">,</span><span class="w"> </span><span class="nx">useNavigate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LayoutDashboard</span><span class="p">,</span><span class="w"> </span><span class="nx">Users</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">AppTabs</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pathname</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLocation</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">navigate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useNavigate</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">BottomNavigation</span>
+<span class="w">            </span><span class="na">match</span><span class="o">=</span><span class="s">"route"</span>
+<span class="w">            </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">pathname</span><span class="p">}</span>
+<span class="w">            </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"/"</span><span class="p">,</span><span class="w"> </span><span class="nx">href</span><span class="o">:</span><span class="w"> </span><span class="s2">"/"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Dashboard"</span><span class="p">,</span><span class="w"> </span><span class="nx">icon</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">LayoutDashboard</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">20</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"/patients"</span><span class="p">,</span><span class="w"> </span><span class="nx">href</span><span class="o">:</span><span class="w"> </span><span class="s2">"/patients"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Patients"</span><span class="p">,</span><span class="w"> </span><span class="nx">icon</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Users</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">20</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">            </span><span class="p">]}</span>
+<span class="w">            </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">key</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">navigate</span><span class="p">(</span><span class="nx">key</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>On <code>/patients/42?tab=visits</code>, "Patients" stays lit; <code>/</code> lights only on <code>/</code>. The
+landmark's name comes from <code>tempest.bottomNavigation.label</code> in the
+<a href="../../i18n/#component-default-texts">i18n</a> catalog ("Navegação principal" /
+"Main navigation"); <code>aria-label</code> replaces it.</p>
 <p><strong>Safe-area</strong>: applies <code>padding-bottom: env(safe-area-inset-bottom)</code>
 automatically.</p>
 <h2 id="tabs"><code>Tabs</code></h2>

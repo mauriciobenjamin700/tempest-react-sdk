@@ -4042,6 +4042,8 @@
       
         
       
+        
+      
     
     
       
@@ -4150,6 +4152,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5724,6 +5747,8 @@ estado do app e torcer para os dois não divergirem.</p>
   quem não tem, e <code>detector</code> aceita um polyfill.</li>
 <li><code>useBarcodeScanner</code> — a metade de decodificação, sobre <code>useCameraStream</code>; loop que não se
   sobrepõe, <code>formats</code> resolvidos pela interseção com o motor.</li>
+<li><code>useCameraStream</code> — a câmera crua, na raiz: abre, classifica o erro e libera no unmount,
+  sem exigir o <code>onnxruntime-web</code>.</li>
 <li><code>useTorch</code> — a lanterna é constraint de track viva, não dispositivo; <code>supported</code> só vale
   depois do stream.</li>
 <li><code>useVideoRecorder</code> — mesmo motor do áudio: relógio que desconta pausa, <code>stop()</code> com todos
@@ -5738,7 +5763,8 @@ estado do app e torcer para os dois não divergirem.</p>
 <ul>
 <li><a href="../audio/">Áudio</a> — microfone, gravação de voz, WAV, saída de som</li>
 <li><a href="../components/utility/">Componentes utilitários</a> — o <code>QRCode</code>, que codifica</li>
-<li><a href="../vision/">Vision (ONNX)</a> — o <code>useCameraStream</code> que este módulo reaproveita</li>
+<li><a href="../vision/#usecamerastream-abrir-a-camera">Vision (ONNX)</a> — o <code>useCameraStream</code>, exportado
+  na raiz por este módulo e documentado junto da luminância</li>
 </ul>
 
 

@@ -3157,12 +3157,36 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="CRUD completo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#listar-por-outro-indice-listby" class="md-nav__link">
+    <span class="md-ellipsis">
+      Listar por outro índice: listBy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
   <a href="#combinando-com-sse-tanstack-query" class="md-nav__link">
     <span class="md-ellipsis">
       Combinando com SSE + TanStack Query
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#armazenamento-cheio-storagefullerror" class="md-nav__link">
+    <span class="md-ellipsis">
+      Armazenamento cheio: StorageFullError
     </span>
   </a>
   
@@ -3937,6 +3961,8 @@
       
         
       
+        
+      
     
     
       
@@ -4045,6 +4071,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4613,12 +4660,36 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="CRUD completo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#listar-por-outro-indice-listby" class="md-nav__link">
+    <span class="md-ellipsis">
+      Listar por outro índice: listBy
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
   <a href="#combinando-com-sse-tanstack-query" class="md-nav__link">
     <span class="md-ellipsis">
       Combinando com SSE + TanStack Query
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#armazenamento-cheio-storagefullerror" class="md-nav__link">
+    <span class="md-ellipsis">
+      Armazenamento cheio: StorageFullError
     </span>
   </a>
   
@@ -4782,6 +4853,57 @@
 <span class="k">await</span><span class="w"> </span><span class="nx">notificationsStore</span><span class="p">.</span><span class="ow">delete</span><span class="p">(</span><span class="s2">"m-1"</span><span class="p">);</span><span class="w"> </span><span class="c1">// por key</span>
 <span class="k">await</span><span class="w"> </span><span class="nx">notificationsStore</span><span class="p">.</span><span class="nx">clear</span><span class="p">(</span><span class="nx">ownerId</span><span class="p">);</span><span class="w"> </span><span class="c1">// todos do owner</span>
 </code></pre></div>
+<h3 id="listar-por-outro-indice-listby">Listar por outro índice: <code>listBy</code></h3>
+<p>O <code>list</code> filtra pelo dono. Para listar por <strong>outro</strong> campo indexado — as fotos de uma visita, as mensagens de um chat — use <code>listBy(índice, valor, owner?, options?)</code>. Ele vai pelo índice do IndexedDB e continua respeitando o dono:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">VisitPhoto</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">technician_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">visit_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">taken_at</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">photos</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="o">&lt;</span><span class="nx">VisitPhoto</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"CampoFotos"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">tableName</span><span class="o">:</span><span class="w"> </span><span class="s2">"photos"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">indexes</span><span class="o">:</span><span class="w"> </span><span class="s2">"&amp;id, technician_id, visit_id, taken_at"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">ownerField</span><span class="o">:</span><span class="w"> </span><span class="s2">"technician_id"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">daVisita</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">listBy</span><span class="p">(</span><span class="s2">"visit_id"</span><span class="p">,</span><span class="w"> </span><span class="s2">"visita-7"</span><span class="p">,</span><span class="w"> </span><span class="s2">"tec-ana"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">orderBy</span><span class="o">:</span><span class="w"> </span><span class="s2">"taken_at"</span><span class="p">,</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Os dois atalhos que ele substitui erram cada um de um jeito:</p>
+<table>
+<thead>
+<tr>
+<th>Chamada</th>
+<th>Usa o índice?</th>
+<th>Respeita o dono?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>list(owner, { filter: (p) =&gt; p.visit_id === id })</code></td>
+<td>não — lê <strong>todo</strong> registro do dono</td>
+<td>sim</td>
+</tr>
+<tr>
+<td><code>raw.where("visit_id").equals(id)</code></td>
+<td>sim</td>
+<td><strong>não</strong> — devolve foto de outro técnico</td>
+</tr>
+<tr>
+<td><code>listBy("visit_id", id, owner)</code></td>
+<td>sim</td>
+<td>sim</td>
+</tr>
+</tbody>
+</table>
+<p>Medido no teste <code>create-offline-store.list-by.test.ts</code> (<code>npx vitest run src/offline/create-offline-store.list-by.test.ts</code>): dois donos, 20 fotos cada, 4 por visita — o <code>filter</code> do <code>list</code> é chamado 20 vezes para achar 4; o do <code>listBy</code> só vê as 4 que o índice e o dono já separaram. O índice precisa estar declarado em <code>indexes</code>; um campo não indexado rejeita com o <code>SchemaError</code> do Dexie em vez de varrer a tabela. Sem <code>owner</code> (ou sem <code>ownerField</code>), volta o resultado de todos os donos, como no <code>list</code>.</p>
 <p><code>raw</code> (a <code>Table</code> do Dexie) e <code>db</code> (a instância Dexie) ficam expostos pra queries avançadas — transações multi-tabela, <code>where().and()</code> complexos:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">notificationsStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"./stores"</span><span class="p">;</span>
 
@@ -4810,6 +4932,88 @@
 <span class="w">  </span><span class="nx">queryFn</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">notificationsStore</span><span class="p">.</span><span class="nx">list</span><span class="p">(</span><span class="nx">userId</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">orderBy</span><span class="o">:</span><span class="w"> </span><span class="s2">"created_at"</span><span class="p">,</span><span class="w"> </span><span class="nx">reverse</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">}),</span>
 <span class="p">});</span>
 </code></pre></div>
+<h2 id="armazenamento-cheio-storagefullerror">Armazenamento cheio: <code>StorageFullError</code></h2>
+<p>Toda escrita do store — <code>put</code>, <code>bulkPut</code>, <code>update</code>, <code>updateMany</code>, <code>delete</code> e <code>clear</code> — rejeita com <code>StorageFullError</code> quando o navegador recusa por falta de espaço. É o sinal para o app dizer "memória cheia, sincronize antes de continuar", em vez de mostrar o erro do Dexie:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">StorageFullError</span><span class="p">,</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Visit</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">technician_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">notes</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">visits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="o">&lt;</span><span class="nx">Visit</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"CampoVisitas"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">tableName</span><span class="o">:</span><span class="w"> </span><span class="s2">"visits"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">indexes</span><span class="o">:</span><span class="w"> </span><span class="s2">"&amp;id, technician_id"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">ownerField</span><span class="o">:</span><span class="w"> </span><span class="s2">"technician_id"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">saveVisit</span><span class="p">(</span><span class="nx">visit</span><span class="o">:</span><span class="w"> </span><span class="kt">Visit</span><span class="p">,</span><span class="w"> </span><span class="nx">owner</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="s2">"saved"</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="s2">"full"</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">visits</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">visit</span><span class="p">,</span><span class="w"> </span><span class="nx">owner</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="s2">"saved"</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">StorageFullError</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="s2">"full"</span><span class="p">;</span>
+<span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="nx">error</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Testar <code>error.name === "QuotaExceededError"</code> não basta, porque não é esse o erro que chega. Medido no Chromium 159, com a cota da origem em 1 MiB (<code>Storage.overrideQuotaForOrigin</code> do DevTools Protocol) e um registro de 4 MiB: as quatro escritas rejeitaram com o <strong><code>AbortError</code></strong> do Dexie. O pedido em si dá certo; a cota é cobrada quando a transação faz commit, e o <code>QuotaExceededError</code> só aparece no <code>inner</code> do abort. O store reconhece essa forma e as outras:</p>
+<table>
+<thead>
+<tr>
+<th>O que o Dexie entrega</th>
+<th>Quando</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AbortError</code> com <code>inner</code> <code>QuotaExceededError</code></td>
+<td>cota cobrada no commit — o caso medido no Chromium</td>
+</tr>
+<tr>
+<td><code>QuotaExceededError</code> do Dexie</td>
+<td>o próprio pedido recusado</td>
+</tr>
+<tr>
+<td><code>BulkError</code> / <code>ModifyError</code> com a cota em <code>failures</code></td>
+<td><code>bulkPut</code> / <code>updateMany</code> com registros recusados um a um</td>
+</tr>
+</tbody>
+</table>
+<p>O erro original fica em <code>cause</code>. Depois de um <code>bulkPut</code>, <code>cause</code> pode ser o <code>BulkError</code> do Dexie, cujo <code>failuresByPos</code> diz quais registros falharam — os outros podem ter sido gravados. Qualquer outro erro passa inalterado. O <code>enqueue</code> do <a href="../offline-sync/"><code>createOfflineSync</code></a> herda o comportamento, porque a outbox é um <code>OfflineStore</code>.</p>
+<p>A reprodução sem browser (<code>npx vitest run src/offline/create-offline-store.quota.test.ts</code>) aborta o commit com <code>QuotaExceededError</code> no fake-indexeddb, como o Chromium faz, e cobre cada escrita.</p>
+<p><code>raw</code> e <code>db</code> são o Dexie direto e <strong>não</strong> convertem. Numa transação sua, a cota é cobrada no commit <strong>da transação</strong>, então teste o erro dela com <code>isQuotaExceededError</code>, que reconhece as mesmas formas:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="p">,</span><span class="w"> </span><span class="nx">isQuotaExceededError</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Draft</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">drafts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="o">&lt;</span><span class="nx">Draft</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"Rascunhos"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">tableName</span><span class="o">:</span><span class="w"> </span><span class="s2">"drafts"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">indexes</span><span class="o">:</span><span class="w"> </span><span class="s2">"&amp;id"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">saveAll</span><span class="p">(</span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="kt">Draft</span><span class="p">[])</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="kt">boolean</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">drafts</span><span class="p">.</span><span class="nx">db</span><span class="p">.</span><span class="nx">transaction</span><span class="p">(</span><span class="s2">"rw"</span><span class="p">,</span><span class="w"> </span><span class="nx">drafts</span><span class="p">.</span><span class="nx">raw</span><span class="p">,</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">drafts</span><span class="p">.</span><span class="nx">raw</span><span class="p">.</span><span class="nx">clear</span><span class="p">();</span>
+<span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">drafts</span><span class="p">.</span><span class="nx">raw</span><span class="p">.</span><span class="nx">bulkAdd</span><span class="p">(</span><span class="nx">items</span><span class="p">);</span>
+<span class="w">    </span><span class="p">});</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isQuotaExceededError</span><span class="p">(</span><span class="nx">error</span><span class="p">))</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">    </span><span class="k">throw</span><span class="w"> </span><span class="nx">error</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O SDK <strong>não</strong> recusa gravação olhando o <code>navigator.storage.estimate()</code>: o número é aproximado, e a recusa do navegador é o sinal exato. Para avisar antes de encher, use o <a href="../pwa/#4-durabilidade-peca-armazenamento-persistente"><code>useStorageEstimate</code></a>.</p>
 <h2 id="createofflinedatabase-varias-tabelas-numa-base"><code>createOfflineDatabase</code> — várias tabelas numa base</h2>
 <p><code>createOfflineStore</code> dá a cada store uma base só dela, que é a forma certa pra um cache isolado. Deixa de ser assim no instante em que as tabelas pertencem uma à outra: chats e suas mensagens, uma entidade e seus rascunhos, qualquer coisa que você leria ou limparia como uma unidade. Separá-las em bases diferentes custa a transação de verdade — o Dexie só roda uma atomicamente <strong>dentro</strong> de uma mesma base — e ainda espalha o bump de versão de uma mudança relacionada por dois lugares.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineDatabase</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
@@ -4864,6 +5068,8 @@
 <li><code>createOfflineStore({ databaseName, version, tableName, indexes, keyPath, ownerField })</code> devolve um CRUD tipado sobre IndexedDB via Dexie (dependência direta do SDK).</li>
 <li><code>ownerField</code> ativa scoping multi-tenant: <code>put</code>/<code>list</code>/<code>count</code>/<code>clear</code>/<code>updateMany</code> respeitam o <code>owner</code> e isolam dados por usuário.</li>
 <li>CRUD: <code>put</code>/<code>bulkPut</code>, <code>get</code>/<code>list</code> (com <code>orderBy</code>/<code>reverse</code>/<code>limit</code>/<code>offset</code>/<code>filter</code>), <code>update</code>/<code>updateMany</code>, <code>delete</code>/<code>clear</code>, <code>count</code>.</li>
+<li><code>listBy(índice, valor, owner)</code> lista por outro campo indexado pelo índice, sem perder o dono.</li>
+<li>Escrita recusada por falta de espaço rejeita com <code>StorageFullError</code> (original em <code>cause</code>); em <code>raw</code>/<code>db</code>, use <code>isQuotaExceededError</code>.</li>
 <li><code>raw</code> e <code>db</code> abrem a porta pra queries Dexie avançadas.</li>
 <li>Bump <code>version</code> ao mudar <code>indexes</code>; use <code>db.version(N).upgrade(...)</code> pra migrações de dados.</li>
 </ul>

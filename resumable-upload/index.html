@@ -3982,6 +3982,8 @@
       
         
       
+        
+      
     
     
       
@@ -4090,6 +4092,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5028,7 +5051,7 @@
 <div class="admonition warning">
 <p class="admonition-title">Sessão por cookie: <code>clear()</code> no fim de sessão, ou <code>getPrincipal</code></p>
 <p>Sem <code>getToken</code> — sessão só por cookie, fora do <code>createTempestAuth</code>, que sempre tem token — o SDK não enxerga quem está logado: o cookie é HttpOnly, e nada no navegador avisa a troca de conta. O registro fica sem dono e é retomado por quem vier depois. O teardown que alcança esse caso é o <code>createLocalUploadStorage().clear()</code> no fim de sessão, e ele basta: apaga os registros, para o run em andamento (<code>reason: "cleared"</code>) e, desde a <strong>0.84.0</strong>, faz o handle <strong>pausado</strong> antes dele recomeçar com <code>Idempotency-Key</code> nova em vez de levar a da sessão anterior para a criação do upload da conta seguinte (#528 — até a 0.83.0 o <code>resume()</code> de B reaproveitava a chave de A). O <code>abort()</code> deixa de ser necessário aqui. Para retomar entre reloads sem depender do teardown, passe <code>getPrincipal</code>.</p>
-<p>Se cruzar contas ainda depende do servidor tus. O tempest-fastapi-sdk não tem servidor tus (na 0.345.0 nenhum handler responde <code>Upload-Offset</code>), então quem autoriza <code>HEAD</code>/<code>PATCH</code> numa URL de upload é o servidor que você implantou — muitos tratam a URL como a própria credencial. O <code>IdempotencyMiddleware</code> dele, por outro lado, escopa a chave pelo digest de <code>Authorization</code>, <code>Cookie</code>, <code>X-Token</code> e <code>X-API-Key</code>: a chave de A repetida por B não devolve o upload de A.</p>
+<p>Se cruzar contas ainda depende do servidor tus. A partir da 0.370.0 o tempest-fastapi-sdk tem servidor tus (<a href="https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/resumable-upload/"><code>make_tus_router</code></a>): com <code>current_user_id</code> configurado, só o dono do upload sonda, continua ou apaga a URL, e qualquer outra conta recebe <code>404 TUS_UPLOAD_NOT_FOUND</code>; sem <code>current_user_id</code>, o upload é anônimo e a URL é a única credencial. Com outro servidor tus (como o <code>tusd</code>), quem autoriza <code>HEAD</code>/<code>PATCH</code> é ele — muitos tratam a URL como a própria credencial. O <code>IdempotencyMiddleware</code> dele, por outro lado, escopa a chave pelo digest de <code>Authorization</code>, <code>Cookie</code>, <code>X-Token</code> e <code>X-API-Key</code>: a chave de A repetida por B não devolve o upload de A.</p>
 </div>
 <h2 id="a-falha-que-realmente-acontece">A falha que realmente acontece</h2>
 <p>Não é o chunk que se perde. É o chunk que o <strong>servidor gravou e cuja resposta não voltou</strong>. O cliente não distingue isso de um chunk perdido, e reenviar às cegas duplicaria bytes.</p>

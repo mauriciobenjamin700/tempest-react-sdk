@@ -2205,6 +2205,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stat">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#polaridade-quando-subir-e-ruim" class="md-nav__link">
+    <span class="md-ellipsis">
+      Polaridade: quando subir é ruim
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2307,6 +2322,15 @@
   <a href="#syncstatusbadge" class="md-nav__link">
     <span class="md-ellipsis">
       SyncStatusBadge
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storageusage" class="md-nav__link">
+    <span class="md-ellipsis">
+      StorageUsage
     </span>
   </a>
   
@@ -4025,6 +4049,8 @@
       
         
       
+        
+      
     
     
       
@@ -4133,6 +4159,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4719,6 +4766,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stat">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#polaridade-quando-subir-e-ruim" class="md-nav__link">
+    <span class="md-ellipsis">
+      Polaridade: quando subir é ruim
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4821,6 +4883,15 @@
   <a href="#syncstatusbadge" class="md-nav__link">
     <span class="md-ellipsis">
       SyncStatusBadge
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storageusage" class="md-nav__link">
+    <span class="md-ellipsis">
+      StorageUsage
     </span>
   </a>
   
@@ -5170,6 +5241,11 @@
 <td>inferido por <code>+</code>/<code>-</code> em delta string</td>
 </tr>
 <tr>
+<td><code>higherIsBetter</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
 <td><code>hint</code></td>
 <td><code>ReactNode</code></td>
 <td>—</td>
@@ -5181,6 +5257,29 @@
 </tr>
 </tbody>
 </table>
+<h3 id="polaridade-quando-subir-e-ruim">Polaridade: quando subir é ruim</h3>
+<p>A cor do delta diz <strong>bom</strong> ou <strong>ruim</strong>, não "subiu" ou "desceu". Por padrão, alta é
+verde e queda é vermelha. Em métrica onde crescer é o problema — taxa de faltas,
+churn, tempo de resposta, chamados abertos — passe <code>higherIsBetter={false}</code>: a alta
+fica vermelha e a queda, verde. A direção não muda; <code>trend</code> e o texto do delta
+continuam dizendo para onde o número foi.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Stat</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">TaxaDeFaltas</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Stat</span>
+<span class="w">            </span><span class="na">label</span><span class="o">=</span><span class="s">"Faltas"</span>
+<span class="w">            </span><span class="na">value</span><span class="o">=</span><span class="s">"7,5%"</span>
+<span class="w">            </span><span class="na">delta</span><span class="o">=</span><span class="s">"+1,2 p.p."</span>
+<span class="w">            </span><span class="na">higherIsBetter</span><span class="o">=</span><span class="p">{</span><span class="kc">false</span><span class="p">}</span>
+<span class="w">            </span><span class="na">hint</span><span class="o">=</span><span class="s">"vs. semana passada"</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>O delta expõe <code>data-trend</code> (<code>up</code>/<code>down</code>/<code>flat</code>) e <code>data-tone</code>
+(<code>positive</code>/<code>negative</code>/<code>neutral</code>), para teste ou estilo do app sem depender de
+classe com hash.</p>
 <h2 id="progress"><code>Progress</code></h2>
 <!-- gallery:advanced -->
 <p><a href="../../gallery/"><img alt="Stepper · Progress · VirtualList na gallery" src="../../assets/gallery/advanced.webp" /></a></p>
@@ -5696,6 +5795,10 @@ duplicado quando o que caiu foi a rede.</p>
 <span class="w">    </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
+<p>Sem <code>title</code>, <code>description</code> ou <code>retryLabel</code>, os textos padrão vêm do
+<a href="../../i18n/#textos-padrao-dos-componentes">i18n</a> (<code>tempest.errorState.*</code>): em
+inglês com locale <code>en</code>, em pt-BR sem provider. <code>description={null}</code> some com a
+descrição.</p>
 <h2 id="offlineindicator"><code>OfflineIndicator</code></h2>
 <p><strong>Quando usar:</strong> avisar que o app está offline e confirmar quando a conexão volta. Guiado por <code>useOnline</code> — não renderiza nada online, então monte na raiz sem <code>if</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">OfflineIndicator</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
@@ -5731,6 +5834,80 @@ duplicado quando o que caiu foi a rede.</p>
 <span class="p">}</span>
 </code></pre></div>
 <p><code>tone</code>: <code>"idle"</code> | <code>"syncing"</code> | <code>"pending"</code> | <code>"offline"</code> | <code>"error"</code>. <code>iconOnly</code> esconde o label; <code>labels</code> sobrescreve os textos por tom.</p>
+<p><code>sync</code> aceita o motor com o payload que ele tiver (<code>OfflineSync&lt;Nota&gt;</code> acima): a prop é tipada como <code>SyncStatusSource</code>, só o <code>getState</code> e o <code>subscribe</code> que o badge lê. Até a 0.92.0 ela era <code>OfflineSync&lt;unknown&gt;</code>, e todo motor tipado reprovava com TS2322 sob <code>strict</code> — o <code>enqueue</code> recebe o payload, então o motor não é covariante nele.</p>
+<h2 id="storageusage"><code>StorageUsage</code></h2>
+<p><strong>Quando usar:</strong> mostrar quanto do armazenamento do navegador o app usa, quanto disso ainda não foi enviado ao servidor, e avisar quando o espaço está acabando ou quando os dados pendentes podem ser apagados pelo navegador. O componente <strong>não lê o navegador sozinho</strong>: recebe os números por prop. <code>usage</code>, <code>quota</code> e <code>persisted</code> vêm do <a href="../../pwa/#4-durabilidade-peca-armazenamento-persistente"><code>useStorageEstimate</code></a>; <code>pendingBytes</code> vem de quem sabe o que falta subir (o motor offline, a fila de upload do app); <code>warnAt</code> é o limite que <strong>o app</strong> escolhe.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">StorageUsage</span><span class="p">,</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Armazenamento</span><span class="p">({</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">storage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">({</span><span class="w"> </span><span class="nx">pollMs</span><span class="o">:</span><span class="w"> </span><span class="kt">30_000</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">StorageUsage</span>
+<span class="w">            </span><span class="na">usage</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">usage</span><span class="p">}</span>
+<span class="w">            </span><span class="na">quota</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">quota</span><span class="p">}</span>
+<span class="w">            </span><span class="na">persisted</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">persisted</span><span class="p">}</span>
+<span class="w">            </span><span class="na">pendingBytes</span><span class="o">=</span><span class="p">{</span><span class="nx">pendingBytes</span><span class="p">}</span>
+<span class="w">            </span><span class="na">warnAt</span><span class="o">=</span><span class="p">{</span><span class="mf">0.9</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onRequestPersist</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">requestPersist</span><span class="p">}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Mostra "X de Y usados · Z pendentes de envio" com os bytes formatados por <code>formatBytes</code>. Avisa em dois casos:</p>
+<ul>
+<li><strong>Acima do limite</strong>: <code>usage / quota &gt;= warnAt</code> (default <code>0.8</code>) pinta a barra de vermelho e mostra "Armazenamento quase cheio".</li>
+<li><strong>Pendências em armazenamento não permanente</strong>: <code>persisted === false</code> com <code>pendingBytes &gt; 0</code>. Fora da tela inicial, o Safari apaga os dados do site depois de ~7 dias sem uso, e qualquer navegador pode despejar sob pressão de disco.</li>
+</ul>
+<p>Com <code>persisted === false</code> e <code>onRequestPersist</code>, aparece o botão "Tornar armazenamento permanente"; se o callback devolve uma promise, o botão fica em <code>loading</code> até ela terminar. O SDK não chama <code>requestPersistentStorage()</code> sozinho porque no Firefox isso abre um pedido de permissão: quem decide o momento é o app.</p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>usage</code></td>
+<td><code>number \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>quota</code></td>
+<td><code>number \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>pendingBytes</code></td>
+<td><code>number \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>persisted</code></td>
+<td><code>boolean \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>warnAt</code></td>
+<td><code>number</code> (razão em <code>[0, 1]</code>)</td>
+<td><code>0.8</code></td>
+</tr>
+<tr>
+<td><code>onRequestPersist</code></td>
+<td><code>() =&gt; unknown</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;StorageUsageLabels&gt;</code></td>
+<td>PT-BR</td>
+</tr>
+</tbody>
+</table>
+<p><code>null</code> é "o navegador não informa": com <code>usage</code> ou <code>quota</code> <code>null</code> (ou <code>quota</code> <code>0</code>) a barra dá lugar a uma frase, em vez de uma barra vazia que leria 0%. <code>pendingBytes</code> omitido esconde a linha de pendências; <code>persisted</code> <code>null</code> não mostra aviso nem botão.</p>
+<p><strong>A11y:</strong> a barra é <code>role="meter"</code> (nível, não progresso de tarefa) nomeada pelo título, com <code>aria-valuetext</code> igual ao "X de Y usados" que o olho lê. Os avisos usam <code>role="status"</code> (polido), não o <code>role="alert"</code> padrão do <code>Alert</code>: o componente costuma montar numa tela com o aviso já verdadeiro, e um anúncio assertivo a cada montagem interromperia o leitor.</p>
 <h2 id="updateprompt"><code>UpdatePrompt</code></h2>
 <p><strong>Quando usar:</strong> avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de <code>useServiceWorkerUpdate</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">UpdatePrompt</span><span class="p">,</span><span class="w"> </span><span class="nx">useServiceWorkerUpdate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>

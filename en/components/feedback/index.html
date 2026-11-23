@@ -2205,6 +2205,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stat">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#polarity-when-going-up-is-bad" class="md-nav__link">
+    <span class="md-ellipsis">
+      Polarity: when going up is bad
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2307,6 +2322,15 @@
   <a href="#syncstatusbadge" class="md-nav__link">
     <span class="md-ellipsis">
       SyncStatusBadge
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storageusage" class="md-nav__link">
+    <span class="md-ellipsis">
+      StorageUsage
     </span>
   </a>
   
@@ -4025,6 +4049,8 @@
       
         
       
+        
+      
     
     
       
@@ -4133,6 +4159,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4719,6 +4766,21 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Stat">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#polarity-when-going-up-is-bad" class="md-nav__link">
+    <span class="md-ellipsis">
+      Polarity: when going up is bad
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -4821,6 +4883,15 @@
   <a href="#syncstatusbadge" class="md-nav__link">
     <span class="md-ellipsis">
       SyncStatusBadge
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storageusage" class="md-nav__link">
+    <span class="md-ellipsis">
+      StorageUsage
     </span>
   </a>
   
@@ -5184,6 +5255,11 @@ NPS) on dashboards. For several KPIs side by side, combine with <code>Grid</code
 <td>inferred from <code>+</code>/<code>-</code> in the delta string</td>
 </tr>
 <tr>
+<td><code>higherIsBetter</code></td>
+<td><code>boolean</code></td>
+<td><code>true</code></td>
+</tr>
+<tr>
 <td><code>hint</code></td>
 <td><code>ReactNode</code></td>
 <td>—</td>
@@ -5195,6 +5271,29 @@ NPS) on dashboards. For several KPIs side by side, combine with <code>Grid</code
 </tr>
 </tbody>
 </table>
+<h3 id="polarity-when-going-up-is-bad">Polarity: when going up is bad</h3>
+<p>The delta's color says <strong>good</strong> or <strong>bad</strong>, not "up" or "down". By default a rise
+is green and a fall is red. On a metric where growth is the problem — no-show
+rate, churn, response time, open tickets — pass <code>higherIsBetter={false}</code>: the rise
+turns red and the fall green. The direction is untouched; <code>trend</code> and the delta
+text still say which way the number moved.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Stat</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">NoShowRate</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Stat</span>
+<span class="w">            </span><span class="na">label</span><span class="o">=</span><span class="s">"No-shows"</span>
+<span class="w">            </span><span class="na">value</span><span class="o">=</span><span class="s">"7.5%"</span>
+<span class="w">            </span><span class="na">delta</span><span class="o">=</span><span class="s">"+1.2 pp"</span>
+<span class="w">            </span><span class="na">higherIsBetter</span><span class="o">=</span><span class="p">{</span><span class="kc">false</span><span class="p">}</span>
+<span class="w">            </span><span class="na">hint</span><span class="o">=</span><span class="s">"vs. last week"</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The delta exposes <code>data-trend</code> (<code>up</code>/<code>down</code>/<code>flat</code>) and <code>data-tone</code>
+(<code>positive</code>/<code>negative</code>/<code>neutral</code>), for a test or an app style that should not
+depend on a hashed class.</p>
 <h2 id="progress"><code>Progress</code></h2>
 <!-- gallery:advanced -->
 <p><a href="../../gallery/"><img alt="Stepper · Progress · VirtualList in the gallery" src="../../../assets/gallery/advanced.webp" /></a></p>
@@ -5751,6 +5850,10 @@ the user can retry. Unlike <code>EmptyState</code>, which represents success wit
 <span class="w">    </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
+<p>Without <code>title</code>, <code>description</code> or <code>retryLabel</code>, the defaults come from
+<a href="../../i18n/#component-default-texts">i18n</a> (<code>tempest.errorState.*</code>): English
+under an <code>en</code> locale, pt-BR with no provider. <code>description={null}</code> drops the
+description.</p>
 <h2 id="offlineindicator"><code>OfflineIndicator</code></h2>
 <p><strong>When to use:</strong> warn that the app is offline and confirm when the connection returns. Driven by <code>useOnline</code> — renders nothing while online, so mount it at the root without an <code>if</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">OfflineIndicator</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
@@ -5786,6 +5889,90 @@ the user can retry. Unlike <code>EmptyState</code>, which represents success wit
 <span class="p">}</span>
 </code></pre></div>
 <p><code>tone</code>: <code>"idle"</code> | <code>"syncing"</code> | <code>"pending"</code> | <code>"offline"</code> | <code>"error"</code>. <code>iconOnly</code> hides the label; <code>labels</code> overrides the per-tone text.</p>
+<p><code>sync</code> accepts the engine with whatever payload it carries (<code>OfflineSync&lt;Nota&gt;</code> above): the prop is typed <code>SyncStatusSource</code>, just the <code>getState</code> and <code>subscribe</code> the badge reads. Up to 0.92.0 it was <code>OfflineSync&lt;unknown&gt;</code>, and every typed engine failed with TS2322 under <code>strict</code> — <code>enqueue</code> takes the payload, so the engine is not covariant in it.</p>
+<h2 id="storageusage"><code>StorageUsage</code></h2>
+<p><strong>When to use:</strong> show how much browser storage the app uses, how much of it has not been sent to the server yet, and warn when space is running out or when pending data could be cleared by the browser. The component <strong>does not read the browser by itself</strong>: it takes the numbers as props. <code>usage</code>, <code>quota</code> and <code>persisted</code> come from <a href="../../pwa/#4-durability-request-persistent-storage"><code>useStorageEstimate</code></a>; <code>pendingBytes</code> comes from whoever knows what is left to upload (the offline engine, the app's upload queue); <code>warnAt</code> is the threshold <strong>the app</strong> picks.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">StorageUsage</span><span class="p">,</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Storage</span><span class="p">({</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">storage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">({</span><span class="w"> </span><span class="nx">pollMs</span><span class="o">:</span><span class="w"> </span><span class="kt">30_000</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">StorageUsage</span>
+<span class="w">            </span><span class="na">usage</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">usage</span><span class="p">}</span>
+<span class="w">            </span><span class="na">quota</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">quota</span><span class="p">}</span>
+<span class="w">            </span><span class="na">persisted</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">persisted</span><span class="p">}</span>
+<span class="w">            </span><span class="na">pendingBytes</span><span class="o">=</span><span class="p">{</span><span class="nx">pendingBytes</span><span class="p">}</span>
+<span class="w">            </span><span class="na">warnAt</span><span class="o">=</span><span class="p">{</span><span class="mf">0.9</span><span class="p">}</span>
+<span class="w">            </span><span class="na">onRequestPersist</span><span class="o">=</span><span class="p">{</span><span class="nx">storage</span><span class="p">.</span><span class="nx">requestPersist</span><span class="p">}</span>
+<span class="w">            </span><span class="na">labels</span><span class="o">=</span><span class="p">{{</span>
+<span class="w">                </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Storage"</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">used</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">usage</span><span class="p">,</span><span class="w"> </span><span class="nx">quota</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">usage</span><span class="si">}</span><span class="sb"> of </span><span class="si">${</span><span class="nx">quota</span><span class="si">}</span><span class="sb"> used`</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">pending</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">pending</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">pending</span><span class="si">}</span><span class="sb"> waiting to upload`</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">nothingPending</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nothing waiting to upload"</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">unsupported</span><span class="o">:</span><span class="w"> </span><span class="s2">"This browser does not report storage usage."</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">overLimit</span><span class="o">:</span><span class="w"> </span><span class="s2">"Storage almost full. Sync before recording more data."</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">notPersisted</span><span class="o">:</span><span class="w"> </span><span class="s2">"Storage is not persistent: the browser may clear data not sent yet."</span><span class="p">,</span>
+<span class="w">                </span><span class="nx">persistAction</span><span class="o">:</span><span class="w"> </span><span class="s2">"Make storage persistent"</span><span class="p">,</span>
+<span class="w">            </span><span class="p">}}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>It shows "X of Y used · Z waiting to upload", with bytes formatted by <code>formatBytes</code>. It warns in two cases:</p>
+<ul>
+<li><strong>Over the threshold</strong>: <code>usage / quota &gt;= warnAt</code> (default <code>0.8</code>) turns the bar red and shows the "almost full" warning.</li>
+<li><strong>Pending data in non-persistent storage</strong>: <code>persisted === false</code> with <code>pendingBytes &gt; 0</code>. Outside the home screen, Safari clears site data after ~7 days without use, and any browser may evict under disk pressure.</li>
+</ul>
+<p>With <code>persisted === false</code> and <code>onRequestPersist</code>, a "make storage persistent" button shows up; if the callback returns a promise, the button stays <code>loading</code> until it settles. The SDK does not call <code>requestPersistentStorage()</code> by itself because in Firefox that opens a permission prompt: the app decides when.</p>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Type</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>usage</code></td>
+<td><code>number \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>quota</code></td>
+<td><code>number \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>pendingBytes</code></td>
+<td><code>number \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>persisted</code></td>
+<td><code>boolean \| null</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>warnAt</code></td>
+<td><code>number</code> (ratio in <code>[0, 1]</code>)</td>
+<td><code>0.8</code></td>
+</tr>
+<tr>
+<td><code>onRequestPersist</code></td>
+<td><code>() =&gt; unknown</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;StorageUsageLabels&gt;</code></td>
+<td>PT-BR</td>
+</tr>
+</tbody>
+</table>
+<p><code>null</code> means "the browser does not report it": with <code>usage</code> or <code>quota</code> <code>null</code> (or <code>quota</code> <code>0</code>) the bar is replaced by a sentence, instead of an empty bar that would read as 0%. Omitting <code>pendingBytes</code> hides the pending line; <code>persisted</code> <code>null</code> shows neither warning nor button.</p>
+<p><strong>A11y:</strong> the bar is a <code>role="meter"</code> (a level, not task progress) named by the title, with <code>aria-valuetext</code> equal to the "X of Y used" the eye reads. Warnings use <code>role="status"</code> (polite), not the <code>Alert</code> default <code>role="alert"</code>: the component usually mounts on a screen with the warning already true, and an assertive announcement on every mount would interrupt the reader.</p>
 <h2 id="updateprompt"><code>UpdatePrompt</code></h2>
 <p><strong>When to use:</strong> announce a new app version (service worker) and let the user reload. Pairs with <code>useServiceWorkerUpdate</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">UpdatePrompt</span><span class="p">,</span><span class="w"> </span><span class="nx">useServiceWorkerUpdate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>

@@ -4192,6 +4192,8 @@
       
         
       
+        
+      
     
     
       
@@ -4300,6 +4302,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5246,7 +5269,7 @@
 <li><code>getToken()</code> — chamado a cada request; retornar string injeta <code>Authorization: Bearer &lt;token&gt;</code>.</li>
 <li><code>onUnauthorized(response, context)</code> — disparado sempre que a requisição termina sem autorização: 401 sem <code>refresh</code>, <code>refresh()</code> que rejeitou, ou repetição que voltou 401 de novo. Use pra deslogar. O <code>context</code> descreve a tentativa que voltou 401 (a repetição, quando foi ela); lançar <code>SessionSupersededError</code> ali faz a request rejeitar com esse erro. Com <code>getSessionEpoch</code>, um 401 que chega <strong>depois</strong> de a época em que a tentativa saiu ter mudado — com ou sem token — não chama nem <code>refresh</code> nem <code>onUnauthorized</code>: a request rejeita com <code>SessionSupersededError</code>. Esse 401 é da sessão que acabou, e deslogar por ele derrubaria a conta que entrou depois (auditoria run-17 — até a 0.90.0 um <code>createApiClient</code> próprio derrubava a sessão de B pelo 401 atrasado de A). A época é lida na chegada, antes dos hooks, então um <code>onUnauthorized</code> que desloga por causa <strong>deste</strong> 401 continua deixando o chamador com o 401 (#646).</li>
 <li><code>getSessionEpoch()</code> — contador que muda a cada troca de sessão (logout, login). O cliente o lê quando cada tentativa sai e o entrega em <code>context.epoch</code> para <code>refresh</code> e <code>onUnauthorized</code> — é o que deixa distinguir um 401 de uma sessão que já acabou. Também decide o destino de uma resposta — de sucesso ou de erro: se a tentativa saiu <strong>com</strong> token e o contador mudou antes de ela chegar, a request rejeita com <code>SessionSupersededError</code> em vez de resolver com dados da sessão que acabou (#609) ou de rejeitar com o envelope de erro dela (<code>detail</code>, <code>code</code>), que levaria os dados da conta anterior ao <code>onError</code> da atual. O <code>createTempestAuth</code> já o configura. Com <code>retry</code> ligado, também impede que uma repetição saia em outra sessão — veja <a href="#retentativa-embutida">Retentativa embutida</a>. A proteção segue o bearer: um cliente só com cookie (<code>withCredentials</code>, sem <code>getToken</code>) não manda token, e nenhuma dessas checagens se aplica a ele — o navegador anexa o cookie que estiver valendo, e o cliente não tem como distinguir uma request deslogada de uma logada.</li>
-<li><code>refresh(context)</code> — quando presente e o request der 401, o cliente aguarda <code>refresh()</code> e repete a requisição <strong>uma vez</strong>. O <code>context</code> (<code>RequestAuthContext</code>) traz <code>token</code>, o token com que a request rejeitada saiu, e <code>epoch</code>, o valor de <code>getSessionEpoch</code> naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um <code>refresh</code> que lança <code>SessionSupersededError</code> faz a request rejeitar com esse erro <strong>sem</strong> chamar <code>onUnauthorized</code>: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja <a href="../auth/#refresh-em-voo-e-troca-de-conta-sessionsupersedederror">Auth → Refresh em voo e troca de conta</a>. E se o <code>refresh</code> <strong>resolver</strong> depois de a sessão da request rejeitada ter acabado (o <code>getSessionEpoch</code> mudou e ela tinha saído com token), a request rejeita com <code>SessionSupersededError</code> em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um <code>refresh</code> próprio que ignora o <code>context</code>. Um <code>refresh</code> que <strong>lança</strong> depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com <code>SessionSupersededError</code>, sem chamar <code>onUnauthorized</code> — senão o envelope 401 da conta anterior chegaria ao <code>onError</code> da atual, e um <code>onUnauthorized</code> que chama <code>logout()</code> derrubaria a sessão nova (#657). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646). Só o <code>refresh</code> que falha conta como sessão que falhou: uma falha de rede <strong>na repetição</strong>, depois de um <code>refresh</code> que deu certo, rejeita com o erro de rede, como numa primeira tentativa, sem chamar <code>onUnauthorized</code> — até a 0.91.0 ela caía no mesmo tratamento e um soluço de rede logo depois do refresh deslogava o usuário (#684).</li>
+<li><code>refresh(context)</code> — quando presente e o request der 401, o cliente aguarda <code>refresh()</code> e repete a requisição <strong>uma vez</strong>. O <code>context</code> (<code>RequestAuthContext</code>) traz <code>token</code>, o token com que a request rejeitada saiu, e <code>epoch</code>, o valor de <code>getSessionEpoch</code> naquela hora — o que deixa a fila distinguir um 401 atrasado (o token já foi trocado: só repetir) de um novo. Um <code>refresh</code> que lança <code>SessionSupersededError</code> faz a request rejeitar com esse erro <strong>sem</strong> chamar <code>onUnauthorized</code>: a sessão do refresh acabou, e a atual não deve ser encerrada por isso — veja <a href="../auth/#refresh-em-voo-e-troca-de-conta-sessionsupersedederror">Auth → Refresh em voo e troca de conta</a>. E se o <code>refresh</code> <strong>resolver</strong> depois de a sessão da request rejeitada ter acabado (o <code>getSessionEpoch</code> mudou e ela tinha saído com token), a request rejeita com <code>SessionSupersededError</code> em vez de repetir: a repetição sairia com a credencial de quem está logado agora. Isso vale também para um <code>refresh</code> próprio que ignora o <code>context</code>. Um <code>refresh</code> que <strong>lança</strong> depois de outra conta entrar durante ele (o contador mudou e o token atual não é o da request nem vazio) também rejeita com <code>SessionSupersededError</code>, sem chamar <code>onUnauthorized</code> — senão o envelope 401 da conta anterior chegaria ao <code>onError</code> da atual, e um <code>onUnauthorized</code> que chama <code>logout()</code> derrubaria a sessão nova (#657). Isso vale também para a request que saiu <strong>sem</strong> token: um <code>login(B)</code> durante o <code>refresh</code> que falha dela não deixa o <code>onUnauthorized</code> derrubar B — até a 0.92.0 a checagem só olhava tentativas com token, e um <code>createApiClient</code> próprio deslogava B pelo 401 anônimo (#696). Se o refresh que falha deslogou por causa deste 401 (nenhum token instalado), o chamador continua vendo o 401 (#646). Só o <code>refresh</code> que falha conta como sessão que falhou: uma falha de rede <strong>na repetição</strong>, depois de um <code>refresh</code> que deu certo, rejeita com o erro de rede, como numa primeira tentativa, sem chamar <code>onUnauthorized</code> — até a 0.91.0 ela caía no mesmo tratamento e um soluço de rede logo depois do refresh deslogava o usuário (#684).</li>
 <li><code>retry</code> — <code>true</code> ou <code>RetryOptions</code>. <strong>Desligado por default.</strong> Ver <a href="#retentativa-embutida">Retentativa embutida</a>.</li>
 <li><code>logger</code> — para onde o cliente reporta cada requisição que terminou. <strong>Desligado por default.</strong> Ver <a href="#log-de-requisicao">Log de requisição</a>.</li>
 <li><code>withCredentials</code> — envia cookies em cross-origin (default <code>false</code>).</li>
@@ -5272,7 +5295,11 @@
 <span class="c1">// URL absoluta, sem enviar nada (EventSource, &lt;img src&gt;, link de download)</span>
 <span class="nx">api</span><span class="p">.</span><span class="nx">url</span><span class="p">(</span><span class="s2">"/files/relatorio.pdf"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">inline</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span>
 <span class="c1">// → "&lt;VITE_API_URL&gt;/files/relatorio.pdf?inline=true" — sem Authorization, sem token na query</span>
+<span class="c1">// URL do WebSocket no mesmo servidor: http → ws, https → wss</span>
+<span class="nx">api</span><span class="p">.</span><span class="nx">wsUrl</span><span class="p">(</span><span class="s2">"/trips/42/watch"</span><span class="p">);</span>
+<span class="c1">// → "wss://&lt;host de VITE_API_URL&gt;/trips/42/watch" quando a base é https</span>
 </code></pre></div>
+<p><code>wsUrl(path, params?)</code> (0.84.0, #706) é o <code>url()</code> com o esquema trocado — <code>http:</code> vira <code>ws:</code>, <code>https:</code> vira <code>wss:</code>, e host, porta, <code>prefix</code> e query ficam iguais. É para o <a href="../websocket/"><code>useWebSocket</code></a>, que recebe URL e não cliente: o socket servido ao lado da API REST fica sob o mesmo <code>baseURL</code>, sem uma segunda variável de ambiente para o staging apontar para a produção. Com <code>baseURL</code> relativo (<code>"/api"</code>), resolve contra a página. Um esquema sem par de WebSocket (<code>blob:</code>, <code>data:</code>) lança <code>TypeError</code> na chamada, em vez de virar "URL de WebSocket inválida" lá no <code>new WebSocket</code>. O <code>.replace(/^http/, "ws")</code> à mão acertava os dois casos comuns e deixava esse passar.</p>
 <p>Comportamento:</p>
 <ul>
 <li><code>Content-Type: application/json</code> automático (exceto <code>FormData</code>).</li>
@@ -5331,9 +5358,9 @@
 </table>
 <p>É o mesmo helper que o <a href="../data-provider/#o-id-nunca-sai-do-proprio-segmento">data provider</a> aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo <code>tempest gen api</code> usa (#499). Só valores que <strong>não</strong> são id — query string — vão em <code>params</code>, que o cliente já serializa.</p>
 <div class="admonition warning">
-<p class="admonition-title">Mock de <code>ApiClient</code> escrito à mão: acrescente <code>url</code> (0.80.0)</p>
-<p>O <code>url(path, params?)</code> entrou na interface <code>ApiClient</code> como método
-obrigatório. Quem usa <code>createApiClient</code> não muda nada; um objeto que
+<p class="admonition-title">Mock de <code>ApiClient</code> escrito à mão: acrescente <code>url</code> (0.80.0) e <code>wsUrl</code> (0.84.0)</p>
+<p>O <code>url(path, params?)</code> e depois o <code>wsUrl(path, params?)</code> entraram na
+interface <code>ApiClient</code> como métodos obrigatórios. Quem usa <code>createApiClient</code> não muda nada; um objeto que
 <strong>finge</strong> ser o cliente — o mock de teste mais comum — passa a dar erro de
 tipo até ganhar o método:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">vi</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"vitest"</span><span class="p">;</span>
@@ -5350,6 +5377,7 @@ tipo até ganhar o método:</p>
 <span class="w">    </span><span class="nx">arrayBuffer</span><span class="o">:</span><span class="w"> </span><span class="kt">vi.fn</span><span class="p">(),</span>
 <span class="w">    </span><span class="nx">upload</span><span class="o">:</span><span class="w"> </span><span class="kt">vi.fn</span><span class="p">(),</span>
 <span class="w">    </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">path</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`https://api.exemplo.com</span><span class="si">${</span><span class="nx">path</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">wsUrl</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">path</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`wss://api.exemplo.com</span><span class="si">${</span><span class="nx">path</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
 <span class="p">};</span>
 </code></pre></div>
 </div>

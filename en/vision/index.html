@@ -4192,6 +4192,8 @@
       
         
       
+        
+      
     
     
       
@@ -4300,6 +4302,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5927,14 +5950,23 @@ shape. Passing <code>numClasses</code> validates that the label count matches th
 <p>Before you can run any model you need a <strong>frame</strong> — and a decent one. The
 <code>/vision</code> subpath ships three browser primitives for that: open the camera,
 measure brightness live, and reject too-dark captures. They're generic (they
-depend on no model), but they live under <code>/vision</code> because that's where capture
-happens.</p>
+depend on no model).</p>
+<div class="admonition tip">
+<p class="admonition-title">Only need the camera? Import <code>useCameraStream</code> from the root</p>
+<p><code>useCameraStream</code> lives in the <a href="../device-capture/">capture</a> module and ships at
+the root (<code>import { useCameraStream } from "tempest-react-sdk"</code>). <code>/vision</code>
+re-exports the same function, but it imports <code>onnxruntime-web</code> statically: without
+the peer installed, esbuild fails with <code>Could not resolve "onnxruntime-web"</code>, and
+plain Node and the app's Vitest with <code>ERR_MODULE_NOT_FOUND</code>. None of that happens
+through the root — a build guard fails if the root reaches a module that imports the
+ONNX Runtime.</p>
+</div>
 <h3 id="usecamerastream-open-the-camera"><code>useCameraStream</code> — open the camera</h3>
 <p>Requests a <code>MediaStream</code> via <code>getUserMedia</code>, attaches it to a <code>&lt;video&gt;</code>, and
 exposes an already-classified <code>status</code>/<code>error</code> so you can render permission and
 error states without memorizing <code>DOMException</code> names. The stream is released
 automatically on unmount and on <code>retry()</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vision"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">CameraView</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">status</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">,</span><span class="w"> </span><span class="nx">videoRef</span><span class="p">,</span><span class="w"> </span><span class="nx">retry</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="p">();</span>
@@ -6004,7 +6036,7 @@ not a bug, it's browser policy.</p>
 <h4 id="messages-in-the-apps-language-messages">Messages in the app's language: <code>messages</code></h4>
 <p><code>error.message</code> is in <strong>English</strong> by default. To show the error in another language
 without wrapping the hook, pass <code>messages</code> — one text per <code>kind</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vision"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">CAMERA_MESSAGES</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">unsupported</span><span class="o">:</span><span class="w"> </span><span class="s2">"Este navegador não dá acesso à câmera."</span><span class="p">,</span>

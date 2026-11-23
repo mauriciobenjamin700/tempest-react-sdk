@@ -3164,6 +3164,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#states-visited-stop-and-stale-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      States: visited stop and stale position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#legend-liveroutemaplegend" class="md-nav__link">
     <span class="md-ellipsis">
       Legend — LiveRouteMapLegend
@@ -4111,6 +4120,8 @@
       
         
       
+        
+      
     
     
       
@@ -4219,6 +4230,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4899,6 +4931,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#states-visited-stop-and-stale-position" class="md-nav__link">
+    <span class="md-ellipsis">
+      States: visited stop and stale position
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#legend-liveroutemaplegend" class="md-nav__link">
     <span class="md-ellipsis">
       Legend — LiveRouteMapLegend
@@ -5170,6 +5211,7 @@ is about to override instead of restating it and drifting.</p>
 <ul>
 <li><code>minDistanceKm</code> (default <code>0.005</code> = 5 m) discards samples that are too close — filters GPS jitter while standing still.</li>
 <li><code>maxPoints</code> caps the retained array (total distance keeps counting).</li>
+<li><code>onPoint(point)</code> is called <strong>once per accepted point</strong> (after the <code>minDistanceKm</code> filter), in order. It is the way to forward each position: a <code>useEffect</code> on <code>lastPoint</code> sees only the last of two readings that land before one render — measured with two readings in the same <code>act</code>, the effect saw <code>[2, 3]</code> out of <code>[1, 2, 3]</code>, and <code>onPoint</code> saw all three. The hook reads <code>onPoint</code> from the latest render, so an inline arrow sees current state.</li>
 <li><code>autoStart: true</code> starts tracking on mount.</li>
 <li>Each point carries <code>speed</code> (m/s, the browser's unit — <code>× 3.6</code> gives km/h) and <code>heading</code> (degrees from north), <code>null</code> when the device does not report them. The <code>NaN</code> heading some browsers send while the device is stationary becomes <code>null</code> too.</li>
 </ul>
@@ -5429,13 +5471,13 @@ is about to override instead of restating it and drifting.</p>
 <td><code>vehicle</code></td>
 <td><code>LiveVehicle \| null</code></td>
 <td>—</td>
-<td><code>{ position, heading?, label? }</code>.</td>
+<td><code>{ position, heading?, label?, stale?, staleLabel? }</code>.</td>
 </tr>
 <tr>
 <td><code>markers</code></td>
 <td><code>readonly LiveRouteMarker[]</code></td>
 <td>—</td>
-<td><code>{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, content? }</code>.</td>
+<td><code>{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, visited?, content? }</code>.</td>
 </tr>
 <tr>
 <td><code>follow</code></td>
@@ -5490,6 +5532,12 @@ is about to override instead of restating it and drifting.</p>
 <td><code>Partial&lt;Record&lt;LiveRouteMarkerKind, string&gt;&gt;</code></td>
 <td><code>origem</code> / <code>parada</code> / <code>destino</code></td>
 <td>Spoken name of each kind.</td>
+</tr>
+<tr>
+<td><code>visitedLabel</code></td>
+<td><code>string</code></td>
+<td><code>"visita concluída"</code></td>
+<td>Appended to the spoken name of a <code>visited</code> marker.</td>
 </tr>
 <tr>
 <td><code>onMarkerOpenChange</code></td>
@@ -5564,6 +5612,46 @@ is about to override instead of restating it and drifting.</p>
 <p class="admonition-title">A 44 px touch target, at any size</p>
 <p>Measured in Chromium on the 0.91.0 gallery (<code>elementFromPoint</code> in 16 directions, every 2 px): a stop answered only inside its <strong>16 px</strong> disc, and then only on a 3 px ring 16 px from the center — the transparent stroke of the focus ring. Each marker now has an invisible <strong>44 px</strong> circle (WCAG 2.2, SC 2.5.5) that takes the touch, and <code>markerScale</code> never shrinks it. That is why <code>markerScale</code> still defaults to <code>1</code>: it is for <strong>reading</strong> the glyph from afar, not for being able to tap it.</p>
 </div>
+<h3 id="states-visited-stop-and-stale-position">States: visited stop and stale position</h3>
+<p>What is behind and what is ahead cannot look the same, and a position from four minutes ago cannot look live. Two fields say so on the glyph itself:</p>
+<ul>
+<li><strong><code>visited</code></strong> on a <code>LiveRouteMarker</code> paints the marker in a neutral gray (<code>--tempest-live-route-visited</code>, default <code>--tempest-text-muted</code>). The shape stays the kind's — a served stop is still round, the number still inside — and the accessible name gains <code>visitedLabel</code> (default <code>"visita concluída"</code>).</li>
+<li><strong><code>stale</code></strong> on the <code>vehicle</code> keeps it where it was last seen, without the halo and in gray (<code>--tempest-live-route-stale</code>), and appends <code>staleLabel</code> (default <code>"posição desatualizada"</code>) to the name the screen reader reads.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LiveRouteMap</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">Coordinate</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">LiveRouteMarker</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">TrackPoint</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">STALE_AFTER_MS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">30</span><span class="nx">_000</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">TripNow</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">route</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">stops</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">position</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">now</span><span class="p">,</span>
+<span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">route</span><span class="o">:</span><span class="w"> </span><span class="kt">Coordinate</span><span class="p">[];</span>
+<span class="w">  </span><span class="nx">stops</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">LiveRouteMarker</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">departed</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">})[];</span>
+<span class="w">  </span><span class="nx">position</span><span class="o">:</span><span class="w"> </span><span class="kt">TrackPoint</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">now</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">LiveRouteMap</span>
+<span class="w">      </span><span class="na">route</span><span class="o">=</span><span class="p">{</span><span class="nx">route</span><span class="p">}</span>
+<span class="w">      </span><span class="na">markers</span><span class="o">=</span><span class="p">{</span><span class="nx">stops</span><span class="p">.</span><span class="nx">map</span><span class="p">(({</span><span class="w"> </span><span class="nx">departed</span><span class="p">,</span><span class="w"> </span><span class="p">...</span><span class="nx">stop</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="p">...</span><span class="nx">stop</span><span class="p">,</span><span class="w"> </span><span class="nx">visited</span><span class="o">:</span><span class="w"> </span><span class="kt">departed</span><span class="w"> </span><span class="p">}))}</span>
+<span class="w">      </span><span class="na">vehicle</span><span class="o">=</span><span class="p">{{</span>
+<span class="w">        </span><span class="nx">position</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">heading</span><span class="o">:</span><span class="w"> </span><span class="kt">position.heading</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Van 12"</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">stale</span><span class="o">:</span><span class="w"> </span><span class="kt">now</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nx">position</span><span class="p">.</span><span class="nx">timestamp</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">STALE_AFTER_MS</span><span class="p">,</span>
+<span class="w">      </span><span class="p">}}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>The app decides what "stale" is.</strong> The map keeps no clock: a timer inside it would re-render a map with nothing new to draw. The app already has the position's <code>timestamp</code> and a moving <code>now</code> (see <a href="../components/utility/#relativetime"><code>RelativeTime</code></a> with <code>updateEvery</code>).</li>
+<li><strong>The gray measures 6.92:1 (light) and 7.43:1 (dark) against the map background</strong> (<code>--tempest-surface-2</code>), and the number inside, in <code>--tempest-surface</code>, 7.30 and 8.39:1 — measured in the browser and asserted in <code>src/geo/LiveRouteMap.states.test.tsx</code>.</li>
+<li><strong>The same gray for both states, on purpose</strong>: "already passed" and "stopped arriving" carry one message — this is the past. The shape tells them apart.</li>
+</ul>
 <h3 id="legend-liveroutemaplegend">Legend — <code>LiveRouteMapLegend</code></h3>
 <p>Each app drew its own legend, imitating the SDK glyphs with SVG of its own — and a theme or glyph change left the legend behind. <code>LiveRouteMapLegend</code> draws <strong>the same glyphs</strong>, with the same classes and tokens as the map:</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Flag</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
@@ -5581,13 +5669,17 @@ is about to override instead of restating it and drifting.</p>
 <span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">symbol</span><span class="o">:</span><span class="w"> </span><span class="s2">"vehicle"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Bus"</span><span class="w"> </span><span class="p">},</span>
 <span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">symbol</span><span class="o">:</span><span class="w"> </span><span class="s2">"route"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Planned route"</span><span class="w"> </span><span class="p">},</span>
 <span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">symbol</span><span class="o">:</span><span class="w"> </span><span class="s2">"trail"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Already traveled"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">symbol</span><span class="o">:</span><span class="w"> </span><span class="s2">"stop"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Served stop"</span><span class="p">,</span><span class="w"> </span><span class="nx">glyphText</span><span class="o">:</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span><span class="w"> </span><span class="nx">visited</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">symbol</span><span class="o">:</span><span class="w"> </span><span class="s2">"vehicle"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"No signal from the bus"</span><span class="p">,</span><span class="w"> </span><span class="nx">stale</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">{</span><span class="w"> </span><span class="nx">symbol</span><span class="o">:</span><span class="w"> </span><span class="s2">"badge"</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Boarding at the stop"</span><span class="p">,</span><span class="w"> </span><span class="nx">badge</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">},</span>
 <span class="w">      </span><span class="p">]}</span>
 <span class="w">    </span><span class="p">/&gt;</span>
 <span class="w">  </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
 <ul>
-<li><strong><code>symbol</code></strong> is a marker kind (<code>"origin"</code>, <code>"stop"</code>, <code>"destination"</code>), <code>"vehicle"</code> or one of the lines (<code>"route"</code>, <code>"trail"</code>). <code>emphasis</code>, <code>glyphText</code> and <code>icon</code> apply to the marker kinds, the same as on <code>LiveRouteMarker</code>.</li>
+<li><strong><code>symbol</code></strong> is a marker kind (<code>"origin"</code>, <code>"stop"</code>, <code>"destination"</code>), <code>"vehicle"</code>, one of the lines (<code>"route"</code>, <code>"trail"</code>) or <code>"badge"</code>, the count pill. <code>emphasis</code>, <code>glyphText</code>, <code>icon</code> and <code>visited</code> apply to the marker kinds, the same as on <code>LiveRouteMarker</code>; <code>stale</code> to the vehicle; <code>badge</code> (default <code>1</code>) to the pill.</li>
+<li><strong>The legend's pill is the map's drawing</strong> (a shared <code>BadgeShape</code>): same color token, same width for <code>"99+"</code>. There used to be no symbol for it, and the legend left the number on a stop unexplained.</li>
 <li><strong>Without <code>items</code></strong>, the legend lists the six symbols with PT-BR labels.</li>
 <li><strong>Pass the map's <code>markerScale</code></strong> so the glyphs match; the vehicle and the lines do not scale, as on the map.</li>
 <li>It is a list (<code>&lt;ul&gt;</code>) with the accessible name <code>"Legenda do mapa"</code> (change it with <code>label</code>); the drawings are <code>aria-hidden</code>, and the screen reader reads the text.</li>
@@ -5606,7 +5698,7 @@ is about to override instead of restating it and drifting.</p>
 <td><code>items</code></td>
 <td><code>readonly LiveRouteLegendItem[]</code></td>
 <td>the six symbols, PT-BR</td>
-<td><code>{ symbol, label, emphasis?, glyphText?, icon? }</code>, in order.</td>
+<td><code>{ symbol, label, emphasis?, glyphText?, icon?, visited?, stale?, badge? }</code>, in order.</td>
 </tr>
 <tr>
 <td><code>markerScale</code></td>
@@ -5697,6 +5789,16 @@ is about to override instead of restating it and drifting.</p>
 <td><code>--tempest-live-route-road</code> / <code>--tempest-live-route-road-casing</code></td>
 <td><code>roads</code> streets</td>
 <td><code>--tempest-bg</code> / <code>--tempest-text-subtle</code></td>
+</tr>
+<tr>
+<td><code>--tempest-live-route-visited</code> / <code>--tempest-live-route-visited-ink</code></td>
+<td><code>visited</code> marker / its <code>glyphText</code> and <code>icon</code></td>
+<td><code>--tempest-text-muted</code> / <code>--tempest-surface</code></td>
+</tr>
+<tr>
+<td><code>--tempest-live-route-stale</code> / <code>--tempest-live-route-stale-ink</code></td>
+<td><code>stale</code> vehicle / its arrow</td>
+<td><code>--tempest-text-muted</code> / <code>--tempest-surface</code></td>
 </tr>
 </tbody>
 </table>

@@ -4051,6 +4051,8 @@
       
         
       
+        
+      
     
     
       
@@ -4159,6 +4161,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5240,6 +5263,7 @@ componentes, então uma árvore de rotas com páginas tipadas passa por
 <p>Por que o hook roda <strong>antes</strong> de instalar a conta nova: o teardown da conta anterior — limpar o cache persistido, a fila de background sync — precisa terminar antes que as requests da conta nova comecem a preenchê-los; na ordem inversa ele apagaria (ou disputaria) os dados da conta nova. O preço é um intervalo em que <code>isAuthenticated</code> é <code>false</code> enquanto o hook roda — um guard de rota pode reagir a ele, então mantenha o hook curto. Um erro do hook aqui é engolido: o login em si deu certo.</p>
 <p>Um <code>logout()</code> cujo teardown ainda está em andamento é esperado do mesmo jeito: <code>logout()</code> seguido de <code>login()</code> sem <code>await</code> não instala a conta nova antes de o hook da anterior terminar — o hook que limpa o estado da conta A não corre junto com a conta B.</p>
 <p>Um <code>login()</code> cuja sessão mudou enquanto a request dele estava em voo — um <code>logout()</code> no meio, por exemplo — rejeita com <code>SessionSupersededError</code> e não instala nada. Vale também para o <code>GET</code> do <code>mePath</code> que o <code>login()</code> faz depois de instalar o token: um perfil que chega depois de um <code>logout()</code> (ou de <code>logout()</code> + <code>login()</code> de outra conta) é descartado, em vez de ficar no store ao lado do token da conta seguinte.</p>
+<p>E se o <code>GET</code> do <code>mePath</code> <strong>falha</strong> — um 500, um 401, a rede caindo —, o <code>login()</code> desfaz a entrada antes de rejeitar com esse erro: o refresh token que ela trouxe é revogado (<code>logoutPath</code>, no modo body), o store e o refresh token guardado são limpos e o <code>onSessionEnd</code> roda com <code>"expired"</code> para ela, já que o token chegou a notificar os ouvintes do store. Quando o <code>login()</code> rejeita, não sobra sessão nenhuma — nem a anterior, que já terminou com <code>"switch"</code> quando as credenciais novas foram aceitas. Até a 0.92.0 o token novo ficava instalado ao lado de um usuário <code>null</code>, com <code>isAuthenticated</code> <code>true</code> para ninguém (#748). Vale também para o <code>restore()</code> e para a troca de conta que um <code>refresh()</code> descobre. Antes de desfazer, a aba confere o armazenamento compartilhado, como o <code>logout()</code> faz: se outra aba entrou com outra conta enquanto o <code>mePath</code> respondia, a sessão desta aba terminou lá — o <code>onSessionEnd</code> roda com <code>"switch"</code> e <code>elsewhere: true</code>, o <code>login()</code> rejeita com <code>SessionSupersededError</code>, e a sessão da outra conta não é revogada nem limpa.</p>
 <h3 id="refresh-em-voo-e-troca-de-conta-sessionsupersedederror">Refresh em voo e troca de conta — <code>SessionSupersededError</code></h3>
 <p>Um refresh é uma ida e volta de rede, e a sessão pode acabar no meio dela. Cada refresh fica amarrado a uma <strong>época de sessão</strong>, que o <code>logout()</code> e um <code>login()</code> com credenciais aceitas incrementam. Um refresh que resolve depois que a época dele acabou descarta o que trouxe e rejeita com <code>SessionSupersededError</code> — e o cliente repassa esse erro <strong>sem</strong> chamar <code>onUnauthorized</code>, porque a sessão atual (talvez outra conta, que acabou de entrar) não fez nada de errado. Uma request que saiu durante uma sessão encerrada e volta 401 é recusada do mesmo jeito — inclusive a repetição depois de um refresh — em vez de ser repetida como a conta que está logada agora ou de encerrar a sessão dela. E uma request que saiu <strong>sem</strong> token e volta 401 depois que uma conta entrou só rejeita com o 401: não renova nem encerra a sessão nova.</p>
 <p>Vale também para a resposta <strong>de sucesso</strong>: uma request que saiu com o token de uma sessão que acabou antes de a resposta chegar rejeita com <code>SessionSupersededError</code> em vez de resolver. Os dados são da conta que saiu, e a continuação de quem chamou — o <code>onSuccess</code> de uma <code>mutation</code> com <code>setQueryData</code>, um <code>setState</code> — os entregaria à conta que está logada agora; até a 0.86.0, uma <code>mutation</code> de A que atravessava o <code>logout()</code> gravava os dados de A no cache de B, na tela e no snapshot offline (auditoria run-14, #609). Request que saiu sem token não é de conta nenhuma e resolve normalmente. Reproduzido em <code>src/query/offline-persistence.session-end.test.ts</code> (<code>npx vitest run src/query/offline-persistence.session-end.test.ts</code>).</p>

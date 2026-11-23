@@ -4052,6 +4052,8 @@
       
         
       
+        
+      
     
     
       
@@ -4160,6 +4162,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5099,6 +5122,11 @@ record use a <a href="../identity/"><code>Card</code></a>; for data entry, <a hr
 <td><code>tablet</code>: hidden &lt; md. <code>desktop</code>: hidden &lt; lg.</td>
 </tr>
 <tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td>Label of the stacked mobile card; default = <code>header</code> when it is text.</td>
+</tr>
+<tr>
 <td><code>width</code></td>
 <td><code>string \| number</code></td>
 <td>CSS width (<code>120px</code>, <code>20%</code>, <code>auto</code>)</td>
@@ -5637,7 +5665,7 @@ count comes from that number, and sorting and searching are delegated to you.</p
 <tr>
 <td><code>onSearchChange</code></td>
 <td><code>(term: string) =&gt; void</code></td>
-<td>The typed term; debouncing is yours.</td>
+<td>The typed term, after <code>searchDebounceMs</code> when set.</td>
 </tr>
 <tr>
 <td><code>loading</code></td>

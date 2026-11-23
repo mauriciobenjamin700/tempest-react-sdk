@@ -2668,6 +2668,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#estado-da-tela-na-url-com-useurlstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Estado da tela na URL com useUrlState
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#escolhendo-o-tipo-de-router" class="md-nav__link">
     <span class="md-ellipsis">
       Escolhendo o tipo de router
@@ -3988,6 +3997,8 @@
       
         
       
+        
+      
     
     
       
@@ -4096,6 +4107,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4736,6 +4768,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#estado-da-tela-na-url-com-useurlstate" class="md-nav__link">
+    <span class="md-ellipsis">
+      Estado da tela na URL com useUrlState
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#escolhendo-o-tipo-de-router" class="md-nav__link">
     <span class="md-ellipsis">
       Escolhendo o tipo de router
@@ -5071,7 +5112,9 @@ obrigatória, opcional ou nenhuma. Uma página <code>({ id }: Props) =&gt; …</
 <span class="w">      </span><span class="p">{</span>
 <span class="w">        </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">        </span><span class="nx">lazy</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">"@/pages/Dashboard"</span><span class="p">),</span>
-<span class="w">        </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">        </span><span class="p">},</span>
 <span class="w">        </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="w">      </span><span class="p">},</span>
 <span class="w">    </span><span class="p">],</span>
@@ -5079,8 +5122,8 @@ obrigatória, opcional ou nenhuma. Uma página <code>({ id }: Props) =&gt; …</
 <span class="p">]);</span>
 </code></pre></div>
 <div class="admonition warning">
-<p class="admonition-title">O guard roda na renderização — leia a store via <code>getState()</code> ou um hook</p>
-<p>A função do <code>guard</code> é avaliada <strong>durante a renderização</strong> da rota. Por isso ela precisa ler o estado <em>naquele momento</em>: use <code>useAuth.getState().isAuthenticated</code> (leitura imperativa, fora do React) ou chame um hook direto na função do guard, que roda dentro do ciclo de renderização — veja a seção seguinte. Não capture o valor uma vez fora da função: você congelaria o estado de auth no carregamento inicial.</p>
+<p class="admonition-title">O guard roda na renderização — leia a store por hook</p>
+<p>A função do <code>guard</code> é avaliada <strong>durante a renderização</strong> da rota, então pode chamar hook. Leia a store por hook (<code>useAuth.use.isAuthenticated()</code>): é o que <strong>assina</strong> a rota, e um <code>logout()</code> — o botão de sair ou um <code>401</code> no cliente HTTP — redireciona a tela protegida que estiver aberta. <code>useAuth.getState().isAuthenticated</code> lê o valor uma vez e não assina: depois do logout a tela continua aberta até a próxima navegação. Nomeie a função <code>use…</code>, como no exemplo, pelo motivo da seção seguinte.</p>
 </div>
 <p>Quando <code>guard</code> é <em>falsy</em>, o usuário é redirecionado para <code>redirectTo</code> (padrão <code>"/"</code>). No exemplo acima, quem não está autenticado e tenta abrir <code>/dashboard</code> cai em <code>/login</code>.</p>
 <h3 id="forma-de-funcao-assincrona-o-terceiro-estado-pending">Forma de função assíncrona: o terceiro estado <code>"pending"</code></h3>
@@ -5129,7 +5172,7 @@ function component nor a custom React Hook function.
 <div class="highlight"><pre><span></span><code><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useFinanceGuard</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">}</span><span class="w">   </span><span class="c1">// ✅ passa</span>
 <span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="nx">useCan</span><span class="p">()</span><span class="w"> </span><span class="err">…</span><span class="w"> </span><span class="p">}</span><span class="w">             </span><span class="c1">// ❌ erro de lint</span>
 </code></pre></div>
-<p>Guard <strong>sem</strong> hook (<code>() =&gt; useAuth.getState().isAuthenticated</code>) continua podendo ser arrow anônima — <code>getState()</code> não é hook.</p>
+<p><code>getState()</code> não é hook, então <code>() =&gt; useAuth.getState().isAuthenticated</code> passa no lint — mas não serve para guard de sessão: sem assinatura, um logout no meio da tela não redireciona.</p>
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Um spinner cobre <code>lazy</code> e <code>pending</code></p>
@@ -5207,7 +5250,7 @@ function component nor a custom React Hook function.
 </table>
 <div class="admonition tip">
 <p class="admonition-title">Mesma regra de leitura de estado</p>
-<p>Aqui você está num componente React, então leia a store com o hook (<code>useAuth((state) =&gt; state.isAuthenticated)</code>) para re-renderizar quando o auth mudar. O <code>guard</code> da árvore roda <strong>dentro</strong> da renderização também, então ele tem as duas opções: <code>getState()</code> para leitura imperativa simples, ou hooks — desde que a função seja nomeada <code>use…</code>, como na seção de <code>"pending"</code> acima.</p>
+<p>Aqui você está num componente React, então leia a store com o hook (<code>useAuth((state) =&gt; state.isAuthenticated)</code>) para re-renderizar quando o auth mudar. O <code>guard</code> da árvore roda <strong>dentro</strong> da renderização também, e vale a mesma regra: hook, com a função nomeada <code>use…</code>, como na seção de <code>"pending"</code> acima.</p>
 </div>
 <h2 id="voltar-para-onde-estava-depois-do-login">Voltar para onde estava depois do login</h2>
 <p>O fluxo clássico: a pessoa abre <code>/relatorios/42?ano=2026</code>, não está logada, cai no <code>/login</code> — e depois de entrar deveria <strong>voltar para <code>/relatorios/42?ano=2026</code></strong>, não para a home. Para isso o redirect precisa levar junto de onde veio, e a tela de login precisa ler esse valor de volta.</p>
@@ -5227,7 +5270,9 @@ function component nor a custom React Hook function.
 <span class="w">  </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">element</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">Dashboard</span><span class="w"> </span><span class="p">/&gt;,</span>
-<span class="w">    </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">    </span><span class="p">},</span>
 <span class="w">    </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">preserveFrom</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
 <span class="w">  </span><span class="p">},</span>
@@ -5260,6 +5305,55 @@ function component nor a custom React Hook function.
 <p class="admonition-title">Use o valor com <code>navigate</code>, não com <code>window.location</code></p>
 <p>O caminho vem relativo ao <code>basename</code> do router, igual ao <code>useLocation()</code>. O <code>navigate()</code> recoloca o <code>basename</code>; o <code>window.location</code> não.</p>
 </div>
+<h2 id="estado-da-tela-na-url-com-useurlstate">Estado da tela na URL com <code>useUrlState</code></h2>
+<p>Página, tamanho da página, busca, filtros e ordenação de uma lista pertencem à URL: é o que deixa o botão voltar funcionar e um link colado abrir a mesma tela. <code>useUrlState</code> lê esses parâmetros já tipados e escreve neles sem que uma escrita apague a outra.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// MembersPage.tsx</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">DataTable</span><span class="p">,</span><span class="w"> </span><span class="nx">useUrlState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Member</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">MembersPage</span><span class="p">({</span><span class="w"> </span><span class="nx">members</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">members</span><span class="o">:</span><span class="w"> </span><span class="kt">Member</span><span class="p">[];</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">state</span><span class="p">,</span><span class="w"> </span><span class="nx">set</span><span class="p">,</span><span class="w"> </span><span class="nx">reset</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useUrlState</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span><span class="w"> </span><span class="nx">por_pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">20</span><span class="w"> </span><span class="p">});</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">"button"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">reset</span><span class="p">()}&gt;</span>
+<span class="w">        </span><span class="nx">Limpar</span><span class="w"> </span><span class="nx">filtros</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">DataTable</span><span class="err">&lt;</span><span class="na">Member</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="nx">data</span><span class="o">=</span><span class="p">{</span><span class="nx">members</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">columns</span><span class="o">=</span><span class="p">{[{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nome"</span><span class="w"> </span><span class="p">}]}</span>
+<span class="w">        </span><span class="nx">rowKey</span><span class="o">=</span><span class="p">{(</span><span class="nx">member</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">member</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">totalItems</span><span class="o">=</span><span class="p">{</span><span class="nx">total</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">page</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">pagina</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">onPageChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">pagina</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">pagina</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">        </span><span class="nx">pageSize</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">por_pagina</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">pageSizeOptions</span><span class="o">=</span><span class="p">{[</span><span class="mf">20</span><span class="p">,</span><span class="w"> </span><span class="mf">50</span><span class="p">]}</span>
+<span class="w">        </span><span class="nx">onPageSizeChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">por_pagina</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">por_pagina</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">        </span><span class="nx">searchable</span>
+<span class="w">        </span><span class="nx">search</span><span class="o">=</span><span class="p">{</span><span class="nx">state</span><span class="p">.</span><span class="nx">busca</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">searchDebounceMs</span><span class="o">=</span><span class="p">{</span><span class="mf">300</span><span class="p">}</span>
+<span class="w">        </span><span class="nx">onSearchChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">busca</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">set</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">      </span><span class="o">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>O tipo vem do default.</strong> <code>pagina: 1</code> faz <code>?pagina=3</code> virar o número <code>3</code>; <code>?pagina=abc</code> volta para <code>1</code> em vez de quebrar a tela. Booleano lê <code>"true"</code>/<code>"false"</code>.</li>
+<li><strong>Default sai da URL.</strong> <code>set({ pagina: 1 })</code> ou <code>set({ pagina: null })</code> apaga <code>pagina</code>, então a tela sem filtro é a URL limpa.</li>
+<li><strong>Escritas do mesmo tique viram uma navegação só.</strong> Uma entrada no histórico por gesto, e nenhuma escrita perdida.</li>
+<li><strong><code>{ replace: true }</code></strong> troca a entrada atual em vez de empilhar — o certo para busca digitada. Num lote, basta uma escrita sem <code>replace</code> para o lote empilhar.</li>
+<li>Parâmetros que o hook não conhece ficam intactos.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">Por que não o <code>setSearchParams</code> direto</p>
+<p>O <code>setSearchParams</code> do React Router monta a URL nova a partir dos parâmetros <strong>do último render</strong> — inclusive na forma de função. Quando o <code>DataTable</code> troca o tamanho da página, ele chama <code>onPageSizeChange(50)</code> e <code>onPageChange(1)</code> no mesmo clique; partindo de <code>?pagina=3</code>, a URL final era <code>?pagina=1</code> e o <code>por_pagina=50</code> sumia (medido com <code>react-router</code> 8.5.2, teste em <code>src/router/use-url-state.test.tsx</code>). <code>useUrlState</code> acumula as escritas numa cópia pendente e navega uma vez.</p>
+</div>
+<p>A página controlada também existe no <a href="../integration-fastapi/#offset-usepaginatedquery"><code>usePaginatedQuery</code></a>: passe <code>page</code> e <code>onPageChange</code> e ele deixa de guardar a página sozinho.</p>
 <h2 id="escolhendo-o-tipo-de-router">Escolhendo o tipo de router</h2>
 <p>O <code>&lt;AppRouter&gt;</code> aceita três tipos via a prop <code>router</code>:</p>
 <ul>
@@ -5362,6 +5456,7 @@ function component nor a custom React Hook function.
 <li>Permissão que resolve de forma assíncrona responde <code>"pending"</code>: a decisão fica segura e o <code>guardFallback</code> (ou o <code>fallback</code> do <code>&lt;AppRouter&gt;</code>) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.</li>
 <li>Escolha o router com a prop <code>router</code>: <code>"browser"</code> em produção, <code>"memory"</code> + <code>initialEntries</code> em testes.</li>
 <li>Precisa de <code>matchPath</code>, <code>generatePath</code>, <code>useOutletContext</code> ou qualquer outro nome client-side do React Router? Também vem de <code>"tempest-react-sdk"</code>; o <code>Form</code> dele sai como <code>RouterForm</code>.</li>
+<li>Estado de lista (página, busca, filtros, ordenação) mora na URL com <code>useUrlState</code>: tipado pelo default, e escritas do mesmo clique viram uma navegação só.</li>
 </ul>
 
 

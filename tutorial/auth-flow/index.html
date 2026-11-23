@@ -3918,6 +3918,8 @@
       
         
       
+        
+      
     
     
       
@@ -4026,6 +4028,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4671,7 +4694,7 @@ e os formulários validados (<a href="../forms/">Formulários</a>). Nesta págin
 logout automático quando o backend responde <strong>401</strong>.</p>
 <h2 id="o-ciclo-completo-em-uma-imagem">O ciclo completo, em uma imagem</h2>
 <div class="highlight"><pre><span></span><code>1. Usuário abre /dashboard sem sessão
-        → guard lê useAuth.getState().isAuthenticated (false)
+        → guard lê useAuth.use.isAuthenticated() (false)
         → redirect pra /login
 2. Usuário envia o login
         → api.post("/auth/login")  → { user, token }
@@ -4798,7 +4821,9 @@ Ele é o portão que lê a store <strong>no momento da renderização</strong>:<
 <span class="p">{</span>
 <span class="w">  </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">lazy</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">"@/pages/Dashboard"</span><span class="p">),</span>
-<span class="w">  </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="p">},</span>
 </code></pre></div>
@@ -4806,12 +4831,13 @@ Ele é o portão que lê a store <strong>no momento da renderização</strong>:<
 <code>/login</code>. Depois do <code>setSession</code>, a próxima tentativa de abrir <code>/dashboard</code>
 encontra <code>true</code> → o Dashboard renderiza.</p>
 <div class="admonition warning">
-<p class="admonition-title">Por que o guard usa <code>getState()</code> e não o hook</p>
-<p>O <code>guard</code> roda <strong>fora</strong> do ciclo de hooks (durante a montagem da rota), então
-não pode chamar <code>useAuth.use.isAuthenticated()</code>. Ele lê o snapshot atual com
-<code>getState()</code>. Dentro de <strong>componentes</strong> — como o <code>RootLayout</code> — você usa o
-hook <code>.use</code> pra re-renderizar quando o auth muda. Mesma store, duas formas de
-ler conforme o contexto. 💡</p>
+<p class="admonition-title">Por que o guard usa o hook e não <code>getState()</code></p>
+<p>O <code>guard</code> roda <strong>dentro</strong> da renderização da rota, então pode chamar hook — e
+precisa: <code>useAuth.use.isAuthenticated()</code> assina a rota, e é isso que faz o
+logout do Passo 4 e o 401 do Passo 5 tirarem a pessoa da tela protegida.
+<code>getState()</code> leria o valor uma vez: depois do logout, o Dashboard continuaria
+aberto, com o usuário vazio, até a próxima navegação. <code>getState()</code> fica para o
+que roda <strong>fora</strong> do React, como o <code>onUnauthorized</code> do cliente. 💡</p>
 </div>
 <h2 id="passo-4-logout-manual">Passo 4 — Logout manual</h2>
 <p>O <code>RootLayout</code> (do capítulo de estado) já mostra um botão "Sair" quando há sessão.
@@ -4860,8 +4886,9 @@ avançado.</p>
   <code>useAuth</code>. ✅</li>
 <li><strong>Login</strong>: <code>api.post("/auth/login")</code> → <code>setSession({ user, token })</code> →
   <code>navigate("/dashboard")</code>.</li>
-<li><strong>Área protegida</strong>: o <code>guard</code> lê <code>useAuth.getState().isAuthenticated</code> na
-  renderização e redireciona com <code>redirectTo</code> quando falso.</li>
+<li><strong>Área protegida</strong>: o <code>guard</code> lê <code>useAuth.use.isAuthenticated()</code> na
+  renderização e redireciona com <code>redirectTo</code> quando falso — inclusive no meio da
+  tela, quando a sessão acaba.</li>
 <li><strong>Logout manual</strong>: <code>useAuth.use.logout()</code> num botão; o <code>RootLayout</code> re-renderiza
   porque lê pelo hook <code>.use</code>.</li>
 <li><strong>Logout automático</strong>: <code>onUnauthorized: () =&gt; useAuth.getState().logout()</code> no

@@ -3798,6 +3798,8 @@
       
         
       
+        
+      
     
     
       
@@ -3951,9 +3953,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-busca-com-debounce" class="md-nav__link">
+  <a href="#5-a-busca-fica-na-tabela" class="md-nav__link">
     <span class="md-ellipsis">
-      5. Busca com debounce
+      5. A busca fica na tabela
     </span>
   </a>
   
@@ -4123,6 +4125,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4728,9 +4751,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#5-busca-com-debounce" class="md-nav__link">
+  <a href="#5-a-busca-fica-na-tabela" class="md-nav__link">
     <span class="md-ellipsis">
-      5. Busca com debounce
+      5. A busca fica na tabela
     </span>
   </a>
   
@@ -4905,7 +4928,7 @@ volta. E manda o link da tela filtrada no chat do time — então o filtro preci
 <td><a href="../../http/">HTTP</a>, <a href="../../data-provider/#createdataprovider">Data Provider</a></td>
 </tr>
 <tr>
-<td><code>useList</code> / <code>useCreate</code> / <code>useUpdate</code> / <code>useDelete</code></td>
+<td><code>useList</code> / <code>useCreate</code> / <code>useUpdate</code> / <code>useDeleteMany</code></td>
 <td>cache e invalidação via TanStack Query</td>
 <td><a href="../../data-provider/#os-hooks-de-recurso">Os hooks de recurso</a></td>
 </tr>
@@ -4986,7 +5009,6 @@ DELETE /api/products/{id}
 └── features/products/
     ├── product.ts
     ├── use-product-filters.ts
-    ├── ProductSearch.tsx
     ├── ProductFormDrawer.tsx
     └── ProductsPage.tsx
 </code></pre></div>
@@ -5097,7 +5119,7 @@ receita de <a href="../auth-flow/">autenticação</a> mostra o cliente com token
 <span class="w">    </span><span class="p">.</span><span class="nx">regex</span><span class="p">(</span><span class="sr">/^[A-Z0-9-]{4,20}$/</span><span class="p">,</span><span class="w"> </span><span class="s2">"De 4 a 20 caracteres: letras, números e hífen"</span><span class="p">),</span>
 <span class="w">  </span><span class="nx">category</span><span class="o">:</span><span class="w"> </span><span class="kt">z</span>
 <span class="w">    </span><span class="p">.</span><span class="nx">union</span><span class="p">([</span><span class="nx">z</span><span class="p">.</span><span class="kd">enum</span><span class="p">(</span><span class="nx">CATEGORIES</span><span class="p">),</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">literal</span><span class="p">(</span><span class="s2">""</span><span class="p">)])</span>
-<span class="w">    </span><span class="p">.</span><span class="nx">refine</span><span class="p">((</span><span class="nx">value</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">value</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="s2">"Escolha uma categoria"</span><span class="p">),</span>
+<span class="w">    </span><span class="p">.</span><span class="nx">refine</span><span class="p">((</span><span class="nx">value</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="s2">"Escolha uma categoria"</span><span class="p">),</span>
 <span class="w">  </span><span class="nx">price_cents</span><span class="o">:</span><span class="w"> </span><span class="kt">z.number</span><span class="p">().</span><span class="kr">int</span><span class="p">().</span><span class="nx">min</span><span class="p">(</span><span class="mf">1</span><span class="p">,</span><span class="w"> </span><span class="s2">"Informe o preço"</span><span class="p">),</span>
 <span class="w">  </span><span class="nx">stock</span><span class="o">:</span><span class="w"> </span><span class="kt">z.coerce</span>
 <span class="w">    </span><span class="p">.</span><span class="kt">number</span><span class="p">()</span>
@@ -5106,9 +5128,10 @@ receita de <a href="../auth-flow/">autenticação</a> mostra o cliente com token
 <span class="w">  </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">z.enum</span><span class="p">(</span><span class="nx">STATUSES</span><span class="p">),</span>
 <span class="p">});</span>
 
-<span class="k">export</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">ProductFormValues</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">infer</span><span class="o">&lt;</span><span class="ow">typeof</span><span class="w"> </span><span class="nx">productSchema</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="k">export</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">ProductFormInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">input</span><span class="o">&lt;</span><span class="ow">typeof</span><span class="w"> </span><span class="nx">productSchema</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="k">export</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">ProductFormValues</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">output</span><span class="o">&lt;</span><span class="ow">typeof</span><span class="w"> </span><span class="nx">productSchema</span><span class="o">&gt;</span><span class="p">;</span>
 
-<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">EMPTY_PRODUCT</span><span class="o">:</span><span class="w"> </span><span class="kt">ProductFormValues</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">EMPTY_PRODUCT</span><span class="o">:</span><span class="w"> </span><span class="kt">ProductFormInput</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">sku</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">category</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
@@ -5117,7 +5140,7 @@ receita de <a href="../auth-flow/">autenticação</a> mostra o cliente com token
 <span class="w">  </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="s2">"draft"</span><span class="p">,</span>
 <span class="p">};</span>
 
-<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">toFormValues</span><span class="p">(</span><span class="nx">product</span><span class="o">:</span><span class="w"> </span><span class="kt">Product</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nx">ProductFormValues</span><span class="w"> </span><span class="p">{</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">toFormValues</span><span class="p">(</span><span class="nx">product</span><span class="o">:</span><span class="w"> </span><span class="kt">Product</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nx">ProductFormInput</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="nx">EMPTY_PRODUCT</span><span class="p">;</span>
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">product.name</span><span class="p">,</span>
@@ -5136,19 +5159,25 @@ receita de <a href="../auth-flow/">autenticação</a> mostra o cliente com token
 <li><strong><code>sku</code></strong> passa por <code>toUpperCase()</code> antes do <code>regex</code>: a pessoa digita <code>mer-cafe-500</code> e o backend
   recebe <code>MER-CAFE-500</code>.</li>
 <li><strong><code>category</code></strong> aceita <code>""</code> na entrada e recusa no <code>refine</code>. Assim o formulário de cadastro abre
-  <strong>sem</strong> categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido.</li>
+  <strong>sem</strong> categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido. O
+  <code>value !== ""</code> é um predicado de tipo: a <strong>saída</strong> do schema (<code>ProductFormValues</code>, o que o
+  <code>save</code> recebe) fica só com as categorias, enquanto a <strong>entrada</strong> (<code>ProductFormInput</code>, o tipo dos
+  valores iniciais) aceita o <code>""</code>. O <code>useZodForm</code> tipa os campos pela entrada e o <code>handleSubmit</code>
+  pela saída, então os dois lados batem sem cast.</li>
 <li><strong><code>stock</code></strong> usa <code>z.coerce.number()</code>, porque um <code>&lt;input type="number"&gt;</code> entrega texto.</li>
 </ul>
 <p><code>toFormValues</code> converte um produto da API nos valores do formulário. Sem produto, devolve o
 formulário vazio de cadastro.</p>
 <h3 id="4-filtros-na-url">4. Filtros na URL</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/features/products/use-product-filters.ts</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCallback</span><span class="p">,</span><span class="w"> </span><span class="nx">useEffect</span><span class="p">,</span><span class="w"> </span><span class="nx">useMemo</span><span class="p">,</span><span class="w"> </span><span class="nx">useRef</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMemo</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">ALL_OPTION_VALUE</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">useSearchParams</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useUrlState</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableSort</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">GetListParams</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">UrlStatePatch</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">UrlStateWriteOptions</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Product</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/features/products/product"</span><span class="p">;</span>
@@ -5159,15 +5188,13 @@ formulário vazio de cadastro.</p>
 <span class="w">  </span><span class="nx">busca</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">categoria</span><span class="o">:</span><span class="w"> </span><span class="kt">ALL_OPTION_VALUE</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">ALL_OPTION_VALUE</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="s2">"1"</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">por_pagina</span><span class="o">:</span><span class="w"> </span><span class="s2">"20"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">por_pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">20</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">ordem</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">dir</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
 <span class="p">};</span>
 
-<span class="kr">type</span><span class="w"> </span><span class="nx">ParamName</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">keyof</span><span class="w"> </span><span class="ow">typeof</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">;</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">FiltersPatch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">Partial</span><span class="o">&lt;</span><span class="nx">Record</span><span class="o">&lt;</span><span class="nx">ParamName</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+<span class="k">export</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">FiltersPatch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">UrlStatePatch</span><span class="o">&lt;</span><span class="ow">typeof</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="o">&gt;</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">ProductFilters</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">search</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
@@ -5180,65 +5207,33 @@ formulário vazio de cadastro.</p>
 <span class="w">  </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="p">}</span>
 
-<span class="kd">function</span><span class="w"> </span><span class="nx">readPositiveInt</span><span class="p">(</span><span class="nx">raw</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nx">fallback</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Number</span><span class="p">(</span><span class="nx">raw</span><span class="p">);</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nb">Number</span><span class="p">.</span><span class="nx">isInteger</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">fallback</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="kd">function</span><span class="w"> </span><span class="nx">readSort</span><span class="p">(</span><span class="nx">params</span><span class="o">:</span><span class="w"> </span><span class="kt">URLSearchParams</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nx">DataTableSort</span><span class="o">&lt;</span><span class="nx">Product</span><span class="o">&gt;</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">SORTABLE</span><span class="p">.</span><span class="nx">find</span><span class="p">((</span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">name</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">params</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"ordem"</span><span class="p">));</span>
-<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">field</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">field</span><span class="p">,</span><span class="w"> </span><span class="nx">direction</span><span class="o">:</span><span class="w"> </span><span class="kt">params.get</span><span class="p">(</span><span class="s2">"dir"</span><span class="p">)</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"desc"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"desc"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"asc"</span><span class="w"> </span><span class="p">};</span>
-<span class="p">}</span>
-
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">useProductFilters</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">filters</span><span class="o">:</span><span class="w"> </span><span class="kt">ProductFilters</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">update</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">patch</span><span class="o">:</span><span class="w"> </span><span class="kt">FiltersPatch</span><span class="p">,</span><span class="w"> </span><span class="nx">options</span><span class="o">?:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">update</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">patch</span><span class="o">:</span><span class="w"> </span><span class="kt">FiltersPatch</span><span class="p">,</span><span class="w"> </span><span class="nx">options?</span><span class="o">:</span><span class="w"> </span><span class="kt">UrlStateWriteOptions</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">clear</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
 <span class="p">}</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">searchParams</span><span class="p">,</span><span class="w"> </span><span class="nx">setSearchParams</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useSearchParams</span><span class="p">();</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">latest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useRef</span><span class="p">(</span><span class="nx">searchParams</span><span class="p">);</span>
-
-<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">latest</span><span class="p">.</span><span class="nx">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">;</span>
-<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">searchParams</span><span class="p">]);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">state</span><span class="p">,</span><span class="w"> </span><span class="nx">set</span><span class="p">,</span><span class="w"> </span><span class="nx">reset</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useUrlState</span><span class="p">(</span><span class="nx">DEFAULTS</span><span class="p">);</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">filters</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMemo</span><span class="o">&lt;</span><span class="nx">ProductFilters</span><span class="o">&gt;</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">search</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"busca"</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">busca</span><span class="p">;</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">category</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"categoria"</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">categoria</span><span class="p">;</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">status</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">SORTABLE</span><span class="p">.</span><span class="nx">find</span><span class="p">((</span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">name</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">ordem</span><span class="p">);</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nx">search</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">category</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">status</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="kt">readPositiveInt</span><span class="p">(</span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"pagina"</span><span class="p">),</span><span class="w"> </span><span class="mf">1</span><span class="p">),</span>
-<span class="w">      </span><span class="nx">pageSize</span><span class="o">:</span><span class="w"> </span><span class="kt">readPositiveInt</span><span class="p">(</span><span class="nx">searchParams</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">"por_pagina"</span><span class="p">),</span><span class="w"> </span><span class="nb">Number</span><span class="p">(</span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">por_pagina</span><span class="p">)),</span>
-<span class="w">      </span><span class="nx">sort</span><span class="o">:</span><span class="w"> </span><span class="kt">readSort</span><span class="p">(</span><span class="nx">searchParams</span><span class="p">),</span>
+<span class="w">      </span><span class="nx">search</span><span class="o">:</span><span class="w"> </span><span class="kt">state.busca</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">category</span><span class="o">:</span><span class="w"> </span><span class="kt">state.categoria</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">state.status</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.max</span><span class="p">(</span><span class="mf">1</span><span class="p">,</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">trunc</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">pagina</span><span class="p">)),</span>
+<span class="w">      </span><span class="nx">pageSize</span><span class="o">:</span><span class="w"> </span><span class="kt">Math.max</span><span class="p">(</span><span class="mf">1</span><span class="p">,</span><span class="w"> </span><span class="nb">Math</span><span class="p">.</span><span class="nx">trunc</span><span class="p">(</span><span class="nx">state</span><span class="p">.</span><span class="nx">por_pagina</span><span class="p">)),</span>
+<span class="w">      </span><span class="nx">sort</span><span class="o">:</span><span class="w"> </span><span class="kt">field</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">field</span><span class="p">,</span><span class="w"> </span><span class="nx">direction</span><span class="o">:</span><span class="w"> </span><span class="kt">state.dir</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"desc"</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"desc"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"asc"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
 <span class="w">      </span><span class="nx">isFiltered</span><span class="o">:</span>
-<span class="w">        </span><span class="kt">search</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">busca</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">category</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">categoria</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">status</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">status</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">search</span><span class="p">,</span><span class="w"> </span><span class="nx">category</span><span class="p">,</span><span class="w"> </span><span class="nx">status</span><span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s2">"|"</span><span class="p">),</span>
+<span class="w">        </span><span class="kt">state.busca</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">busca</span><span class="w"> </span><span class="o">||</span>
+<span class="w">        </span><span class="nx">state</span><span class="p">.</span><span class="nx">categoria</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">categoria</span><span class="w"> </span><span class="o">||</span>
+<span class="w">        </span><span class="nx">state</span><span class="p">.</span><span class="nx">status</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">.</span><span class="nx">status</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">state</span><span class="p">.</span><span class="nx">busca</span><span class="p">,</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">categoria</span><span class="p">,</span><span class="w"> </span><span class="nx">state</span><span class="p">.</span><span class="nx">status</span><span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s2">"|"</span><span class="p">),</span>
 <span class="w">    </span><span class="p">};</span>
-<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">searchParams</span><span class="p">]);</span>
+<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">state</span><span class="p">]);</span>
 
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">update</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useCallback</span><span class="p">(</span>
-<span class="w">    </span><span class="p">(</span><span class="nx">patch</span><span class="o">:</span><span class="w"> </span><span class="kt">FiltersPatch</span><span class="p">,</span><span class="w"> </span><span class="nx">options</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace?</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">next</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">URLSearchParams</span><span class="p">(</span><span class="nx">latest</span><span class="p">.</span><span class="nx">current</span><span class="p">);</span>
-<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="nx">value</span><span class="p">]</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nb">Object</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">patch</span><span class="p">)</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="p">[</span><span class="nx">ParamName</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">][])</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nb">String</span><span class="p">(</span><span class="nx">value</span><span class="p">);</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">text</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">text</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">DEFAULTS</span><span class="p">[</span><span class="nx">name</span><span class="p">])</span><span class="w"> </span><span class="nx">next</span><span class="p">.</span><span class="ow">delete</span><span class="p">(</span><span class="nx">name</span><span class="p">);</span>
-<span class="w">        </span><span class="k">else</span><span class="w"> </span><span class="nx">next</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="p">);</span>
-<span class="w">      </span><span class="p">}</span>
-<span class="w">      </span><span class="nx">latest</span><span class="p">.</span><span class="nx">current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">next</span><span class="p">;</span>
-<span class="w">      </span><span class="nx">setSearchParams</span><span class="p">(</span><span class="nx">next</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">options.replace</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="p">},</span>
-<span class="w">    </span><span class="p">[</span><span class="nx">setSearchParams</span><span class="p">],</span>
-<span class="w">  </span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">clear</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">reset</span><span class="p">([</span><span class="s2">"busca"</span><span class="p">,</span><span class="w"> </span><span class="s2">"categoria"</span><span class="p">,</span><span class="w"> </span><span class="s2">"status"</span><span class="p">,</span><span class="w"> </span><span class="s2">"pagina"</span><span class="p">]);</span>
 
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">clear</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useCallback</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">update</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span><span class="w"> </span><span class="nx">categoria</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span><span class="w"> </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">});</span>
-<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">update</span><span class="p">]);</span>
-
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">filters</span><span class="p">,</span><span class="w"> </span><span class="nx">update</span><span class="p">,</span><span class="w"> </span><span class="nx">clear</span><span class="w"> </span><span class="p">};</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">filters</span><span class="p">,</span><span class="w"> </span><span class="nx">update</span><span class="o">:</span><span class="w"> </span><span class="kt">set</span><span class="p">,</span><span class="w"> </span><span class="nx">clear</span><span class="w"> </span><span class="p">};</span>
 <span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">toListParams</span><span class="p">(</span><span class="nx">filters</span><span class="o">:</span><span class="w"> </span><span class="kt">ProductFilters</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nx">GetListParams</span><span class="w"> </span><span class="p">{</span>
@@ -5262,73 +5257,23 @@ escrever nela.</p>
   compartilha. <code>toListParams</code> traduz para os nomes do backend.</li>
 <li><strong>Valor padrão sai da URL.</strong> <code>pagina=1</code> e <code>categoria=all</code> são apagados, então a URL limpa é
   <code>/produtos</code>.</li>
-<li><strong>URL inválida não quebra a tela.</strong> <code>?pagina=abc</code> vira página 1; <code>?ordem=senha</code> é ignorado, porque
-  só os campos de <code>SORTABLE</code> passam.</li>
+<li><strong>URL inválida não quebra a tela.</strong> O <code>useUrlState</code> tipa cada parâmetro pelo default:
+  <code>?pagina=abc</code> vira página 1. <code>?ordem=senha</code> é ignorado, porque só os campos de <code>SORTABLE</code> passam.</li>
 <li><strong>Filtro novo volta para a página 1</strong>: quem chama <code>update</code> passa <code>pagina: null</code> junto.</li>
 </ul>
-<details class="info">
-<summary>Por que um <code>useRef</code> com a última URL?</summary>
-<p>O <code>setSearchParams</code> do React Router monta a URL nova a partir da URL <strong>do último render</strong>. Duas
-chamadas no mesmo clique se atropelam: a segunda não vê a primeira.</p>
-<p>O <code>DataTable</code> faz exatamente isso quando você troca o tamanho da página: chama
-<code>onPageSizeChange(50)</code> e, logo em seguida, <code>onPageChange(1)</code>. Sem o ref, a segunda escrita
-partiria da URL antiga e apagaria o <code>por_pagina=50</code>.</p>
-<p>Por isso <code>update</code> parte de <code>latest.current</code>, grava nele a URL nova na hora e só depois navega.
-O <code>useEffect</code> ressincroniza o ref quando a URL muda por fora (botão voltar, link colado).</p>
-</details>
-<h3 id="5-busca-com-debounce">5. Busca com debounce</h3>
-<div class="highlight"><pre><span></span><code><span class="c1">// src/features/products/ProductSearch.tsx</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="p">,</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">SearchBar</span><span class="p">,</span><span class="w"> </span><span class="nx">useDebounce</span><span class="p">,</span><span class="w"> </span><span class="nx">useLatestRef</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
-
-<span class="kd">interface</span><span class="w"> </span><span class="nx">ProductSearchProps</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">onSearch</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">term</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="p">;</span>
-<span class="p">}</span>
-
-<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ProductSearch</span><span class="p">({</span><span class="w"> </span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="nx">onSearch</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="nx">ProductSearchProps</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">draft</span><span class="p">,</span><span class="w"> </span><span class="nx">setDraft</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="nx">value</span><span class="p">);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">lastValue</span><span class="p">,</span><span class="w"> </span><span class="nx">setLastValue</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="nx">value</span><span class="p">);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">debounced</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDebounce</span><span class="p">(</span><span class="nx">draft</span><span class="p">,</span><span class="w"> </span><span class="mf">400</span><span class="p">);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">latest</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useLatestRef</span><span class="p">({</span><span class="w"> </span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="nx">onSearch</span><span class="w"> </span><span class="p">});</span>
-
-<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">lastValue</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">setLastValue</span><span class="p">(</span><span class="nx">value</span><span class="p">);</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">debounced</span><span class="p">.</span><span class="nx">trim</span><span class="p">())</span><span class="w"> </span><span class="nx">setDraft</span><span class="p">(</span><span class="nx">value</span><span class="p">);</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">term</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">debounced</span><span class="p">.</span><span class="nx">trim</span><span class="p">();</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="kt">applied</span><span class="p">,</span><span class="w"> </span><span class="nx">onSearch</span><span class="o">:</span><span class="w"> </span><span class="kt">search</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">latest</span><span class="p">.</span><span class="nx">current</span><span class="p">;</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">term</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">applied</span><span class="p">)</span><span class="w"> </span><span class="nx">search</span><span class="p">(</span><span class="nx">term</span><span class="p">);</span>
-<span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">debounced</span><span class="p">,</span><span class="w"> </span><span class="nx">latest</span><span class="p">]);</span>
-
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="p">&lt;</span><span class="nt">SearchBar</span>
-<span class="w">      </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">draft</span><span class="p">}</span>
-<span class="w">      </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setDraft</span><span class="p">}</span>
-<span class="w">      </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Buscar por nome ou SKU"</span>
-<span class="w">      </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Buscar produtos"</span>
-<span class="w">    </span><span class="p">/&gt;</span>
-<span class="w">  </span><span class="p">);</span>
-<span class="p">}</span>
-</code></pre></div>
-<p>A caixa tem o próprio estado (<code>draft</code>), que muda a cada tecla. O
-<a href="../../hooks/#busca-com-debounce-usedebounce"><code>useDebounce</code></a> entrega o texto estável 400 ms depois
-da última tecla, e só então o efeito chama <code>onSearch</code>. Digitar "café" faz <strong>uma</strong> requisição.</p>
-<p>O bloco <code>if (value !== lastValue)</code> cuida do caminho inverso: quando a URL muda por fora (voltar no
-navegador, "Limpar filtros"), a caixa acompanha. Ele compara com <code>debounced</code> para não confundir a
-volta da própria busca com uma mudança externa e apagar o que a pessoa ainda está digitando.</p>
-<p>O <a href="../../hooks/#valor-fresco-dentro-de-um-effect-que-roda-uma-vez-uselatestref"><code>useLatestRef</code></a>
-deixa o efeito ler o <code>value</code> e o <code>onSearch</code> mais recentes sem entrar na lista de dependências — o
-efeito roda quando o texto estabiliza, e só.</p>
-<div class="admonition warning">
-<p class="admonition-title">Por que não o <code>searchable</code> do <code>DataTable</code>?</p>
-<p>O <code>DataTable</code> tem uma caixa de busca embutida (<code>searchable</code> + <code>onSearchChange</code>). Ela guarda o
-texto em estado interno, que sempre começa vazio. Numa tela cuja busca vem da URL, abrir
-<code>/produtos?busca=café</code> mostraria a lista filtrada com a caixa em branco. Por isso a busca fica
-fora da tabela, controlada pela URL.</p>
+<div class="admonition check">
+<p class="admonition-title">Duas escritas no mesmo clique, nenhuma perdida</p>
+<p>O <code>DataTable</code> chama <code>onPageSizeChange(50)</code> e <code>onPageChange(1)</code> no mesmo clique. Com o
+<code>setSearchParams</code> do React Router a segunda escrita partia da URL do último render e apagava o
+<code>por_pagina=50</code>; esta receita carregava um <code>useRef</code> com a última URL para contornar isso. O
+<a href="../../routing/#estado-da-tela-na-url-com-useurlstate"><code>useUrlState</code></a> acumula as escritas do
+mesmo tique e navega uma vez — uma entrada no histórico por gesto.</p>
 </div>
+<h3 id="5-a-busca-fica-na-tabela">5. A busca fica na tabela</h3>
+<p>Não há arquivo para a busca. O <code>DataTable</code> recebe o termo da URL em <code>search</code>, mostra cada tecla na
+caixa e só chama <code>onSearchChange</code> depois de <code>searchDebounceMs</code> sem digitar — digitar "café" faz
+<strong>uma</strong> requisição. Quando a URL muda por fora (voltar no navegador, "Limpar filtros"), a caixa
+acompanha. A busca não diferencia acento: "cafe" acha "Café".</p>
 <h3 id="6-o-formulario-no-drawer">6. O formulário no drawer</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/features/products/ProductFormDrawer.tsx</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useEffect</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
@@ -5342,6 +5287,7 @@ fora da tabela, controlada pela URL.</p>
 <span class="w">  </span><span class="nx">Input</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">MoneyInput</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Select</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">applyApiFieldErrors</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">isApiError</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">toOptions</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useCreate</span><span class="p">,</span>
@@ -5388,10 +5334,8 @@ fora da tabela, controlada pela URL.</p>
 <span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">product</span><span class="p">,</span><span class="w"> </span><span class="nx">reset</span><span class="p">]);</span>
 
 <span class="w">  </span><span class="kd">function</span><span class="w"> </span><span class="nx">handleError</span><span class="p">(</span><span class="nx">error</span><span class="o">:</span><span class="w"> </span><span class="kt">unknown</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">applyApiFieldErrors</span><span class="p">(</span><span class="nx">form</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">isApiError</span><span class="p">(</span><span class="nx">error</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">field</span><span class="p">,</span><span class="w"> </span><span class="nx">message</span><span class="p">]</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nb">Object</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">error</span><span class="p">.</span><span class="nx">fields</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">{}))</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">field</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nx">EMPTY_PRODUCT</span><span class="p">)</span><span class="w"> </span><span class="nx">setError</span><span class="p">(</span><span class="nx">field</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">keyof</span><span class="w"> </span><span class="nx">ProductFormValues</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">message</span><span class="w"> </span><span class="p">});</span>
-<span class="w">      </span><span class="p">}</span>
 <span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">.</span><span class="nx">code</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"PRODUCT_SKU_TAKEN"</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="nx">setError</span><span class="p">(</span><span class="s2">"sku"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">message</span><span class="o">:</span><span class="w"> </span><span class="kt">ERROR_CODES.PRODUCT_SKU_TAKEN</span><span class="w"> </span><span class="p">});</span>
 <span class="w">      </span><span class="p">}</span>
@@ -5475,7 +5419,9 @@ fora da tabela, controlada pela URL.</p>
 <p>O tratamento de erro é o que separa uma tela de demo de uma tela de produção:</p>
 <ol>
 <li><code>error.fields</code> traz o campo culpado, venha ele da lista de validação do FastAPI ou da chave
-   <code>field</code> do <code>tempest-fastapi-sdk</code>. Cada mensagem vai para o seu input com <code>setError</code>.</li>
+   <code>field</code> do <code>tempest-fastapi-sdk</code>. O <code>applyApiFieldErrors</code> põe cada mensagem no seu input e
+   foca o primeiro; um nome que o formulário não tem volta em <code>unmatched</code>, em vez de marcar um
+   input que não existe.</li>
 <li><code>PRODUCT_SKU_TAKEN</code> ganha uma frase escrita por você, no campo SKU.</li>
 <li><a href="../../http/#do-erro-tipado-para-a-frase-na-tela-describeapierror"><code>describeApiError</code></a> monta a
    frase do toast: a sua frase para o código, "sem conexão" para <code>status: 0</code>, o <code>detail</code> do
@@ -5484,8 +5430,9 @@ fora da tabela, controlada pela URL.</p>
 <div class="admonition check">
 <p class="admonition-title">Callbacks na chamada, não no hook</p>
 <p><code>onSuccess</code> e <code>onError</code> vão no <code>mutate(values, callbacks)</code>, por chamada. É o lugar certo para
-o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <code>onSuccess</code> que o
-<code>useCreate</code>/<code>useUpdate</code> usam para invalidar a lista.</p>
+o que depende da tela (fechar o drawer, mostrar o toast, e a mensagem muda entre cadastro e
+edição). No hook também funcionaria: o <code>onSuccess</code> do app roda depois da invalidação da lista,
+não no lugar dela. Até a 0.92.0 ele a substituía, e a lista ficava velha (#699).</p>
 </div>
 <h3 id="7-a-pagina">7. A página</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/features/products/ProductsPage.tsx</span>
@@ -5495,7 +5442,6 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="k">import</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">Badge</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Button</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">Checkbox</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">ConfirmDialog</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">DataTable</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">DropdownMenu</span><span class="p">,</span>
@@ -5506,13 +5452,14 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">  </span><span class="nx">Select</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Stack</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">toOptions</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">useDelete</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useDeleteMany</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useDescribeApiError</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useList</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useToast</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">withAllOption</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">BadgeVariant</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableColumn</span><span class="p">,</span>
+<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">DataTableRowKey</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="k">import</span><span class="w"> </span><span class="p">{</span>
@@ -5522,7 +5469,6 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">ProductStatus</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/features/products/product"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ProductFormDrawer</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/features/products/ProductFormDrawer"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ProductSearch</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/features/products/ProductSearch"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">toListParams</span><span class="p">,</span><span class="w"> </span><span class="nx">useProductFilters</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/features/products/use-product-filters"</span><span class="p">;</span>
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">STATUS_VARIANT</span><span class="o">:</span><span class="w"> </span><span class="kt">Record</span><span class="p">&lt;</span><span class="nt">ProductStatus</span><span class="err">,</span><span class="w"> </span><span class="na">BadgeVariant</span><span class="p">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
@@ -5533,7 +5479,7 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 
 <span class="kd">interface</span><span class="w"> </span><span class="nx">Selection</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[];</span>
+<span class="w">  </span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="kt">DataTableRowKey</span><span class="p">[];</span>
 <span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ProductsPage</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
@@ -5544,32 +5490,24 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">products</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useList</span><span class="p">&lt;</span><span class="nt">Product</span><span class="p">&gt;(</span><span class="s2">"products"</span><span class="p">,</span><span class="w"> </span><span class="nx">toListParams</span><span class="p">(</span><span class="nx">filters</span><span class="p">),</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">placeholderData</span><span class="o">:</span><span class="w"> </span><span class="kt">keepPreviousData</span><span class="p">,</span>
 <span class="w">  </span><span class="p">});</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">deleteProduct</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDelete</span><span class="p">&lt;</span><span class="nt">Product</span><span class="p">&gt;(</span><span class="s2">"products"</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">deleteProducts</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDeleteMany</span><span class="p">&lt;</span><span class="nt">Product</span><span class="p">&gt;(</span><span class="s2">"products"</span><span class="p">);</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">editing</span><span class="p">,</span><span class="w"> </span><span class="nx">setEditing</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Product</span><span class="w"> </span><span class="err">|</span><span class="w"> </span><span class="na">null</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">formOpen</span><span class="p">,</span><span class="w"> </span><span class="nx">setFormOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">toDelete</span><span class="p">,</span><span class="w"> </span><span class="nx">setToDelete</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Product</span><span class="err">[]</span><span class="p">&gt;([]);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">deleting</span><span class="p">,</span><span class="w"> </span><span class="nx">setDeleting</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">selection</span><span class="p">,</span><span class="w"> </span><span class="nx">setSelection</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">Selection</span><span class="p">&gt;({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="p">});</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">items</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">products</span><span class="p">.</span><span class="nx">data</span><span class="o">?</span><span class="p">.</span><span class="nx">items</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">[];</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">lastPage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">products</span><span class="p">.</span><span class="nx">data</span><span class="o">?</span><span class="p">.</span><span class="nx">pages</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">;</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">selectionKey</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">filters</span><span class="p">.</span><span class="nx">key</span><span class="si">}</span><span class="sb">|</span><span class="si">${</span><span class="nx">filters</span><span class="p">.</span><span class="nx">page</span><span class="si">}</span><span class="sb">|</span><span class="si">${</span><span class="nx">filters</span><span class="p">.</span><span class="nx">pageSize</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">selectedIds</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">selection</span><span class="p">.</span><span class="nx">key</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">selectionKey</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">selection</span><span class="p">.</span><span class="nx">ids</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">[];</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">allSelected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">items</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">items</span><span class="p">.</span><span class="nx">every</span><span class="p">((</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">selectedIds</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="nx">item</span><span class="p">.</span><span class="nx">id</span><span class="p">));</span>
 
 <span class="w">  </span><span class="nx">useEffect</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">lastPage</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">page</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="nx">lastPage</span><span class="p">)</span><span class="w"> </span><span class="nx">update</span><span class="p">({</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">lastPage</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">});</span>
 <span class="w">  </span><span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">filters</span><span class="p">.</span><span class="nx">page</span><span class="p">,</span><span class="w"> </span><span class="nx">lastPage</span><span class="p">,</span><span class="w"> </span><span class="nx">update</span><span class="p">]);</span>
 
-<span class="w">  </span><span class="kd">function</span><span class="w"> </span><span class="nx">setSelected</span><span class="p">(</span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">[])</span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">function</span><span class="w"> </span><span class="nx">setSelected</span><span class="p">(</span><span class="nx">ids</span><span class="o">:</span><span class="w"> </span><span class="kt">DataTableRowKey</span><span class="p">[])</span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">setSelection</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">selectionKey</span><span class="p">,</span><span class="w"> </span><span class="nx">ids</span><span class="w"> </span><span class="p">});</span>
-<span class="w">  </span><span class="p">}</span>
-
-<span class="w">  </span><span class="kd">function</span><span class="w"> </span><span class="nx">toggleOne</span><span class="p">(</span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">setSelected</span><span class="p">(</span>
-<span class="w">      </span><span class="nx">selectedIds</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">selectedIds</span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">item</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">[...</span><span class="nx">selectedIds</span><span class="p">,</span><span class="w"> </span><span class="nx">id</span><span class="p">],</span>
-<span class="w">    </span><span class="p">);</span>
 <span class="w">  </span><span class="p">}</span>
 
 <span class="w">  </span><span class="kd">function</span><span class="w"> </span><span class="nx">openForm</span><span class="p">(</span><span class="nx">product</span><span class="o">:</span><span class="w"> </span><span class="kt">Product</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">{</span>
@@ -5578,19 +5516,16 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">  </span><span class="p">}</span>
 
 <span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">confirmDelete</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">setDeleting</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nb">Promise</span><span class="p">.</span><span class="nx">allSettled</span><span class="p">(</span>
-<span class="w">      </span><span class="nx">toDelete</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">deleteProduct</span><span class="p">.</span><span class="nx">mutateAsync</span><span class="p">(</span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">)),</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">deleted</span><span class="p">,</span><span class="w"> </span><span class="nx">failed</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">deleteProducts</span><span class="p">.</span><span class="nx">mutateAsync</span><span class="p">(</span>
+<span class="w">      </span><span class="nx">toDelete</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">),</span>
 <span class="w">    </span><span class="p">);</span>
-<span class="w">    </span><span class="nx">setDeleting</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
 
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">removed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">toDelete</span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">_</span><span class="p">,</span><span class="w"> </span><span class="nx">index</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">results</span><span class="p">[</span><span class="nx">index</span><span class="p">].</span><span class="nx">status</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"fulfilled"</span><span class="p">);</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">failures</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">results</span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">result</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">result</span><span class="p">.</span><span class="nx">status</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"rejected"</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">removed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">toDelete</span><span class="p">.</span><span class="nx">filter</span><span class="p">((</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">deleted</span><span class="p">.</span><span class="nx">some</span><span class="p">((</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">entry</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">));</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">removed</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">1</span><span class="p">)</span><span class="w"> </span><span class="nx">toast</span><span class="p">.</span><span class="nx">success</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">removed</span><span class="p">[</span><span class="mf">0</span><span class="p">].</span><span class="nx">name</span><span class="si">}</span><span class="sb"> excluído.`</span><span class="p">);</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">removed</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">1</span><span class="p">)</span><span class="w"> </span><span class="nx">toast</span><span class="p">.</span><span class="nx">success</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">removed</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> produtos excluídos.`</span><span class="p">);</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">failures</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">failed</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">      </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span>
-<span class="w">        </span><span class="nx">describe</span><span class="p">(</span><span class="nx">failures</span><span class="p">[</span><span class="mf">0</span><span class="p">].</span><span class="nx">reason</span><span class="p">,</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">failures</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> produto(s) não puderam ser excluídos.`</span><span class="p">),</span>
+<span class="w">        </span><span class="nx">describe</span><span class="p">(</span><span class="nx">failed</span><span class="p">[</span><span class="mf">0</span><span class="p">].</span><span class="nx">error</span><span class="p">,</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">failed</span><span class="p">.</span><span class="nx">length</span><span class="si">}</span><span class="sb"> produto(s) não puderam ser excluídos.`</span><span class="p">),</span>
 <span class="w">      </span><span class="p">);</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">    </span><span class="nx">setSelected</span><span class="p">([]);</span>
@@ -5598,25 +5533,7 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">  </span><span class="p">}</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">columns</span><span class="o">:</span><span class="w"> </span><span class="kt">DataTableColumn</span><span class="p">&lt;</span><span class="nt">Product</span><span class="p">&gt;[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"sku"</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="p">(</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">Checkbox</span>
-<span class="w">          </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Selecionar todos os produtos desta página"</span>
-<span class="w">          </span><span class="na">checked</span><span class="o">=</span><span class="p">{</span><span class="nx">allSelected</span><span class="p">}</span>
-<span class="w">          </span><span class="na">indeterminate</span><span class="o">=</span><span class="p">{</span><span class="nx">selectedIds</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">!</span><span class="nx">allSelected</span><span class="p">}</span>
-<span class="w">          </span><span class="na">onChange</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setSelected</span><span class="p">(</span><span class="nx">allSelected</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">[]</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">item</span><span class="p">.</span><span class="nx">id</span><span class="p">))}</span>
-<span class="w">        </span><span class="p">/&gt;</span>
-<span class="w">      </span><span class="p">),</span>
-<span class="w">      </span><span class="nx">render</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">Checkbox</span>
-<span class="w">          </span><span class="na">label</span><span class="o">=</span><span class="p">{</span><span class="nx">product</span><span class="p">.</span><span class="nx">sku</span><span class="p">}</span>
-<span class="w">          </span><span class="na">aria-label</span><span class="o">=</span><span class="p">{</span><span class="sb">`Selecionar </span><span class="si">${</span><span class="nx">product</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">}</span>
-<span class="w">          </span><span class="na">checked</span><span class="o">=</span><span class="p">{</span><span class="nx">selectedIds</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">)}</span>
-<span class="w">          </span><span class="na">onChange</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">toggleOne</span><span class="p">(</span><span class="nx">product</span><span class="p">.</span><span class="nx">id</span><span class="p">)}</span>
-<span class="w">        </span><span class="p">/&gt;</span>
-<span class="w">      </span><span class="p">),</span>
-<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"sku"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"SKU"</span><span class="w"> </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"name"</span><span class="p">,</span><span class="w"> </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">"Produto"</span><span class="p">,</span><span class="w"> </span><span class="nx">sortable</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span>
 <span class="w">      </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"category"</span><span class="p">,</span>
@@ -5648,37 +5565,33 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">Badge</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="p">{</span><span class="nx">STATUS_VARIANT</span><span class="p">[</span><span class="nx">product</span><span class="p">.</span><span class="nx">status</span><span class="p">]}&gt;{</span><span class="nx">STATUS_LABELS</span><span class="p">[</span><span class="nx">product</span><span class="p">.</span><span class="nx">status</span><span class="p">]}&lt;/</span><span class="nt">Badge</span><span class="p">&gt;</span>
 <span class="w">      </span><span class="p">),</span>
 <span class="w">    </span><span class="p">},</span>
-<span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"id"</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">header</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">align</span><span class="o">:</span><span class="w"> </span><span class="s2">"right"</span><span class="p">,</span>
-<span class="w">      </span><span class="nx">render</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">DropdownMenu</span>
-<span class="w">          </span><span class="na">placement</span><span class="o">=</span><span class="s">"bottom-end"</span>
-<span class="w">          </span><span class="na">trigger</span><span class="o">=</span><span class="p">{</span>
-<span class="w">            </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="p">{</span><span class="sb">`Ações para </span><span class="si">${</span><span class="nx">product</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">}&gt;</span>
-<span class="w">              </span><span class="p">&lt;</span><span class="nt">MoreVertical</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
-<span class="w">            </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
-<span class="w">          </span><span class="p">}</span>
-<span class="w">          </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
-<span class="w">            </span><span class="p">{</span>
-<span class="w">              </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"edit"</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Editar"</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">openForm</span><span class="p">(</span><span class="nx">product</span><span class="p">),</span>
-<span class="w">            </span><span class="p">},</span>
-<span class="w">            </span><span class="p">{</span>
-<span class="w">              </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"delete"</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Excluir"</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
-<span class="w">              </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setToDelete</span><span class="p">([</span><span class="nx">product</span><span class="p">]),</span>
-<span class="w">            </span><span class="p">},</span>
-<span class="w">          </span><span class="p">]}</span>
-<span class="w">        </span><span class="p">/&gt;</span>
-<span class="w">      </span><span class="p">),</span>
-<span class="w">    </span><span class="p">},</span>
 <span class="w">  </span><span class="p">];</span>
+
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">rowActions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">product</span><span class="o">:</span><span class="w"> </span><span class="kt">Product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">DropdownMenu</span>
+<span class="w">        </span><span class="na">placement</span><span class="o">=</span><span class="s">"bottom-end"</span>
+<span class="w">        </span><span class="na">trigger</span><span class="o">=</span><span class="p">{</span>
+<span class="w">          </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="p">{</span><span class="sb">`Ações para </span><span class="si">${</span><span class="nx">product</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">MoreVertical</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">16</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">          </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="na">items</span><span class="o">=</span><span class="p">{[</span>
+<span class="w">          </span><span class="p">{</span>
+<span class="w">            </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"edit"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Editar"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">openForm</span><span class="p">(</span><span class="nx">product</span><span class="p">),</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">          </span><span class="p">{</span>
+<span class="w">            </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">"item"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"delete"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Excluir"</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">danger</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">            </span><span class="nx">onSelect</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setToDelete</span><span class="p">([</span><span class="nx">product</span><span class="p">]),</span>
+<span class="w">          </span><span class="p">},</span>
+<span class="w">        </span><span class="p">]}</span>
+<span class="w">      </span><span class="p">/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">emptyMessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">filters</span><span class="p">.</span><span class="nx">isFiltered</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">(</span>
 <span class="w">    </span><span class="p">&lt;</span><span class="nt">EmptyState</span>
@@ -5718,10 +5631,6 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">      </span><span class="p">}</span>
 <span class="w">      </span><span class="na">toolbar</span><span class="o">=</span><span class="p">{</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">Stack</span><span class="w"> </span><span class="na">direction</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">mobile</span><span class="o">:</span><span class="w"> </span><span class="s2">"vertical"</span><span class="p">,</span><span class="w"> </span><span class="nx">desktop</span><span class="o">:</span><span class="w"> </span><span class="s2">"horizontal"</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="na">gap</span><span class="o">=</span><span class="p">{</span><span class="mf">3</span><span class="p">}</span><span class="w"> </span><span class="na">align</span><span class="o">=</span><span class="s">"stretch"</span><span class="p">&gt;</span>
-<span class="w">          </span><span class="p">&lt;</span><span class="nt">ProductSearch</span>
-<span class="w">            </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">search</span><span class="p">}</span>
-<span class="w">            </span><span class="na">onSearch</span><span class="o">=</span><span class="p">{(</span><span class="nx">term</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">update</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="o">:</span><span class="w"> </span><span class="kt">term</span><span class="p">,</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}</span>
-<span class="w">          </span><span class="p">/&gt;</span>
 <span class="w">          </span><span class="p">&lt;</span><span class="nt">Select</span>
 <span class="w">            </span><span class="na">variant</span><span class="o">=</span><span class="s">"chip"</span>
 <span class="w">            </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Filtrar por categoria"</span>
@@ -5779,7 +5688,7 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">          </span><span class="nx">pageSize</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">pageSize</span><span class="p">}</span>
 <span class="w">          </span><span class="nx">pageSizeOptions</span><span class="o">=</span><span class="p">{[</span><span class="mf">10</span><span class="p">,</span><span class="w"> </span><span class="mf">20</span><span class="p">,</span><span class="w"> </span><span class="mf">50</span><span class="p">]}</span>
 <span class="w">          </span><span class="nx">onPageSizeChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">size</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">update</span><span class="p">({</span><span class="w"> </span><span class="nx">por_pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">size</span><span class="p">,</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">})}</span>
-<span class="w">          </span><span class="nx">initialSort</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">sort</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">undefined</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">sort</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">sort</span><span class="p">}</span>
 <span class="w">          </span><span class="nx">onSortChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">sort</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
 <span class="w">            </span><span class="nx">update</span><span class="p">({</span>
 <span class="w">              </span><span class="nx">ordem</span><span class="o">:</span><span class="w"> </span><span class="kt">sort</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nb">String</span><span class="p">(</span><span class="nx">sort</span><span class="p">.</span><span class="nx">key</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
@@ -5787,6 +5696,19 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">              </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span>
 <span class="w">            </span><span class="p">})</span>
 <span class="w">          </span><span class="p">}</span>
+<span class="w">          </span><span class="nx">searchable</span>
+<span class="w">          </span><span class="nx">search</span><span class="o">=</span><span class="p">{</span><span class="nx">filters</span><span class="p">.</span><span class="nx">search</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">searchDebounceMs</span><span class="o">=</span><span class="p">{</span><span class="mf">400</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">searchLabel</span><span class="o">=</span><span class="s2">"Buscar produtos"</span>
+<span class="w">          </span><span class="nx">searchPlaceholder</span><span class="o">=</span><span class="s2">"Buscar por nome ou SKU"</span>
+<span class="w">          </span><span class="nx">onSearchChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">term</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">update</span><span class="p">({</span><span class="w"> </span><span class="nx">busca</span><span class="o">:</span><span class="w"> </span><span class="kt">term</span><span class="p">,</span><span class="w"> </span><span class="nx">pagina</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">replace</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}</span>
+<span class="w">          </span><span class="nx">selectable</span>
+<span class="w">          </span><span class="nx">selectedKeys</span><span class="o">=</span><span class="p">{</span><span class="nx">selectedIds</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">onSelectionChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setSelected</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">selectionLabel</span><span class="o">=</span><span class="p">{(</span><span class="nx">product</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="sb">`Selecionar </span><span class="si">${</span><span class="nx">product</span><span class="p">.</span><span class="nx">name</span><span class="si">}</span><span class="sb">`</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">rowActions</span><span class="o">=</span><span class="p">{</span><span class="nx">rowActions</span><span class="p">}</span>
+<span class="w">          </span><span class="nx">rowActionsLabel</span><span class="o">=</span><span class="s2">"Ações do produto"</span>
+<span class="w">          </span><span class="nx">stackOnMobile</span>
 <span class="w">          </span><span class="nx">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">products</span><span class="p">.</span><span class="nx">isFetching</span><span class="p">}</span>
 <span class="w">          </span><span class="nx">emptyMessage</span><span class="o">=</span><span class="p">{</span><span class="nx">emptyMessage</span><span class="p">}</span>
 <span class="w">        </span><span class="o">/&gt;</span>
@@ -5804,7 +5726,7 @@ o que depende da tela (fechar o drawer, mostrar o toast), e deixa intocado o <co
 <span class="w">        </span><span class="p">}</span>
 <span class="w">        </span><span class="na">confirmLabel</span><span class="o">=</span><span class="s">"Sim, excluir"</span>
 <span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span>
-<span class="w">        </span><span class="na">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">deleting</span><span class="p">}</span>
+<span class="w">        </span><span class="na">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">deleteProducts</span><span class="p">.</span><span class="nx">isPending</span><span class="p">}</span>
 <span class="w">        </span><span class="na">onConfirm</span><span class="o">=</span><span class="p">{</span><span class="nx">confirmDelete</span><span class="p">}</span>
 <span class="w">        </span><span class="na">onCancel</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setToDelete</span><span class="p">([])}</span>
 <span class="w">      </span><span class="p">/&gt;</span>
@@ -5849,22 +5771,25 @@ eventos que você trata. Cada um escreve na URL:</p>
 </tr>
 </tbody>
 </table>
-<p><code>initialSort={filters.sort}</code> faz a seta do cabeçalho abrir no lugar certo quando a tela já chega com
-<code>?ordem=</code> na URL.</p>
+<p><code>sort={filters.sort}</code> mantém a seta do cabeçalho no lugar certo quando a tela chega com <code>?ordem=</code> na
+URL e quando o botão voltar muda a ordem. A busca segue o mesmo caminho: <code>search={filters.search}</code>,
+<code>onSearchChange</code> com <code>replace</code> para cada pausa na digitação não virar uma entrada no histórico.</p>
 <h4 id="selecao-em-lote">Seleção em lote</h4>
-<p>O <code>DataTable</code> não tem seleção de linhas embutida, então ela é uma coluna: a de SKU renderiza um
-<code>Checkbox</code> por linha, e o cabeçalho dela tem o "selecionar todos desta página" com estado
-<code>indeterminate</code> quando só parte está marcada.</p>
+<p><code>selectable</code> liga a coluna de checkbox do <code>DataTable</code>, controlada por <code>selectedKeys</code> e
+<code>onSelectionChange</code>. O checkbox do cabeçalho marca a página que está na tela e fica <code>indeterminate</code>
+quando só parte dela está marcada; as chaves são o retorno de <code>rowKey</code>, o id do produto.</p>
 <p>A seleção guarda junto a <code>key</code> dos filtros e da página. Mudou a busca, o filtro ou a página, a chave
 muda e a seleção some sozinha — sem <code>useEffect</code>, e sem o risco de excluir um produto que a pessoa
 nem está vendo.</p>
 <h4 id="menu-por-linha-e-exclusao">Menu por linha e exclusão</h4>
-<p>A última coluna usa a chave <code>id</code> para o <a href="../../components/actions/#numa-linha-de-tabela"><code>DropdownMenu</code></a>
-de "Editar" e "Excluir". O menu abre em portal, então não é cortado pela rolagem horizontal da
+<p><code>rowActions</code> desenha o <a href="../../components/actions/#numa-linha-de-tabela"><code>DropdownMenu</code></a> de "Editar" e
+"Excluir" numa coluna da própria tabela, sem emprestar a <code>key</code> de um campo do produto. O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.</p>
-<p>Excluir um e excluir vários passam pelo mesmo <code>ConfirmDialog</code>. <code>confirmDelete</code> chama
-<code>deleteProduct.mutateAsync</code> para cada produto com <code>Promise.allSettled</code>, então uma falha não cancela
-as outras: se dois de três saíram, o toast diz quais saíram e qual não saiu, com o <code>detail</code> do
+<p>Excluir um e excluir vários passam pelo mesmo <code>ConfirmDialog</code>. <code>confirmDelete</code> manda os ids para
+o <a href="../../data-provider/#excluir-uma-selecao-usedeletemany"><code>useDeleteMany</code></a>, que exclui cada um por
+conta própria e invalida a lista <strong>uma</strong> vez — com um <code>useDelete</code> por id, 10 produtos custavam 10
+invalidações e 10 <code>GET</code> da lista. Uma falha não cancela as outras: o resultado separa <code>deleted</code> de
+<code>failed</code>, e se dois de três saíram, o toast diz quais saíram e qual não saiu, com o <code>detail</code> do
 backend ("Produto com pedidos em aberto").</p>
 <div class="admonition tip">
 <p class="admonition-title">Excluiu a última linha da última página?</p>
@@ -5881,8 +5806,9 @@ backend ("Produto com pedidos em aberto").</p>
 </ul>
 <h4 id="no-celular">No celular 📱</h4>
 <ul>
-<li><code>priority: "desktop"</code> esconde a categoria abaixo do desktop; <code>priority: "tablet"</code> esconde
-  estoque e situação no celular. Ficam SKU com a seleção, nome, preço e o menu.</li>
+<li><code>stackOnMobile</code> transforma cada linha num cartão abaixo de 768 px: rótulo à esquerda, valor à
+  direita, sem rolagem lateral e sem o SKU quebrando linha. <code>priority: "desktop"</code> ainda esconde a
+  categoria abaixo do desktop.</li>
 <li>A barra de filtros empilha com <code>direction={{ mobile: "vertical", desktop: "horizontal" }}</code>.</li>
 <li>O <code>Drawer</code> vira bottom sheet com <code>mobilePlacement="bottom"</code>, e o rodapé de paginação do
   <code>DataTable</code> fica compacto (‹ ›) abaixo de 640 px — veja
@@ -5906,12 +5832,12 @@ contrato desta página), a 1280 px e a 390 px de largura.</p>
 </div>
 <h2 id="recap">Recap</h2>
 <ul>
-<li><code>createDataProvider</code> + <code>useList</code>/<code>useCreate</code>/<code>useUpdate</code>/<code>useDelete</code> dão o CRUD inteiro sem uma
-  <code>queryKey</code> escrita à mão. Callbacks de tela vão no <code>mutate(…, { onSuccess, onError })</code>.</li>
+<li><code>createDataProvider</code> + <code>useList</code>/<code>useCreate</code>/<code>useUpdate</code>/<code>useDeleteMany</code> dão o CRUD inteiro sem
+  uma <code>queryKey</code> escrita à mão. Callbacks de tela vão no <code>mutate(…, { onSuccess, onError })</code>.</li>
 <li>O <code>DataTable</code> com <code>totalItems</code> delega página, tamanho e ordenação para você; guarde os três na URL.</li>
-<li>Escrever na URL várias vezes no mesmo clique pede um ref com a última URL.</li>
-<li>A busca tem estado próprio e chega na URL com <code>useDebounce</code>: uma requisição por busca, não por
-  tecla.</li>
+<li><code>useUrlState</code> guarda página, filtros e ordem na URL; escritas do mesmo clique viram uma navegação.</li>
+<li>A busca é a do <code>DataTable</code>, controlada pela URL e com <code>searchDebounceMs</code>: uma requisição por busca,
+  não por tecla.</li>
 <li><code>useZodForm</code> + <code>FormField</code> validam no cliente; <code>error.fields</code> e <code>describeApiError</code> levam o erro
   do servidor para o campo certo e para o toast.</li>
 <li>Toda tela real tem carregando, vazio, vazio por filtro, erro e celular. Os cinco estão aqui. ✅</li>

@@ -3913,6 +3913,8 @@
       
         
       
+        
+      
     
     
       
@@ -4021,6 +4023,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5125,14 +5148,20 @@ wrap, <code>Home</code>/<code>End</code> jump to the ends, <code>Enter</code> ac
 <tr>
 <td><code>placeholder</code></td>
 <td><code>string</code></td>
-<td><code>"Type a command…"</code></td>
+<td><code>"Digite um comando…"</code></td>
 <td>Placeholder for the search input</td>
 </tr>
 <tr>
 <td><code>emptyMessage</code></td>
 <td><code>ReactNode</code></td>
-<td><code>"No results"</code></td>
+<td><code>"Nenhum resultado"</code></td>
 <td>Rendered when no item matches the query</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td><code>string</code></td>
+<td><code>"Paleta de comandos"</code></td>
+<td>Accessible name of the dialog and its search box</td>
 </tr>
 <tr>
 <td><code>className</code></td>
@@ -5145,7 +5174,33 @@ wrap, <code>Home</code>/<code>End</code> jump to the ends, <code>Enter</code> ac
 <p><code>CommandItem</code> = <code>{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () =&gt; void; icon?: ReactNode }</code>.</p>
 <div class="admonition tip">
 <p class="admonition-title">Global trigger</p>
-<p>Pair with <code>useKeyboardShortcut("mod+k", () =&gt; setOpen(true))</code> to open via ⌘K / Ctrl+K.</p>
+<p>Pair with <code>useKeyboardShortcut</code>, which takes a <code>KeyboardShortcut</code> object, to open via ⌘K / Ctrl+K:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Command</span><span class="p">,</span><span class="w"> </span><span class="nx">Kbd</span><span class="p">,</span><span class="w"> </span><span class="nx">formatShortcut</span><span class="p">,</span><span class="w"> </span><span class="nx">useKeyboardShortcut</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Palette</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">boolean</span><span class="p">&gt;(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">));</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Button</span>
+<span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span>
+<span class="w">        </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">)}</span>
+<span class="w">        </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">formatShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;}</span>
+<span class="w">      </span><span class="p">&gt;</span>
+<span class="w">        </span><span class="nx">Search</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Command</span><span class="w"> </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span><span class="w"> </span><span class="na">onOpenChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setOpen</span><span class="p">}</span><span class="w"> </span><span class="na">items</span><span class="o">=</span><span class="p">{[]}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The hook already calls <code>preventDefault</code> and fires with the focus in a field, because the shortcut carries Ctrl/Cmd. <code>formatShortcut</code> shows <code>⌘K</code> or <code>Ctrl+K</code> depending on the system. See <a href="../../hooks/#global-shortcut-usekeyboardshortcut"><code>useKeyboardShortcut</code></a>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">PT-BR default copy</p>
+<p>Until the previous version <code>placeholder</code>, <code>emptyMessage</code> and the accessible name were fixed in English (<code>"Type a command…"</code>, <code>"No results"</code>, <code>"Command palette"</code>), so a PT-BR screen reader announced the dialog in another language. All three now default to PT-BR and take a prop. Matching ignores case and accents: "usuarios" finds "Usuários".</p>
 </div>
 <h2 id="recap">Recap</h2>
 <ul>

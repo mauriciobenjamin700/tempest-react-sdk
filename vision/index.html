@@ -4192,6 +4192,8 @@
       
         
       
+        
+      
     
     
       
@@ -4300,6 +4302,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5928,14 +5951,22 @@ afinal os pesos YOLO mais comuns são treinados no COCO — e o <code>Classifier
 <p>Antes de rodar qualquer modelo você precisa de um <strong>frame</strong> — e de um frame que
 preste. O subpath <code>/vision</code> traz três primitivas de navegador pra isso: abrir a
 câmera, medir o brilho ao vivo e rejeitar capturas escuras demais. Elas são
-genéricas (não dependem de nenhum modelo), mas moram no <code>/vision</code> porque é ali
-que a captura acontece.</p>
+genéricas (não dependem de nenhum modelo).</p>
+<div class="admonition tip">
+<p class="admonition-title">Só quer a câmera? Importe o <code>useCameraStream</code> da raiz</p>
+<p>O <code>useCameraStream</code> mora no módulo de <a href="../device-capture/">captura</a> e sai na raiz
+(<code>import { useCameraStream } from "tempest-react-sdk"</code>). O <code>/vision</code> reexporta a
+mesma função, mas importa o <code>onnxruntime-web</code> estaticamente: sem o peer instalado,
+o esbuild falha com <code>Could not resolve "onnxruntime-web"</code>, e o Node cru e o Vitest do
+app com <code>ERR_MODULE_NOT_FOUND</code>. Pela raiz nada disso acontece — um guard do build
+reprova se a raiz alcançar um módulo que importa o ONNX Runtime.</p>
+</div>
 <h3 id="usecamerastream-abrir-a-camera"><code>useCameraStream</code> — abrir a câmera</h3>
 <p>Pede um <code>MediaStream</code> via <code>getUserMedia</code>, prende num <code>&lt;video&gt;</code> e expõe
 <code>status</code>/<code>error</code> já classificados, pra você renderizar os estados de permissão e
 erro sem decorar os nomes de <code>DOMException</code>. O stream é liberado sozinho no
 unmount e no <code>retry()</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vision"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">CameraView</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">status</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">,</span><span class="w"> </span><span class="nx">videoRef</span><span class="p">,</span><span class="w"> </span><span class="nx">retry</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="p">();</span>
@@ -6005,7 +6036,7 @@ insegura o hook devolve <code>status: "error"</code> com <code>kind: "insecure"<
 <h4 id="mensagens-na-lingua-do-app-messages">Mensagens na língua do app: <code>messages</code></h4>
 <p>O <code>error.message</code> vem em <strong>inglês</strong> por padrão. Para mostrar o erro em outra língua sem
 embrulhar o hook, passe <code>messages</code> — um texto por <code>kind</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vision"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">MENSAGENS_DA_CAMERA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">unsupported</span><span class="o">:</span><span class="w"> </span><span class="s2">"Este navegador não dá acesso à câmera."</span><span class="p">,</span>

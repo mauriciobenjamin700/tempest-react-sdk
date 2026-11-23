@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://mauriciobenjamin700.github.io/tempest-react-sdk/en/recipes/field-app-offline/">
       
       
-        <link rel="prev" href="../messenger/">
+        <link rel="prev" href="../share-whatsapp/">
       
       
         <link rel="next" href="../example-management-app/">
@@ -3798,6 +3798,8 @@
       
         
       
+        
+      
     
     
       
@@ -3909,6 +3911,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4045,9 +4068,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#deliver-the-photos-go-up-before-the-visit" class="md-nav__link">
+  <a href="#attachments-the-photos-go-up-before-the-visit" class="md-nav__link">
     <span class="md-ellipsis">
-      deliver: the photos go up before the visit
+      attachments: the photos go up before the visit
     </span>
   </a>
   
@@ -4783,9 +4806,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#deliver-the-photos-go-up-before-the-visit" class="md-nav__link">
+  <a href="#attachments-the-photos-go-up-before-the-visit" class="md-nav__link">
     <span class="md-ellipsis">
-      deliver: the photos go up before the visit
+      attachments: the photos go up before the visit
     </span>
   </a>
   
@@ -5060,10 +5083,13 @@ The app talks to four routes, all under <code>root_path="/api"</code>:</p>
 <p>An error follows the envelope of the <a href="../../integration-fastapi/#the-contract-both-sides-share">shared contract</a>.
 Only one matters here: when the supervisor has already approved the visit, the <code>PUT</code>
 answers <code>409</code> with <code>{"detail": "Visita já aprovada pelo supervisor.", "code": "VISIT_LOCKED"}</code>.</p>
-<div class="admonition warning">
-<p class="admonition-title"><code>tempest-fastapi-sdk</code> has no tus server</p>
-<p>The <code>/api/uploads</code> route needs a real tus server — <code>tusd</code> behind the same proxy is the
-common path. The table of what it must answer is in
+<div class="admonition info">
+<p class="admonition-title">tus server on the backend</p>
+<p>The <code>/api/uploads</code> route needs a tus server. From 0.370.0 on, <code>tempest-fastapi-sdk</code> ships
+one (<a href="https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/en/recipes/resumable-upload/"><code>make_tus_router</code></a>), which binds each upload to
+its owner through <code>current_user_id</code> — what matters on a shared tablet. On a backend
+without it, <code>tusd</code> behind the same proxy is the common path. The table of what the server
+must answer is in
 <a href="../../resumable-upload/#what-your-backend-must-implement">Resumable upload</a>.</p>
 </div>
 <h2 id="the-code-file-by-file">The code, file by file</h2>
@@ -5102,7 +5128,8 @@ common path. The table of what it must answer is in
 <span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">visit_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">technician_id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
-<span class="w">  </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">Blob</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">Blob</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">thumb</span><span class="o">:</span><span class="w"> </span><span class="kt">Blob</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">bytes</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">taken_at</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
 <span class="w">  </span><span class="nx">upload_url</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
@@ -5175,11 +5202,12 @@ common path. The table of what it must answer is in
 <li><code>sync_state</code> and <code>conflict_detail</code> are <strong>local only</strong> — the server never sees them. They
   tell the screen whether the visit is waiting for signal, already went, or hit a conflict.</li>
 <li>The photo keeps the <code>Blob</code> itself, not a URL. There is no server to point at in the
-  pasture.</li>
+  pasture. Once it is uploaded, <code>blob</code> becomes <code>null</code> and only the thumbnail (<code>thumb</code>)
+  stays: the device does not keep what the server already has.</li>
 </ul>
 <h3 id="2-the-session">2. The session</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/lib/auth.ts</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="p">,</span><span class="w"> </span><span class="nx">requestPersistentStorage</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">Technician</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
@@ -5196,10 +5224,20 @@ common path. The table of what it must answer is in
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">currentTechnicianId</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">auth</span><span class="p">.</span><span class="nx">useAuthStore</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">user</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
 <span class="p">}</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">signIn</span><span class="p">(</span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">password</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="ow">void</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">auth</span><span class="p">.</span><span class="nx">login</span><span class="p">({</span><span class="w"> </span><span class="nx">email</span><span class="p">,</span><span class="w"> </span><span class="nx">password</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="ow">void</span><span class="w"> </span><span class="nx">requestPersistentStorage</span><span class="p">();</span>
+<span class="p">}</span>
 </code></pre></div>
 <p><a href="../../integration-fastapi/#5-turn-key-authentication-createtempestauth"><code>createTempestAuth</code></a>
 wires login, refresh and an already-authenticated <code>auth.api</code>. <code>currentTechnicianId</code> is read
 outside React — by the sync engine and the database — so it is a function, not a hook.</p>
+<p><code>signIn</code> asks for <strong>persistent storage</strong> right after login. Without it, the browser may
+delete IndexedDB under disk pressure — and in Safari outside the home screen, after ~7 days
+without use. The request lives here, not in the sync engine, because in Firefox it opens a
+permission prompt: at login the technician understands why the app is asking; in the middle
+of a background upload, they do not.</p>
 <h3 id="3-the-on-device-database">3. The on-device database</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/visits/db.ts</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineDatabase</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
@@ -5236,15 +5274,10 @@ technicians share the same co-op tablet, one does not see the other's visits.</p
 <h3 id="4-the-sync-engine-with-the-photos-inside">4. The sync engine — with the photos inside</h3>
 <p>This is the heart of the app.</p>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/visits/sync.ts</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="nx">createOfflineSync</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">createResumableUpload</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">encodeIdSegment</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">isApiError</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">lastWriteWins</span><span class="p">,</span>
-<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="p">,</span><span class="w"> </span><span class="nx">encodeIdSegment</span><span class="p">,</span><span class="w"> </span><span class="nx">isApiError</span><span class="p">,</span><span class="w"> </span><span class="nx">lastWriteWins</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">auth</span><span class="p">,</span><span class="w"> </span><span class="nx">currentTechnicianId</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/auth"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">photos</span><span class="p">,</span><span class="w"> </span><span class="nx">visits</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/db"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">listPhotos</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/photos"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">fromDto</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">toPayload</span><span class="p">,</span>
@@ -5252,49 +5285,48 @@ technicians share the same co-op tablet, one does not see the other's visits.</p
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">Visit</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">VisitChangesPage</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">VisitDto</span><span class="p">,</span>
-<span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">VisitPhoto</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/types"</span><span class="p">;</span>
 
 <span class="kd">const</span><span class="w"> </span><span class="nx">PHOTO_CHUNK_SIZE</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">256</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">1024</span><span class="p">;</span>
-
-<span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">uploadPendingPhotos</span><span class="p">(</span><span class="nx">visitId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">PhotoRef</span><span class="p">[]</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">list</span><span class="o">:</span><span class="w"> </span><span class="kt">VisitPhoto</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">raw</span>
-<span class="w">    </span><span class="p">.</span><span class="nx">where</span><span class="p">(</span><span class="s2">"visit_id"</span><span class="p">)</span>
-<span class="w">    </span><span class="p">.</span><span class="nx">equals</span><span class="p">(</span><span class="nx">visitId</span><span class="p">)</span>
-<span class="w">    </span><span class="p">.</span><span class="nx">sortBy</span><span class="p">(</span><span class="s2">"taken_at"</span><span class="p">);</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">refs</span><span class="o">:</span><span class="w"> </span><span class="kt">PhotoRef</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[];</span>
-
-<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">photo</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">list</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">photo</span><span class="p">.</span><span class="nx">upload_url</span><span class="p">;</span>
-<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">url</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">done</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">createResumableUpload</span><span class="p">({</span>
-<span class="w">        </span><span class="nx">endpoint</span><span class="o">:</span><span class="w"> </span><span class="kt">auth.api.url</span><span class="p">(</span><span class="s2">"/uploads"</span><span class="p">),</span>
-<span class="w">        </span><span class="nx">file</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob</span><span class="p">,</span>
-<span class="w">        </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="sb">`visit-photo:</span><span class="si">${</span><span class="nx">photo</span><span class="p">.</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
-<span class="w">        </span><span class="nx">chunkSize</span><span class="o">:</span><span class="w"> </span><span class="kt">PHOTO_CHUNK_SIZE</span><span class="p">,</span>
-<span class="w">        </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">visit_id</span><span class="o">:</span><span class="w"> </span><span class="kt">visitId</span><span class="p">,</span><span class="w"> </span><span class="nx">photo_id</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.id</span><span class="p">,</span><span class="w"> </span><span class="nx">filetype</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob.type</span><span class="w"> </span><span class="p">},</span>
-<span class="w">        </span><span class="nx">getToken</span><span class="o">:</span><span class="w"> </span><span class="kt">auth.getToken</span><span class="p">,</span>
-<span class="w">      </span><span class="p">}).</span><span class="nx">start</span><span class="p">();</span>
-<span class="w">      </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">done</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="s2">"Envio da foto interrompido."</span><span class="p">);</span>
-<span class="w">      </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">done</span><span class="p">.</span><span class="nx">url</span><span class="p">;</span>
-<span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">photo</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">upload_url</span><span class="o">:</span><span class="w"> </span><span class="kt">url</span><span class="w"> </span><span class="p">});</span>
-<span class="w">    </span><span class="p">}</span>
-<span class="w">    </span><span class="nx">refs</span><span class="p">.</span><span class="nx">push</span><span class="p">({</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.id</span><span class="p">,</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">taken_at</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.taken_at</span><span class="w"> </span><span class="p">});</span>
-<span class="w">  </span><span class="p">}</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">refs</span><span class="p">;</span>
-<span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">visitSync</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineSync</span><span class="o">&lt;</span><span class="nx">Visit</span><span class="p">,</span><span class="w"> </span><span class="nx">VisitDto</span><span class="o">&gt;</span><span class="p">({</span>
 <span class="w">  </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"CampoVisitasOutbox"</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">watermark</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">storageKey</span><span class="o">:</span><span class="w"> </span><span class="s2">"campo.visits.watermark"</span><span class="w"> </span><span class="p">},</span>
 <span class="w">  </span><span class="nx">getPrincipal</span><span class="o">:</span><span class="w"> </span><span class="kt">currentTechnicianId</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">foreignEntries</span><span class="o">:</span><span class="w"> </span><span class="s2">"hold"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">coalesce</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+
+<span class="w">  </span><span class="nx">attachments</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">list</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span>
+<span class="w">      </span><span class="p">(</span><span class="k">await</span><span class="w"> </span><span class="nx">listPhotos</span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="p">)).</span><span class="nx">map</span><span class="p">((</span><span class="nx">photo</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
+<span class="w">        </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.id</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">uploadedUrl</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.upload_url</span><span class="p">,</span>
+<span class="w">      </span><span class="p">})),</span>
+<span class="w">    </span><span class="nx">upload</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">photo</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
+<span class="w">      </span><span class="nx">endpoint</span><span class="o">:</span><span class="w"> </span><span class="kt">auth.api.url</span><span class="p">(</span><span class="s2">"/uploads"</span><span class="p">),</span>
+<span class="w">      </span><span class="nx">chunkSize</span><span class="o">:</span><span class="w"> </span><span class="kt">PHOTO_CHUNK_SIZE</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">metadata</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">photo_id</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.id</span><span class="p">,</span><span class="w"> </span><span class="nx">filetype</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob.type</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="nx">getToken</span><span class="o">:</span><span class="w"> </span><span class="kt">auth.getToken</span><span class="p">,</span>
+<span class="w">    </span><span class="p">}),</span>
+<span class="w">    </span><span class="nx">onUploaded</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">photo</span><span class="p">,</span><span class="w"> </span><span class="nx">url</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">update</span><span class="p">(</span><span class="nx">photo</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">upload_url</span><span class="o">:</span><span class="w"> </span><span class="kt">url</span><span class="p">,</span><span class="w"> </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
 
 <span class="w">  </span><span class="nx">deliver</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">visit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">entry</span><span class="p">.</span><span class="nx">payload</span><span class="p">;</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">visit</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">undefined</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
 
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">takenAt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Map</span><span class="p">(</span>
+<span class="w">      </span><span class="p">(</span><span class="k">await</span><span class="w"> </span><span class="nx">listPhotos</span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="p">)).</span><span class="nx">map</span><span class="p">((</span><span class="nx">photo</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">[</span><span class="nx">photo</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span><span class="w"> </span><span class="nx">photo</span><span class="p">.</span><span class="nx">taken_at</span><span class="p">]),</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">photoRefs</span><span class="o">:</span><span class="w"> </span><span class="kt">PhotoRef</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">attachments</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">[]).</span><span class="nx">map</span><span class="p">((</span><span class="nx">ref</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
+<span class="w">      </span><span class="p">...</span><span class="nx">ref</span><span class="p">,</span>
+<span class="w">      </span><span class="nx">taken_at</span><span class="o">:</span><span class="w"> </span><span class="kt">takenAt.get</span><span class="p">(</span><span class="nx">ref</span><span class="p">.</span><span class="nx">id</span><span class="p">)</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="nx">visit</span><span class="p">.</span><span class="nx">visited_at</span><span class="p">,</span>
+<span class="w">    </span><span class="p">}));</span>
+
 <span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="kd">const</span><span class="w"> </span><span class="nx">photoRefs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">uploadPendingPhotos</span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="p">);</span>
 <span class="w">      </span><span class="k">await</span><span class="w"> </span><span class="nx">auth</span><span class="p">.</span><span class="nx">api</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="sb">`/visits/</span><span class="si">${</span><span class="nx">encodeIdSegment</span><span class="p">(</span><span class="nx">entry</span><span class="p">.</span><span class="nx">recordId</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">toPayload</span><span class="p">(</span><span class="nx">visit</span><span class="p">,</span><span class="w"> </span><span class="nx">photoRefs</span><span class="p">),</span>
 <span class="w">      </span><span class="p">});</span>
@@ -5378,30 +5410,49 @@ None of those three things needs a network. Without signal, the <code>flush</cod
 (<code>summary.skipped</code>) and the entry waits — the screen has already answered.</p>
 <p><code>create</code>/<code>update</code> is just a label: since the route is an upsert, both become the same
 <code>PUT</code>.</p>
-<h4 id="deliver-the-photos-go-up-before-the-visit"><code>deliver</code>: the photos go up before the visit</h4>
-<p><a href="../../offline-sync/#the-fast-path-createofflinesync"><code>createOfflineSync</code></a> calls <code>deliver</code>
-once per outbox entry. Here it does two things, in this order:</p>
+<p>And <code>coalesce: true</code> folds the edits: a technician who saves the same visit ten times
+without signal sends <strong>one</strong> <code>PUT</code> when the network returns, with the newest version — not
+ten. The photos go up once either way (one that already has an <code>upload_url</code> is not sent
+again), but without the option every intermediate <code>PUT</code> still spent a round-trip on a
+signal that barely holds. Details, and what is not folded, in
+<a href="../../offline-sync/#the-fast-path-createofflinesync">Ten edits, one request</a>.</p>
+<h4 id="attachments-the-photos-go-up-before-the-visit"><code>attachments</code>: the photos go up before the visit</h4>
+<p>The photos are <strong>attachments</strong> of the visit. With the <code>attachments</code> option,
+<a href="../../offline-sync/#the-fast-path-createofflinesync"><code>createOfflineSync</code></a> does this for
+each entry, in this order:</p>
 <ol>
-<li><strong>Uploads the photos that have no <code>upload_url</code> yet</strong>, one by one, with
-   <a href="../../resumable-upload/"><code>createResumableUpload</code></a>.</li>
-<li><strong>Sends the visit's <code>PUT</code></strong> with the photo URLs in the body.</li>
+<li>Asks <code>list</code> which photos the visit has. They live in the <strong>app's store</strong> — the outbox
+   keeps no copy of the file.</li>
+<li><strong>Uploads the ones with no <code>upload_url</code> yet</strong>, one by one, with
+   <a href="../../resumable-upload/"><code>createResumableUpload</code></a> and the options <code>upload</code> returns.</li>
+<li>Calls <code>onUploaded</code> for each, which stores the URL and <strong>swaps <code>blob</code> for <code>null</code></strong>: the
+   photo is on the server now, and the device keeps only the thumbnail.</li>
+<li>Calls <code>deliver</code> with the URLs in <code>entry.attachments</code>, and it sends the visit's <code>PUT</code>.</li>
 </ol>
-<p>Why do the photos live <strong>inside</strong> <code>deliver</code> and not in a separate queue? Because that way
-they inherit everything the engine already does:</p>
+<p>Why don't the photos go in an outbox <strong>entry of their own</strong>? Because each photo would be
+another record, and the engine only orders entries <strong>of the same record</strong> — a failing
+record never holds up the others. The photo would fail on 2G, and the visit's <code>PUT</code> would
+reach the server pointing at a photo that does not exist. As attachments, they inherit
+everything the engine already does:</p>
 <ul>
-<li>If anything fails — photo 3 of 5, or the <code>PUT</code> — <code>deliver</code> throws, the entry <strong>stays
-  queued</strong> with <code>attempts</code> bumped, and the next flush tries again.</li>
+<li>If anything fails — photo 3 of 5, or the <code>PUT</code> — the entry <strong>stays queued</strong> with
+  <code>attempts</code> bumped, and the next flush tries again. With the photo failing, <code>deliver</code> is
+  not even called.</li>
 <li>Photos 1 and 2 already got an <code>upload_url</code> and do not go up again.</li>
-<li>Photo 3 <strong>resumes from the byte where it stopped</strong>: the <code>key: "visit-photo:&lt;id&gt;"</code> is the
-  same, so the resumable upload finds its record and continues with a <code>HEAD</code> + <code>PATCH</code>.</li>
+<li>Photo 3 <strong>resumes from the byte where it stopped</strong>: the default <code>key</code> is
+  <code>outbox-attachment:&lt;id&gt;</code>, the same on every flush, so the resumable upload finds its
+  record and continues with a <code>HEAD</code> + <code>PATCH</code>.</li>
 <li>Per-record order is preserved: a visit that failed does not let its next edit jump
   ahead. Other visits carry on normally.</li>
+<li>A visit <strong>held</strong> for another technician (<code>foreignEntries: "hold"</code>) uploads no photo.</li>
 </ul>
+<p><code>deliver</code> only joins each photo's <code>taken_at</code> to the URLs, for the body the backend expects.</p>
 <div class="admonition info">
-<p class="admonition-title">Why an explicit <code>key</code></p>
+<p class="admonition-title">Why the <code>key</code> carries the photo <code>id</code></p>
 <p>The resumable upload's default fingerprint uses the <code>File</code>'s name and <code>lastModified</code>.
 A <code>Blob</code> read from IndexedDB has neither, so two blobs of the same size would collide.
-With the photo <code>id</code> in the key, each photo has its own resume point. See
+That is why the engine's default <code>key</code> is <code>outbox-attachment:&lt;id&gt;</code>: each photo has its
+own resume point. See
 <a href="../../resumable-upload/#resuming-after-a-reload">Resuming after a reload</a>.</p>
 </div>
 <div class="admonition tip">
@@ -5435,13 +5486,18 @@ delivery the engine checks again:</p>
 </tr>
 <tr>
 <td>another technician</td>
-<td><strong>dropped unsent</strong></td>
+<td><strong>stays queued</strong>, unsent, until its owner is back</td>
 </tr>
 </tbody>
 </table>
-<p>The third row keeps the server from receiving Carlos's inspection with Ana's token. But it
-also means: if Carlos signs out with pending visits and Ana signs in and syncs, Carlos's
-visits are lost. That is why the sign-out button (further down) <strong>warns</strong> first. 👇</p>
+<p>The third row is <code>foreignEntries: "hold"</code>. It keeps the server from receiving Carlos's
+inspection with Ana's token <strong>and</strong> keeps Carlos's work: if he signs out with pending
+visits and Ana signs in and syncs, his visits stay on the tablet and go out when he signs
+back in. The engine default (<code>"drop"</code>) would delete them — it suits a personal device, not
+the cooperative's tablet. Details in
+<a href="../../offline-sync/#the-fast-path-createofflinesync">Offline Sync › Shared device</a>.</p>
+<p>A visit <strong>of Carlos's</strong> that Ana edits waits for his edit to go out first: per-record order
+holds for held entries too.</p>
 <h4 id="pullpage-and-applyremote-what-comes-from-the-office"><code>pullPage</code> and <code>applyRemote</code>: what comes from the office</h4>
 <p>The pull brings what changed on the server since the last <code>server_time</code>. <code>pullPage</code> only
 translates the shape: <code>has_more</code> becomes <code>nextCursor: null</code> when the pages run out.</p>
@@ -5500,12 +5556,16 @@ both, a tie goes to the server.</p>
 </details>
 <h3 id="5-photos-on-the-device">5. Photos on the device</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/visits/photos.ts</span>
-<span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CompressedImage</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/imaging"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CompressedImage</span><span class="p">,</span><span class="w"> </span><span class="nx">ProcessedImage</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/imaging"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">currentTechnicianId</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/auth"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">photos</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/db"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">VisitPhoto</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/types"</span><span class="p">;</span>
 
-<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">addPhoto</span><span class="p">(</span><span class="nx">visitId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span><span class="w"> </span><span class="nx">image</span><span class="o">:</span><span class="w"> </span><span class="kt">CompressedImage</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">VisitPhoto</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">addPhoto</span><span class="p">(</span>
+<span class="w">  </span><span class="nx">visitId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">image</span><span class="o">:</span><span class="w"> </span><span class="kt">CompressedImage</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">thumb</span><span class="o">:</span><span class="w"> </span><span class="kt">ProcessedImage</span><span class="p">,</span>
+<span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">VisitPhoto</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">currentTechnicianId</span><span class="p">();</span>
 <span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">owner</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="s2">"Sua sessão expirou. Entre de novo para fotografar."</span><span class="p">);</span>
 
@@ -5514,6 +5574,7 @@ both, a tie goes to the server.</p>
 <span class="w">    </span><span class="nx">visit_id</span><span class="o">:</span><span class="w"> </span><span class="kt">visitId</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">technician_id</span><span class="o">:</span><span class="w"> </span><span class="kt">owner</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">blob</span><span class="o">:</span><span class="w"> </span><span class="kt">image.blob</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">thumb</span><span class="o">:</span><span class="w"> </span><span class="kt">thumb.blob</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">bytes</span><span class="o">:</span><span class="w"> </span><span class="kt">image.bytes</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">taken_at</span><span class="o">:</span><span class="w"> </span><span class="kt">new</span><span class="w"> </span><span class="nb">Date</span><span class="p">().</span><span class="nx">toISOString</span><span class="p">(),</span>
 <span class="w">    </span><span class="nx">upload_url</span><span class="o">:</span><span class="w"> </span><span class="kt">null</span><span class="p">,</span>
@@ -5523,11 +5584,18 @@ both, a tie goes to the server.</p>
 <span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">listPhotos</span><span class="p">(</span><span class="nx">visitId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="nx">VisitPhoto</span><span class="p">[]</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">raw</span><span class="p">.</span><span class="nx">where</span><span class="p">(</span><span class="s2">"visit_id"</span><span class="p">).</span><span class="nx">equals</span><span class="p">(</span><span class="nx">visitId</span><span class="p">).</span><span class="nx">sortBy</span><span class="p">(</span><span class="s2">"taken_at"</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">owner</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">currentTechnicianId</span><span class="p">();</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">owner</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="k">throw</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="ne">Error</span><span class="p">(</span><span class="s2">"Your session expired. Sign in again to see the photos."</span><span class="p">);</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="nx">photos</span><span class="p">.</span><span class="nx">listBy</span><span class="p">(</span><span class="s2">"visit_id"</span><span class="p">,</span><span class="w"> </span><span class="nx">visitId</span><span class="p">,</span><span class="w"> </span><span class="nx">owner</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">orderBy</span><span class="o">:</span><span class="w"> </span><span class="s2">"taken_at"</span><span class="w"> </span><span class="p">});</span>
 <span class="p">}</span>
 </code></pre></div>
+<p><a href="../../offline/#listing-by-another-index-listby"><code>listBy</code></a> goes through the <code>visit_id</code> index
+and stays bound to the owner: calling <code>photos.raw.where("visit_id")</code> on Dexie directly also
+used the index, but returned another technician's photo for the same visit. With nobody
+signed in, the function throws instead of calling <code>listBy</code> without an owner — which would
+list everyone's photos.</p>
 <p>The photo enters the database with <code>upload_url: null</code>. Whoever sends it to the server is
-<code>deliver</code>, the next time the visit syncs.</p>
+the sync engine, before <code>deliver</code>, the next time the visit syncs.</p>
 <h3 id="6-the-screens-queries">6. The screen's queries</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/visits/use-visits.ts</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQuery</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">UseQueryResult</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
@@ -5569,18 +5637,28 @@ both, a tie goes to the server.</p>
 <p>TanStack Query <strong>pauses</strong> queries while the browser is offline — the default is
 <code>networkMode: "online"</code>. Here the <code>queryFn</code> reads IndexedDB, which needs no network at
 all, but the query never even runs: the screen sits on the skeleton until signal comes
-back. <code>networkMode: "always"</code> tells Query this function does not depend on the network.</p>
+back. <code>networkMode: "always"</code> tells Query this function does not depend on the network.
+The measurement, and why the SDK does not change the default for the whole client, are in
+<a href="../../query/#a-query-that-reads-only-indexeddb-networkmode-always">Query → <code>networkMode</code></a>.</p>
 </div>
 <h3 id="7-sync-status-the-panel-and-the-sign-out-button">7. Sync status: the panel and the sign-out button</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/components/SyncPanel.tsx</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Alert</span><span class="p">,</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">Card</span><span class="p">,</span><span class="w"> </span><span class="nx">RelativeTime</span><span class="p">,</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="p">,</span><span class="w"> </span><span class="nx">useOnline</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">Alert</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">Button</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">Card</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">Progress</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">RelativeTime</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">formatBytes</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useOfflineSync</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useOnline</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">visitSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/sync"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">SyncPanel</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">online</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useOnline</span><span class="p">();</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pending</span><span class="p">,</span><span class="w"> </span><span class="nx">syncing</span><span class="p">,</span><span class="w"> </span><span class="nx">lastSyncedAt</span><span class="p">,</span><span class="w"> </span><span class="nx">lastError</span><span class="p">,</span><span class="w"> </span><span class="nx">flush</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="p">(</span><span class="nx">visitSync</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">flushOnOnline</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span>
-<span class="w">  </span><span class="p">});</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pending</span><span class="p">,</span><span class="w"> </span><span class="nx">syncing</span><span class="p">,</span><span class="w"> </span><span class="nx">lastSyncedAt</span><span class="p">,</span><span class="w"> </span><span class="nx">lastError</span><span class="p">,</span><span class="w"> </span><span class="nx">uploadedBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">totalBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">flush</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span>
+<span class="w">    </span><span class="nx">useOfflineSync</span><span class="p">(</span><span class="nx">visitSync</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">flushOnOnline</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">});</span>
 
 <span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">pending</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">lastError</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">null</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
 
@@ -5590,7 +5668,15 @@ back. <code>networkMode: "always"</code> tells Query this function does not depe
 <span class="w">        </span><span class="p">{</span><span class="nx">pending</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">1</span>
 <span class="w">          </span><span class="o">?</span><span class="w"> </span><span class="s2">"1 alteração esperando sinal."</span>
 <span class="w">          </span><span class="o">:</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">pending</span><span class="si">}</span><span class="sb"> alterações esperando sinal.`</span><span class="p">}</span>
+<span class="w">        </span><span class="p">{</span><span class="nx">pendingBytes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="sb">` </span><span class="si">${</span><span class="nx">formatBytes</span><span class="p">(</span><span class="nx">pendingBytes</span><span class="p">)</span><span class="si">}</span><span class="sb"> em fotos.`</span><span class="p">}</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">totalBytes</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Progress</span>
+<span class="w">          </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nb">Math</span><span class="p">.</span><span class="nx">round</span><span class="p">((</span><span class="nx">uploadedBytes</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="nx">totalBytes</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">100</span><span class="p">)}</span>
+<span class="w">          </span><span class="na">showLabel</span>
+<span class="w">          </span><span class="na">label</span><span class="o">=</span><span class="s">"Enviando foto"</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">      </span><span class="p">)}</span>
 <span class="w">      </span><span class="p">{</span><span class="nx">lastSyncedAt</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">p</span><span class="p">&gt;</span>
 <span class="w">          </span><span class="nx">Último</span><span class="w"> </span><span class="nx">envio</span><span class="w"> </span><span class="nx">completo</span><span class="o">:</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">RelativeTime</span><span class="w"> </span><span class="na">date</span><span class="o">=</span><span class="p">{</span><span class="nx">lastSyncedAt</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
@@ -5616,70 +5702,58 @@ back. <code>networkMode: "always"</code> tells Query this function does not depe
 </code></pre></div>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/components/LogoutButton.tsx</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LogOut</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">ConfirmDialog</span><span class="p">,</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">auth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/lib/auth"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">visitSync</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/sync"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">LogoutButton</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pending</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="p">(</span><span class="nx">visitSync</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">flushOnOnline</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">});</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">asking</span><span class="p">,</span><span class="w"> </span><span class="nx">setAsking</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
-
 <span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">signOut</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">visitSync</span><span class="p">.</span><span class="nx">resetWatermark</span><span class="p">();</span>
 <span class="w">    </span><span class="k">await</span><span class="w"> </span><span class="nx">auth</span><span class="p">.</span><span class="nx">logout</span><span class="p">();</span>
 <span class="w">  </span><span class="p">}</span>
 
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="p">&lt;&gt;</span>
-<span class="w">      </span><span class="p">&lt;</span><span class="nt">Button</span>
-<span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span>
-<span class="w">        </span><span class="na">iconOnly</span>
-<span class="w">        </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Sair"</span>
-<span class="w">        </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span><span class="nx">pending</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">setAsking</span><span class="p">(</span><span class="kc">true</span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">signOut</span><span class="p">())}</span>
-<span class="w">      </span><span class="p">&gt;</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">LogOut</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">18</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
-<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
-<span class="w">      </span><span class="p">&lt;</span><span class="nt">ConfirmDialog</span>
-<span class="w">        </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">asking</span><span class="p">}</span>
-<span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span>
-<span class="w">        </span><span class="na">title</span><span class="o">=</span><span class="p">{</span><span class="sb">`</span><span class="si">${</span><span class="nx">pending</span><span class="si">}</span><span class="sb"> alterações ainda não foram enviadas`</span><span class="p">}</span>
-<span class="w">        </span><span class="na">description</span><span class="o">=</span><span class="s">"Elas ficam guardadas neste aparelho e saem quando você entrar de novo. Se outro técnico entrar aqui antes disso, elas são descartadas."</span>
-<span class="w">        </span><span class="na">confirmLabel</span><span class="o">=</span><span class="s">"Sair mesmo assim"</span>
-<span class="w">        </span><span class="na">cancelLabel</span><span class="o">=</span><span class="s">"Ficar e esperar o sinal"</span>
-<span class="w">        </span><span class="na">onConfirm</span><span class="o">=</span><span class="p">{</span><span class="nx">signOut</span><span class="p">}</span>
-<span class="w">        </span><span class="na">onCancel</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setAsking</span><span class="p">(</span><span class="kc">false</span><span class="p">)}</span>
-<span class="w">      </span><span class="p">/&gt;</span>
-<span class="w">    </span><span class="p">&lt;/&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"ghost"</span><span class="w"> </span><span class="na">iconOnly</span><span class="w"> </span><span class="na">aria-label</span><span class="o">=</span><span class="s">"Sair"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">signOut</span><span class="p">()}&gt;</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">LogOut</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">18</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
 <span class="w">  </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
 <p><a href="../../offline-sync/#reactive-ui-and-auto-flush"><code>useOfflineSync</code></a> subscribes the component
 to the engine: <code>pending</code>, <code>syncing</code>, <code>lastSyncedAt</code> and <code>lastError</code> change on their own on
-every run. Both components pass <code>flushOnOnline: false</code> because only one thing triggers the
-upload — the <code>SyncRunner</code>, in <code>App</code>.</p>
+every run. The panel passes <code>flushOnOnline: false</code> because only one thing triggers the
+upload — the <code>SyncRunner</code>, in <code>App</code>. <code>pending</code> also counts another technician's held
+entries: Ana sees that Carlos's work is waiting on the tablet.</p>
+<p><code>pendingBytes</code> sums the photos not uploaded yet, and <code>uploadedBytes</code>/<code>totalBytes</code> follow
+the one uploading right now — the technician sees the bar move on 2G, instead of a frozen
+"sending".</p>
 <p><code>lastError</code> shows why the last run failed. "Failed to fetch" in the pasture is routine;
 what you want to see is a <code>401</code> or a <code>413</code> that will not go away on its own.</p>
 <div class="admonition warning">
 <p class="admonition-title">Signing out does not clear the outbox — on purpose</p>
 <p>Logout calls <code>resetWatermark()</code>, not <code>clearOutbox()</code>. Clearing the queue would lose
-the day's work of someone who signed out without signal. With <code>getPrincipal</code>, the
-technician's entries stay <strong>safe</strong> until they come back — the <code>ConfirmDialog</code> only
-makes the one case where they are lost explicit.</p>
+the day's work of someone who signed out without signal. With <code>getPrincipal</code> +
+<code>foreignEntries: "hold"</code>, the technician's entries stay <strong>safe</strong> until they come back,
+even if another technician signs in and syncs first — so the sign-out button has
+nothing to ask.</p>
 </div>
 <h3 id="8-the-camera">8. The camera</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/components/VisitPhotos.tsx</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useQueryClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Camera</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"lucide-react"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useRef</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">ChangeEvent</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Badge</span><span class="p">,</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">EmptyState</span><span class="p">,</span><span class="w"> </span><span class="nx">Skeleton</span><span class="p">,</span><span class="w"> </span><span class="nx">formatBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">useToast</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">bestSupportedType</span><span class="p">,</span><span class="w"> </span><span class="nx">useImagePreview</span><span class="p">,</span><span class="w"> </span><span class="nx">useImageProcessing</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/imaging"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Badge</span><span class="p">,</span><span class="w"> </span><span class="nx">Dropzone</span><span class="p">,</span><span class="w"> </span><span class="nx">EmptyState</span><span class="p">,</span><span class="w"> </span><span class="nx">Skeleton</span><span class="p">,</span><span class="w"> </span><span class="nx">StorageFullError</span><span class="p">,</span><span class="w"> </span><span class="nx">formatBytes</span><span class="p">,</span><span class="w"> </span><span class="nx">useToast</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">bestSupportedType</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">resizeImage</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useImagePreview</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">useImageProcessing</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/imaging"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">addPhoto</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/photos"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useVisitPhotos</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/use-visits"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">VisitPhoto</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/visits/types"</span><span class="p">;</span>
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">PhotoThumb</span><span class="p">({</span><span class="w"> </span><span class="nx">photo</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">photo</span><span class="o">:</span><span class="w"> </span><span class="kt">VisitPhoto</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useImagePreview</span><span class="p">(</span><span class="nx">photo</span><span class="p">.</span><span class="nx">blob</span><span class="p">);</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useImagePreview</span><span class="p">(</span><span class="nx">photo</span><span class="p">.</span><span class="nx">thumb</span><span class="p">);</span>
 
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
 <span class="w">    </span><span class="p">&lt;</span><span class="nt">figure</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">margin</span><span class="o">:</span><span class="w"> </span><span class="kt">0</span><span class="p">,</span><span class="w"> </span><span class="nx">display</span><span class="o">:</span><span class="w"> </span><span class="s2">"grid"</span><span class="p">,</span><span class="w"> </span><span class="nx">gap</span><span class="o">:</span><span class="w"> </span><span class="kt">4</span><span class="w"> </span><span class="p">}}&gt;</span>
@@ -5702,15 +5776,12 @@ makes the one case where they are lost explicit.</p>
 <span class="p">}</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">VisitPhotos</span><span class="p">({</span><span class="w"> </span><span class="nx">visitId</span><span class="p">,</span><span class="w"> </span><span class="nx">disabled</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">visitId</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span><span class="w"> </span><span class="nx">disabled</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">input</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useRef</span><span class="p">&lt;</span><span class="nt">HTMLInputElement</span><span class="p">&gt;(</span><span class="kc">null</span><span class="p">);</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">client</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useQueryClient</span><span class="p">();</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">toast</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useToast</span><span class="p">();</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useVisitPhotos</span><span class="p">(</span><span class="nx">visitId</span><span class="p">);</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">compress</span><span class="p">,</span><span class="w"> </span><span class="nx">isWorking</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useImageProcessing</span><span class="p">();</span>
 
-<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">handleFiles</span><span class="p">(</span><span class="nx">event</span><span class="o">:</span><span class="w"> </span><span class="kt">ChangeEvent</span><span class="p">&lt;</span><span class="nt">HTMLInputElement</span><span class="p">&gt;)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">files</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Array</span><span class="p">.</span><span class="kr">from</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">files</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="p">[]);</span>
-<span class="w">    </span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">""</span><span class="p">;</span>
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">handleFiles</span><span class="p">(</span><span class="nx">files</span><span class="o">:</span><span class="w"> </span><span class="kt">File</span><span class="p">[])</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">bestSupportedType</span><span class="p">([</span><span class="s2">"image/webp"</span><span class="p">,</span><span class="w"> </span><span class="s2">"image/jpeg"</span><span class="p">]);</span>
 
 <span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">file</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">files</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -5723,8 +5794,13 @@ makes the one case where they are lost explicit.</p>
 <span class="w">          </span><span class="nx">withoutEnlargement</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
 <span class="w">          </span><span class="kr">type</span><span class="p">,</span>
 <span class="w">        </span><span class="p">});</span>
-<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">addPhoto</span><span class="p">(</span><span class="nx">visitId</span><span class="p">,</span><span class="w"> </span><span class="nx">image</span><span class="p">);</span>
-<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">const</span><span class="w"> </span><span class="nx">thumb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">resizeImage</span><span class="p">(</span><span class="nx">image</span><span class="p">.</span><span class="nx">blob</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="kt">480</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">});</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">addPhoto</span><span class="p">(</span><span class="nx">visitId</span><span class="p">,</span><span class="w"> </span><span class="nx">image</span><span class="p">,</span><span class="w"> </span><span class="nx">thumb</span><span class="p">);</span>
+<span class="w">      </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="nx">StorageFullError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">"Memória cheia. Sincronize as visitas antes de tirar mais fotos."</span><span class="p">);</span>
+<span class="w">          </span><span class="k">break</span><span class="p">;</span>
+<span class="w">        </span><span class="p">}</span>
 <span class="w">        </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s2">"Não deu para processar a foto. Tente fotografar de novo."</span><span class="p">);</span>
 <span class="w">      </span><span class="p">}</span>
 <span class="w">    </span><span class="p">}</span>
@@ -5733,25 +5809,14 @@ makes the one case where they are lost explicit.</p>
 
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
 <span class="w">    </span><span class="p">&lt;</span><span class="nt">section</span><span class="p">&gt;</span>
-<span class="w">      </span><span class="p">&lt;</span><span class="nt">input</span>
-<span class="w">        </span><span class="na">ref</span><span class="o">=</span><span class="p">{</span><span class="nx">input</span><span class="p">}</span>
-<span class="w">        </span><span class="na">type</span><span class="o">=</span><span class="s">"file"</span>
+<span class="w">      </span><span class="p">&lt;</span><span class="nt">Dropzone</span>
 <span class="w">        </span><span class="na">accept</span><span class="o">=</span><span class="s">"image/*"</span>
 <span class="w">        </span><span class="na">capture</span><span class="o">=</span><span class="s">"environment"</span>
-<span class="w">        </span><span class="na">multiple</span>
-<span class="w">        </span><span class="na">hidden</span>
-<span class="w">        </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">handleFiles</span><span class="p">(</span><span class="nx">event</span><span class="p">)}</span>
-<span class="w">      </span><span class="p">/&gt;</span>
-<span class="w">      </span><span class="p">&lt;</span><span class="nt">Button</span>
-<span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"soft"</span>
-<span class="w">        </span><span class="na">fullWidth</span>
-<span class="w">        </span><span class="na">leftIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Camera</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">18</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;}</span>
-<span class="w">        </span><span class="na">loading</span><span class="o">=</span><span class="p">{</span><span class="nx">isWorking</span><span class="p">}</span>
-<span class="w">        </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="nx">disabled</span><span class="p">}</span>
-<span class="w">        </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">input</span><span class="p">.</span><span class="nx">current</span><span class="o">?</span><span class="p">.</span><span class="nx">click</span><span class="p">()}</span>
+<span class="w">        </span><span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="nx">disabled</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">isWorking</span><span class="p">}</span>
+<span class="w">        </span><span class="na">onDrop</span><span class="o">=</span><span class="p">{(</span><span class="nx">files</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">handleFiles</span><span class="p">(</span><span class="nx">files</span><span class="p">)}</span>
 <span class="w">      </span><span class="p">&gt;</span>
-<span class="w">        </span><span class="nx">Tirar</span><span class="w"> </span><span class="nx">foto</span>
-<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">Camera</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="p">{</span><span class="mf">18</span><span class="p">}</span><span class="w"> </span><span class="na">aria</span><span class="err">-</span><span class="na">hidden</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="p">{</span><span class="nx">isWorking</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"Processando a foto…"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"Tirar foto"</span><span class="p">}</span>
+<span class="w">      </span><span class="p">&lt;/</span><span class="nt">Dropzone</span><span class="p">&gt;</span>
 
 <span class="w">      </span><span class="p">{</span><span class="nx">list</span><span class="p">.</span><span class="nx">isPending</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">(</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">Skeleton</span><span class="w"> </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">96</span><span class="p">}</span><span class="w"> </span><span class="na">style</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">marginTop</span><span class="o">:</span><span class="w"> </span><span class="kt">12</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="p">/&gt;</span>
@@ -5780,9 +5845,11 @@ makes the one case where they are lost explicit.</p>
 <span class="w">  </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<p><code>&lt;input type="file" capture="environment"&gt;</code> opens <strong>the phone's own camera app</strong>, on the
-rear camera. You get focus, flash and full resolution without asking for any permission —
-and it works on the iPhone, where not every browser opens the camera inside the page.</p>
+<p>The <code>Dropzone</code>'s <a href="../../components/inputs/#opening-the-phone-camera-capture"><code>capture="environment"</code></a>
+opens <strong>the phone's own camera app</strong>, on the rear camera. You get focus, flash and full
+resolution without asking for any permission — and it works on the iPhone, where not every
+browser opens the camera inside the page. On desktop the same tap opens the file picker, and
+dragging a photo onto the area works too.</p>
 <p>A photo from a current phone is several MB. Storing that raw would fill the device in a few
 days. So it goes through <a href="../../imaging/#in-react"><code>useImageProcessing</code></a> first:</p>
 <ul>
@@ -5791,8 +5858,17 @@ days. So it goes through <a href="../../imaging/#in-react"><code>useImageProcess
 <li><code>bestSupportedType</code> — WebP where the browser can encode it, JPEG where it cannot. Asking
   a browser that cannot encode WebP for it would return a PNG, several times bigger, with
   no error at all.</li>
+<li><code>resizeImage</code> with <code>width: 480</code> makes the grid's <strong>thumbnail</strong>. It stays on the device
+  after the upload, when <code>onUploaded</code> releases the full photo.</li>
 </ul>
+<p>Compressing before the <code>put</code> is the cheapest lever against the browser's storage limit:
+each photo takes up the device <strong>until it uploads</strong>, and in the field that can be days.</p>
 <p><code>useImagePreview</code> creates the <code>Blob</code>'s preview URL and <strong>revokes</strong> it on its own at unmount.</p>
+<p>When the device runs out of space, <code>photos.put</code> rejects with
+<a href="../../offline/#storage-full-storagefullerror"><code>StorageFullError</code></a>, and the loop stops: the
+next photos would not fit either, and the right message is "sync", not "shoot again". The
+browser's raw error would not even say that — in Chromium it arrives as Dexie's
+<code>AbortError</code>.</p>
 <div class="admonition warning">
 <p class="admonition-title">Re-encoding drops the photo's GPS</p>
 <p>EXIF is gone after the re-encode, coordinates included. That protects the location of
@@ -5805,9 +5881,8 @@ just below. See <a href="../../imaging/#re-encoding-drops-exif">Imaging › Re-e
 <p>If the inspection needs guided framing (a frame for the animal's ear tag, for
 example), open the camera inside the page and capture a frame from the video:</p>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/components/InlineCamera.tsx</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">captureFrame</span><span class="p">,</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="nx">CapturedFrame</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/imaging"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vision"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">InlineCamera</span><span class="p">({</span><span class="w"> </span><span class="nx">onShot</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">onShot</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">frame</span><span class="o">:</span><span class="w"> </span><span class="kt">CapturedFrame</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">camera</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useCameraStream</span><span class="p">({</span>
@@ -5839,11 +5914,10 @@ example), open the camera inside the page and capture a frame from the video:</p
 <span class="w">  </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
-<p>The price: <code>useCameraStream</code> lives in the <code>/vision</code> subpath, which requires
-<code>onnxruntime-web</code> to be installed even without any model (see
-<a href="../../vision/#onnxruntime-web-is-an-optional-peer-dependency">Vision</a>). And the frame
-comes out at the video stream's resolution, usually lower than the native camera's.
-For an inspection photo, <code>&lt;input capture&gt;</code> is usually the better choice.</p>
+<p><code>useCameraStream</code> comes from the root entry, which does not require <code>onnxruntime-web</code>.
+The price is a different one: the frame comes out at the video stream's resolution,
+usually lower than the native camera's. For an inspection photo, <code>&lt;input capture&gt;</code> is
+usually the better choice.</p>
 </details>
 <h3 id="9-the-visit-screen">9. The visit screen</h3>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/pages/VisitFormPage.tsx</span>
@@ -6144,7 +6218,6 @@ For an inspection photo, <code>&lt;input capture&gt;</code> is usually the bette
 <span class="w">  </span><span class="nx">Skeleton</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">SyncStatusBadge</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">formatDateTime</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">useSyncStatus</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LogoutButton</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/components/LogoutButton"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">SyncPanel</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/components/SyncPanel"</span><span class="p">;</span>
@@ -6170,7 +6243,6 @@ For an inspection photo, <code>&lt;input capture&gt;</code> is usually the bette
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">VisitListPage</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">navigate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useNavigate</span><span class="p">();</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">list</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useVisitList</span><span class="p">();</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">status</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useSyncStatus</span><span class="p">(</span><span class="nx">visitSync</span><span class="p">);</span>
 
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
 <span class="w">    </span><span class="p">&lt;&gt;</span>
@@ -6180,7 +6252,7 @@ For an inspection photo, <code>&lt;input capture&gt;</code> is usually the bette
 <span class="w">        </span><span class="na">safeArea</span>
 <span class="w">        </span><span class="na">actions</span><span class="o">=</span><span class="p">{</span>
 <span class="w">          </span><span class="p">&lt;&gt;</span>
-<span class="w">            </span><span class="p">&lt;</span><span class="nt">SyncStatusBadge</span><span class="w"> </span><span class="na">tone</span><span class="o">=</span><span class="p">{</span><span class="nx">status</span><span class="p">.</span><span class="nx">tone</span><span class="p">}</span><span class="w"> </span><span class="na">pending</span><span class="o">=</span><span class="p">{</span><span class="nx">status</span><span class="p">.</span><span class="nx">pending</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">SyncStatusBadge</span><span class="w"> </span><span class="na">sync</span><span class="o">=</span><span class="p">{</span><span class="nx">visitSync</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">            </span><span class="p">&lt;</span><span class="nt">LogoutButton</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">          </span><span class="p">&lt;/&gt;</span>
 <span class="w">        </span><span class="p">}</span>
@@ -6262,16 +6334,10 @@ For an inspection photo, <code>&lt;input capture&gt;</code> is usually the bette
 </tr>
 </tbody>
 </table>
-<p>At the top, <a href="../../components/feedback/#syncstatusbadge"><code>SyncStatusBadge</code></a> takes <code>tone</code>
-and <code>pending</code> from <code>useSyncStatus(visitSync)</code> and shows the overall state: synced, syncing,
-pending, offline or error. The <strong>per-row</strong> badge says which visit, specifically, has not
-gone yet.</p>
-<div class="admonition note">
-<p class="admonition-title">Why not <code>sync={visitSync}</code></p>
-<p>The badge also accepts the engine directly, but the prop is typed
-<code>OfflineSync&lt;unknown&gt;</code>, and an engine with a typed payload (<code>OfflineSync&lt;Visit&gt;</code>) does
-not fit it under <code>strict</code>. <code>useSyncStatus</code> is generic and accepts your engine as it is.</p>
-</div>
+<p>At the top, <a href="../../components/feedback/#syncstatusbadge"><code>SyncStatusBadge</code></a> takes the engine
+as <code>sync={visitSync}</code>, subscribes to it on its own and shows the overall state: synced,
+syncing, pending, offline or error. The <strong>per-row</strong> badge says which visit, specifically,
+has not gone yet.</p>
 <p><a href="../../components/actions/#floatingactionbutton"><code>FloatingActionButton</code></a> sits in the bottom
 right corner, within thumb reach. The list's <code>paddingBottom: 96</code> keeps it from covering the
 last visit.</p>
@@ -6322,8 +6388,8 @@ render a PDF at night is not an option.</p>
 <span class="w">    </span><span class="p">[</span>
 <span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"visita.xlsx"</span><span class="p">,</span><span class="w"> </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="kt">sheet</span><span class="w"> </span><span class="p">},</span>
 <span class="w">      </span><span class="p">...</span><span class="nx">photoList</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">photo</span><span class="p">,</span><span class="w"> </span><span class="nx">index</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
-<span class="w">        </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="sb">`fotos/foto-</span><span class="si">${</span><span class="nb">String</span><span class="p">(</span><span class="nx">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">).</span><span class="nx">padStart</span><span class="p">(</span><span class="mf">2</span><span class="p">,</span><span class="w"> </span><span class="s2">"0"</span><span class="p">)</span><span class="si">}</span><span class="sb">.</span><span class="si">${</span><span class="nx">extensionOf</span><span class="p">(</span><span class="nx">photo</span><span class="p">.</span><span class="nx">blob</span><span class="p">.</span><span class="kr">type</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
-<span class="w">        </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="sb">`fotos/foto-</span><span class="si">${</span><span class="nb">String</span><span class="p">(</span><span class="nx">index</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">1</span><span class="p">).</span><span class="nx">padStart</span><span class="p">(</span><span class="mf">2</span><span class="p">,</span><span class="w"> </span><span class="s2">"0"</span><span class="p">)</span><span class="si">}</span><span class="sb">.</span><span class="si">${</span><span class="nx">extensionOf</span><span class="p">((</span><span class="nx">photo</span><span class="p">.</span><span class="nx">blob</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="nx">photo</span><span class="p">.</span><span class="nx">thumb</span><span class="p">).</span><span class="kr">type</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="kt">photo.blob</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="nx">photo</span><span class="p">.</span><span class="nx">thumb</span><span class="p">,</span>
 <span class="w">      </span><span class="p">})),</span>
 <span class="w">    </span><span class="p">],</span>
 <span class="w">    </span><span class="p">{</span>
@@ -6387,6 +6453,8 @@ render a PDF at night is not an option.</p>
 <li><a href="../../utilities/#zip-archives-createzip"><code>createZip</code></a> builds the archive in slices,
   without freezing the screen, and <strong>stores</strong> the photos without recompressing — they are
   already WebP/JPEG. <code>onProgress</code> feeds the <a href="../../components/feedback/#progress"><code>Progress</code></a>.</li>
+<li>A photo that <strong>already went up</strong> goes in as its thumbnail: the full one left the device
+  in <code>onUploaded</code>. In the pasture, before signal, the ZIP carries the full photos.</li>
 <li><a href="../../share/#export-a-file-shareordownloadblob"><code>shareOrDownloadBlob</code></a> opens the phone's
   share sheet (WhatsApp, e-mail, Drive) and downloads on desktop.</li>
 </ul>
@@ -6414,6 +6482,7 @@ need the CPF in the sheet, drop the row.</p>
 <span class="w">  </span><span class="nx">Banner</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Button</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">OfflineIndicator</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">formatBytes</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">QueryProvider</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">ToastProvider</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">UpdatePrompt</span><span class="p">,</span>
@@ -6441,23 +6510,27 @@ need the CPF in the sheet, drop the row.</p>
 <span class="p">}</span>
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">StorageGuard</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">storage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">();</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">storage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">({</span><span class="w"> </span><span class="nx">pollMs</span><span class="o">:</span><span class="w"> </span><span class="kt">60_000</span><span class="w"> </span><span class="p">});</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pending</span><span class="p">,</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useOfflineSync</span><span class="p">(</span><span class="nx">visitSync</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">flushOnOnline</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">});</span>
 
-<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">storage</span><span class="p">.</span><span class="nx">persisted</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">false</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">storage</span><span class="p">.</span><span class="nx">persisted</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">pending</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
 <span class="w">      </span><span class="p">&lt;</span><span class="nt">Banner</span>
 <span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"warning"</span>
 <span class="w">        </span><span class="na">title</span><span class="o">=</span><span class="s">"Proteja as visitas deste aparelho"</span>
 <span class="w">        </span><span class="na">action</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">storage</span><span class="p">.</span><span class="nx">requestPersist</span><span class="p">()}&gt;</span><span class="nx">Proteger</span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;}</span>
 <span class="w">      </span><span class="p">&gt;</span>
-<span class="w">        </span><span class="nx">Sem</span><span class="w"> </span><span class="nx">isso</span><span class="p">,</span><span class="w"> </span><span class="nx">o</span><span class="w"> </span><span class="nx">navegador</span><span class="w"> </span><span class="nx">pode</span><span class="w"> </span><span class="nx">apagar</span><span class="w"> </span><span class="nx">visitas</span><span class="w"> </span><span class="nx">e</span><span class="w"> </span><span class="nx">fotos</span><span class="w"> </span><span class="nx">não</span><span class="w"> </span><span class="nx">enviadas</span><span class="w"> </span><span class="nx">quando</span><span class="w"> </span><span class="nx">faltar</span><span class="w"> </span><span class="nx">espaço</span><span class="p">.</span>
+<span class="w">        </span><span class="p">{</span><span class="nx">formatBytes</span><span class="p">(</span><span class="nx">pendingBytes</span><span class="p">)}</span><span class="w"> </span><span class="nx">em</span><span class="w"> </span><span class="nx">fotos</span><span class="w"> </span><span class="nx">ainda</span><span class="w"> </span><span class="nx">não</span><span class="w"> </span><span class="nx">foram</span><span class="w"> </span><span class="nx">enviadas</span><span class="p">.</span><span class="w"> </span><span class="nx">Sem</span><span class="w"> </span><span class="nx">proteção</span><span class="p">,</span><span class="w"> </span><span class="nx">o</span><span class="w"> </span><span class="nx">navegador</span>
+<span class="w">        </span><span class="nx">pode</span><span class="w"> </span><span class="nx">apagá</span><span class="o">-</span><span class="nx">las</span><span class="w"> </span><span class="nx">quando</span><span class="w"> </span><span class="nx">faltar</span><span class="w"> </span><span class="nx">espaço</span><span class="p">.</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">Banner</span><span class="p">&gt;</span>
 <span class="w">    </span><span class="p">);</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">storage</span><span class="p">.</span><span class="nx">ratio</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="kc">null</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">storage</span><span class="p">.</span><span class="nx">ratio</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0.8</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
 <span class="w">      </span><span class="p">&lt;</span><span class="nt">Banner</span><span class="w"> </span><span class="na">variant</span><span class="o">=</span><span class="s">"danger"</span><span class="w"> </span><span class="na">title</span><span class="o">=</span><span class="s">"Armazenamento quase cheio"</span><span class="p">&gt;</span>
-<span class="w">        </span><span class="nx">Envie</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">visitas</span><span class="w"> </span><span class="nx">pendentes</span><span class="w"> </span><span class="nx">antes</span><span class="w"> </span><span class="nx">de</span><span class="w"> </span><span class="nx">tirar</span><span class="w"> </span><span class="nx">mais</span><span class="w"> </span><span class="nx">fotos</span><span class="p">.</span>
+<span class="w">        </span><span class="p">{</span><span class="nx">formatBytes</span><span class="p">(</span><span class="nx">storage</span><span class="p">.</span><span class="nx">usage</span><span class="p">)}</span><span class="w"> </span><span class="nx">de</span><span class="w"> </span><span class="p">{</span><span class="nx">formatBytes</span><span class="p">(</span><span class="nx">storage</span><span class="p">.</span><span class="nx">quota</span><span class="p">)}</span><span class="w"> </span><span class="nx">usados</span><span class="p">,{</span><span class="s2">" "</span><span class="p">}</span>
+<span class="w">        </span><span class="p">{</span><span class="nx">formatBytes</span><span class="p">(</span><span class="nx">pendingBytes</span><span class="p">)}</span><span class="w"> </span><span class="nx">esperando</span><span class="w"> </span><span class="nx">envio</span><span class="p">.</span><span class="w"> </span><span class="nx">Envie</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">visitas</span><span class="w"> </span><span class="nx">pendentes</span><span class="w"> </span><span class="nx">antes</span><span class="w"> </span><span class="nx">de</span><span class="w"> </span><span class="nx">tirar</span>
+<span class="w">        </span><span class="nx">mais</span><span class="w"> </span><span class="nx">fotos</span><span class="p">.</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">Banner</span><span class="p">&gt;</span>
 <span class="w">    </span><span class="p">);</span>
 <span class="w">  </span><span class="p">}</span>
@@ -6503,9 +6576,11 @@ need the CPF in the sheet, drop the row.</p>
   comes back and every two minutes. <code>flush</code> is single-flight, so triggers that coincide
   become one run. On every engine change it invalidates the <code>["visits"]</code> queries, and the
   list shows the new badge without a reload.</li>
-<li><strong><code>StorageGuard</code></strong> uses <a href="../../pwa/#4-durability-request-persistent-storage"><code>useStorageEstimate</code></a>.
-  Without persistent storage the browser may <strong>evict</strong> IndexedDB under disk pressure — and
-  here IndexedDB holds work that does not exist anywhere else yet.</li>
+<li><strong><code>StorageGuard</code></strong> joins <a href="../../pwa/#4-durability-request-persistent-storage"><code>useStorageEstimate</code></a>
+  (how much the device uses and holds) with the engine's <code>pendingBytes</code> (how much of that
+  is work that does not exist anywhere else yet). Without persistent storage the browser
+  may <strong>evict</strong> IndexedDB under disk pressure; <code>signIn</code> already asked for protection, and
+  the banner only shows when it was denied <strong>and</strong> something is pending.</li>
 <li><strong><code>OfflineIndicator</code></strong> shows the offline bar and flashes a confirmation when signal comes
   back.</li>
 <li><strong><code>UpdatePrompt</code></strong> asks before swapping versions. Reloading on its own in the middle of
@@ -6513,13 +6588,13 @@ need the CPF in the sheet, drop the row.</p>
 <li><strong><code>sw.ts</code></strong> only precaches the app shell, so the app opens without a network. See
   <a href="../../pwa/#2-precache-runtime-cache-navigation-preload">PWA</a>.</li>
 </ul>
-<div class="admonition warning">
-<p class="admonition-title">Do not turn on <code>installBackgroundSync</code> for the routes the outbox already handles</p>
-<p>The <code>--pwa</code> template ships <code>installBackgroundSync</code> matching <strong>all</strong> of <code>/api/</code>. In this
-app, the outbox is what resends. With both on, a <code>PUT /api/visits/…</code> that failed
-offline goes out twice — and a tus <code>PATCH</code> held by the worker is replayed later, with a
-stale <code>Upload-Offset</code>, and gets a <code>409</code>. Remove <code>installBackgroundSync</code> (as above) or
-take <code>/api/visits</code> and <code>/api/uploads</code> out of its <code>match</code>.</p>
+<div class="admonition info">
+<p class="admonition-title">Why this <code>sw.ts</code> has no <code>installBackgroundSync</code></p>
+<p>In this app, the outbox is what resends, and the tus upload resumes by itself. The
+<code>--pwa</code> template already keeps tus out of background sync; if you keep the scaffold's
+<code>installBackgroundSync</code>, add <code>"/api/visits/"</code> to <code>RETRIED_BY_THE_PAGE</code> in
+<code>src/sw-sync-scope.ts</code>, or a <code>PUT /api/visits/…</code> that failed offline goes out of both
+queues. See <a href="../../scaffold/#background-sync-offline-mutations-that-resend-themselves">One queue per mutation</a>.</p>
 </div>
 <h2 id="testing-in-the-field-without-going-to-the-field">Testing in the field (without going to the field)</h2>
 <ol>
@@ -6546,21 +6621,26 @@ with drops in the middle.</p>
 <li>🗄️ <strong><code>createOfflineDatabase</code></strong> keeps visits and photos (as <code>Blob</code>s) in the same database,
   owned per technician.</li>
 <li>📤 <strong><code>createOfflineSync</code></strong> is the outbox: <code>saveVisit</code> writes locally and enqueues; the
-  upload happens whenever it can.</li>
-<li>📸 Photos go up <strong>inside <code>deliver</code></strong> with <strong><code>createResumableUpload</code></strong> and a per-photo
-  <code>key</code> — a failure retries, a drop resumes from the offset, a sent photo does not go up
-  again.</li>
+  upload happens whenever it can, and <code>coalesce: true</code> folds the edits of one visit into a
+  single <code>PUT</code>.</li>
+<li>📸 Photos are the visit's <strong><code>attachments</code></strong>: the engine uploads them with the resumable
+  upload <strong>before</strong> <code>deliver</code> — a failure retries, a drop resumes from the offset, a sent
+  photo does not go up again, and <code>onUploaded</code> frees the file from the device.</li>
 <li>⚖️ Conflicts come in two kinds: the one the machine settles (<code>lastWriteWins</code> in
   <code>applyRemote</code>) and the one the technician settles (<code>409 VISIT_LOCKED</code> becomes the
   <code>conflict</code> state on screen).</li>
 <li>🗜️ <strong><code>useImageProcessing</code> + <code>bestSupportedType</code></strong> shrink the photo on the device; GPS
   goes in the record, because the re-encode drops EXIF.</li>
 <li>🟢 <strong><code>SyncStatusBadge</code></strong>, <strong><code>useOfflineSync</code></strong> and <strong><code>OfflineIndicator</code></strong> tell the
-  technician what is going on; sign-out warns before risking the queue.</li>
+  technician what is going on; with <code>foreignEntries: "hold"</code>, signing out never risks the
+  queue.</li>
 <li>📦 <strong><code>writeXlsx</code> + <code>createZip</code> + <code>shareOrDownloadBlob</code></strong> deliver the report without a
   network.</li>
-<li>🔒 <strong><code>useStorageEstimate</code></strong> asks for persistent storage; <code>UpdatePrompt</code> does not swap
-  versions mid-inspection; the service worker only precaches.</li>
+<li>💾 <strong><code>StorageFullError</code></strong> tells "storage full" apart from "bad photo" in the camera's
+  <code>catch</code>.</li>
+<li>🔒 Login asks for persistent storage; <strong><code>useStorageEstimate</code></strong> + <code>pendingBytes</code> warn when
+  space runs short; <code>UpdatePrompt</code> does not swap versions mid-inspection; the service
+  worker only precaches.</li>
 <li>⚠️ <strong><code>networkMode: "always"</code></strong> on the queries that read IndexedDB, or they pause offline.</li>
 </ul>
 <h2 id="see-also">See also</h2>
@@ -6609,7 +6689,7 @@ with drops in the middle.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../messenger/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Real-time messenger">
+          <a href="../share-whatsapp/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Share with a WhatsApp preview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -6619,7 +6699,7 @@ with drops in the middle.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Real-time messenger
+                Share with a WhatsApp preview
               </div>
             </div>
           </a>

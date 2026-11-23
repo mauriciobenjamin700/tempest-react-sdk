@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4847,10 +4870,10 @@
 <p>Cada tela cobre os cinco estados de uma tela real: <strong>carregando</strong>, <strong>vazio</strong>, <strong>erro</strong>, <strong>sucesso</strong> e <strong>celular</strong>.</p>
 <div class="admonition info">
 <p class="admonition-title">O que você precisa</p>
-<p>Um projeto criado com o <a href="../../scaffold/"><code>create-tempest-app</code></a>. Os arquivos desta página <strong>substituem</strong> os gerados pelo scaffold e acrescentam os que faltam. Instale também o <code>recharts</code> (dependência opcional do <a href="../../charts/"><code>/charts</code></a>) e o <code>zod</code>:</p>
-<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>recharts<span class="w"> </span>zod<span class="w"> </span>@tanstack/react-query
+<p>Um projeto criado com o <a href="../../scaffold/"><code>create-tempest-app</code></a>. Os arquivos desta página <strong>substituem</strong> os gerados pelo scaffold e acrescentam os que faltam. Instale também o <code>recharts</code> (dependência opcional do <a href="../../charts/"><code>/charts</code></a>):</p>
+<div class="highlight"><pre><span></span><code>npm<span class="w"> </span>install<span class="w"> </span>recharts
 </code></pre></div>
-<p>O <code>@tanstack/react-query</code> já vem com o SDK; declarar no seu <code>package.json</code> deixa explícito que o app importa dele. Rode <code>npx tempest doctor</code> depois: ele avisa se o npm aninhou uma segunda cópia.</p>
+<p>O <code>zod</code> e o <code>@tanstack/react-query</code> que esta página importa já vêm declarados no <code>package.json</code> do scaffold, na mesma faixa do SDK — veja <a href="../../scaffold/#dependencias-que-o-app-importa-direto">Dependências que o app importa direto</a>.</p>
 </div>
 <h2 id="o-contrato-com-o-backend">O contrato com o backend</h2>
 <p>O backend é um serviço FastAPI feito com o <code>tempest-fastapi-sdk</code>, montado sob <code>/api</code>. São seis rotas:</p>
@@ -4990,28 +5013,11 @@
 <p><code>Role</code> é uma união fechada. É ela que deixa o TypeScript reclamar quando alguém escrever <code>"recepção"</code> com cedilha num lugar e sem no outro.</p>
 <h2 id="a-sessao-e-o-cliente-http">A sessão e o cliente HTTP</h2>
 <div class="highlight"><pre><span></span><code><span class="c1">// src/lib/api.ts</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">QueryClient</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nx">CACHE_TIME</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">STALE_TIME</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">createQueryKeys</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">createTempestAuth</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">shouldRetryQuery</span><span class="p">,</span>
-<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createQueryClient</span><span class="p">,</span><span class="w"> </span><span class="nx">createQueryKeys</span><span class="p">,</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="k">import</span><span class="w"> </span><span class="kr">type</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/types"</span><span class="p">;</span>
 
-<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">queryClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">QueryClient</span><span class="p">({</span>
-<span class="w">    </span><span class="nx">defaultOptions</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">queries</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="nx">staleTime</span><span class="o">:</span><span class="w"> </span><span class="kt">STALE_TIME.DEFAULT</span><span class="p">,</span>
-<span class="w">            </span><span class="nx">gcTime</span><span class="o">:</span><span class="w"> </span><span class="kt">CACHE_TIME.DEFAULT</span><span class="p">,</span>
-<span class="w">            </span><span class="nx">retry</span><span class="o">:</span><span class="w"> </span><span class="kt">shouldRetryQuery</span><span class="p">,</span>
-<span class="w">            </span><span class="nx">refetchOnWindowFocus</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="p">,</span>
-<span class="w">        </span><span class="p">},</span>
-<span class="w">        </span><span class="nx">mutations</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">retry</span><span class="o">:</span><span class="w"> </span><span class="kt">0</span><span class="w"> </span><span class="p">},</span>
-<span class="w">    </span><span class="p">},</span>
-<span class="p">});</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">queryClient</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createQueryClient</span><span class="p">();</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">auth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTempestAuth</span><span class="o">&lt;</span><span class="nx">User</span><span class="o">&gt;</span><span class="p">({</span>
 <span class="w">    </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="kt">import.meta.env.VITE_API_URL</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="s2">"http://127.0.0.1:8000"</span><span class="p">,</span>
@@ -5042,9 +5048,9 @@
 <li><strong><code>retry: true</code></strong> repete <code>GET</code> que falhou por rede ou <code>5xx</code>. Escrita nunca é repetida sozinha — um <code>POST</code> repetido poderia cadastrar o paciente duas vezes.</li>
 <li><strong><code>onSessionEnd</code></strong> limpa o cache de queries quando a sessão termina — no <strong>Sair</strong>, na expiração e na troca de conta. Sem isso, a recepcionista que entra depois da gestora veria, por um instante, o faturamento que ficou no cache.</li>
 </ul>
-<div class="admonition warning">
-<p class="admonition-title">Por que criar o <code>QueryClient</code> à mão</p>
-<p>O <code>AppProviders</code> cria um <code>QueryClient</code> sozinho, mas ele fica preso lá dentro, e o <code>onSessionEnd</code> precisa chamar <code>clear()</code> nele. Então o app cria o próprio e o entrega ao provider. Os <code>defaultOptions</code> copiam os do SDK (<code>STALE_TIME.DEFAULT</code>, <code>CACHE_TIME.DEFAULT</code>, <code>shouldRetryQuery</code>), para o comportamento continuar o mesmo — veja <a href="../../query/#provider">Query → Provider</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Por que o app cria o <code>QueryClient</code></p>
+<p>O <code>AppProviders</code> cria um <code>QueryClient</code> sozinho, mas ele fica preso lá dentro, e o <code>onSessionEnd</code> precisa chamar <code>clear()</code> nele. Então o app cria o próprio com <code>createQueryClient()</code> e o entrega ao provider. É o mesmo client, com os mesmos defaults do SDK, sem redigitar nenhum — veja <a href="../../query/#createqueryclient-o-client-fora-do-react"><code>createQueryClient</code></a>.</p>
 </div>
 <p><strong><code>createQueryKeys</code></strong> dá um prefixo comum a todas as chaves de cache. Repare na dupla <code>patients()</code> / <code>patientList(search)</code>: a lista é guardada por busca, e invalidar <code>patients()</code> derruba <strong>todas</strong> as buscas de uma vez depois de um cadastro.</p>
 <h2 id="papeis-e-permissoes">Papéis e permissões</h2>
@@ -5087,8 +5093,6 @@
 <span class="w">        </span><span class="s2">"nav.patients"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pacientes"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"nav.settings"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Configurações"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"nav.logout"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sair"</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">"common.errorTitle"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Algo deu errado"</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">"common.retry"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Tentar de novo"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"page.error"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Esta tela encontrou um erro inesperado."</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.title"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Painel da clínica"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.description"</span><span class="o">:</span><span class="w"> </span><span class="s2">"O dia de hoje e os últimos 7 dias, num relance."</span><span class="p">,</span>
@@ -5102,7 +5106,6 @@
 <span class="w">        </span><span class="s2">"dashboard.series.done"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Realizadas"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.series.noShow"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Faltas"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.mix"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pacientes por convênio"</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">"dashboard.series.patients"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pacientes"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.empty"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nenhuma consulta nos últimos 7 dias"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.emptyHint"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Os gráficos aparecem assim que a agenda tiver atendimentos."</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.error"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Não foi possível carregar o painel."</span><span class="p">,</span>
@@ -5126,8 +5129,6 @@
 <span class="w">        </span><span class="s2">"nav.patients"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Patients"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"nav.settings"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Settings"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"nav.logout"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sign out"</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">"common.errorTitle"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Something went wrong"</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">"common.retry"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Try again"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"page.error"</span><span class="o">:</span><span class="w"> </span><span class="s2">"This screen hit an unexpected error."</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.title"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Clinic dashboard"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.description"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Today and the last 7 days, at a glance."</span><span class="p">,</span>
@@ -5141,7 +5142,6 @@
 <span class="w">        </span><span class="s2">"dashboard.series.done"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Attended"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.series.noShow"</span><span class="o">:</span><span class="w"> </span><span class="s2">"No-shows"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.mix"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Patients by health plan"</span><span class="p">,</span>
-<span class="w">        </span><span class="s2">"dashboard.series.patients"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Patients"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.empty"</span><span class="o">:</span><span class="w"> </span><span class="s2">"No appointments in the last 7 days"</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.emptyHint"</span><span class="o">:</span><span class="w"> </span><span class="s2">"The charts show up once the schedule has appointments."</span><span class="p">,</span>
 <span class="w">        </span><span class="s2">"dashboard.error"</span><span class="o">:</span><span class="w"> </span><span class="s2">"Could not load the dashboard."</span><span class="p">,</span>
@@ -5280,7 +5280,7 @@
 </code></pre></div>
 <p>Aqui moram as duas portas do app. 🚪</p>
 <p><strong>A porta da sessão</strong> está na rota <code>/</code>, que envolve todas as outras. O guard <code>useSessionGuard</code> é um hook — por isso o nome começa com <code>use</code> — e assina o store: quando a sessão termina, por Sair ou por expiração, ele re-renderiza sozinho e manda para <code>/login</code>. O <code>preserveFrom: true</code> leva junto o endereço de onde a pessoa veio.</p>
-<p>O guard pede <strong>token e usuário</strong>. Entre o token chegar e o <code>/auth/me</code> responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo.</p>
+<p>O guard pede <strong>token e usuário</strong>. Entre o token chegar e o <code>/auth/me</code> responder existe um instante em que só o token existe; sem o usuário não há papel, e sem papel as permissões dizem "não" para tudo. É só esse instante: se o <code>/auth/me</code> falha, o <code>login()</code> desfaz a entrada antes de rejeitar, e o token não fica sozinho no store (#748).</p>
 <p><strong>A porta do papel</strong> está em <code>pacientes</code>. O <code>useCan</code> responde numa passada de efeito, então no primeiro render ele ainda não sabe. O guard devolve <code>"pending"</code> nesse meio-tempo: o app mostra o spinner, em vez de mandar a recepcionista embora num piscar de olhos. Detalhes em <a href="../../routing/#forma-de-funcao-assincrona-o-terceiro-estado-pending">Roteamento → <code>"pending"</code></a>.</p>
 <p>As páginas entram por <code>lazy</code>: o médico, que nunca abre pacientes, nunca baixa o código dela.</p>
 <p>E o <code>path: "*"</code> <strong>dentro</strong> da rota protegida faz o 404 aparecer com o menu em volta — quem errou o endereço ainda tem para onde ir.</p>
@@ -5338,7 +5338,6 @@
 <span class="w">    </span><span class="nx">Navbar</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">Outlet</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">Sidebar</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">activeNavKey</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">useCan</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">useI18n</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">useLocation</span><span class="p">,</span>
@@ -5411,10 +5410,8 @@
 <span class="w">            </span><span class="na">bottomNav</span><span class="o">=</span><span class="p">{</span>
 <span class="w">                </span><span class="p">&lt;</span><span class="nt">BottomNavigation</span>
 <span class="w">                    </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">items</span><span class="p">}</span>
-<span class="w">                    </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">activeNavKey</span><span class="p">(</span>
-<span class="w">                        </span><span class="nx">pathname</span><span class="p">,</span>
-<span class="w">                        </span><span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">item</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">item</span><span class="p">.</span><span class="nx">key</span><span class="p">),</span>
-<span class="w">                    </span><span class="p">)}</span>
+<span class="w">                    </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">pathname</span><span class="p">}</span>
+<span class="w">                    </span><span class="na">match</span><span class="o">=</span><span class="s">"route"</span>
 <span class="w">                    </span><span class="na">onChange</span><span class="o">=</span><span class="p">{(</span><span class="nx">key</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">navigate</span><span class="p">(</span><span class="nx">key</span><span class="p">)}</span>
 <span class="w">                </span><span class="p">/&gt;</span>
 <span class="w">            </span><span class="p">}</span>
@@ -5422,11 +5419,7 @@
 <span class="w">            </span><span class="p">&lt;</span><span class="nt">ErrorBoundary</span>
 <span class="w">                </span><span class="na">resetKeys</span><span class="o">=</span><span class="p">{[</span><span class="nx">pathname</span><span class="p">]}</span>
 <span class="w">                </span><span class="na">fallback</span><span class="o">=</span><span class="p">{({</span><span class="w"> </span><span class="nx">reset</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
-<span class="w">                    </span><span class="p">&lt;</span><span class="nt">ErrorState</span>
-<span class="w">                        </span><span class="na">title</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"common.errorTitle"</span><span class="p">)}</span>
-<span class="w">                        </span><span class="na">description</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"page.error"</span><span class="p">)}</span>
-<span class="w">                        </span><span class="na">retryLabel</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"common.retry"</span><span class="p">)}</span>
-<span class="w">                        </span><span class="na">onRetry</span><span class="o">=</span><span class="p">{</span><span class="nx">reset</span><span class="p">}</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">ErrorState</span><span class="w"> </span><span class="na">description</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"page.error"</span><span class="p">)}</span><span class="w"> </span><span class="na">onRetry</span><span class="o">=</span><span class="p">{</span><span class="nx">reset</span><span class="p">}</span>
 <span class="w">                    </span><span class="p">/&gt;</span>
 <span class="w">                </span><span class="p">)}</span>
 <span class="w">            </span><span class="p">&gt;</span>
@@ -5440,7 +5433,7 @@
 <ul>
 <li><strong>Os itens dependem do papel.</strong> <code>useCan</code> decide se "Pacientes" entra na lista. O médico nem vê a entrada — e se digitar <code>/pacientes</code>, o guard da rota o devolve ao painel.</li>
 <li><strong>A <code>Sidebar</code> resolve o item ativo sozinha</strong> com <code>match="route"</code>: em <code>/pacientes?page=2</code> o item "Pacientes" continua aceso. Os itens têm <code>href</code>, então ctrl-clique abre em outra aba.</li>
-<li><strong>A <code>BottomNavigation</code> recebe a mesma lista</strong>, com o item ativo calculado pelo <a href="../../components/navigation/#activenavkey-a-mesma-resolucao-fora-do-sidebar"><code>activeNavKey</code></a>.</li>
+<li><strong>A <code>BottomNavigation</code> recebe a mesma lista e o mesmo <code>match="route"</code>.</strong> No celular os itens também são links de verdade, e o item ativo sai da rota pela mesma regra da <code>Sidebar</code>. Veja <a href="../../components/navigation/#links-e-item-ativo-pela-rota"><code>BottomNavigation</code></a>.</li>
 <li><strong>O Sair</strong> chama <code>auth.logout()</code> e mais nada. O store limpa na hora, o <code>onSessionEnd</code> limpa o cache, e o guard da sessão leva para o login.</li>
 </ul>
 <p>O <code>ErrorBoundary</code> em volta do <code>&lt;Outlet /&gt;</code> é o <strong>segundo</strong> boundary do app, e o que mais aparece: um erro de render no painel troca só o conteúdo por uma tela de erro, e o menu continua lá. O <code>resetKeys={[pathname]}</code> limpa o erro quando a pessoa navega para outra página. Veja <a href="../../error-boundary/">Error Boundary</a>.</p>
@@ -5497,6 +5490,7 @@
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">RevenueChart</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nx">ReactNode</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">formatDate</span><span class="p">,</span><span class="w"> </span><span class="nx">formatNumber</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useI18n</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">money</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMoney</span><span class="p">();</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">revenue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useRevenue</span><span class="p">();</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">compactMoney</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">=&gt;</span>
 <span class="w">        </span><span class="nx">formatNumber</span><span class="p">(</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s2">"currency"</span><span class="p">,</span><span class="w"> </span><span class="nx">currency</span><span class="o">:</span><span class="w"> </span><span class="s2">"BRL"</span><span class="p">,</span><span class="w"> </span><span class="nx">notation</span><span class="o">:</span><span class="w"> </span><span class="s2">"compact"</span><span class="w"> </span><span class="p">});</span>
@@ -5505,18 +5499,15 @@
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">revenue</span><span class="p">.</span><span class="nx">isError</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
 <span class="w">            </span><span class="p">&lt;</span><span class="nt">ErrorState</span>
-<span class="w">                </span><span class="na">title</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"common.errorTitle"</span><span class="p">)}</span>
 <span class="w">                </span><span class="na">description</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"dashboard.revenueError"</span><span class="p">)}</span>
-<span class="w">                </span><span class="na">retryLabel</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"common.retry"</span><span class="p">)}</span>
 <span class="w">                </span><span class="na">onRetry</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">revenue</span><span class="p">.</span><span class="nx">refetch</span><span class="p">()}</span>
 <span class="w">            </span><span class="p">/&gt;</span>
 <span class="w">        </span><span class="p">);</span>
 <span class="w">    </span><span class="p">}</span>
 
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">series</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">t</span><span class="p">(</span><span class="s2">"dashboard.series.revenue"</span><span class="p">);</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">revenue</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">by_month</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">point</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
-<span class="w">        </span><span class="nx">month</span><span class="o">:</span><span class="w"> </span><span class="kt">formatDate</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">point</span><span class="p">.</span><span class="nx">month</span><span class="si">}</span><span class="sb">-01`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">month</span><span class="o">:</span><span class="w"> </span><span class="s2">"short"</span><span class="p">,</span><span class="w"> </span><span class="nx">timeZone</span><span class="o">:</span><span class="w"> </span><span class="s2">"UTC"</span><span class="w"> </span><span class="p">}),</span>
-<span class="w">        </span><span class="p">[</span><span class="nx">series</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nx">point</span><span class="p">.</span><span class="nx">total</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">month</span><span class="o">:</span><span class="w"> </span><span class="kt">formatDate</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">point</span><span class="p">.</span><span class="nx">month</span><span class="si">}</span><span class="sb">-01`</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">month</span><span class="o">:</span><span class="w"> </span><span class="s2">"short"</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">        </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">point.total</span><span class="p">,</span>
 <span class="w">    </span><span class="p">}));</span>
 
 <span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
@@ -5524,8 +5515,10 @@
 <span class="w">            </span><span class="p">&lt;</span><span class="nt">LineChart</span>
 <span class="w">                </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">data</span><span class="p">}</span>
 <span class="w">                </span><span class="na">index</span><span class="o">=</span><span class="s">"month"</span>
-<span class="w">                </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="nx">series</span><span class="p">]}</span>
-<span class="w">                </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{</span><span class="nx">compactMoney</span><span class="p">}</span>
+<span class="w">                </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"total"</span><span class="p">]}</span>
+<span class="w">                </span><span class="na">labels</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"dashboard.series.revenue"</span><span class="p">)</span><span class="w"> </span><span class="p">}}</span>
+<span class="w">                </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{</span><span class="nx">money</span><span class="p">}</span>
+<span class="w">                </span><span class="na">yAxisFormatter</span><span class="o">=</span><span class="p">{</span><span class="nx">compactMoney</span><span class="p">}</span>
 <span class="w">                </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">280</span><span class="p">}</span>
 <span class="w">            </span><span class="p">/&gt;</span>
 <span class="w">        </span><span class="p">&lt;/</span><span class="nt">Card</span><span class="p">&gt;</span>
@@ -5547,18 +5540,14 @@
 
 <span class="kd">function</span><span class="w"> </span><span class="nx">DashboardBody</span><span class="p">({</span><span class="w"> </span><span class="nx">summary</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">summary</span><span class="o">:</span><span class="w"> </span><span class="kt">DashboardSummary</span><span class="w"> </span><span class="p">})</span><span class="o">:</span><span class="w"> </span><span class="nx">ReactNode</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">t</span><span class="p">,</span><span class="w"> </span><span class="nx">formatDate</span><span class="p">,</span><span class="w"> </span><span class="nx">formatNumber</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useI18n</span><span class="p">();</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">done</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">t</span><span class="p">(</span><span class="s2">"dashboard.series.done"</span><span class="p">);</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">noShow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">t</span><span class="p">(</span><span class="s2">"dashboard.series.noShow"</span><span class="p">);</span>
-<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">patients</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">t</span><span class="p">(</span><span class="s2">"dashboard.series.patients"</span><span class="p">);</span>
-
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">week</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">appointments_by_day</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">day</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
-<span class="w">        </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="kt">formatDate</span><span class="p">(</span><span class="nx">day</span><span class="p">.</span><span class="nx">date</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">weekday</span><span class="o">:</span><span class="w"> </span><span class="s2">"short"</span><span class="p">,</span><span class="w"> </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="s2">"2-digit"</span><span class="p">,</span><span class="w"> </span><span class="nx">timeZone</span><span class="o">:</span><span class="w"> </span><span class="s2">"UTC"</span><span class="w"> </span><span class="p">}),</span>
-<span class="w">        </span><span class="p">[</span><span class="nx">done</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nx">day</span><span class="p">.</span><span class="nx">done</span><span class="p">,</span>
-<span class="w">        </span><span class="p">[</span><span class="nx">noShow</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nx">day</span><span class="p">.</span><span class="nx">no_show</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="kt">formatDate</span><span class="p">(</span><span class="nx">day</span><span class="p">.</span><span class="nx">date</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">weekday</span><span class="o">:</span><span class="w"> </span><span class="s2">"short"</span><span class="p">,</span><span class="w"> </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="s2">"2-digit"</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">        </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">day.done</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">day.no_show</span><span class="p">,</span>
 <span class="w">    </span><span class="p">}));</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">mix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">insurance_mix</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">share</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span>
 <span class="w">        </span><span class="nx">insurance</span><span class="o">:</span><span class="w"> </span><span class="kt">share.insurance</span><span class="p">,</span>
-<span class="w">        </span><span class="p">[</span><span class="nx">patients</span><span class="p">]</span><span class="o">:</span><span class="w"> </span><span class="nx">share</span><span class="p">.</span><span class="nx">patients</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">patients</span><span class="o">:</span><span class="w"> </span><span class="kt">share.patients</span><span class="p">,</span>
 <span class="w">    </span><span class="p">}));</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">delta</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">appointments_today_delta</span><span class="p">;</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">isEmptyWeek</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">appointments_by_day</span><span class="p">.</span><span class="nx">every</span><span class="p">((</span><span class="nx">day</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">day</span><span class="p">.</span><span class="nx">done</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nx">day</span><span class="p">.</span><span class="nx">no_show</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">0</span><span class="p">);</span>
@@ -5606,7 +5595,11 @@
 <span class="w">                        </span><span class="p">&lt;</span><span class="nt">BarChart</span>
 <span class="w">                            </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">week</span><span class="p">}</span>
 <span class="w">                            </span><span class="na">index</span><span class="o">=</span><span class="s">"day"</span>
-<span class="w">                            </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="nx">done</span><span class="p">,</span><span class="w"> </span><span class="nx">noShow</span><span class="p">]}</span>
+<span class="w">                            </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"done"</span><span class="p">,</span><span class="w"> </span><span class="s2">"noShow"</span><span class="p">]}</span>
+<span class="w">                            </span><span class="na">labels</span><span class="o">=</span><span class="p">{{</span>
+<span class="w">                                </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"dashboard.series.done"</span><span class="p">),</span>
+<span class="w">                                </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"dashboard.series.noShow"</span><span class="p">),</span>
+<span class="w">                            </span><span class="p">}}</span>
 <span class="w">                            </span><span class="na">stack</span>
 <span class="w">                            </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">280</span><span class="p">}</span>
 <span class="w">                        </span><span class="p">/&gt;</span>
@@ -5615,7 +5608,7 @@
 <span class="w">                        </span><span class="p">&lt;</span><span class="nt">PieChart</span>
 <span class="w">                            </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">mix</span><span class="p">}</span>
 <span class="w">                            </span><span class="na">index</span><span class="o">=</span><span class="s">"insurance"</span>
-<span class="w">                            </span><span class="na">category</span><span class="o">=</span><span class="p">{</span><span class="nx">patients</span><span class="p">}</span>
+<span class="w">                            </span><span class="na">category</span><span class="o">=</span><span class="s">"patients"</span>
 <span class="w">                            </span><span class="na">donut</span>
 <span class="w">                            </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">280</span><span class="p">}</span>
 <span class="w">                        </span><span class="p">/&gt;</span>
@@ -5644,9 +5637,7 @@
 <span class="w">                </span><span class="p">&lt;</span><span class="nt">DashboardSkeleton</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">            </span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">isError</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">(</span>
 <span class="w">                </span><span class="p">&lt;</span><span class="nt">ErrorState</span>
-<span class="w">                    </span><span class="na">title</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"common.errorTitle"</span><span class="p">)}</span>
 <span class="w">                    </span><span class="na">description</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"dashboard.error"</span><span class="p">)}</span>
-<span class="w">                    </span><span class="na">retryLabel</span><span class="o">=</span><span class="p">{</span><span class="nx">t</span><span class="p">(</span><span class="s2">"common.retry"</span><span class="p">)}</span>
 <span class="w">                    </span><span class="na">onRetry</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="nx">summary</span><span class="p">.</span><span class="nx">refetch</span><span class="p">()}</span>
 <span class="w">                </span><span class="p">/&gt;</span>
 <span class="w">            </span><span class="p">)</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span>
@@ -5657,23 +5648,23 @@
 <span class="p">}</span>
 </code></pre></div>
 <p>A tela mais densa do app. Vamos por partes. 📊</p>
-<p><strong>Os estados.</strong> O componente de fora só decide qual dos três mostrar: <code>isPending</code> → esqueleto no formato da tela, <code>isError</code> → <code>ErrorState</code> com "Tentar de novo", senão o conteúdo. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.</p>
-<p><strong>Os indicadores.</strong> Quatro <a href="../../components/feedback/#stat"><code>Stat</code></a> num <code>Grid</code> de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo <code>formatNumber</code> do i18n: <code>1.284</code> em português, <code>1,284</code> em inglês.</p>
+<p><strong>Os estados.</strong> O componente de fora só decide qual dos três mostrar: <code>isPending</code> → esqueleto no formato da tela, <code>isError</code> → <code>ErrorState</code> com o botão de tentar de novo, senão o conteúdo. O título e o botão do <code>ErrorState</code> vêm do próprio SDK, já no idioma ativo (<a href="../../i18n/#textos-padrao-dos-componentes">textos padrão</a>); a tela só passa a descrição. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.</p>
+<p><strong>Os indicadores.</strong> Quatro <a href="../../components/feedback/#stat"><code>Stat</code></a> num <code>Grid</code> de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo <code>formatNumber</code> do i18n: <code>1.284</code> em português, <code>1,284</code> em inglês. A taxa de faltas sai sem delta porque o resumo não traz a variação dela; quando trouxer, passe <code>higherIsBetter={false}</code> — numa taxa de faltas, subir é ruim e a cor do delta precisa dizer isso (<a href="../../components/feedback/#polaridade-quando-subir-e-ruim">polaridade</a>).</p>
 <p><strong>O faturamento só para a gestora.</strong> <code>RevenueStat</code> e <code>RevenueChart</code> estão dentro de <code>&lt;Can action="read" resource="finance"&gt;</code>. O <code>&lt;Can&gt;</code> não renderiza os filhos para quem não pode — e componente que não monta não dispara a query. O <code>/dashboard/revenue</code> nunca é chamado pela recepção.</p>
 <p>Os dois usam o mesmo <code>useRevenue()</code>, com a mesma query key. O React Query faz <strong>uma</strong> requisição e entrega a resposta aos dois.</p>
 <p><strong>O vazio.</strong> Uma clínica recém-aberta tem a semana zerada. Em vez de dois gráficos vazios, um <code>EmptyState</code> explica quando eles vão aparecer.</p>
 <p><strong>Os gráficos.</strong> <code>BarChart</code> empilhado, <code>PieChart</code> em rosca e <code>LineChart</code>, do subpath <a href="../../charts/"><code>tempest-react-sdk/charts</code></a>. O formato de dados é sempre o mesmo: <code>index</code> é a chave do eixo, <code>categories</code> são as séries.</p>
-<div class="admonition warning">
-<p class="admonition-title">O nome da série é a chave do objeto</p>
-<p>O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a <strong>frase traduzida</strong> como chave: <code>[done]: day.done</code>, onde <code>done</code> vale <code>"Realizadas"</code> ou <code>"Attended"</code>. Trocar o idioma refaz os dados e a legenda acompanha.</p>
+<div class="admonition tip">
+<p class="admonition-title">O nome da série vem de <code>labels</code></p>
+<p>Os dados ficam com as chaves da API (<code>done</code>, <code>noShow</code>) e <code>labels</code> dá o texto da legenda e do tooltip: <code>labels={{ done: t("dashboard.series.done") }}</code>. Trocar o idioma muda só o rótulo. Veja <a href="../../charts/#rotulo-da-serie-separado-da-chave-do-dado-labels"><code>labels</code></a>.</p>
 </div>
-<div class="admonition warning">
-<p class="admonition-title"><code>timeZone: \"UTC\"</code> em data sem hora</p>
-<p><code>"2026-11-16"</code> é lido pelo JavaScript como meia-noite <strong>UTC</strong>, que em Brasília ainda é dia 15 às 21h. Formatada no fuso local, a segunda-feira vira domingo. Como a data veio sem hora, formate em UTC — ela volta a ser o dia 16 que o backend mandou.</p>
+<div class="admonition info">
+<p class="admonition-title">Data sem hora fica no dia que o backend mandou</p>
+<p><code>"2026-11-16"</code> é lido pelo JavaScript como meia-noite <strong>UTC</strong>, que em Brasília ainda é dia 15 às 21h. O <code>formatDate</code> do <code>useI18n</code> trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem <code>timeZone</code> no seu código.</p>
 </div>
 <div class="admonition tip">
-<p class="admonition-title">Eixo com dinheiro: notação compacta</p>
-<p>No gráfico de faturamento, o <code>valueFormatter</code> usa <code>notation: "compact"</code>. <code>R$ 186.430</code> vira <code>R$ 186 mil</code>, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.</p>
+<p class="admonition-title">Eixo com dinheiro: compacto no eixo, inteiro no tooltip</p>
+<p>O eixo Y se ajusta ao maior rótulo sozinho. No celular, <code>R$ 186.430</code> inteiro tomaria espaço do gráfico, então o eixo usa <code>yAxisFormatter</code> com <code>notation: "compact"</code> (<code>R$ 186 mil</code>) e o tooltip continua com o valor inteiro do <code>valueFormatter</code>. Veja <a href="../../charts/#eixo-de-valor-largura-e-formato">eixo de valor</a>.</p>
 </div>
 <h2 id="pacientes">Pacientes</h2>
 <p>Este é o módulo de cadastro, numa versão enxuta. A receita <a href="../admin-crud/">Painel CRUD (admin)</a> vai fundo nesse tipo de tela; aqui o foco é como ele se encaixa no app.</p>
@@ -5936,13 +5927,14 @@
 <span class="w">    </span><span class="nx">Modal</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">PhoneInput</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">Select</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">applyApiFieldErrors</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">encodeIdSegment</span><span class="p">,</span>
-<span class="w">    </span><span class="nx">isApiError</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">unmask</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">useDescribeApiError</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">useToast</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">useZodForm</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">validateCPF</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">withEmptyOption</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"zod"</span><span class="p">;</span>
 
@@ -5960,14 +5952,6 @@
 <span class="p">});</span>
 
 <span class="kr">type</span><span class="w"> </span><span class="nx">PatientFormValues</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">infer</span><span class="p">&lt;</span><span class="nt">typeof</span><span class="w"> </span><span class="na">patientSchema</span><span class="p">&gt;;</span>
-
-<span class="kd">const</span><span class="w"> </span><span class="nx">FIELD_NAMES</span><span class="o">:</span><span class="w"> </span><span class="kt">ReadonlyArray</span><span class="p">&lt;</span><span class="nt">keyof</span><span class="w"> </span><span class="na">PatientFormValues</span><span class="p">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="s2">"name"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"cpf"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"phone"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"email"</span><span class="p">,</span>
-<span class="w">    </span><span class="s2">"insurance"</span><span class="p">,</span>
-<span class="p">];</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">interface</span><span class="w"> </span><span class="nx">PatientFormModalProps</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">patient</span><span class="o">:</span><span class="w"> </span><span class="kt">Patient</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
@@ -6007,11 +5991,7 @@
 <span class="w">            </span><span class="nx">onClose</span><span class="p">();</span>
 <span class="w">        </span><span class="p">},</span>
 <span class="w">        </span><span class="nx">onError</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">fields</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">isApiError</span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">error.fields</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kt">undefined</span><span class="p">;</span>
-<span class="w">            </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">name</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">FIELD_NAMES</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-<span class="w">                </span><span class="kd">const</span><span class="w"> </span><span class="nx">message</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">fields</span><span class="o">?</span><span class="p">.[</span><span class="nx">name</span><span class="p">];</span>
-<span class="w">                </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">message</span><span class="p">)</span><span class="w"> </span><span class="nx">form</span><span class="p">.</span><span class="nx">setError</span><span class="p">(</span><span class="nx">name</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">message</span><span class="w"> </span><span class="p">});</span>
-<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="nx">applyApiFieldErrors</span><span class="p">(</span><span class="nx">form</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
 <span class="w">            </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span>
 <span class="w">                </span><span class="nx">describe</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span><span class="w"> </span><span class="s2">"Não foi possível salvar o paciente."</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">                    </span><span class="nx">codes</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PATIENT_CPF_TAKEN</span><span class="o">:</span><span class="w"> </span><span class="s2">"Já existe um paciente com este CPF."</span><span class="w"> </span><span class="p">},</span>
@@ -6047,10 +6027,10 @@
 <span class="w">                    </span><span class="p">&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
 <span class="w">                    </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"insurance"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Convênio"</span><span class="p">&gt;</span>
 <span class="w">                        </span><span class="p">&lt;</span><span class="nt">Select</span>
-<span class="w">                            </span><span class="na">options</span><span class="o">=</span><span class="p">{[</span>
-<span class="w">                                </span><span class="p">{</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Particular"</span><span class="w"> </span><span class="p">},</span>
-<span class="w">                                </span><span class="p">...</span><span class="nx">INSURANCES</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="kt">name</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="kt">name</span><span class="w"> </span><span class="p">})),</span>
-<span class="w">                            </span><span class="p">]}</span>
+<span class="w">                            </span><span class="na">options</span><span class="o">=</span><span class="p">{</span><span class="nx">withEmptyOption</span><span class="p">(</span>
+<span class="w">                                </span><span class="nx">INSURANCES</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">name</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">({</span><span class="w"> </span><span class="nx">value</span><span class="o">:</span><span class="w"> </span><span class="kt">name</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="kt">name</span><span class="w"> </span><span class="p">})),</span>
+<span class="w">                                </span><span class="s2">"Particular"</span><span class="p">,</span>
+<span class="w">                            </span><span class="p">)}</span>
 <span class="w">                        </span><span class="p">/&gt;</span>
 <span class="w">                    </span><span class="p">&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
 <span class="w">                    </span><span class="p">&lt;</span><span class="nt">FormActions</span><span class="w"> </span><span class="na">align</span><span class="o">=</span><span class="s">"end"</span><span class="p">&gt;</span>
@@ -6071,8 +6051,8 @@
 <li><strong>Um schema zod</strong> é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo <code>validateCPF</code> de <a href="../../forms-br/">Forms BR</a>; o telefone precisa de pelo menos 10 dígitos.</li>
 <li><strong><code>CPFInput</code> e <code>PhoneInput</code></strong> mascaram enquanto a pessoa digita. Antes de enviar, o <code>unmask</code> tira a pontuação: o backend guarda só dígitos.</li>
 <li><strong>Campo opcional vira <code>null</code>.</strong> E-mail e convênio vazios saem como <code>null</code>, que é o que o backend espera para "não informado".</li>
-<li><strong>O <code>Select</code> de convênio</strong> tem "Particular" como uma opção de verdade, com valor vazio. Um <code>placeholder</code> seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.</li>
-<li><strong>Erros do servidor no campo certo.</strong> O <code>422</code> do FastAPI chega com <code>error.fields</code>. O <code>onError</code> copia cada mensagem para o campo do mesmo nome com <code>form.setError</code>, e o <code>PATIENT_CPF_TAKEN</code> vira "Já existe um paciente com este CPF.".</li>
+<li><strong>O <code>Select</code> de convênio</strong> tem "Particular" como uma opção de verdade, com valor vazio (<code>withEmptyOption</code>): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", <code>placeholder</code> com <code>clearable</code> deixa voltar ao vazio — veja <a href="../../components/inputs/#select-placeholder">Select</a>.</li>
+<li><strong>Erros do servidor no campo certo.</strong> O <code>422</code> do FastAPI chega com <code>error.fields</code>. O <code>applyApiFieldErrors</code> do <code>onError</code> põe cada mensagem no campo do mesmo nome e foca o primeiro, e o <code>PATIENT_CPF_TAKEN</code> vira "Já existe um paciente com este CPF.".</li>
 <li><strong><code>key</code> no modal.</strong> A página monta o modal com <code>key={patient.id}</code>. Abrir outro paciente cria um formulário novo, com os valores certos — sem <code>reset()</code> manual.</li>
 <li><strong><code>fullscreenOnMobile</code></strong>: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.</li>
 </ul>

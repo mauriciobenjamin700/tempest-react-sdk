@@ -3884,6 +3884,8 @@
       
         
       
+        
+      
     
     
       
@@ -3992,6 +3994,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4765,6 +4788,14 @@
 <div class="admonition tip">
 <p class="admonition-title">Use <code>flush</code> to host tables and lists</p>
 <p>Cards have internal padding by default. When placing a <code>Table</code> or a list that already has its own margins, turn on <code>flush</code> so the content reaches the card edges without doubled padding.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Blocks inside the card are spaced</p>
+<p>Two or more block children — a <code>Stat</code> and a <code>Timeline</code>, a paragraph and a list
+— sit <code>--tempest-space-4</code> (16 px) apart, with no <code>Stack</code> needed. Inline content
+(<code>Hi &lt;strong&gt;Ana&lt;/strong&gt;</code>) stays on one line, and a <code>flush</code> card gets no
+spacing. Before, since every SDK component zeroes its own margin, the blocks
+touched (#710).</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title"><code>interactive</code> makes the whole card a button</p>

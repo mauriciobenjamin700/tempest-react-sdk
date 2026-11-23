@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4785,41 +4808,19 @@ read the <code>--tempest-*</code> tokens, so they change colour on their own.</p
 </ul>
 <h2 id="the-code-file-by-file">The code, file by file</h2>
 <h3 id="1-the-script-in-the-head">1. The script in the <code>&lt;head&gt;</code></h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Vite (<code>index.html</code>)</label><label for="__tabbed_1_2">SSR (React on the server)</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Vite (<code>vite.config.ts</code>)</label><label for="__tabbed_1_2">SSR (React on the server)</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="highlight"><pre><span></span><code><span class="cm">&lt;!-- index.html --&gt;</span>
-<span class="cp">&lt;!doctype html&gt;</span>
-<span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"pt-BR"</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">charset</span><span class="o">=</span><span class="s">"UTF-8"</span> <span class="p">/&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">"viewport"</span> <span class="na">content</span><span class="o">=</span><span class="s">"width=device-width, initial-scale=1.0"</span> <span class="p">/&gt;</span>
-    <span class="p">&lt;</span><span class="nt">meta</span> <span class="na">name</span><span class="o">=</span><span class="s">"theme-color"</span> <span class="na">content</span><span class="o">=</span><span class="s">"#ffffff"</span> <span class="p">/&gt;</span>
-    <span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span>Painel · Loja Aurora<span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">script</span><span class="p">&gt;</span>
-<span class="w">      </span><span class="p">(</span><span class="kd">function</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
-<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"tempest-theme"</span><span class="p">;</span>
-<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">def</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"system"</span><span class="p">;</span>
-<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">stored</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="nx">key</span><span class="p">);</span>
-<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">stored</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">def</span><span class="p">;</span>
-<span class="w">          </span><span class="kd">var</span><span class="w"> </span><span class="nx">resolved</span><span class="w"> </span><span class="o">=</span>
-<span class="w">            </span><span class="nx">mode</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"dark"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">mode</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"light"</span>
-<span class="w">              </span><span class="o">?</span><span class="w"> </span><span class="nx">mode</span>
-<span class="w">              </span><span class="o">:</span><span class="w"> </span><span class="nx">matchMedia</span><span class="p">(</span><span class="s2">"(prefers-color-scheme: dark)"</span><span class="p">).</span><span class="nx">matches</span>
-<span class="w">                </span><span class="o">?</span><span class="w"> </span><span class="s2">"dark"</span>
-<span class="w">                </span><span class="o">:</span><span class="w"> </span><span class="s2">"light"</span><span class="p">;</span>
-<span class="w">          </span><span class="nb">document</span><span class="p">.</span><span class="nx">documentElement</span><span class="p">.</span><span class="nx">setAttribute</span><span class="p">(</span><span class="s2">"data-tempest-theme"</span><span class="p">,</span><span class="w"> </span><span class="nx">resolved</span><span class="p">);</span>
-<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">e</span><span class="p">)</span><span class="w"> </span><span class="p">{}</span>
-<span class="w">      </span><span class="p">})();</span>
-<span class="w">    </span><span class="p">&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
-  <span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="nt">body</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">id</span><span class="o">=</span><span class="s">"root"</span><span class="p">&gt;&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
-    <span class="p">&lt;</span><span class="nt">script</span> <span class="na">type</span><span class="o">=</span><span class="s">"module"</span> <span class="na">src</span><span class="o">=</span><span class="s">"/src/main.tsx"</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
-  <span class="p">&lt;/</span><span class="nt">body</span><span class="p">&gt;</span>
-<span class="p">&lt;/</span><span class="nt">html</span><span class="p">&gt;</span>
+<div class="highlight"><pre><span></span><code><span class="c1">// vite.config.ts</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestThemeInit</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestThemeInit</span><span class="p">(),</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">()],</span>
+<span class="p">});</span>
 </code></pre></div>
+<p><code>tempestThemeInit()</code> writes the script at the top of <code>index.html</code>'s <code>&lt;head&gt;</code>, under
+<code>vite dev</code> and in the build. <code>index.html</code> stays as it is, with no hand-pasted
+script. The app <code>create-tempest-app</code> generates already ships this line.</p>
 </div>
 <div class="tabbed-block">
 <div class="highlight"><pre><span></span><code><span class="c1">// src/Document.tsx</span>
@@ -4835,7 +4836,6 @@ read the <code>--tempest-*</code> tokens, so they change colour on their own.</p
 <span class="w">    </span><span class="p">&lt;</span><span class="nt">html</span><span class="w"> </span><span class="na">lang</span><span class="o">=</span><span class="s">"pt-BR"</span><span class="p">&gt;</span>
 <span class="w">      </span><span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">meta</span><span class="w"> </span><span class="na">charSet</span><span class="o">=</span><span class="s">"UTF-8"</span><span class="w"> </span><span class="p">/&gt;</span>
-<span class="w">        </span><span class="p">&lt;</span><span class="nt">meta</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"theme-color"</span><span class="w"> </span><span class="na">content</span><span class="o">=</span><span class="s">"#ffffff"</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">title</span><span class="p">&gt;</span><span class="nx">Painel</span><span class="w"> </span><span class="err">·</span><span class="w"> </span><span class="nx">Loja</span><span class="w"> </span><span class="nx">Aurora</span><span class="p">&lt;/</span><span class="nt">title</span><span class="p">&gt;</span>
 <span class="w">        </span><span class="p">&lt;</span><span class="nt">script</span><span class="w"> </span><span class="na">dangerouslySetInnerHTML</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">__html</span><span class="o">:</span><span class="w"> </span><span class="kt">themeInitScript</span><span class="p">()</span><span class="w"> </span><span class="p">}}</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">head</span><span class="p">&gt;</span>
@@ -4909,9 +4909,9 @@ read the <code>--tempest-*</code> tokens, so they change colour on their own.</p
 browser through <code>prefers-color-scheme</code>. At the end, it writes
 <code>data-tempest-theme="dark"</code> (or <code>"light"</code>) on <code>&lt;html&gt;</code>. When the first paint happens,
 the tokens are already right.</p>
-<p>The <strong>Vite</strong> tab's content is exactly what <code>themeInitScript()</code> returns, just formatted.
-In the <strong>SSR</strong> tab, you inject the function itself, and the script never drifts from
-the SDK.</p>
+<p>In the <strong>Vite</strong> tab, the <code>tempestThemeInit()</code> plugin injects what <code>themeInitScript()</code>
+returns. In the <strong>SSR</strong> tab, you inject the function itself. Either way the script never
+drifts from the SDK.</p>
 <div class="admonition warning">
 <p class="admonition-title">Synchronous and early, always</p>
 <p>No <code>defer</code>, no <code>async</code>, no script at the end of <code>&lt;body&gt;</code>. It must run before the
@@ -4919,8 +4919,8 @@ first paint, or the flash comes back.</p>
 </div>
 <div class="admonition check">
 <p class="admonition-title">With <code>tempestCsp()</code>, the inline script is already allowed</p>
-<p>The SDK's CSP plugin computes the SHA-256 of every inline script in <code>index.html</code>
-and adds it to the policy. You do not need <code>'unsafe-inline'</code>. See
+<p>The SDK's CSP plugin computes the SHA-256 of every inline script in <code>index.html</code>,
+including the one <code>tempestThemeInit()</code> injects, and adds it to the policy. You do not need <code>'unsafe-inline'</code>. See
 <a href="../../csp/#inline-scripts-enter-by-hash">Inline scripts enter by hash</a>.</p>
 </div>
 <h3 id="the-switcher-uses-the-theme-context">The switcher uses the theme context</h3>
@@ -4942,14 +4942,15 @@ both speak the same <code>ThemeMode</code> type. See
   provider listens to <code>prefers-color-scheme</code> and switches the moment the operating
   system changes.</li>
 <li><code>themeColor</code> updates <code>&lt;meta name="theme-color"&gt;</code>, which paints the browser bar on
-  Android and the installed app's status bar. 📱 It only <strong>updates</strong> the tag: the tag
-  must exist in the <code>&lt;head&gt;</code>, which is why both tabs in step 1 declare it.</li>
+  Android and the installed app's status bar. 📱 When the page has no such tag, the
+  provider creates it in the <code>&lt;head&gt;</code>.</li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Same key on both sides</p>
 <p>The script and the provider must read the same <code>localStorage</code> key. Both use
 <code>"tempest-theme"</code> by default. If you change it, pass <code>storageKey</code> to both:
-<code>themeInitScript({ storageKey: "aurora-theme" })</code> and
+<code>tempestThemeInit({ storageKey: "aurora-theme" })</code> (or
+<code>themeInitScript({ storageKey: "aurora-theme" })</code> under SSR) and
 <code>theme={{ storageKey: "aurora-theme" }}</code>.</p>
 </div>
 <h3 id="your-css-uses-the-same-tokens">Your CSS uses the same tokens</h3>
@@ -4960,8 +4961,8 @@ selector works. The dark theme is always that attribute, never <code>class="dark
 <a href="../../theme/#customizing-tokens">Customizing tokens</a>.</p>
 <h2 id="recap">Recap</h2>
 <ul>
-<li>✅ The <code>themeInitScript()</code> script in the <code>&lt;head&gt;</code> applies the theme before the first
-  paint: no flash.</li>
+<li>✅ <code>tempestThemeInit()</code> in <code>vite.config.ts</code> (or <code>themeInitScript()</code> under SSR) puts the
+  script in the <code>&lt;head&gt;</code>, which applies the theme before the first paint: no flash.</li>
 <li>✅ <code>useTheme()</code> gives <code>theme</code>, <code>resolvedTheme</code>, <code>setTheme</code> and <code>toggle</code>.</li>
 <li>✅ <code>SegmentedControl</code> + <code>setTheme</code> become the <strong>Light / Dark / System</strong> switcher.</li>
 <li>✅ <code>&lt;AppProviders theme={{ defaultTheme, themeColor }}&gt;</code> follows the system and paints

@@ -4009,6 +4009,8 @@
       
         
       
+        
+      
     
     
       
@@ -4117,6 +4119,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -5123,22 +5146,24 @@
 <p>On replay the browser attaches the cookie of whoever is signed in at that moment. Under <code>"lenient"</code>, A's mutation whose owner was never stamped (tab closed, empty <code>clientId</code>, stamp lost, old entry) goes out with B's session. With cookies, stay on <code>"strict"</code> and install the provider with <code>getPrincipal</code>. A custom <code>beforeReplay</code> ignores the option.</p>
 </div>
 <h2 id="4-durability-request-persistent-storage">4. Durability: request persistent storage</h2>
-<p>Without <code>navigator.storage.persist()</code>, the browser may <strong>evict</strong> IndexedDB and Cache Storage under disk pressure — fatal for offline data. <code>useStorageEstimate</code> shows usage/quota and exposes the action to make storage persistent:</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<p>Without <code>navigator.storage.persist()</code>, the browser may <strong>evict</strong> IndexedDB and Cache Storage under disk pressure — fatal for offline data. <code>useStorageEstimate</code> reads usage/quota and exposes the action to make storage persistent; <a href="../components/feedback/#storageusage"><code>&lt;StorageUsage&gt;</code></a> displays those numbers, with the bytes waiting to upload and the warnings:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">StorageUsage</span><span class="p">,</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
-<span class="kd">function</span><span class="w"> </span><span class="nx">StorageMeter</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">usage</span><span class="p">,</span><span class="w"> </span><span class="nx">quota</span><span class="p">,</span><span class="w"> </span><span class="nx">ratio</span><span class="p">,</span><span class="w"> </span><span class="nx">persisted</span><span class="p">,</span><span class="w"> </span><span class="nx">requestPersist</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">();</span>
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">StorageMeter</span><span class="p">({</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">pendingBytes</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">usage</span><span class="p">,</span><span class="w"> </span><span class="nx">quota</span><span class="p">,</span><span class="w"> </span><span class="nx">persisted</span><span class="p">,</span><span class="w"> </span><span class="nx">requestPersist</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useStorageEstimate</span><span class="p">();</span>
 <span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
-<span class="w">    </span><span class="p">&lt;</span><span class="nt">div</span><span class="p">&gt;</span>
-<span class="w">      </span><span class="p">&lt;</span><span class="nt">progress</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">ratio</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span>
-<span class="w">      </span><span class="p">&lt;</span><span class="nt">span</span><span class="p">&gt;</span>
-<span class="w">        </span><span class="p">{((</span><span class="nx">usage</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="p">).</span><span class="nx">toFixed</span><span class="p">(</span><span class="mf">1</span><span class="p">)}</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="p">{((</span><span class="nx">quota</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">1e6</span><span class="p">).</span><span class="nx">toFixed</span><span class="p">(</span><span class="mf">0</span><span class="p">)}</span><span class="w"> </span><span class="nx">MB</span>
-<span class="w">      </span><span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
-<span class="w">      </span><span class="p">{</span><span class="o">!</span><span class="nx">persisted</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">button</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">requestPersist</span><span class="p">}&gt;</span><span class="nx">Make</span><span class="w"> </span><span class="nx">persistent</span><span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;}</span>
-<span class="w">    </span><span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">StorageUsage</span>
+<span class="w">      </span><span class="na">usage</span><span class="o">=</span><span class="p">{</span><span class="nx">usage</span><span class="p">}</span>
+<span class="w">      </span><span class="na">quota</span><span class="o">=</span><span class="p">{</span><span class="nx">quota</span><span class="p">}</span>
+<span class="w">      </span><span class="na">persisted</span><span class="o">=</span><span class="p">{</span><span class="nx">persisted</span><span class="p">}</span>
+<span class="w">      </span><span class="na">pendingBytes</span><span class="o">=</span><span class="p">{</span><span class="nx">pendingBytes</span><span class="p">}</span>
+<span class="w">      </span><span class="na">warnAt</span><span class="o">=</span><span class="p">{</span><span class="mf">0.9</span><span class="p">}</span>
+<span class="w">      </span><span class="na">onRequestPersist</span><span class="o">=</span><span class="p">{</span><span class="nx">requestPersist</span><span class="p">}</span>
+<span class="w">    </span><span class="p">/&gt;</span>
 <span class="w">  </span><span class="p">);</span>
 <span class="p">}</span>
 </code></pre></div>
+<p>The warning threshold (<code>warnAt</code>) and the moment to ask for persistence belong to the app: the SDK does not call <code>requestPersistentStorage()</code> by itself, because in Firefox that opens a permission prompt. Call it at login or after install.</p>
 <p>Outside React, use the pure functions <code>estimateStorage()</code> and <code>requestPersistentStorage()</code>.</p>
 <h2 id="5-cache-observability">5. Cache observability</h2>
 <p>For a "X MB cached" readout or a "clear cache" button, use the main-thread helpers:</p>
@@ -5200,12 +5225,33 @@
 <p>For <strong>optimistic</strong> mutations that write to the outbox and patch the TanStack Query cache (with rollback on failure), use <code>useOfflineMutation</code> — see <a href="../query/#useofflinemutation">Query</a>.</p>
 <h2 id="9-conflict-resolution">9. Conflict resolution</h2>
 <p>The pull overwrites the local record with the server version. When you need an explicit policy inside <code>applyRemote</code>, the helpers cover the two common cases (ties → remote wins):</p>
-<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">lastWriteWins</span><span class="p">,</span><span class="w"> </span><span class="nx">higherVersionWins</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="p">,</span><span class="w"> </span><span class="nx">higherVersionWins</span><span class="p">,</span><span class="w"> </span><span class="nx">lastWriteWins</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
-<span class="nx">applyRemote</span><span class="o">:</span><span class="w"> </span><span class="kt">async</span><span class="w"> </span><span class="p">(</span><span class="nx">dto</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">store</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">dto</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
-<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">store</span><span class="p">.</span><span class="nx">save</span><span class="p">(</span><span class="nx">lastWriteWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">updatedAt</span><span class="p">));</span>
-<span class="p">};</span>
+<span class="kd">interface</span><span class="w"> </span><span class="nx">Note</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">updatedAt</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">;</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">number</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// the local store the engine feeds</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">notes</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createOfflineStore</span><span class="o">&lt;</span><span class="nx">Note</span><span class="p">,</span><span class="w"> </span><span class="kt">string</span><span class="o">&gt;</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">databaseName</span><span class="o">:</span><span class="w"> </span><span class="s2">"NotesOffline"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">version</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">tableName</span><span class="o">:</span><span class="w"> </span><span class="s2">"notes"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">indexes</span><span class="o">:</span><span class="w"> </span><span class="s2">"&amp;id, updatedAt"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="c1">// pass it as `applyRemote` to `createOfflineSync`</span>
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">applyRemote</span><span class="p">(</span><span class="nx">dto</span><span class="o">:</span><span class="w"> </span><span class="kt">Note</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="ow">void</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">notes</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">dto</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">notes</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">lastWriteWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">updatedAt</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="c1">// or, with a version counter on the record</span>
+<span class="k">export</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">applyRemoteByVersion</span><span class="p">(</span><span class="nx">dto</span><span class="o">:</span><span class="w"> </span><span class="kt">Note</span><span class="p">)</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="o">&lt;</span><span class="ow">void</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">local</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">notes</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="nx">dto</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="w">  </span><span class="k">await</span><span class="w"> </span><span class="nx">notes</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">higherVersionWins</span><span class="p">(</span><span class="nx">local</span><span class="p">,</span><span class="w"> </span><span class="nx">dto</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">r</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">version</span><span class="p">));</span>
+<span class="p">}</span>
 </code></pre></div>
 <h2 id="recap">Recap</h2>
 <ul>

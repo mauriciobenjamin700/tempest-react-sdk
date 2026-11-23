@@ -3241,6 +3241,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#useshare-compartilhar-com-imagem-e-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      useShare — compartilhar com imagem e fallback
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="useShare — compartilhar com imagem e fallback">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-imagem-so-quando-vai-e-nunca-bloqueando" class="md-nav__link">
+    <span class="md-ellipsis">
+      A imagem: só quando vai, e nunca bloqueando
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#capacidade-nao-user-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Capacidade, não user agent
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#recap" class="md-nav__link">
     <span class="md-ellipsis">
       Recap
@@ -3949,6 +3982,8 @@
       
         
       
+        
+      
     
     
       
@@ -4057,6 +4092,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4667,6 +4723,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#useshare-compartilhar-com-imagem-e-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      useShare — compartilhar com imagem e fallback
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="useShare — compartilhar com imagem e fallback">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-imagem-so-quando-vai-e-nunca-bloqueando" class="md-nav__link">
+    <span class="md-ellipsis">
+      A imagem: só quando vai, e nunca bloqueando
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#capacidade-nao-user-agent" class="md-nav__link">
+    <span class="md-ellipsis">
+      Capacidade, não user agent
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#recap" class="md-nav__link">
     <span class="md-ellipsis">
       Recap
@@ -4928,6 +5017,116 @@
 <p>Gere a planilha com <a href="../utilities/#planilhas-xlsx-writexlsx"><code>writeXlsx</code></a>, embrulhe num <code>Blob</code> e passe pro <code>shareOrDownloadBlob</code> — exportação de dados completa, do byte à sheet nativa, sem dependência extra.
 Com fotos junto, <a href="../utilities/#arquivos-zip-createzip"><code>createZip</code></a> já devolve o <code>Blob</code> do <code>.zip</code>, com progresso.</p>
 </div>
+<h2 id="useshare-compartilhar-com-imagem-e-fallback"><code>useShare</code> — compartilhar com imagem e fallback</h2>
+<p><code>share()</code> resolve o <code>navigator.share</code>. O que cada app escrevia <strong>em volta</strong> dele — baixar a imagem da prévia só quando o aparelho aceita arquivo, não deixar o download estourar o gesto do clique, tratar cancelamento, copiar o link — é o <code>useShare()</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">Button</span><span class="p">,</span><span class="w"> </span><span class="nx">useShare</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">ShareRide</span><span class="p">({</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">url</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">canShare</span><span class="p">,</span><span class="w"> </span><span class="nx">share</span><span class="p">,</span><span class="w"> </span><span class="nx">copyLink</span><span class="p">,</span><span class="w"> </span><span class="nx">prefetchImage</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useShare</span><span class="p">();</span>
+<span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">imageUrl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`</span><span class="si">${</span><span class="nx">url</span><span class="si">}</span><span class="sb">/og.png`</span><span class="p">;</span>
+
+<span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">handleClick</span><span class="p">()</span><span class="o">:</span><span class="w"> </span><span class="nb">Promise</span><span class="p">&lt;</span><span class="nt">void</span><span class="p">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">outcome</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">share</span><span class="p">({</span><span class="w"> </span><span class="nx">title</span><span class="o">:</span><span class="w"> </span><span class="s2">"Carona Picos → Teresina"</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">"Sexta, 07:05"</span><span class="p">,</span><span class="w"> </span><span class="nx">url</span><span class="p">,</span><span class="w"> </span><span class="nx">imageUrl</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">outcome</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s2">"unsupported"</span><span class="p">)</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">copyLink</span><span class="p">(</span><span class="nx">url</span><span class="p">);</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Button</span><span class="w"> </span><span class="na">onPointerEnter</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">prefetchImage</span><span class="p">(</span><span class="nx">imageUrl</span><span class="p">)}</span><span class="w"> </span><span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleClick</span><span class="p">}&gt;</span>
+<span class="w">      </span><span class="p">{</span><span class="nx">canShare</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"Compartilhar"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"Copiar link"</span><span class="p">}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
+<span class="w">  </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Retorno</th>
+<th>Tipo</th>
+<th>O que é</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>canShare</code></td>
+<td><code>boolean</code></td>
+<td>existe <code>navigator.share</code></td>
+</tr>
+<tr>
+<td><code>canShareFiles</code></td>
+<td><code>boolean</code></td>
+<td><code>navigator.canShare({ files })</code> aceita uma imagem</td>
+</tr>
+<tr>
+<td><code>share</code></td>
+<td><code>(content: ShareContent) =&gt; Promise&lt;ShareOutcome&gt;</code></td>
+<td>abre a folha do sistema; <strong>nunca rejeita</strong></td>
+</tr>
+<tr>
+<td><code>copyLink</code></td>
+<td><code>(url: string) =&gt; Promise&lt;boolean&gt;</code></td>
+<td>Clipboard API → <code>execCommand("copy")</code></td>
+</tr>
+<tr>
+<td><code>prefetchImage</code></td>
+<td><code>(imageUrl: string) =&gt; void</code></td>
+<td>começa o download da imagem antes do clique</td>
+</tr>
+</tbody>
+</table>
+<p><code>ShareContent</code> é <code>{ title?, text?, url?, imageUrl?, imageFileName? }</code>. <code>ShareOutcome</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Valor</th>
+<th>Quando</th>
+<th>O que fazer</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"shared"</code></td>
+<td>a folha fechou com um destino escolhido</td>
+<td>nada, ou um toast</td>
+</tr>
+<tr>
+<td><code>"cancelled"</code></td>
+<td>a pessoa fechou a folha (<code>AbortError</code>)</td>
+<td><strong>nada</strong> — não é erro</td>
+</tr>
+<tr>
+<td><code>"unsupported"</code></td>
+<td>o navegador não tem Web Share</td>
+<td><code>wa.me</code> ou "copiar link"</td>
+</tr>
+<tr>
+<td><code>"failed"</code></td>
+<td>o navegador recusou por outro motivo (gesto expirado: <code>NotAllowedError</code>)</td>
+<td>telemetria — o erro vai para <code>onError</code></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Quatro desfechos, não três</p>
+<p>A issue que pediu o hook (#800) listava <code>shared | cancelled | unsupported</code>. Um <code>NotAllowedError</code> não é nenhum dos três: o navegador <strong>tem</strong> Web Share e a pessoa não cancelou. Chamá-lo de <code>unsupported</code> mandaria o app esconder o botão num navegador que compartilha; rejeitar a promise obrigaria todo <code>onClick</code> a ter <code>try/catch</code>. Por isso <code>"failed"</code>, com o erro em <code>useShare({ onError })</code>.</p>
+</div>
+<h3 id="a-imagem-so-quando-vai-e-nunca-bloqueando">A imagem: só quando vai, e nunca bloqueando</h3>
+<ol>
+<li><strong>Só baixa quando pode mandar.</strong> <code>canShareFiles</code> pergunta ao <code>canShare</code> com um PNG vazio — ele julga o arquivo por tipo e extensão, não pelos bytes —, então onde o aparelho não aceita arquivo nenhuma requisição é feita.</li>
+<li><strong>Com imagem, o link vai dentro do texto.</strong> A maioria dos destinos guarda a legenda do arquivo e descarta o <code>url</code> separado; o hook junta <code>text</code> + <code>url</code> (sem repetir um link que o texto já traz).</li>
+<li><strong>Qualquer falha compartilha sem a imagem</strong>: rede, status não-2xx, CORS, tipo que o aparelho recusa no <code>canShare</code> do arquivo de verdade, ou download mais lento que <code>imageTimeoutMs</code> (padrão 3000 ms).</li>
+<li><strong>O nome do arquivo tem extensão.</strong> O Chromium decide por ela se o arquivo é compartilhável: o default é o último segmento do caminho (<code>og.png</code>) ou <code>preview.&lt;ext&gt;</code> pelo <code>Content-Type</code>. <code>imageFileName</code> sobrescreve.</li>
+</ol>
+<div class="admonition warning">
+<p class="admonition-title">O gesto do clique expira — por isso o <code>prefetchImage</code></p>
+<p><code>navigator.share</code> só roda enquanto a <strong>ativação transitória</strong> do clique está viva. Medido no Chromium 159 headless do Playwright (23/11/2026), com <code>navigator.userActivation.isActive</code> lido depois de um <code>await fetch</code> de duração controlada: viva após 4,5 s, <strong>morta após 5,5 s</strong> — o mesmo em desktop e com emulação de Pixel 7. O WebKit é mais estrito (não medido aqui). Daí o teto de 3 s para a imagem, e o <code>prefetchImage</code>: chame no <code>pointerenter</code>, <code>focus</code> ou <code>pointerdown</code>, e o clique encontra a imagem pronta. <code>ShareActions</code> e <code>ShareButton</code> já fazem isso.</p>
+<p>Reproduzir: abra uma página com um botão cujo <code>onclick</code> faz <code>await (await fetch("/lento?ms=5500")).blob()</code> e lê <code>navigator.userActivation.isActive</code>.</p>
+</div>
+<h3 id="capacidade-nao-user-agent">Capacidade, não user agent</h3>
+<p><code>canShare</code> é <code>navigator.share</code> existir — não o user agent dizer "mobile". O Chrome desktop no Windows e no macOS tem a folha do sistema; o Firefox desktop e o Chrome no Linux não têm; um navegador de celular sem a API também não. Os botões prontos — <a href="../components/actions/#shareactions"><code>ShareActions</code></a> e <a href="../components/actions/#sharebutton"><code>ShareButton</code></a> — decidem por aí: com Web Share, a folha; sem, o link <a href="../br-pagamentos/#divulgar-sem-destinatario-whatsappshareurl"><code>wa.me</code></a>.</p>
+<div class="admonition info">
+<p class="admonition-title"><code>copyLink</code> e o terceiro passo</p>
+<p><code>copyLink</code> tenta a Clipboard API e, quando ela falta <strong>ou rejeita</strong> (navegador interno sem permissão), <code>execCommand("copy")</code> num <code>&lt;textarea&gt;</code> fora da tela. É a mesma cadeia do <code>useClipboard</code> e do <code>InstallCopyLink</code>. Quando as duas são recusadas, resolve <code>false</code>: o terceiro passo — o link num campo somente-leitura, já selecionado, para a pessoa tocar e segurar — é UI, e o <code>ShareActions</code> o renderiza.</p>
+</div>
 <h2 id="recap">Recap</h2>
 <ul>
 <li><code>share(payload)</code> envolve <code>navigator.share</code> e devolve <code>ShareResult</code> em vez de lançar.</li>
@@ -4937,6 +5136,7 @@ Com fotos junto, <a href="../utilities/#arquivos-zip-createzip"><code>createZip<
 <li><code>SharePayload</code> aceita <code>title</code>, <code>text</code>, <code>url</code>, <code>files</code> (todos opcionais).</li>
 <li><code>isShareSupported()</code> decide antecipadamente entre o botão nativo e o fallback.</li>
 <li><code>files</code> é validado via <code>canShare</code> antes de tentar; browsers sem suporte devolvem <code>unsupported: true</code>.</li>
+<li><code>useShare()</code> junta o fluxo: imagem só onde o aparelho aceita arquivo e nunca bloqueando, <code>"cancelled"</code> sem erro, <code>copyLink</code> com o fallback; <code>ShareActions</code> / <code>ShareButton</code> são os botões prontos.</li>
 <li>Requer HTTPS e um gesto do usuário (chame de um <code>onClick</code>).</li>
 </ul>
 <h2 id="veja-tambem">Veja também</h2>

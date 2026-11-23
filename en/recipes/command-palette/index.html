@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4708,15 +4731,13 @@ already ships in <a href="../../app-providers/"><code>&lt;AppProviders&gt;</code
 <span class="w">  </span><span class="nx">Button</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Command</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Kbd</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">formatShortcut</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useNavigate</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useTheme</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">CommandItem</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/stores/auth"</span><span class="p">;</span>
-
-<span class="kd">const</span><span class="w"> </span><span class="nx">isApple</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="o">=</span>
-<span class="w">  </span><span class="ow">typeof</span><span class="w"> </span><span class="nx">navigator</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="sr">/Mac|iPhone|iPad/</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">);</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">CommandPalette</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">boolean</span><span class="p">&gt;(</span><span class="kc">false</span><span class="p">);</span>
@@ -4725,14 +4746,7 @@ already ships in <a href="../../app-providers/"><code>&lt;AppProviders&gt;</code
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">undefined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">user</span><span class="p">()</span><span class="o">?</span><span class="p">.</span><span class="nx">role</span><span class="p">;</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">logout</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">logout</span><span class="p">();</span>
 
-<span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">(</span>
-<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
-<span class="w">    </span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
-<span class="w">      </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
-<span class="w">    </span><span class="p">},</span>
-<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">ignoreInput</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="p">);</span>
+<span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">));</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="kt">CommandItem</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
@@ -4798,7 +4812,7 @@ already ships in <a href="../../app-providers/"><code>&lt;AppProviders&gt;</code
 <span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span>
 <span class="w">        </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span>
 <span class="w">        </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">)}</span>
-<span class="w">        </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">isApple</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"⌘ K"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"Ctrl K"</span><span class="p">}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;}</span>
+<span class="w">        </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">formatShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;}</span>
 <span class="w">      </span><span class="p">&gt;</span>
 <span class="w">        </span><span class="nx">Buscar</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
@@ -4806,6 +4820,7 @@ already ships in <a href="../../app-providers/"><code>&lt;AppProviders&gt;</code
 <span class="w">        </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
 <span class="w">        </span><span class="na">onOpenChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setOpen</span><span class="p">}</span>
 <span class="w">        </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Ir para tela ou ação…"</span>
+<span class="w">        </span><span class="na">label</span><span class="o">=</span><span class="s">"Ir para tela ou ação"</span>
 <span class="w">        </span><span class="na">emptyMessage</span><span class="o">=</span><span class="s">"Nada encontrado. Tente outro termo."</span>
 <span class="w">        </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">items</span><span class="p">}</span>
 <span class="w">      </span><span class="p">/&gt;</span>
@@ -4847,7 +4862,7 @@ already ships in <a href="../../app-providers/"><code>&lt;AppProviders&gt;</code
 its job:</p>
 <ul>
 <li>it filters the items by a piece of the text in <code>label</code> <strong>and</strong> in <code>keywords</code>,
-  case-insensitive;</li>
+  ignoring case <strong>and accents</strong> — "usuarios" finds "Usuários";</li>
 <li>it groups the results by <code>group</code>, in the order the groups appear in the list;</li>
 <li>it navigates with ↑ / ↓, runs with Enter and closes on Escape, click outside or
   selection;</li>
@@ -4857,23 +4872,24 @@ its job:</p>
 <div class="admonition tip">
 <p class="admonition-title"><code>keywords</code> is where usability lives</p>
 <p>Nobody remembers whether the screen is called "Clientes" or "Compradores". Put the
-synonyms in <code>keywords</code>, including words without accents ("usuarios") if your team
-types like that: the search compares the text as it is, accents included.</p>
+synonyms in <code>keywords</code>. No unaccented copy is needed: the search already ignores
+accents on both sides.</p>
 </div>
 <h3 id="the-shortcut-works-on-any-system">The shortcut works on any system</h3>
 <p><code>useKeyboardShortcut({ key: "k", mod: true }, handler)</code> matches <strong>Cmd+K on macOS and
 Ctrl+K on Windows and Linux</strong>. The hook takes a <code>KeyboardShortcut</code> object, not a
 string.</p>
-<p>Two details make the shortcut ready for real use:</p>
+<p>Because the shortcut carries the modifier, the hook does two things on its own:</p>
 <ul>
-<li><code>event.preventDefault()</code>: Ctrl+K is a browser shortcut of its own (focus the search
-  in Chrome and Firefox). Without it, the palette opens <strong>and</strong> the browser steals the
-  focus.</li>
-<li><code>{ ignoreInput: false }</code>: by default the hook ignores keys typed inside a field, so
-  it does not hijack typing. For ⌘K that is the opposite of what you want: the person
-  has the focus in the orders search and wants to jump screens. Since the shortcut
-  needs the modifier, there is no risk of swallowing a typed letter.</li>
+<li>it calls <code>event.preventDefault()</code>: Ctrl+K is a browser shortcut of its own (focus the
+  search in Chrome and Firefox), and without it the palette opens <strong>and</strong> the browser
+  steals the focus;</li>
+<li>it fires with the focus in a field: the person is in the orders search and wants to
+  jump screens. A key without Ctrl/Cmd (<code>"/"</code>, <code>"?"</code>) still belongs to the field it is
+  typed in.</li>
 </ul>
+<p>To change either, pass <code>{ preventDefault: false }</code> or <code>{ ignoreInput: true }</code>. See
+<a href="../../hooks/#global-shortcut-usekeyboardshortcut"><code>useKeyboardShortcut</code></a>.</p>
 <h3 id="items-per-role">Items per role</h3>
 <p>The list is built during render, so it can depend on the user. Here, <code>"Equipe"</code> only
 goes in for <code>role === "gerente"</code>. Hiding the item <strong>does not protect the route</strong>: the
@@ -4883,23 +4899,20 @@ goes in for <code>role === "gerente"</code>. Hiding the item <strong>does not pr
 <p>The "Buscar" (search) button has two roles. On a computer, it <strong>teaches</strong> the shortcut,
 with the right key for the system in use. On a phone, it is <strong>the only way</strong> to open
 the palette, since there is no physical keyboard. 📱</p>
-<div class="admonition note">
-<p class="admonition-title">Why detect the platform by hand</p>
-<p>The hook's <code>mod</code> resolves Cmd vs. Ctrl when <strong>listening</strong> for the key. To <strong>show</strong>
-the key, the app decides on its own, and a test on <code>navigator.userAgent</code> is enough.
-The <code>typeof navigator</code> check avoids an error if the module is imported outside the
-browser, in a Node test, for example.</p>
-</div>
+<p><code>formatShortcut</code> takes the same object the hook listens for and returns <code>⌘K</code> on Mac,
+iPhone and iPad, and <code>Ctrl+K</code> everywhere else. The label and the shortcut cannot drift
+apart.</p>
 <h2 id="recap">Recap</h2>
 <ul>
 <li>✅ <code>Command</code> takes <code>items</code>, <code>open</code> and <code>onOpenChange</code> and handles search, groups,
   keyboard and focus.</li>
-<li>✅ <code>useKeyboardShortcut({ key: "k", mod: true }, …, { ignoreInput: false })</code> opens the
-  palette from anywhere, with <code>preventDefault</code> to beat the browser's shortcut.</li>
+<li>✅ <code>useKeyboardShortcut({ key: "k", mod: true }, …)</code> opens the palette from anywhere,
+  including from inside a field, and beats the browser's shortcut.</li>
 <li>✅ <code>keywords</code> finds the screen by synonym.</li>
 <li>✅ The list depends on the user, but the real protection lives in the guard and the
   backend.</li>
-<li>✅ A button with <code>Kbd</code> teaches the shortcut and is the way in on phones.</li>
+<li>✅ A button with <code>Kbd</code> and <code>formatShortcut</code> teaches the right shortcut for the system
+  and is the way in on phones.</li>
 </ul>
 
 

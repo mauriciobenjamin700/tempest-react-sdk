@@ -3545,6 +3545,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="3. useZodForm — all-in-one">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-and-output-a-required-select-that-opens-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      Input and output — a required select that opens empty
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-server-errors-on-the-fields-applyapifielderrors" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Server errors on the fields — applyApiFieldErrors
+    </span>
+  </a>
+  
 </li>
         
       </ul>
@@ -4021,6 +4045,8 @@
       
         
       
+        
+      
     
     
       
@@ -4129,6 +4155,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4776,6 +4823,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="3. useZodForm — all-in-one">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input-and-output-a-required-select-that-opens-empty" class="md-nav__link">
+    <span class="md-ellipsis">
+      Input and output — a required select that opens empty
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-server-errors-on-the-fields-applyapifielderrors" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Server errors on the fields — applyApiFieldErrors
+    </span>
+  </a>
+  
 </li>
         
       </ul>
@@ -5105,6 +5176,97 @@ UIs almost always show one message per field. If you need <em>all</em> the messa
 <span class="w">  </span><span class="p">&lt;/</span><span class="nt">FormActions</span><span class="p">&gt;</span>
 <span class="p">&lt;/</span><span class="nt">Form</span><span class="p">&gt;;</span>
 </code></pre></div>
+<h4 id="input-and-output-a-required-select-that-opens-empty">Input and output — a required select that opens empty</h4>
+<p><code>useZodForm</code> types the form by <strong>both sides</strong> of the schema: the fields, <code>defaultValues</code>, <code>watch</code> and <code>setValue</code> by its <strong>input</strong> (<code>z.input</code>, what the input holds while the person edits), and <code>handleSubmit</code> by its <strong>output</strong> (<code>z.output</code>, what the parse returns). That is what lets a required select open empty without lying to the submit type:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">FormField</span><span class="p">,</span><span class="w"> </span><span class="nx">FormProvider</span><span class="p">,</span><span class="w"> </span><span class="nx">Select</span><span class="p">,</span><span class="w"> </span><span class="nx">toOptions</span><span class="p">,</span><span class="w"> </span><span class="nx">useZodForm</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"zod"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">STATUS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">active</span><span class="o">:</span><span class="w"> </span><span class="s2">"Ativo"</span><span class="p">,</span><span class="w"> </span><span class="nx">paused</span><span class="o">:</span><span class="w"> </span><span class="s2">"Pausado"</span><span class="w"> </span><span class="p">};</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">object</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="kt">z</span>
+<span class="w">        </span><span class="p">.</span><span class="nx">union</span><span class="p">([</span><span class="nx">z</span><span class="p">.</span><span class="kd">enum</span><span class="p">([</span><span class="s2">"active"</span><span class="p">,</span><span class="w"> </span><span class="s2">"paused"</span><span class="p">]),</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">literal</span><span class="p">(</span><span class="s2">""</span><span class="p">)])</span>
+<span class="w">        </span><span class="p">.</span><span class="nx">refine</span><span class="p">((</span><span class="nx">value</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">value</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="s2">"Pick a status"</span><span class="p">),</span>
+<span class="w">    </span><span class="nx">stock</span><span class="o">:</span><span class="w"> </span><span class="kt">z.coerce.number</span><span class="p">().</span><span class="kr">int</span><span class="p">().</span><span class="nx">min</span><span class="p">(</span><span class="mf">0</span><span class="p">),</span>
+<span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">StatusForm</span><span class="p">({</span><span class="w"> </span><span class="nx">onSave</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">onSave</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">values</span><span class="o">:</span><span class="w"> </span><span class="kt">z.output</span><span class="p">&lt;</span><span class="nt">typeof</span><span class="w"> </span><span class="na">schema</span><span class="p">&gt;)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useZodForm</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defaultValues</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">status</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">stock</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">FormProvider</span><span class="w"> </span><span class="p">{</span><span class="na">...form</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">form</span><span class="w"> </span><span class="na">onSubmit</span><span class="o">=</span><span class="p">{</span><span class="nx">form</span><span class="p">.</span><span class="nx">handleSubmit</span><span class="p">(</span><span class="nx">onSave</span><span class="p">)}</span><span class="w"> </span><span class="na">noValidate</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"status"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Status"</span><span class="w"> </span><span class="na">required</span><span class="p">&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Select</span><span class="w"> </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Select"</span><span class="w"> </span><span class="na">options</span><span class="o">=</span><span class="p">{</span><span class="nx">toOptions</span><span class="p">(</span><span class="nx">STATUS</span><span class="p">)}</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">form</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">FormProvider</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong><code>status: ""</code></strong> compiles as an initial value because the schema's input accepts <code>""</code>.</li>
+<li><strong><code>value !== ""</code></strong> is a type predicate: the output keeps only <code>"active" | "paused"</code>, and <code>onSave</code> never receives <code>""</code>.</li>
+<li><strong><code>stock</code></strong> holds the text the input typed (<code>unknown</code> on the input side) and reaches the submit as a <code>number</code>.</li>
+</ul>
+<div class="admonition danger">
+<p class="admonition-title">Up to 0.92.0, both sides were the output</p>
+<p>With the fields typed by the output, <code>defaultValues: { status: "" }</code> did not compile, and the workaround (<code>refine((value) =&gt; value.length &gt; 0)</code>, no predicate) leaked <code>""</code> into the type the submit receives. And the form type was <strong>inferred from <code>defaultValues</code></strong>: <code>{ status: "" }</code> typed the field as <code>string</code> and dropped the schema's enum. <code>defaultValues</code> is now <code>NoInfer</code> — the type comes from the schema only. Code that annotated its initial values with <code>z.infer</code> now annotates them with <code>z.input</code>.</p>
+</div>
+<h3 id="4-server-errors-on-the-fields-applyapifielderrors">4. Server errors on the fields — <code>applyApiFieldErrors</code></h3>
+<p>FastAPI's <code>422</code> (or a <code>tempest-fastapi-sdk</code> error naming <code>field</code>) arrives as <code>error.fields</code>, <code>{ name: message }</code>. <code>applyApiFieldErrors</code> puts each message on the form field with that name and focuses the first:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useMutation</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@tanstack/react-query"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">FormField</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">FormProvider</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">Input</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">applyApiFieldErrors</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">createApiClient</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">useDescribeApiError</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">useToast</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">useZodForm</span><span class="p">,</span>
+<span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">z</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"zod"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">api</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createApiClient</span><span class="p">({</span><span class="w"> </span><span class="nx">baseURL</span><span class="o">:</span><span class="w"> </span><span class="s2">"/api"</span><span class="w"> </span><span class="p">});</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">schema</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">z</span><span class="p">.</span><span class="nx">object</span><span class="p">({</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="kt">z.string</span><span class="p">().</span><span class="nx">min</span><span class="p">(</span><span class="mf">3</span><span class="p">),</span><span class="w"> </span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="kt">z.email</span><span class="p">()</span><span class="w"> </span><span class="p">});</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">CustomerForm</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">toast</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useToast</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">describe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useDescribeApiError</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">form</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useZodForm</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">defaultValues</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="p">,</span><span class="w"> </span><span class="nx">email</span><span class="o">:</span><span class="w"> </span><span class="s2">""</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">save</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useMutation</span><span class="p">({</span>
+<span class="w">        </span><span class="nx">mutationFn</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">values</span><span class="o">:</span><span class="w"> </span><span class="kt">z.output</span><span class="p">&lt;</span><span class="nt">typeof</span><span class="w"> </span><span class="na">schema</span><span class="p">&gt;)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">api</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">"/customers"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">values</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">        </span><span class="nx">onError</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">marked</span><span class="p">,</span><span class="w"> </span><span class="nx">unmatched</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">applyApiFieldErrors</span><span class="p">(</span><span class="nx">form</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="w">            </span><span class="kd">const</span><span class="w"> </span><span class="nx">others</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">Object</span><span class="p">.</span><span class="nx">values</span><span class="p">(</span><span class="nx">unmatched</span><span class="p">);</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">marked</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">describe</span><span class="p">(</span><span class="nx">error</span><span class="p">,</span><span class="w"> </span><span class="s2">"Could not save."</span><span class="p">));</span>
+<span class="w">            </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">others</span><span class="p">.</span><span class="nx">length</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">0</span><span class="p">)</span><span class="w"> </span><span class="nx">toast</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">others</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="s2">" "</span><span class="p">));</span>
+<span class="w">        </span><span class="p">},</span>
+<span class="w">    </span><span class="p">});</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">FormProvider</span><span class="w"> </span><span class="p">{</span><span class="na">...form</span><span class="p">}&gt;</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">form</span><span class="w"> </span><span class="na">onSubmit</span><span class="o">=</span><span class="p">{</span><span class="nx">form</span><span class="p">.</span><span class="nx">handleSubmit</span><span class="p">((</span><span class="nx">values</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">save</span><span class="p">.</span><span class="nx">mutate</span><span class="p">(</span><span class="nx">values</span><span class="p">))}</span><span class="w"> </span><span class="na">noValidate</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"name"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"Name"</span><span class="p">&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
+<span class="w">                </span><span class="p">&lt;</span><span class="nt">FormField</span><span class="w"> </span><span class="na">name</span><span class="o">=</span><span class="s">"email"</span><span class="w"> </span><span class="na">label</span><span class="o">=</span><span class="s">"E-mail"</span><span class="p">&gt;</span>
+<span class="w">                    </span><span class="p">&lt;</span><span class="nt">Input</span><span class="w"> </span><span class="na">type</span><span class="o">=</span><span class="s">"email"</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">                </span><span class="p">&lt;/</span><span class="nt">FormField</span><span class="p">&gt;</span>
+<span class="w">            </span><span class="p">&lt;/</span><span class="nt">form</span><span class="p">&gt;</span>
+<span class="w">        </span><span class="p">&lt;/</span><span class="nt">FormProvider</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<ul>
+<li><strong>Only names of the form are marked.</strong> By default a name counts when <code>form.getValues(name)</code> is not <code>undefined</code> — every field with an initial value, which is how <code>useZodForm</code> is meant to be used. Pass <code>{ fields: [...] }</code> to decide the list yourself.</li>
+<li><strong>The rest comes back in <code>unmatched</code></strong>, keyed by name: an input that does not exist would never show the message, and it would stay stuck in an error nobody can clear.</li>
+<li><strong><code>{ focus: false }</code></strong> marks without moving focus.</li>
+<li>Any other error — network, <code>500</code>, a plain <code>Error</code> — marks nothing and returns <code>{ marked: [], unmatched: {} }</code>.</li>
+</ul>
+<div class="admonition info">
+<p class="admonition-title">It is the same code as <code>AuthForm</code>'s</p>
+<p>The rule (mark only what exists, focus the first, return the rest) was private to <code>AuthForm</code>; every form outside it rewrote the <code>setError</code> loop — and the three recipes that rewrote it disagreed with each other. <code>AuthForm</code> now uses <code>applyApiFieldErrors</code>.</p>
+</div>
 <h2 id="end-to-end-example-schema-provider-fields-submit">End-to-end example — schema → provider → fields → submit</h2>
 <p>The three snippets above are slices of the same story. Here is an end-to-end
 signup form: a single schema drives types, validation <strong>and</strong> <code>&lt;FormField&gt;</code> wires
@@ -5286,6 +5448,8 @@ Convention inherited from alofans-frontend.</p>
 <ul>
 <li>The SDK splits <strong>layout</strong> (<code>Form</code>/<code>FormSection</code>/<code>FormRow</code>/<code>FormActions</code>) from <strong>validation</strong> (zod) — adopt one without the other.</li>
 <li>Validation has three rungs: <code>validateForm</code> (agnostic), <code>zodResolver</code> (RHF), <code>useZodForm</code> (all-in-one).</li>
+<li><code>useZodForm</code> types the fields by the schema's <strong>input</strong> and <code>handleSubmit</code> by its <strong>output</strong>: a required select opens with <code>""</code> and the submit only sees the enum.</li>
+<li><code>applyApiFieldErrors(form, error)</code> puts a <code>422</code>'s <code>error.fields</code> on the right fields and returns what matched nothing in <code>unmatched</code>.</li>
 <li>A single <strong>zod schema</strong> drives the type (<code>z.infer</code>), validation, and error messages.</li>
 <li><code>&lt;FormProvider&gt;</code> + <code>&lt;FormField&gt;</code> remove the repeated <code>&lt;Controller&gt;</code> and propagate <code>error</code> + <code>aria-invalid</code> to the controls.</li>
 <li><code>handleSubmit</code> only calls your <code>onSubmit</code> with already-validated values.</li>

@@ -4084,6 +4084,8 @@
       
         
       
+        
+      
     
     
       
@@ -4192,6 +4194,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -5042,7 +5065,16 @@
 </div>
 <h2 id="no-flash-evitar-o-flash-do-tema-errado">No-flash (evitar o flash do tema errado)</h2>
 <p>Há um problema clássico: o HTML pinta antes do React montar, então por um instante o usuário vê o tema padrão antes de o <code>ThemeProvider</code> corrigir. A solução é um script síncrono inline no <code>&lt;head&gt;</code>, <strong>antes de qualquer CSS</strong>, que aplica o atributo na primeira pintura.</p>
-<p><code>themeInitScript()</code> devolve exatamente esse trecho. Em um <code>index.html</code> Vite:</p>
+<p><code>themeInitScript()</code> devolve exatamente esse trecho. Num app Vite, o plugin <code>tempestThemeInit()</code> o injeta no topo do <code>&lt;head&gt;</code>, no <code>vite dev</code> e no build — o app do <code>create-tempest-app</code> já vem com ele:</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// vite.config.ts</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestThemeInit</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestThemeInit</span><span class="p">(),</span><span class="w"> </span><span class="nx">tempestCsp</span><span class="p">()],</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Passe ao plugin o mesmo <code>storageKey</code>/<code>defaultTheme</code> do <code>ThemeProvider</code> (<code>tempestThemeInit({ storageKey: "aurora-theme" })</code>). Com o <code>tempestCsp()</code>, o script entra na política pelo hash, sem <code>'unsafe-inline'</code>. Medido no app gerado pela 0.92.0 (<code>vite build</code> + <code>vite preview</code>, Chromium, <code>localStorage["tempest-theme"] = "dark"</code>, 5 cargas): sem o script, no primeiro <code>requestAnimationFrame</code> o atributo não existia e o <code>body</code> pintava <code>rgb(255, 255, 255)</code> nas 5.</p>
+<p>Sem o plugin, o mesmo trecho colado à mão num <code>index.html</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="cp">&lt;!doctype html&gt;</span>
 <span class="p">&lt;</span><span class="nt">html</span> <span class="na">lang</span><span class="o">=</span><span class="s">"pt-BR"</span><span class="p">&gt;</span>
   <span class="p">&lt;</span><span class="nt">head</span><span class="p">&gt;</span>
@@ -5110,7 +5142,7 @@
 
 <span class="nx">applyTheme</span><span class="p">(</span><span class="nx">theme</span><span class="p">);</span>
 </code></pre></div>
-<p>Pronto: os 135 componentes passam a usar a marca nova, no claro e no escuro.</p>
+<p>Pronto: os 138 componentes passam a usar a marca nova, no claro e no escuro.</p>
 <h3 id="o-que-ele-gera">O que ele gera</h3>
 <div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">theme</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createTheme</span><span class="p">({</span>
 <span class="w">  </span><span class="nx">primary</span><span class="o">:</span><span class="w"> </span><span class="s2">"#7c3aed"</span><span class="p">,</span><span class="w">          </span><span class="c1">// escala 50→900 + hover/active/soft/foreground/focus-ring</span>
@@ -5609,7 +5641,7 @@ Números de <code>npx size-limit</code> na 0.74.0 + este PR; os de 1257 B e 15 B
 <span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
 </code></pre></div>
-<p>Para sincronizar a barra do navegador / status bar do PWA, passe <code>themeColor</code> — o provider atualiza <code>&lt;meta name="theme-color"&gt;</code> com a cor do tema resolvido (a meta tag precisa existir no <code>&lt;head&gt;</code>):</p>
+<p>Para sincronizar a barra do navegador / status bar do PWA, passe <code>themeColor</code> — o provider atualiza <code>&lt;meta name="theme-color"&gt;</code> com a cor do tema resolvido (e cria a tag no <code>&lt;head&gt;</code> quando a página não tem):</p>
 <div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">ThemeProvider</span><span class="w"> </span><span class="na">themeColor</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">light</span><span class="o">:</span><span class="w"> </span><span class="s2">"#1f7a3f"</span><span class="p">,</span><span class="w"> </span><span class="nx">dark</span><span class="o">:</span><span class="w"> </span><span class="s2">"#0f1411"</span><span class="w"> </span><span class="p">}}&gt;</span>
 <span class="w">  </span><span class="p">&lt;</span><span class="nt">App</span><span class="w"> </span><span class="p">/&gt;</span>
 <span class="p">&lt;/</span><span class="nt">ThemeProvider</span><span class="p">&gt;</span>
@@ -5629,7 +5661,7 @@ Números de <code>npx size-limit</code> na 0.74.0 + este PR; os de 1257 B e 15 B
 <li><code>ThemeProvider</code> escreve <code>data-tempest-theme</code> no <code>&lt;html&gt;</code> (ou no elemento de <code>target</code>); os tokens <code>--tempest-*</code> reagem sozinhos.</li>
 <li>Modos: <code>"light"</code>, <code>"dark"</code>, <code>"system"</code> — o último segue <code>prefers-color-scheme</code> ao vivo. A escolha persiste em <code>localStorage["tempest-theme"]</code>.</li>
 <li><code>useTheme()</code> dá <code>theme</code> (preferência crua), <code>resolvedTheme</code> (sempre <code>light</code>/<code>dark</code>), <code>setTheme</code> e <code>toggle</code>.</li>
-<li>Inline o <code>themeInitScript()</code> <strong>síncrono no <code>&lt;head&gt;</code>, antes do CSS</strong>, para eliminar o flash do tema errado.</li>
+<li>Ligue o <code>tempestThemeInit()</code> no <code>vite.config.ts</code> (ou inline o <code>themeInitScript()</code> <strong>síncrono no <code>&lt;head&gt;</code>, antes do CSS</strong>) para eliminar o flash do tema errado.</li>
 <li>Customize o visual sobrescrevendo os tokens <code>--tempest-*</code>; use <code>target</code> para tema em subárvore.</li>
 </ul>
 <h2 id="veja-tambem">Veja também</h2>

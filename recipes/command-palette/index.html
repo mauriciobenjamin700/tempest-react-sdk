@@ -3796,6 +3796,8 @@
       
         
       
+        
+      
     
     
       
@@ -3907,6 +3909,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4707,15 +4730,13 @@ para mostrar o atalho.</p>
 <span class="w">  </span><span class="nx">Button</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Command</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">Kbd</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">formatShortcut</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useNavigate</span><span class="p">,</span>
 <span class="w">  </span><span class="nx">useTheme</span><span class="p">,</span>
 <span class="w">  </span><span class="kr">type</span><span class="w"> </span><span class="nx">CommandItem</span><span class="p">,</span>
 <span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useAuth</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"@/stores/auth"</span><span class="p">;</span>
-
-<span class="kd">const</span><span class="w"> </span><span class="nx">isApple</span><span class="o">:</span><span class="w"> </span><span class="kt">boolean</span><span class="w"> </span><span class="o">=</span>
-<span class="w">  </span><span class="ow">typeof</span><span class="w"> </span><span class="nx">navigator</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="s2">"undefined"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="sr">/Mac|iPhone|iPad/</span><span class="p">.</span><span class="nx">test</span><span class="p">(</span><span class="nx">navigator</span><span class="p">.</span><span class="nx">userAgent</span><span class="p">);</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">CommandPalette</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">open</span><span class="p">,</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">&lt;</span><span class="nt">boolean</span><span class="p">&gt;(</span><span class="kc">false</span><span class="p">);</span>
@@ -4724,14 +4745,7 @@ para mostrar o atalho.</p>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="kc">undefined</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">user</span><span class="p">()</span><span class="o">?</span><span class="p">.</span><span class="nx">role</span><span class="p">;</span>
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">logout</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="ow">void</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">logout</span><span class="p">();</span>
 
-<span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">(</span>
-<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
-<span class="w">    </span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">      </span><span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
-<span class="w">      </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
-<span class="w">    </span><span class="p">},</span>
-<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">ignoreInput</span><span class="o">:</span><span class="w"> </span><span class="kt">false</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="p">);</span>
+<span class="w">  </span><span class="nx">useKeyboardShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">));</span>
 
 <span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">items</span><span class="o">:</span><span class="w"> </span><span class="kt">CommandItem</span><span class="p">[]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span>
@@ -4797,7 +4811,7 @@ para mostrar o atalho.</p>
 <span class="w">        </span><span class="na">variant</span><span class="o">=</span><span class="s">"outline"</span>
 <span class="w">        </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span>
 <span class="w">        </span><span class="na">onClick</span><span class="o">=</span><span class="p">{()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">setOpen</span><span class="p">(</span><span class="kc">true</span><span class="p">)}</span>
-<span class="w">        </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">isApple</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s2">"⌘ K"</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s2">"Ctrl K"</span><span class="p">}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;}</span>
+<span class="w">        </span><span class="na">rightIcon</span><span class="o">=</span><span class="p">{&lt;</span><span class="nt">Kbd</span><span class="w"> </span><span class="na">size</span><span class="o">=</span><span class="s">"sm"</span><span class="p">&gt;{</span><span class="nx">formatShortcut</span><span class="p">({</span><span class="w"> </span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="s2">"k"</span><span class="p">,</span><span class="w"> </span><span class="nx">mod</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})}&lt;/</span><span class="nt">Kbd</span><span class="p">&gt;}</span>
 <span class="w">      </span><span class="p">&gt;</span>
 <span class="w">        </span><span class="nx">Buscar</span>
 <span class="w">      </span><span class="p">&lt;/</span><span class="nt">Button</span><span class="p">&gt;</span>
@@ -4805,6 +4819,7 @@ para mostrar o atalho.</p>
 <span class="w">        </span><span class="na">open</span><span class="o">=</span><span class="p">{</span><span class="nx">open</span><span class="p">}</span>
 <span class="w">        </span><span class="na">onOpenChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setOpen</span><span class="p">}</span>
 <span class="w">        </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"Ir para tela ou ação…"</span>
+<span class="w">        </span><span class="na">label</span><span class="o">=</span><span class="s">"Ir para tela ou ação"</span>
 <span class="w">        </span><span class="na">emptyMessage</span><span class="o">=</span><span class="s">"Nada encontrado. Tente outro termo."</span>
 <span class="w">        </span><span class="na">items</span><span class="o">=</span><span class="p">{</span><span class="nx">items</span><span class="p">}</span>
 <span class="w">      </span><span class="p">/&gt;</span>
@@ -4846,7 +4861,7 @@ para mostrar o atalho.</p>
 dele:</p>
 <ul>
 <li>filtra os itens por trecho do texto em <code>label</code> <strong>e</strong> em <code>keywords</code>, sem diferenciar
-  maiúscula de minúscula;</li>
+  maiúscula de minúscula <strong>nem acento</strong> — "usuarios" acha "Usuários";</li>
 <li>agrupa os resultados por <code>group</code>, na ordem em que os grupos aparecem na lista;</li>
 <li>navega com ↑ / ↓, executa com Enter e fecha com Escape, clique fora ou seleção;</li>
 <li>prende o foco dentro da paleta enquanto ela está aberta.</li>
@@ -4855,21 +4870,22 @@ dele:</p>
 <div class="admonition tip">
 <p class="admonition-title"><code>keywords</code> é onde mora a usabilidade</p>
 <p>Ninguém lembra se a tela se chama "Clientes" ou "Compradores". Ponha os sinônimos
-em <code>keywords</code>, inclusive palavras sem acento ("usuarios") se a sua equipe digita
-assim: a busca compara o texto como ele é, com acento.</p>
+em <code>keywords</code>. Versão sem acento não precisa: a busca já ignora acento nos dois
+lados.</p>
 </div>
 <h3 id="o-atalho-funciona-em-qualquer-sistema">O atalho funciona em qualquer sistema</h3>
 <p><code>useKeyboardShortcut({ key: "k", mod: true }, handler)</code> casa <strong>Cmd+K no macOS e Ctrl+K
 no Windows e no Linux</strong>. O hook recebe um objeto <code>KeyboardShortcut</code>, não uma string.</p>
-<p>Dois detalhes deixam o atalho pronto para uso real:</p>
+<p>Como o atalho leva o modificador, o hook já faz duas coisas sozinho:</p>
 <ul>
-<li><code>event.preventDefault()</code>: Ctrl+K é atalho do próprio navegador (focar a busca no
-  Chrome e no Firefox). Sem isso, a paleta abre <strong>e</strong> o navegador rouba o foco.</li>
-<li><code>{ ignoreInput: false }</code>: por padrão o hook ignora teclas digitadas dentro de um
-  campo, para não sequestrar a digitação. Para ⌘K isso é o contrário do que se quer:
-  a pessoa está com o foco na busca de pedidos e quer pular de tela. Como o atalho
-  exige o modificador, não há risco de engolir uma letra digitada.</li>
+<li>chama <code>event.preventDefault()</code>: Ctrl+K é atalho do próprio navegador (focar a busca
+  no Chrome e no Firefox), e sem isso a paleta abre <strong>e</strong> o navegador rouba o foco;</li>
+<li>dispara com o foco num campo: a pessoa está na busca de pedidos e quer pular de tela.
+  Tecla sem Ctrl/Cmd (<code>"/"</code>, <code>"?"</code>) continua pertencendo ao campo onde é digitada.</li>
 </ul>
+<p>Para mudar qualquer um dos dois, passe <code>{ preventDefault: false }</code> ou
+<code>{ ignoreInput: true }</code>. Veja
+<a href="../../hooks/#atalho-global-usekeyboardshortcut"><code>useKeyboardShortcut</code></a>.</p>
 <h3 id="itens-por-papel">Itens por papel</h3>
 <p>A lista é montada no render, então ela pode depender do usuário. Aqui, <code>"Equipe"</code> só
 entra para <code>role === "gerente"</code>. Esconder o item <strong>não protege a rota</strong>: o guard de
@@ -4879,22 +4895,18 @@ entra para <code>role === "gerente"</code>. Esconder o item <strong>não protege
 <p>O botão "Buscar" tem dois papéis. No computador, ele <strong>ensina</strong> o atalho, com a tecla
 certa para o sistema de quem está usando. No celular, é <strong>o único jeito</strong> de abrir a
 paleta, já que não há teclado físico. 📱</p>
-<div class="admonition note">
-<p class="admonition-title">Por que detectar a plataforma na mão</p>
-<p>O <code>mod</code> do hook resolve Cmd vs. Ctrl na hora de <strong>ouvir</strong> a tecla. Para
-<strong>mostrar</strong> a tecla, o app decide sozinho, e um teste em <code>navigator.userAgent</code>
-basta. O <code>typeof navigator</code> evita erro se o módulo for importado fora do
-navegador, num teste em Node, por exemplo.</p>
-</div>
+<p><code>formatShortcut</code> recebe o mesmo objeto que o hook escuta e devolve <code>⌘K</code> no Mac,
+iPhone e iPad, e <code>Ctrl+K</code> no resto. O rótulo e o atalho não têm como divergir.</p>
 <h2 id="recap">Recap</h2>
 <ul>
 <li>✅ <code>Command</code> recebe <code>items</code>, <code>open</code> e <code>onOpenChange</code> e cuida de busca, grupos,
   teclado e foco.</li>
-<li>✅ <code>useKeyboardShortcut({ key: "k", mod: true }, …, { ignoreInput: false })</code> abre a
-  paleta de qualquer lugar, com <code>preventDefault</code> para vencer o atalho do navegador.</li>
+<li>✅ <code>useKeyboardShortcut({ key: "k", mod: true }, …)</code> abre a paleta de qualquer lugar,
+  inclusive de dentro de um campo, e vence o atalho do navegador.</li>
 <li>✅ <code>keywords</code> acha a tela pelo sinônimo.</li>
 <li>✅ A lista depende do usuário, mas a proteção de verdade fica no guard e no backend.</li>
-<li>✅ Um botão com <code>Kbd</code> ensina o atalho e é a porta de entrada no celular.</li>
+<li>✅ Um botão com <code>Kbd</code> e <code>formatShortcut</code> ensina o atalho certo para o sistema e é a
+  porta de entrada no celular.</li>
 </ul>
 
 

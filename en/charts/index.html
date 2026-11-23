@@ -3403,6 +3403,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#series-label-apart-from-the-data-key-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Series label apart from the data key (labels)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#value-axis-width-and-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      Value axis: width and format
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4030,6 +4048,8 @@
       
         
       
+        
+      
     
     
       
@@ -4138,6 +4158,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4742,6 +4783,24 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#series-label-apart-from-the-data-key-labels" class="md-nav__link">
+    <span class="md-ellipsis">
+      Series label apart from the data key (labels)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#value-axis-width-and-format" class="md-nav__link">
+    <span class="md-ellipsis">
+      Value axis: width and format
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -4930,6 +4989,12 @@ tempest-react-sdk</code> does not pull it in. If you import from
 breaks with <code>Cannot find module 'recharts'</code>. Install it in the app that
 actually uses charts.</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">recharts 3.2 or newer</p>
+<p>The peer is <code>recharts@^3.2.0</code>: the Y axis that fits its labels
+(<code>yAxisWidth="auto"</code>) only exists from that version on: the <code>YAxis</code> code of
+2.15 and of 3.0/3.1 does not handle <code>"auto"</code> and adds the width up as a number.</p>
+</div>
 <h2 id="the-cartesian-family-area-bar-line">The cartesian family: Area, Bar, Line</h2>
 <p><code>AreaChart</code>, <code>BarChart</code>, and <code>LineChart</code> share the <strong>same</strong> props interface,
 <code>CartesianChartProps</code>. Learn one and you know all three — you only swap the
@@ -5095,6 +5160,24 @@ component name.</p>
 <td>Formats numeric values in the tooltip and on the Y axis.</td>
 </tr>
 <tr>
+<td><code>labels</code></td>
+<td><code>Record&lt;string, string&gt;</code></td>
+<td>—</td>
+<td>Each series' name in the legend and tooltip, keyed by <code>categories</code> entry.</td>
+</tr>
+<tr>
+<td><code>yAxisWidth</code></td>
+<td><code>number \| "auto"</code></td>
+<td><code>"auto"</code></td>
+<td>Y axis width in px, or <code>"auto"</code> to fit the widest label. Not on Radar.</td>
+</tr>
+<tr>
+<td><code>yAxisFormatter</code></td>
+<td><code>(value: number) =&gt; string</code></td>
+<td><code>valueFormatter</code></td>
+<td>Formats the Y axis labels only. Not on Radar.</td>
+</tr>
+<tr>
 <td><code>className</code></td>
 <td><code>string</code></td>
 <td>—</td>
@@ -5110,6 +5193,67 @@ to a label (string) or value (number).</p>
 (<code>categories={["income"]}</code>) draws a simple chart; several draw comparative
 series, each picking the next color in the palette.</p>
 </div>
+<h3 id="series-label-apart-from-the-data-key-labels">Series label apart from the data key (<code>labels</code>)</h3>
+<p>The legend and the tooltip show the <strong>series name</strong>, which by default is the key
+itself (<code>"done"</code>). To translate it, pass <code>labels</code> — a key → text map. The data
+keeps the keys the API sent:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">BarChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">week</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="s2">"Mon"</span><span class="p">,</span><span class="w"> </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">34</span><span class="p">,</span><span class="w"> </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">3</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">day</span><span class="o">:</span><span class="w"> </span><span class="s2">"Tue"</span><span class="p">,</span><span class="w"> </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">29</span><span class="p">,</span><span class="w"> </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">5</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Appointments</span><span class="p">({</span><span class="w"> </span><span class="nx">t</span><span class="w"> </span><span class="p">}</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">t</span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">key</span><span class="o">:</span><span class="w"> </span><span class="kt">string</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="kt">string</span><span class="w"> </span><span class="p">})</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">BarChart</span>
+<span class="w">            </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">week</span><span class="p">}</span>
+<span class="w">            </span><span class="na">index</span><span class="o">=</span><span class="s">"day"</span>
+<span class="w">            </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"done"</span><span class="p">,</span><span class="w"> </span><span class="s2">"noShow"</span><span class="p">]}</span>
+<span class="w">            </span><span class="na">labels</span><span class="o">=</span><span class="p">{{</span><span class="w"> </span><span class="nx">done</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"series.done"</span><span class="p">),</span><span class="w"> </span><span class="nx">noShow</span><span class="o">:</span><span class="w"> </span><span class="kt">t</span><span class="p">(</span><span class="s2">"series.noShow"</span><span class="p">)</span><span class="w"> </span><span class="p">}}</span>
+<span class="w">            </span><span class="na">stack</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>A category with no entry in <code>labels</code> shows its key. It applies to <code>AreaChart</code>,
+<code>BarChart</code>, <code>LineChart</code> and <code>RadarChart</code>. <code>PieChart</code> does not need it: each
+slice's name already comes from the <code>index</code> column.</p>
+<h3 id="value-axis-width-and-format">Value axis: width and format</h3>
+<p>With no setup, the Y axis <strong>fits its widest label</strong> (<code>yAxisWidth="auto"</code>). It
+used to reserve a fixed 60 px, and <code>"R$ 50.000"</code> lost its first 10 px — at any
+screen width, not only on phones (measured in Chromium, #740).</p>
+<p>A long label takes room from the plot on a phone. For the axis, use a short
+format in <code>yAxisFormatter</code>; the tooltip keeps the exact value from
+<code>valueFormatter</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">LineChart</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/charts"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">brl</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Intl</span><span class="p">.</span><span class="nx">NumberFormat</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s2">"currency"</span><span class="p">,</span><span class="w"> </span><span class="nx">currency</span><span class="o">:</span><span class="w"> </span><span class="s2">"BRL"</span><span class="w"> </span><span class="p">});</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">brlCompact</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nb">Intl</span><span class="p">.</span><span class="nx">NumberFormat</span><span class="p">(</span><span class="s2">"pt-BR"</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s2">"currency"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">currency</span><span class="o">:</span><span class="w"> </span><span class="s2">"BRL"</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">notation</span><span class="o">:</span><span class="w"> </span><span class="s2">"compact"</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">months</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">month</span><span class="o">:</span><span class="w"> </span><span class="s2">"Oct"</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">164750</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">month</span><span class="o">:</span><span class="w"> </span><span class="s2">"Nov"</span><span class="p">,</span><span class="w"> </span><span class="nx">total</span><span class="o">:</span><span class="w"> </span><span class="kt">186430</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Revenue</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">(</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">LineChart</span>
+<span class="w">            </span><span class="na">data</span><span class="o">=</span><span class="p">{</span><span class="nx">months</span><span class="p">}</span>
+<span class="w">            </span><span class="na">index</span><span class="o">=</span><span class="s">"month"</span>
+<span class="w">            </span><span class="na">categories</span><span class="o">=</span><span class="p">{[</span><span class="s2">"total"</span><span class="p">]}</span>
+<span class="w">            </span><span class="na">valueFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">brl</span><span class="p">.</span><span class="nx">format</span><span class="p">(</span><span class="nx">v</span><span class="p">)}</span>
+<span class="w">            </span><span class="na">yAxisFormatter</span><span class="o">=</span><span class="p">{(</span><span class="nx">v</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">brlCompact</span><span class="p">.</span><span class="nx">format</span><span class="p">(</span><span class="nx">v</span><span class="p">)}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>The axis shows <code>R$ 186 mil</code>; the tooltip, <code>R$ 186.430,00</code>. To line up the plot
+areas of stacked charts, pin the width with a number (<code>yAxisWidth={72}</code>).</p>
 <h2 id="piechart">PieChart</h2>
 <p><code>PieChart</code> has a different data shape: <strong>one row per slice</strong>. Instead of
 <code>categories</code>, you say which key holds the <strong>value</strong> (<code>category</code>) and which holds
@@ -5480,6 +5624,8 @@ browser, <strong>omit</strong> <code>width</code> and let it fill the parent.</p
 <li><code>AreaChart</code>, <code>BarChart</code>, and <code>LineChart</code> share <code>CartesianChartProps</code>: <code>data</code> +
   <code>index</code> (X axis) + <code>categories</code> (series). <code>stack</code> stacks in Area/Bar;
   <code>LineChart</code> ignores it.</li>
+<li><code>labels</code> names the series without changing the data keys; the Y axis fits its
+  widest label and <code>yAxisFormatter</code> formats the axis only.</li>
 <li><code>PieChart</code> uses <code>category</code> (value) + <code>index</code> (label), one row per slice, with
   optional <code>donut</code>.</li>
 <li><code>RadarChart</code> reuses <code>CartesianChartProps</code> (<code>index</code> = angle axis); ignores

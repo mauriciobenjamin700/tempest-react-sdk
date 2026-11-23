@@ -3951,6 +3951,8 @@
       
         
       
+        
+      
     
     
       
@@ -4059,6 +4061,27 @@
   
   <span class="md-ellipsis">
     Mensageiro em tempo real
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compartilhar com prévia no WhatsApp
   </span>
   
 
@@ -4900,7 +4923,9 @@ redirect no lugar do <code>element</code>.</p>
 <span class="w">      </span><span class="p">{</span>
 <span class="w">        </span><span class="nx">path</span><span class="o">:</span><span class="w"> </span><span class="s2">"dashboard"</span><span class="p">,</span>
 <span class="w">        </span><span class="nx">lazy</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="k">import</span><span class="p">(</span><span class="s2">"@/pages/Dashboard"</span><span class="p">),</span>
-<span class="w">        </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="kt">function</span><span class="w"> </span><span class="nx">useSignedIn</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">          </span><span class="k">return</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">use</span><span class="p">.</span><span class="nx">isAuthenticated</span><span class="p">();</span>
+<span class="w">        </span><span class="p">},</span>
 <span class="w">        </span><span class="nx">redirectTo</span><span class="o">:</span><span class="w"> </span><span class="s2">"/login"</span><span class="p">,</span>
 <span class="w">      </span><span class="p">},</span>
 <span class="w">    </span><span class="p">],</span>
@@ -4911,12 +4936,13 @@ redirect no lugar do <code>element</code>.</p>
 <code>useAuth</code> ainda não existe — você vai criá-la na próxima página. Por enquanto,
 foque em <strong>como</strong> o guard lê o estado.</p>
 <div class="admonition warning">
-<p class="admonition-title">O guard roda na renderização — leia a store via <code>getState()</code></p>
-<p>A função do <code>guard</code> é avaliada <strong>durante a renderização</strong> da rota, fora do
-ciclo de hooks. Por isso ela lê o valor <em>naquele instante</em> com
-<code>useAuth.getState().isAuthenticated</code>. <strong>Não</strong> capture o valor fora da função
-(<code>const ok = useAuth.getState().isAuthenticated</code> no topo do arquivo) — você
-congelaria o estado de auth no carregamento inicial.</p>
+<p class="admonition-title">O guard roda na renderização — leia a store por hook</p>
+<p>A função do <code>guard</code> é avaliada <strong>durante a renderização</strong> da rota, então pode
+chamar hook. <code>useAuth.use.isAuthenticated()</code> <strong>assina</strong> a rota: quando a sessão
+acaba, ela re-renderiza e manda para <code>/login</code>, de qualquer tela protegida.
+<code>useAuth.getState().isAuthenticated</code> lê o valor uma vez e não assina — depois de
+um logout, a tela continuaria aberta até a próxima navegação. O nome
+<code>useSignedIn</code> não é enfeite: o ESLint só aceita hook dentro de função <code>use…</code>.</p>
 </div>
 <h2 id="navegacao-programatica">Navegação programática</h2>
 <p>Às vezes você navega a partir de código — por exemplo, depois de um login

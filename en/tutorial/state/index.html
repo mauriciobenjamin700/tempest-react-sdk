@@ -3900,6 +3900,8 @@
       
         
       
+        
+      
     
     
       
@@ -4008,6 +4010,27 @@
   
   <span class="md-ellipsis">
     Real-time messenger
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../recipes/share-whatsapp/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Share with a WhatsApp preview
   </span>
   
 
@@ -4629,7 +4652,7 @@
 
 <h1 id="tutorial-state">Tutorial — State</h1>
 <p>On the previous page, the dashboard guard read
-<code>useAuth.getState().isAuthenticated</code> — but the <code>useAuth</code> store doesn't exist yet.
+<code>useAuth.use.isAuthenticated()</code> — but the <code>useAuth</code> store doesn't exist yet.
 Let's create it now. Along the way, you'll learn the SDK's two state pieces:
 <code>createStore</code> (a generic store) and <code>createAuthStore</code> (the ready-made auth store),
 both on top of <a href="https://github.com/pmndrs/zustand">Zustand</a>, with
@@ -4833,18 +4856,21 @@ changes:</p>
 <span class="p">}</span>
 </code></pre></div>
 <h2 id="reading-the-store-outside-react-getstate">Reading the store outside React — <code>getState()</code></h2>
-<p>Not all code that needs state is a component. The route guard from the previous
-page runs <strong>outside</strong> the React tree and can't call hooks. For those cases, use
+<p>Not all code that needs state is a component. The HTTP client, which you set up
+later, runs <strong>outside</strong> the React tree and can't call hooks. For those cases, use
 <code>getState()</code> on the bound hook — a one-off snapshot, no subscription:</p>
-<div class="highlight"><pre><span></span><code><span class="c1">// guard excerpt, from the routing page</span>
-<span class="nx">guard</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">isAuthenticated</span><span class="p">,</span>
+<div class="highlight"><pre><span></span><code><span class="c1">// HTTP client excerpt, from the data page</span>
+<span class="nx">onUnauthorized</span><span class="o">:</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">useAuth</span><span class="p">.</span><span class="nx">getState</span><span class="p">().</span><span class="nx">logout</span><span class="p">(),</span>
 </code></pre></div>
+<p>The guard from the previous page is <strong>not</strong> that case: it runs during the route's
+render and has to react to logout, so it reads through the
+<code>useAuth.use.isAuthenticated()</code> hook.</p>
 <div class="admonition warning">
 <p class="admonition-title"><code>getState()</code> doesn't subscribe — use it only outside React</p>
 <p><code>getState()</code> reads once and does <strong>not</strong> re-render anything when state changes
 later. Inside components, always prefer the hook (<code>useAuth.use.field()</code>) so the
-UI stays in sync. Reserve <code>getState()</code> for route guards, HTTP interceptors and
-other code outside the React tree.</p>
+UI stays in sync. Reserve <code>getState()</code> for HTTP interceptors and other code
+outside the React tree.</p>
 </div>
 <h2 id="recap">Recap</h2>
 <ul>

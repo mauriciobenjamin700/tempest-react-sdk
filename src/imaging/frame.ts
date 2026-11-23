@@ -44,15 +44,24 @@
  *   probe runs here rather than in every caller. Chromium was measured writing
  *   the duration for a one-shot recording, so this is for the paths that omit
  *   it — chunked `timeslice` recording, and other engines.
+ * - **`readyState` says there is data, not that there is a frame.** Chromium
+ *   raises `readyState` — and dispatches `loadeddata` — before the player
+ *   holds a frame `createImageBitmap` can read, and in that window the read
+ *   rejects with `InvalidStateError` ("The image source is not usable"). A
+ *   paused `preload="metadata"` element stays there for good: it never
+ *   decodes a frame until something seeks or plays it. So a paused element
+ *   that refuses the read is sought to where it already is, and the read is
+ *   retried until it succeeds or `timeoutMs` runs out (#795).
  * - **A cross-origin video taints the canvas**, and the failure surfaces far
  *   from its cause, so it is re-thrown saying what to set.
  * - **Moving `currentTime` moves the player** somebody is watching; `restore`
  *   puts it back, and touches only what actually moved.
  */
 
+import { decodeImage } from "./decode";
 import { FrameSeekError, ImageDecodeError } from "./exceptions";
 import { resizeImage } from "./transform";
-import type { CaptureFrameOptions, CapturedFrame } from "./types";
+import type { CaptureFrameOptions, CapturedFrame, DecodedImage } from "./types";
 
 /** How long a seek and the frame after it may take, in milliseconds. */
 export const DEFAULT_FRAME_TIMEOUT_MS = 3000;
@@ -101,6 +110,12 @@ function reportsFrames(video: HTMLVideoElement): video is FrameCallbackVideo {
     return typeof (video as Partial<FrameCallbackVideo>).requestVideoFrameCallback === "function";
 }
 
+/**
+ * How long to wait between two reads of an element that has no frame yet, in
+ * milliseconds — about one display frame at 60 Hz.
+ */
+const FRAME_RETRY_INTERVAL_MS = 16;
+
 /** Seek target that forces a demux to the end, to learn an unknown duration. */
 const PAST_THE_END_SECONDS = 1e101;
 
@@ -144,6 +159,102 @@ function onceEvent(
         video.addEventListener(type, onEvent);
         signal?.addEventListener("abort", onAbort);
     });
+}
+
+/**
+ * Wait a fixed time, unless the caller aborts first.
+ *
+ * @param ms How long to wait.
+ * @param signal Optional abort signal.
+ * @returns Resolves once the time has passed.
+ * @throws `AbortError` `DOMException` when `signal` aborts the wait.
+ */
+function delay(ms: number, signal: AbortSignal | undefined): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+        const onAbort = (): void => {
+            clearTimeout(timer);
+            reject(abortError());
+        };
+        const timer = setTimeout(() => {
+            signal?.removeEventListener("abort", onAbort);
+            resolve();
+        }, ms);
+        signal?.addEventListener("abort", onAbort, { once: true });
+    });
+}
+
+/**
+ * Whether a decode failed because the element holds no frame yet.
+ *
+ * `createImageBitmap` reports that with an `InvalidStateError`; every other
+ * failure — a tainted canvas, a broken stream — is final and is not retried.
+ *
+ * @param error What {@link decodeImage} threw.
+ * @returns `true` for the "not usable yet" rejection.
+ */
+function noFrameYet(error: unknown): boolean {
+    const cause = (error as { cause?: unknown } | null)?.cause;
+    return (
+        typeof cause === "object" &&
+        cause !== null &&
+        (cause as { name?: unknown }).name === "InvalidStateError"
+    );
+}
+
+/**
+ * Read the element's current frame, making it decode one if it has none.
+ *
+ * Measured 2026-11-23 in Chromium (Playwright's headless shell):
+ *
+ * | Element, read at | Refused | After |
+ * | --- | --- | --- |
+ * | `preload="auto"`, inside `loadeddata` | 2 of 30, at `readyState` 4 | readable 11 and 94 ms later, untouched |
+ * | `preload="metadata"`, at `loadedmetadata` | 60 of 60, at `readyState` 4 | still refused 1.5 s later, past `loadeddata` and `canplay` (5 of 5) |
+ * | the same, after `currentTime = currentTime` | — | readable 16–17 ms later (5 of 5) |
+ *
+ * Neither the state nor an event says when the frame lands, and for a paused
+ * metadata-only element it never does on its own. So the first refusal of a
+ * paused element that is not already seeking seeks it to where it is — the
+ * position does not change, but `seeking`/`seeked` do fire on it — and the
+ * read is repeated every {@link FRAME_RETRY_INTERVAL_MS} until it succeeds,
+ * the caller aborts, or `timeoutMs` passes. A playing element decodes frames
+ * by itself and is only waited on.
+ *
+ * @param video The element to read.
+ * @param timeoutMs The longest the wait for a readable frame may take.
+ * @param signal Optional abort signal.
+ * @returns The decoded frame. The caller owns the bitmap.
+ * @throws {@link FrameSeekError} when no frame became readable in time.
+ * @throws {@link ImageDecodeError} for any other decode failure.
+ * @throws `AbortError` `DOMException` when `signal` aborts the wait.
+ */
+async function readFrame(
+    video: HTMLVideoElement,
+    timeoutMs: number,
+    signal: AbortSignal | undefined,
+): Promise<DecodedImage> {
+    const started = performance.now();
+    let nudged = false;
+    for (;;) {
+        try {
+            return await decodeImage(video);
+        } catch (error) {
+            if (!noFrameYet(error)) throw error;
+            if (!nudged && video.paused && !video.seeking) {
+                nudged = true;
+                const position = video.currentTime;
+                video.currentTime = position;
+            }
+            if (performance.now() - started >= timeoutMs) {
+                throw new FrameSeekError(
+                    `The video reported readyState ${video.readyState} but had no readable ` +
+                        `frame within ${timeoutMs}ms.`,
+                    { cause: error },
+                );
+            }
+            await delay(FRAME_RETRY_INTERVAL_MS, signal);
+        }
+    }
 }
 
 /**
@@ -419,12 +530,13 @@ function restorePlayback(video: HTMLVideoElement, time: number, wasPlaying: bool
  * ```
  *
  * @param video The element to read. It needs data — the capture waits for
- *   `loadeddata` when the element has none yet.
+ *   `loadeddata` when the element has none yet, and then for a frame it can
+ *   actually read.
  * @param options Instant, output box, format, and how long to wait.
  * @returns The encoded frame, the instant it actually came from, and whether a
  *   presented frame confirmed that instant.
- * @throws {@link FrameSeekError} when the video has no data or no timeline in
- *   time, or the seek did not land.
+ * @throws {@link FrameSeekError} when the video has no data, no readable
+ *   frame or no timeline in time, or the seek did not land.
  * @throws {@link ImageDecodeError} when the pixels cannot be read — a
  *   cross-origin video without `crossOrigin` is the common one.
  * @throws {@link ImageEncodeError} when the canvas produces no bytes.
@@ -460,9 +572,14 @@ export async function captureFrame(
             confirmed = await seekTo(video, requestedMs, timeoutMs, options.signal);
         }
 
+        const { bitmap } = await readFrame(video, timeoutMs, options.signal);
         const atMs = video.currentTime * 1000;
-        const encoded = await resizeImage(video, options);
-        return { ...encoded, atMs, confirmed };
+        try {
+            const encoded = await resizeImage(bitmap, options);
+            return { ...encoded, atMs, confirmed };
+        } finally {
+            bitmap.close?.();
+        }
     } catch (error) {
         throw explained(error);
     } finally {

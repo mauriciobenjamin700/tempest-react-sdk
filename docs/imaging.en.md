@@ -182,7 +182,7 @@ instant's frame to be presented, captures, and **puts the player back**.
 | --- | --- |
 | `atMs` | Instant to capture. Left out: the frame on screen now |
 | `restore` | Put `currentTime` and playback back. Default `true` |
-| `timeoutMs` | Ceiling for the seek and the frame after it. Default `3000` |
+| `timeoutMs` | Ceiling for each wait: the seek, the frame after it and the first readable frame. Default `3000` |
 | `signal` | `AbortSignal`; rejects with `AbortError` |
 | `width` / `height` / `fit` / `type` / `quality` | Same as `resizeImage` |
 
@@ -210,7 +210,7 @@ that actually came out, and `confirmed`.
     - capturing at an **`atMs`** waits for `seeked` plus two animation frames →
       `confirmed: false`, always;
     - capturing the current frame of a **paused** video waits for nothing — the
-      frame on screen already is the frame.
+      frame on screen already is the frame — as long as it exists (see below).
 
     `false` on a seek is the normal result, not a warning. Treating it as a
     failure would reject the majority of correct captures. It is also why the
@@ -230,6 +230,25 @@ that actually came out, and `confirmed`.
     does not run on that path. It exists for the paths that omit it — chunked
     `timeslice` recording, and other browsers. `useVideoRecorder` keeps its own
     clock for the same reason.
+
+!!! info "`readyState` says there is data, not that there is a frame"
+    Chromium raises `readyState` — and fires `loadeddata` — before the player
+    holds a frame `createImageBitmap` can read. In that window the read
+    rejects with `InvalidStateError` ("The image source is not usable"), and no
+    event says when it closes. Measured 2026-11-23: reading a paused video
+    inside its own `loadeddata`, 2 of 30 reads failed at `readyState` 4 and
+    worked 11 and 94 ms later. Worse: a **paused** `preload="metadata"` video
+    never decodes a frame by itself — 60 of 60 captures failed, and 1.5 s past
+    `loadeddata` and `canplay` it still refused; a seek to where it already is
+    unlocks it in ~17 ms.
+
+    So when the read of a paused video is refused, `captureFrame` seeks it
+    **once** to where it already is (the position does not change, but
+    `seeking`/`seeked` do fire on the element) and repeats the read every
+    ~16 ms until it works, `signal` aborts or `timeoutMs` runs out — then it
+    throws `FrameSeekError` naming the `readyState`. A playing video is only
+    waited on. Any other read failure (a cross-origin video, a broken source)
+    is not retried.
 
 !!! warning "A cross-origin video needs `crossOrigin`"
     Without `crossOrigin="anonymous"` on the element **before** the source
@@ -342,7 +361,8 @@ for tens of milliseconds per image.
 Errors: `ImagingError` at the root, with `ImageDecodeError`,
 `ImageEncodeError`, `FrameSeekError`, `UnsupportedImageTypeError` and
 `ImagingUnavailableError`. `FrameSeekError` is `captureFrame`'s: the seek never
-landed, or the video has no timeline. It is its own class because the
+landed, the video has no timeline, or no frame became readable within
+`timeoutMs`. It is its own class because the
 alternative is returning a frame from the wrong instant, which is
 indistinguishable from a correct one to everything downstream.
 

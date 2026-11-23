@@ -183,7 +183,7 @@ daquele instante ser apresentado, captura e **devolve o player onde estava**.
 | --- | --- |
 | `atMs` | Instante a capturar. Omitido: o frame na tela agora |
 | `restore` | Devolve `currentTime` e a reprodução. Padrão `true` |
-| `timeoutMs` | Teto para a busca e para o frame depois dela. Padrão `3000` |
+| `timeoutMs` | Teto para cada espera: a busca, o frame depois dela e o primeiro frame legível. Padrão `3000` |
 | `signal` | `AbortSignal`; rejeita com `AbortError` |
 | `width` / `height` / `fit` / `type` / `quality` | Iguais ao `resizeImage` |
 
@@ -211,7 +211,7 @@ de fato saiu, e `confirmed`.
     - captura com **`atMs`** espera `seeked` + dois animation frames →
       `confirmed: false`, sempre;
     - captura do frame corrente de vídeo **pausado** não espera nada — o frame
-      na tela já é o frame.
+      na tela já é o frame — desde que ele exista (veja abaixo).
 
     `false` num seek é o normal, não um aviso. Tratar como falha rejeitaria a
     maioria das capturas corretas. E é por isso que o seek **não** bloqueia no
@@ -230,6 +230,25 @@ de fato saiu, e `confirmed`.
     caminho a sondagem não roda. Ela existe para os caminhos que omitem —
     gravação em chunks por `timeslice`, e outros navegadores. O
     `useVideoRecorder` mantém o próprio relógio justamente por isso.
+
+!!! info "`readyState` diz que há dado, não que há frame"
+    O Chromium sobe o `readyState` — e dispara `loadeddata` — antes de o player
+    ter um frame que o `createImageBitmap` consiga ler. Nessa janela a leitura
+    rejeita com `InvalidStateError` ("The image source is not usable"), e
+    nenhum evento avisa quando ela fecha. Medido em 23/11/2026: lendo um vídeo
+    pausado dentro do próprio `loadeddata`, 2 de 30 leituras falharam com
+    `readyState` 4 e funcionaram 11 e 94 ms depois. Pior: um vídeo **pausado**
+    com `preload="metadata"` nunca decodifica frame sozinho — 60 de 60
+    capturas falhavam, e 1,5 s depois de `loadeddata` e `canplay` ele ainda
+    recusava; um seek para a posição atual destrava em ~17 ms.
+
+    Por isso, quando a leitura de um vídeo pausado é recusada, o
+    `captureFrame` faz **um** seek para onde ele já está (a posição não muda,
+    mas `seeking`/`seeked` disparam no elemento) e repete a leitura a cada
+    ~16 ms até dar certo, o `signal` abortar ou o `timeoutMs` acabar — aí sai
+    `FrameSeekError` dizendo o `readyState`. Vídeo tocando só é esperado.
+    Qualquer outra falha de leitura (vídeo de outra origem, fonte quebrada)
+    não é repetida.
 
 !!! warning "Vídeo de outra origem precisa de `crossOrigin`"
     Sem `crossOrigin="anonymous"` no elemento **antes** da fonte carregar, o
@@ -341,8 +360,8 @@ por dezenas de milissegundos por imagem.
 
 Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
 `FrameSeekError`, `UnsupportedImageTypeError` e `ImagingUnavailableError`. O
-`FrameSeekError` é o do `captureFrame`: a busca não chegou, ou o vídeo não tem
-linha do tempo. Ele existe como classe própria porque a alternativa seria
+`FrameSeekError` é o do `captureFrame`: a busca não chegou, o vídeo não tem
+linha do tempo, ou nenhum frame ficou legível dentro do `timeoutMs`. Ele existe como classe própria porque a alternativa seria
 devolver frame do instante errado, que é indistinguível de um correto para tudo
 o que vem depois.
 

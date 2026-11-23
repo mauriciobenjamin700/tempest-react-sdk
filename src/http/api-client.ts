@@ -5,7 +5,7 @@
  * parsing that turns a failure into a typed error.
  */
 import { randomId } from "../utils";
-import { buildApiUrl } from "./build-url";
+import { buildApiUrl, toWebSocketUrl } from "./build-url";
 import { isTrustedCredentialTarget, reportSuppressedCredential } from "./credential-scope";
 import { csrfHeaders } from "./csrf";
 import { decodeByContentType } from "./decode-response";
@@ -744,5 +744,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         upload,
         url: (path: string, params?: RequestOptions["params"]) =>
             buildApiUrl(config.baseURL, path, { prefix: config.prefix, params }),
+        wsUrl: (path: string, params?: RequestOptions["params"]) =>
+            toWebSocketUrl(buildApiUrl(config.baseURL, path, { prefix: config.prefix, params })),
     };
 }

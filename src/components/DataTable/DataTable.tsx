@@ -8,15 +8,21 @@
  * to cells, in that order and off the same memo.
  *
  * Each of the four also runs in a second mode, where the caller owns the work and
- * the table only reports intent: totalItems/page/onPageChange, onSearchChange,
- * manualSort/onSortChange, loading/loadingRows. That doubles the props without
+ * the table only reports intent: totalItems/page/onPageChange, search/onSearchChange,
+ * sort/manualSort/onSortChange, loading/loadingRows. That doubles the props without
  * adding a fifth job — every manual prop short-circuits one stage of the same
  * pipeline.
+ *
+ * Around the row model sit the props that only decorate it: the selection and
+ * actions columns (selectable/selectedKeys/onSelectionChange, rowActions), the
+ * search box's copy and debounce, and the Table props forwarded as they are
+ * (stackOnMobile, onRowClick, scrollLabel).
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import { compareValues } from "@/utils/compare-values";
+import { foldText } from "@/utils/fold-text";
 import { usePagination } from "@/hooks";
 import { useAnnounce } from "@/hooks/use-announce";
 import { Table, type TableAlign, type TableColumn, type TablePriority } from "../Table";
@@ -25,8 +31,12 @@ import { SearchBar } from "../SearchBar";
 import { EditableCell } from "./EditableCell";
 import { LoadingRows } from "./LoadingRows";
 import { useDevWarnings } from "./use-dev-warnings";
+import { useSearchBox } from "./use-search-box";
+import { actionsColumn, selectionColumn, type DataTableRowKey } from "./row-columns";
 import { DEFAULT_EDIT_LABELS, type CellCommitMove, type DataTableEditLabels } from "./edit-labels";
 import styles from "./DataTable.module.css";
+
+export type { DataTableRowKey } from "./row-columns";
 
 export type SortDirection = "asc" | "desc";
 
@@ -72,6 +82,8 @@ export interface DataTableColumn<T> {
     priority?: TablePriority;
     /** Fixed column width forwarded to the Table cell. */
     width?: string | number;
+    /** Extra class for this column's body cells, forwarded to the Table cell. */
+    className?: string;
     /**
      * Let cells in this column be edited in place. Requires `onCellChange` on the
      * table; without it the column stays read-only.
@@ -115,12 +127,51 @@ export interface DataTableBaseProps<T> extends HTMLAttributes<HTMLDivElement> {
     /**
      * Keys to match the search term against. When omitted, every column whose
      * value is a string or number is searched.
+     *
+     * The match ignores case **and accents**: "joao" finds "João".
      */
     searchKeys?: (keyof T)[];
-    /** Initial sort applied before any header interaction. */
+    /** Placeholder of the search box. Default `"Buscar..."`. */
+    searchPlaceholder?: string;
+    /**
+     * Accessible name of the search box. Default `"Buscar na tabela"`.
+     *
+     * A placeholder is not a label: it disappears on the first keystroke, and
+     * several screen readers do not announce it at all.
+     */
+    searchLabel?: string;
+    /**
+     * Milliseconds of quiet before a keystroke becomes the search term. Default `0`.
+     *
+     * The box still shows every keystroke; only `onSearchChange` (and the
+     * in-memory filter) wait. Set it in server mode so a search costs one request,
+     * not one per letter.
+     */
+    searchDebounceMs?: number;
+    /**
+     * Initial sort applied before any header interaction. Read once, on mount —
+     * pass `sort` instead when the order lives outside the table (the URL).
+     */
     initialSort?: DataTableSort<T>;
     /** Stable key extractor for rows. Defaults to the row index. */
-    rowKey?: (row: T, index: number) => string | number;
+    rowKey?: (row: T, index: number) => DataTableRowKey;
+    /**
+     * Content of a trailing, right-aligned column — a `DropdownMenu`, a pair of
+     * buttons. The column belongs to the table, not to a field of `T`, so it needs
+     * no borrowed `key`; clicks inside it never reach `onRowClick`.
+     */
+    rowActions?: (row: T) => ReactNode;
+    /** Accessible heading of the `rowActions` column (visually hidden). Default `"Ações"`. */
+    rowActionsLabel?: string;
+    /**
+     * Below 768 px, render each row as a label/value card instead of a table that
+     * scrolls sideways. Forwarded to {@link Table}; labels come from string headers.
+     */
+    stackOnMobile?: boolean;
+    /** Called with the row when a row is clicked. Forwarded to {@link Table}. */
+    onRowClick?: (row: T) => void;
+    /** Accessible name of the horizontal scroll region. Forwarded to {@link Table}. */
+    scrollLabel?: string;
     /** Content shown when no rows match. */
     emptyMessage?: ReactNode;
     /**
@@ -236,12 +287,16 @@ export type DataTablePageSizeProps =
  * Sorting: delegated, and therefore reported, or neither.
  *
  * `manualSort` without `onSortChange` renders a header that moves its arrow and
- * changes nothing else — the arrow is a lie the compiler can now catch.
+ * changes nothing else — the arrow is a lie the compiler can now catch. A
+ * controlled `sort` without `onSortChange` is the same lie from the other side:
+ * the arrow can never move, because nobody hears the click.
  */
 export type DataTableSortProps<T> =
     | {
           /** The table sorts the rows it has. */
           manualSort?: false;
+          /** The table owns the sort state. */
+          sort?: never;
           /** Called with the next sort state — `null` when the header cycles back to unsorted. */
           onSortChange?: (sort: DataTableSort<T> | null) => void;
       }
@@ -253,7 +308,13 @@ export type DataTableSortProps<T> =
            * Implied by `totalItems`, because sorting the page in memory would sort
            * *that page only* while the header claims the whole table is ordered.
            */
-          manualSort: true;
+          manualSort?: boolean;
+          /**
+           * The current sort, controlled — `null` for unsorted. The header arrow
+           * follows it on every render, so it tracks a sort that lives in the URL
+           * through the back button, which `initialSort` (read once) cannot.
+           */
+          sort?: DataTableSort<T> | null;
           /** Where the click goes. Required, since nothing else acts on it. */
           onSortChange: (sort: DataTableSort<T> | null) => void;
       };
@@ -278,7 +339,9 @@ export type DataTableSearchProps =
     | {
           /** The table filters the rows it has. */
           manualSearch?: false;
-          /** Called with the current search term (debouncing, if any, is the caller's). */
+          /** The table owns the term. */
+          search?: never;
+          /** Called with the current search term (after `searchDebounceMs`, if set). */
           onSearchChange?: (term: string) => void;
       }
     | {
@@ -290,20 +353,67 @@ export type DataTableSearchProps =
            * that do not match *on this page* and show nothing for a term that only
            * matches on page three — an empty table that looks like "no results".
            */
-          manualSearch: true;
+          manualSearch?: boolean;
+          /**
+           * The current term, controlled. The box opens with it and follows it when
+           * it changes from outside — `/produtos?busca=café` shows "café" in the
+           * box, and so does the back button.
+           */
+          search?: string;
           /** Where the typing goes. Required, since nothing else acts on it. */
           onSearchChange: (term: string) => void;
       };
 
 /**
+ * Row selection: controlled, or absent.
+ *
+ * `selectable` with no `selectedKeys` would be a column of checkboxes that never
+ * tick, and `selectedKeys` with no `onSelectionChange` a column that never
+ * changes — so the three come together or not at all.
+ */
+export type DataTableSelectionProps<T> =
+    | {
+          /** No selection column. */
+          selectable?: false;
+          /** Nothing to select. */
+          selectedKeys?: never;
+          /** Nothing to report. */
+          onSelectionChange?: never;
+          /** Not used without `selectable`. */
+          selectionLabel?: never;
+          /** Not used without `selectable`. */
+          selectAllLabel?: never;
+      }
+    | {
+          /**
+           * Prepend a checkbox column. Rows are identified by `rowKey` — pass one
+           * that returns the record's id, or the selection follows positions and
+           * moves to other records when the page or the sort changes.
+           */
+          selectable: true;
+          /** The selected row keys, across every page. */
+          selectedKeys: readonly DataTableRowKey[];
+          /**
+           * Receives the next full selection. The header checkbox adds or removes
+           * the rows **on screen** and keeps the keys selected on other pages.
+           */
+          onSelectionChange: (keys: DataTableRowKey[]) => void;
+          /** Accessible name of a row's checkbox. Default `"Selecionar linha N"`. */
+          selectionLabel?: (row: T) => string;
+          /** Accessible name of the header checkbox. Default `"Selecionar todas as linhas desta página"`. */
+          selectAllLabel?: string;
+      };
+
+/**
  * The table's props: the shared half, plus one valid shape per axis — paging,
- * page size, sorting and searching.
+ * page size, sorting, searching and selection.
  */
 export type DataTableProps<T> = DataTableBaseProps<T> &
     DataTablePagingProps &
     DataTablePageSizeProps &
     DataTableSortProps<T> &
-    DataTableSearchProps;
+    DataTableSearchProps &
+    DataTableSelectionProps<T>;
 
 /** Identity of one cell, stable across re-renders and pagination. */
 function cellId(rowKeyValue: string | number, columnKey: PropertyKey): string {
@@ -320,8 +430,10 @@ function headerText<T>(column: DataTableColumn<T>): string {
  * editing while delegating all table markup to the underlying Table component.
  *
  * - Clicking a sortable header cycles asc → desc → unsorted.
- * - Search matches a case-insensitive substring across `searchKeys`
- *   (or every string/number column when not provided).
+ * - Search matches a substring across `searchKeys` (or every string/number
+ *   column when not provided), ignoring case and accents.
+ * - `selectable` prepends a checkbox column and `rowActions` appends an actions
+ *   column; neither borrows a field of `T` for its `key`.
  * - Pagination is hidden when the result fits on a single page — unless
  *   `onPageSizeChange` is set, because the footer then carries the size selector.
  * - A column with `editable` renders a button that opens an inline editor;
@@ -350,8 +462,16 @@ export function DataTable<T>({
     pageSize: pageSizeProp,
     searchable = false,
     searchKeys,
+    searchPlaceholder,
+    searchLabel = "Buscar na tabela",
+    searchDebounceMs = 0,
     initialSort,
     rowKey = (_row, index) => index,
+    rowActions,
+    rowActionsLabel = "Ações",
+    stackOnMobile,
+    onRowClick,
+    scrollLabel,
     emptyMessage,
     onCellChange,
     editLabels,
@@ -361,16 +481,25 @@ export function DataTable<T>({
     onPageSizeChange,
     pageSizeOptions,
     manualSort,
+    sort: controlledSort,
     onSortChange,
     manualSearch,
+    search: controlledSearch,
     onSearchChange,
+    selectable,
+    selectedKeys,
+    onSelectionChange,
+    selectionLabel,
+    selectAllLabel = "Selecionar todas as linhas desta página",
     loading = false,
     className,
     ...rest
 }: DataTableProps<T>) {
     const pageSize = pageSizeProp ?? 10;
-    const [search, setSearch] = useState<string>("");
-    const [sort, setSort] = useState<DataTableSort<T> | null>(initialSort ?? null);
+    const [internalSearch, setInternalSearch] = useState<string>("");
+    const [internalSort, setInternalSort] = useState<DataTableSort<T> | null>(initialSort ?? null);
+    const search = controlledSearch ?? internalSearch;
+    const sort = controlledSort === undefined ? internalSort : controlledSort;
     const { page: internalPage, setPage: setInternalPage } = usePagination(1, pageSize);
     const announce = useAnnounce();
 
@@ -439,12 +568,12 @@ export function DataTable<T>({
     }, [searchable, searchIsManual, searchKeys, columns, data]);
 
     const filtered = useMemo<T[]>(() => {
-        const term = search.trim().toLowerCase();
+        const term = foldText(search.trim());
         if (!term || !searchable || searchIsManual) return data;
         return data.filter((row) =>
             effectiveSearchKeys.some((key) => {
                 const value = row[key];
-                return value != null && String(value).toLowerCase().includes(term);
+                return value != null && foldText(String(value)).includes(term);
             }),
         );
     }, [data, search, searchable, searchIsManual, effectiveSearchKeys]);
@@ -484,9 +613,28 @@ export function DataTable<T>({
                 : current.direction === "asc"
                   ? { key, direction: "desc" }
                   : null;
-        setSort(next);
+        if (controlledSort === undefined) setInternalSort(next);
         onSortChange?.(next);
     }
+
+    /**
+     * Publish a search term: filter by it, go back to page 1, report it.
+     *
+     * Page 1 is written only when the table is not already there — in server mode
+     * every write is a URL change, and a no-op `onPageChange(1)` per keystroke is
+     * a history entry the user never asked for.
+     */
+    function commitSearch(term: string): void {
+        if (controlledSearch === undefined) setInternalSearch(term);
+        if (page !== 1) setPage(1);
+        onSearchChange?.(term);
+    }
+
+    const searchBox = useSearchBox({
+        applied: search,
+        debounceMs: searchDebounceMs,
+        onCommit: commitSearch,
+    });
 
     const absoluteIndex = useCallback(
         (pageIndex: number) => (safePage - 1) * pageSize + pageIndex,
@@ -673,9 +821,11 @@ export function DataTable<T>({
                 return {
                     key: String(column.key),
                     header,
+                    label: typeof column.header === "string" ? column.header : undefined,
                     align: column.align,
                     priority: column.priority,
                     width: column.width,
+                    className: column.className,
                     render: editable
                         ? (row: T, index: number) => {
                               const id = cellId(rowKey(row, absoluteIndex(index)), column.key);
@@ -735,18 +885,34 @@ export function DataTable<T>({
         ],
     );
 
+    const allColumns: TableColumn<T>[] = [
+        ...(selectable && selectedKeys
+            ? [
+                  selectionColumn<T>({
+                      pageRows,
+                      keyOf: (row, index) => rowKey(row, absoluteIndex(index)),
+                      selectedKeys,
+                      onSelectionChange,
+                      selectAllLabel,
+                      rowLabel: (row, index) =>
+                          selectionLabel ? selectionLabel(row) : `Selecionar linha ${index + 1}`,
+                  }),
+              ]
+            : []),
+        ...tableColumns,
+        ...(rowActions ? [actionsColumn<T>(rowActions, rowActionsLabel)] : []),
+    ];
+
     const showSkeleton = loading && pageRows.length === 0;
 
     return (
         <div className={cn(styles.wrapper, className)} {...rest}>
             {searchable && (
                 <SearchBar
-                    value={search}
-                    onChange={(value) => {
-                        setSearch(value);
-                        setPage(1);
-                        onSearchChange?.(value);
-                    }}
+                    value={searchBox.draft}
+                    onChange={searchBox.change}
+                    placeholder={searchPlaceholder}
+                    aria-label={searchLabel}
                     wrapperClassName={styles.search}
                 />
             )}
@@ -756,13 +922,16 @@ export function DataTable<T>({
                 data-testid="tempest-datatable-body"
             >
                 {showSkeleton ? (
-                    <LoadingRows columns={tableColumns.length} rows={Math.min(pageSize, 8)} />
+                    <LoadingRows columns={allColumns.length} rows={Math.min(pageSize, 8)} />
                 ) : (
                     <Table
-                        columns={tableColumns}
+                        columns={allColumns}
                         data={pageRows}
                         rowKey={(row, index) => rowKey(row, absoluteIndex(index))}
                         emptyMessage={emptyMessage}
+                        stackOnMobile={stackOnMobile}
+                        onRowClick={onRowClick}
+                        scrollLabel={scrollLabel}
                     />
                 )}
             </div>

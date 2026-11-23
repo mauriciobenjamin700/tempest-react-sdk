@@ -1,4 +1,5 @@
 import { fallbackText, isAbsent, type FormatFallbackOptions } from "./absent";
+import { displayDateOptions, readDisplayDate } from "@/utils/calendar-date";
 import { dateTimeFormat, numberFormat } from "@/utils/intl-cache";
 
 /**
@@ -114,9 +115,16 @@ export function formatCents(
  * screen that reads a log, "nobody filled this in" and "what they filled in is
  * broken" are different findings, and the second is the one worth chasing.
  *
+ * A bare `yyyy-MM-dd` — what a backend sends for a `date` column: a birthday, a
+ * due date — prints the day it names in every time zone. It used to go through
+ * `new Date("2026-11-16")`, which is UTC midnight, and every zone west of
+ * Greenwich (all of Brazil) showed it as `"15/11/2026"`. A day the month does
+ * not have (`"2026-02-30"`) answers `""` instead of rolling into March.
+ *
  * @example
  * ```typescript
  * formatDate("2026-05-16T12:00:00Z"); // "16/05/2026"
+ * formatDate("2026-11-16");           // "16/11/2026", in any time zone
  * formatDate(null);                   // "—"
  * formatDate("banana");               // ""
  * ```
@@ -131,9 +139,9 @@ export function formatDate(
     options?: FormatFallbackOptions,
 ): string {
     if (isAbsent(value)) return fallbackText(options);
-    const date = typeof value === "string" ? new Date(value) : value;
-    if (Number.isNaN(date.getTime())) return "";
-    return dateTimeFormat("pt-BR").format(date);
+    const display = readDisplayDate(value);
+    if (Number.isNaN(display.date.getTime())) return "";
+    return dateTimeFormat("pt-BR", displayDateOptions(display)).format(display.date);
 }
 
 /**
@@ -225,7 +233,9 @@ export function formatDateTimeForInput(
  * Format an ISO date or Date instance as `dd/MM/yyyy HH:mm`.
  *
  * Same contract as {@link formatDate}: absent answers the fallback (`"—"` by
- * default) instead of throwing, and present-but-invalid answers `""`.
+ * default) instead of throwing, and present-but-invalid answers `""`. A bare
+ * `yyyy-MM-dd` keeps its day too, shown at `00:00` — it used to read as
+ * `"15/11/2026, 21:00"` in Brazil for `"2026-11-16"`.
  *
  * @param value - ISO string, Date, or `null`/`undefined`.
  * @param options - Text to render when the value is absent.
@@ -237,9 +247,67 @@ export function formatDateTime(
     options?: FormatFallbackOptions,
 ): string {
     if (isAbsent(value)) return fallbackText(options);
-    const date = typeof value === "string" ? new Date(value) : value;
-    if (Number.isNaN(date.getTime())) return "";
-    return dateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
+    const display = readDisplayDate(value);
+    if (Number.isNaN(display.date.getTime())) return "";
+    return dateTimeFormat(
+        "pt-BR",
+        displayDateOptions(display, { dateStyle: "short", timeStyle: "short" }),
+    ).format(display.date);
+}
+
+/** A bare time of day, the shape a backend sends for a `time` column. */
+const TIME_ONLY = /^(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/;
+
+/**
+ * Format an ISO datetime, a `Date` or a bare time of day as `HH:mm`.
+ *
+ * The time-of-day sibling of {@link formatDate} and {@link formatDateTime}: an
+ * ETA, a departure, an appointment slot. Built on the same cached
+ * `Intl.DateTimeFormat` (`pt-BR`, 24-hour clock), so a list of a few hundred
+ * rows does not construct a formatter per cell.
+ *
+ * Inputs, by shape:
+ *
+ * - **Instant** — a `Date`, or a string with a date *and* a time
+ *   (`"2026-11-16T17:30:00Z"`): shown in the runtime's time zone, like
+ *   {@link formatDateTime}.
+ * - **Time of day** — `"14:30"`, `"14:30:00"` or `"14:30:00.123"`, what a
+ *   FastAPI `time` field serialises to: returned as its own `HH:mm`, with no
+ *   zone conversion. `new Date("14:30:00")` is `Invalid Date`, which is why an
+ *   app could not feed such a value to a hand-built `Intl` formatter at all.
+ * - **Calendar day** — a bare `yyyy-MM-dd` carries no time, so it answers `""`
+ *   rather than inventing `"00:00"`.
+ *
+ * Absent input answers the fallback (`"—"` by default); present-but-invalid
+ * answers `""`, the same contract as {@link formatDate}.
+ *
+ * @example
+ * ```typescript
+ * formatTime("2026-11-16T17:30:00-03:00"); // "17:30" in America/Sao_Paulo
+ * formatTime("08:05:00");                  // "08:05"
+ * formatTime(null);                        // "—"
+ * ```
+ *
+ * @param value - ISO string, time-of-day string, Date, or `null`/`undefined`.
+ * @param options - Text to render when the value is absent.
+ * @returns The `HH:mm` string, the fallback when absent, or empty string when
+ *   the value is present and invalid.
+ */
+export function formatTime(
+    value: string | Date | null | undefined,
+    options?: FormatFallbackOptions,
+): string {
+    if (isAbsent(value)) return fallbackText(options);
+    if (typeof value === "string") {
+        const match = TIME_ONLY.exec(value);
+        if (match) {
+            const valid = Number(match[1]) < 24 && Number(match[2]) < 60;
+            return valid ? `${match[1]}:${match[2]}` : "";
+        }
+    }
+    const display = readDisplayDate(value);
+    if (display.calendarDay || Number.isNaN(display.date.getTime())) return "";
+    return dateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(display.date);
 }
 
 export interface FormatPhoneOptions {

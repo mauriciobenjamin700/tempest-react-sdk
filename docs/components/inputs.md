@@ -90,6 +90,43 @@ export function Estado() {
 | `variant`   | `"field" \| "chip" \| "bare"` | `"field"` |
 | `caretIcon` | `ReactNode`           | chevron do SDK |
 | `wrapperClassName` | `string`       | —         |
+| `placeholder` | `string`             | —         |
+| `clearable` | `boolean`             | `false`   |
+
+### Placeholder e campo opcional — `placeholder`, `clearable` {#select-placeholder}
+
+O `placeholder` é o texto do estado vazio (`""`). Por padrão a entrada dele é `disabled hidden`: lê como "nada escolhido ainda" e não volta a ser escolhida — certo para campo obrigatório. Num campo **opcional**, `clearable` deixa a entrada selecionável, e a pessoa volta ao vazio depois de ter escolhido:
+
+```tsx
+import { useState } from "react";
+import { Select, toOptions } from "tempest-react-sdk";
+
+const SALAS = { a: "Sala A", b: "Sala B" };
+
+export function Consulta() {
+    const [sala, setSala] = useState("a");
+    return (
+        <>
+            <Select
+                label="Sala (opcional)"
+                placeholder="Nenhuma"
+                clearable
+                value={sala}
+                onChange={(e) => setSala(e.target.value)}
+                options={toOptions(SALAS)}
+            />
+            <Select label="Sala" placeholder="Selecione a sala" options={toOptions(SALAS)} required />
+        </>
+    );
+}
+```
+
+- **`clearable`** põe uma entrada `""` com o texto do `placeholder` no topo da lista, habilitada e visível.
+- **Sem `value` nem `defaultValue`**, um `Select` com `placeholder` começa vazio, mostrando o placeholder.
+- Quando o vazio **tem nome** no domínio — "Particular", "Nenhum convênio" —, ele é um valor, não um aviso: use uma opção de verdade com `withEmptyOption(options, "Particular")`.
+
+!!! danger "Até a 0.92.0, `placeholder` sem `value` mostrava a primeira opção"
+    O algoritmo de seleção do HTML pula a entrada `disabled` e seleciona **a primeira opção** habilitada. Medido no Chromium (Playwright headless, `<select><option value="" disabled hidden>Selecione</option><option value="a">A</option>…`): `select.value === "a"` — e no jsdom, o mesmo. Um `<Select label="UF" placeholder="Selecione" options={ufs} />` não controlado abria em "São Paulo", e o submit mandava um valor que ninguém escolheu. Agora ele começa em `""`.
 
 ### Variante `chip` — linha de configurações
 
@@ -173,7 +210,7 @@ export function Filtros() {
 - Nenhuma das duas muta a lista recebida.
 
 !!! danger "Sem entrada vazia, salvar o formulário grava um valor que ninguém escolheu"
-    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. O `placeholder` do `Select` não resolve: a entrada dele é `disabled hidden`, então depois de escolher algo o campo **nunca mais volta a vazio**. Campo anulável usa `withEmptyOption`.
+    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. Campo anulável usa `withEmptyOption` — ou, quando o vazio é só "não escolhido", `placeholder` com [`clearable`](#select-placeholder).
 
 !!! warning "Objeto reordena chave numérica — use `Map` para escala"
     `toOptions` preserva a ordem de um `Map` sempre, e a de um objeto **exceto nas chaves inteiras**, que o JavaScript enumera primeiro e em ordem crescente (`OrdinaryOwnPropertyKeys`). Medido no Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` é `["1", "3", "5"]`. Uma escala de humor não é crescente por acaso — passe um `Map`.
@@ -607,6 +644,40 @@ export function Anexos() {
 }
 ```
 
+### Abrir a câmera do celular: `capture`
+
+`capture` vai direto para o `<input type="file">` e, no celular, pula o seletor de arquivos
+e abre o app de câmera: `"environment"` é a traseira, `"user"` a frontal, `true` deixa o
+navegador escolher. Você ganha foco, flash e a resolução total da câmera sem pedir permissão
+nenhuma — quem fotografa é o app do sistema. O mesmo prop existe no [`Dropzone`](#dropzone).
+
+```tsx
+import { useState } from "react";
+import { FileUpload } from "tempest-react-sdk";
+
+export function FotoDoDocumento() {
+    const [files, setFiles] = useState<File[]>([]);
+
+    return (
+        <FileUpload
+            label="Foto do documento"
+            accept="image/*"
+            capture="environment"
+            value={files}
+            onChange={setFiles}
+            title="Toque para fotografar"
+        />
+    );
+}
+```
+
+!!! note "No desktop, `capture` não faz nada"
+    O navegador de desktop ignora o atributo e abre o seletor de arquivos de sempre — o
+    componente continua funcionando, só sem o atalho para a câmera. Combine com
+    `accept="image/*"` (ou `video/*`): o atributo só tem sentido para mídia. E conte com
+    **uma foto por abertura**, mesmo com `multiple`; para várias fotos, o usuário toca de
+    novo.
+
 ## `Slider`
 
 **Quando usar:** escolher um único valor numa faixa contínua (volume, brilho, etc.). Para uma faixa de dois valores use `RangeSlider`.
@@ -697,6 +768,7 @@ function Uploader() {
 | `onDrop`    | `(files: File[]) => void`  | —       |
 | `accept`    | `string`                   | —       |
 | `multiple`  | `boolean`                  | `true`  |
+| `capture`   | `boolean \| "user" \| "environment"` | — ([abre a câmera](#abrir-a-camera-do-celular-capture)) |
 | `maxSize`   | `number` (bytes)           | —       |
 | `onReject`  | `(files: File[]) => void`  | —       |
 | `disabled`  | `boolean`                  | `false` |

@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { cn } from "@/utils/cn";
 import { useChartColors } from "./use-chart-colors";
-import { toTooltipFormatter } from "./types";
+import { seriesName, toTooltipFormatter } from "./types";
 import type { CartesianChartProps } from "./types";
 
 /**
@@ -31,6 +31,7 @@ export function RadarChart({
     showLegend = true,
     showTooltip = true,
     valueFormatter,
+    labels,
     className,
 }: CartesianChartProps) {
     const palette = useChartColors(colors);
@@ -47,6 +48,7 @@ export function RadarChart({
                     <Radar
                         key={category}
                         dataKey={category}
+                        name={seriesName(labels, category)}
                         stroke={color}
                         fill={color}
                         fillOpacity={0.3}

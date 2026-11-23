@@ -1,6 +1,8 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Alert.module.css";
+import { COMMON_MESSAGES } from "@/i18n/messages/common";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export type AlertVariant = "neutral" | "info" | "success" | "warning" | "danger";
 export type AlertAppearance = "soft" | "solid" | "outline";
@@ -30,11 +32,12 @@ export function Alert({
     description,
     icon,
     onClose,
-    closeLabel = "Dismiss",
+    closeLabel,
     className,
     children,
     ...props
 }: AlertProps) {
+    const text = useTempestText(COMMON_MESSAGES);
     return (
         <div
             role="alert"
@@ -58,7 +61,7 @@ export function Alert({
                     type="button"
                     className={styles.close}
                     onClick={onClose}
-                    aria-label={closeLabel}
+                    aria-label={closeLabel ?? text.t("tempest.common.close")}
                 >
                     <CloseIcon />
                 </button>

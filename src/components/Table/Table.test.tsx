@@ -164,3 +164,17 @@ describe("Table — the scrollable region", () => {
         expect(screen.getByRole("group")).toHaveAccessibleName("Pedidos do mês");
     });
 });
+
+describe("Table — stacked card label", () => {
+    it("prints the column's label beside a cell whose header is markup", () => {
+        const { container } = render(
+            <Table
+                columns={[{ key: "a", header: <strong>A</strong>, label: "Alfa" }]}
+                data={[{ a: 1 }]}
+                rowKey={(_row, index) => index}
+                stackOnMobile
+            />,
+        );
+        expect(container.querySelector("tbody td")).toHaveAttribute("data-label", "Alfa");
+    });
+});

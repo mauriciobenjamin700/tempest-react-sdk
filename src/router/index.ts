@@ -3,6 +3,14 @@ export type { AppRouterProps } from "./AppRouter";
 export { RouteGuard } from "./RouteGuard";
 export type { RouteGuardProps } from "./RouteGuard";
 export { useReturnTo } from "./return-to";
+export { useUrlState } from "./use-url-state";
+export type {
+    UrlStateDefaults,
+    UrlStatePatch,
+    UrlStateValue,
+    UrlStateWriteOptions,
+    UseUrlStateResult,
+} from "./use-url-state";
 export type { TempestRouteObject, RouteGuardResult, RouterKind } from "./types";
 
 /**

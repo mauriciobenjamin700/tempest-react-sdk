@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import {
+    Button,
     DataTable,
     Money,
     useAnnounce,
     type DataTableColumn,
+    type DataTableRowKey,
     type DataTableSort,
 } from "tempest-react-sdk";
 import { Example } from "../Example";
@@ -109,6 +111,13 @@ export function DataTableSection() {
         total: 0,
     });
     const [loading, setLoading] = useState(true);
+    const [selected, setSelected] = useState<DataTableRowKey[]>([2]);
+    const [adminSearch, setAdminSearch] = useState("");
+    const [adminSort, setAdminSort] = useState<DataTableSort<Row> | null>({
+        key: "salary",
+        direction: "desc",
+    });
+    const [opened, setOpened] = useState<string | null>(null);
 
     /**
      * Refetch whenever the query changes, ignoring a response that lost the race.
@@ -183,6 +192,88 @@ export function DataTableSection() {
                     searchKeys={["name", "role"]}
                     pageSize={5}
                 />
+            </Example>
+
+            <Example
+                id="data-table-selection"
+                title="Seleção, ações por linha e cartões no celular"
+                note='A coluna de checkbox e a de ações são da tabela, não de um campo da linha. O cabeçalho marca a página na tela (indeterminado quando é só parte). Busca e ordenação são controladas, e a busca ignora acento: digite "joao" para achar "João Pedro". Abaixo de 768 px cada linha vira um cartão. Clicar na linha abre; clicar no checkbox ou em "Abrir" não dispara o clique da linha duas vezes.'
+                code={`const [selected, setSelected] = useState<DataTableRowKey[]>([]);
+
+<DataTable
+  data={rows}
+  columns={columns}
+  rowKey={(row) => row.id}
+  selectable
+  selectedKeys={selected}
+  onSelectionChange={setSelected}
+  selectionLabel={(row) => \`Selecionar \${row.name}\`}
+  rowActions={(row) => <Button size="sm" variant="ghost">Abrir</Button>}
+  searchable
+  search={term}
+  onSearchChange={setTerm}
+  searchLabel="Buscar pessoas"
+  searchPlaceholder="Nome ou cargo"
+  sort={sort}
+  onSortChange={setSort}
+  stackOnMobile
+  onRowClick={(row) => open(row)}
+  pageSize={4}
+/>`}
+                props={[
+                    {
+                        name: "selectable / selectedKeys / onSelectionChange",
+                        type: "true / (string | number)[] / (keys) => void",
+                        description:
+                            "Coluna de checkbox controlada; o cabeçalho age só na página visível.",
+                    },
+                    {
+                        name: "rowActions",
+                        type: "(row: T) => ReactNode",
+                        description:
+                            "Coluna final de ações, sem key emprestada. Não dispara onRowClick.",
+                    },
+                    {
+                        name: "search / sort",
+                        type: "string / DataTableSort<T> | null",
+                        description: "Controlados — acompanham a URL e o botão voltar.",
+                    },
+                    {
+                        name: "stackOnMobile / onRowClick",
+                        type: "boolean / (row: T) => void",
+                        description: "Repassados ao Table.",
+                    },
+                ]}
+            >
+                <div className="gallery-stack" style={{ maxWidth: "none" }}>
+                    <p data-testid="data-table-selection-status">
+                        {selected.length} selecionado(s){opened ? ` · aberto: ${opened}` : ""}
+                    </p>
+                    <DataTable<Row>
+                        data={rows}
+                        columns={columns}
+                        rowKey={(row) => row.id}
+                        selectable
+                        selectedKeys={selected}
+                        onSelectionChange={setSelected}
+                        selectionLabel={(row) => `Selecionar ${row.name}`}
+                        rowActions={(row) => (
+                            <Button size="sm" variant="ghost" onClick={() => setOpened(row.name)}>
+                                Abrir
+                            </Button>
+                        )}
+                        searchable
+                        search={adminSearch}
+                        onSearchChange={setAdminSearch}
+                        searchLabel="Buscar pessoas"
+                        searchPlaceholder="Nome ou cargo"
+                        sort={adminSort}
+                        onSortChange={setAdminSort}
+                        stackOnMobile
+                        onRowClick={(row) => setOpened(row.name)}
+                        pageSize={4}
+                    />
+                </div>
             </Example>
 
             <Example

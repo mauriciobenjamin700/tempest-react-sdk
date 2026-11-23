@@ -84,7 +84,7 @@ The backend **knows** which field brought the request down — it says the name.
 Now the three singular keys `tempest-fastapi-sdk` uses land on the same `error.fields`:
 
 ```tsx
-import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+import { applyApiFieldErrors, createApiClient, describeApiError } from "tempest-react-sdk";
 
 const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -92,17 +92,13 @@ async function saveAddress(values: { city: string; phone: string }): Promise<voi
     try {
         await api.post("/api/addresses", { body: values });
     } catch (err) {
-        if (isApiError(err) && err.fields) {
-            for (const [field, message] of Object.entries(err.fields)) {
-                setError(field, { message });
-            }
-        }
+        applyApiFieldErrors(form, err);
         toast.error(describeApiError(err, "Could not save the address"));
     }
 }
 ```
 
-With the body `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, `err.fields` is `{ city: "Cidade não encontrada para o estado informado." }` — and `setError("city", …)` sticks the sentence on the right input.
+With the body `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, `err.fields` is `{ city: "Cidade não encontrada para o estado informado." }` — and `applyApiFieldErrors(form, err)` sticks the sentence on the right input (a name the form does not have comes back in `unmatched` instead of marking an input that does not exist).
 
 !!! note "The precedence order"
     `detail[].loc` (FastAPI's list) → `detail.field` → `field` → `details.field`. The list wins because a `tempest-fastapi-sdk` app with no `RequestValidationError` handler still answers with FastAPI's default 422. `details` answers last: it is `AppException`'s generic context bag, and its `field` may be about something that is no input at all — a rejected sort column, say.
@@ -203,6 +199,9 @@ The hook **owns the page state**, sends `page` + `size` to your `queryFn`, keeps
 
 !!! check "A new filter starts from page 1"
     Put the applied filters in the `queryKey` (`["users", filters]`). When it changes structurally, the page goes back to 1 **in the same render** — without the in-between request for the old page. Until 0.68.0 the page survived: filtering on page 7 asked for page 7 of a two-page result. To keep a draft apart from what is applied, see [`useDraftFilters`](./hooks.md#draft-vs-applied-usedraftfilters).
+
+!!! tip "Page in the URL: `page` + `onPageChange`"
+    Pass `page` and the hook stops keeping the page: `setPage`, `next` and `prev` become calls to `onPageChange`, and whoever reads the URL decides. In this mode a new `queryKey` does **not** reset the page to 1 — whoever owns the page writes the filter and `page: null` in the same update, which [`useUrlState`](./routing.md#screen-state-in-the-url-with-useurlstate) turns into a single navigation.
 
 !!! tip "`size` vs `page_size`"
     The default follows `fastapi-pagination` (`?size=`). If your backend uses `page_size`, pass `sizeParam: "page_size"`. `order_by`/`ascending` are only sent when you set `orderBy`.

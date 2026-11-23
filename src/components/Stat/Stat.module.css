@@ -47,15 +47,15 @@
     color: var(--tempest-text-muted);
 }
 
-.delta.up {
+.delta.positive {
     color: var(--tempest-success-fg);
 }
 
-.delta.down {
+.delta.negative {
     color: var(--tempest-danger-fg);
 }
 
-.delta.flat {
+.delta.neutral {
     color: var(--tempest-text-muted);
 }
 

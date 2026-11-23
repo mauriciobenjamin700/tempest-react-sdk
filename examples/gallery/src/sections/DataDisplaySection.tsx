@@ -1,7 +1,9 @@
 import { useState } from "react";
 import {
+    Card,
     Stat,
     Tag,
+    Timeline,
     Banner,
     Money,
     RelativeTime,
@@ -11,6 +13,17 @@ import {
     CopyButton,
 } from "tempest-react-sdk";
 import { Example } from "../Example";
+
+/** A timestamp taken on mount that keeps counting through `updateEvery`. */
+function LiveRelativeTime() {
+    const [openedAt] = useState<number>(() => Date.now() - 50_000);
+    return (
+        <span style={{ fontSize: 14 }}>
+            Aberto{" "}
+            <RelativeTime date={openedAt} updateEvery={1_000} data-testid="relative-time-live" />
+        </span>
+    );
+}
 
 interface Member {
     id: number;
@@ -72,6 +85,52 @@ export function DataDisplaySection() {
                         trend="flat"
                         hint="estável"
                     />
+                </div>
+            </Example>
+
+            <Example
+                title="Stat — polaridade e dentro de Card"
+                id="ex-stat-polarity"
+                note="higherIsBetter={false} pinta a alta de vermelho (taxa de faltas). Dentro de um Card, blocos irmãos ganham espaçamento."
+                code={`<Stat label="Faltas" value="7,5%" delta="+1,2 p.p." higherIsBetter={false} />
+<Stat label="Tempo de resposta" value="3,1 h" delta="-0,4 h" higherIsBetter={false} />
+
+<Card title="Próxima parada">
+  <Stat label="3. Praça Central" value="4 min" hint="estimativa" />
+  <Timeline items={[{ id: "a", title: "Saída", description: "08:00", marker: "success" }, { id: "b", title: "Praça Central", marker: "primary" }]} />
+</Card>`}
+            >
+                <div className="gallery-stack">
+                    <div className="gallery-grid">
+                        <Stat
+                            label="Faltas"
+                            value="7,5%"
+                            delta="+1,2 p.p."
+                            higherIsBetter={false}
+                            hint="vs. semana passada"
+                        />
+                        <Stat
+                            label="Tempo de resposta"
+                            value="3,1 h"
+                            delta="-0,4 h"
+                            higherIsBetter={false}
+                            hint="vs. semana passada"
+                        />
+                    </div>
+                    <Card title="Próxima parada">
+                        <Stat label="3. Praça Central" value="4 min" hint="estimativa" />
+                        <Timeline
+                            items={[
+                                {
+                                    id: "a",
+                                    title: "Saída",
+                                    description: "08:00",
+                                    marker: "success",
+                                },
+                                { id: "b", title: "Praça Central", marker: "primary" },
+                            ]}
+                        />
+                    </Card>
                 </div>
             </Example>
 
@@ -145,12 +204,14 @@ export function DataDisplaySection() {
                 code={`<Money cents={1990} />
 <Money cents={500} currency="USD" locale="en-US" />
 <RelativeTime date={new Date(Date.now() - 3600_000)} />
+<RelativeTime date={openedAt} updateEvery={1_000} />
 <CopyButton value="npm i tempest-react-sdk" />`}
             >
                 <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "center" }}>
                     <Money cents={1990} />
                     <Money cents={500} currency="USD" locale="en-US" />
                     <RelativeTime date={new Date(Date.now() - 3600_000)} />
+                    <LiveRelativeTime />
                     <CopyButton value="npm i tempest-react-sdk" />
                 </div>
             </Example>

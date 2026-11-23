@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/utils/cn";
+import { foldText } from "@/utils/fold-text";
 import { useFocusTrap } from "@/hooks/use-focus-trap";
 import styles from "./Command.module.css";
 import { usePortalHost } from "../Portal/portal-host";
@@ -34,10 +35,16 @@ export interface CommandProps {
     onOpenChange: (open: boolean) => void;
     /** Candidate items to filter and display. */
     items: CommandItem[];
-    /** Placeholder for the search input. */
+    /** Placeholder for the search input. Default `"Digite um comando…"`. */
     placeholder?: string;
-    /** Rendered when no item matches the current query. */
+    /** Rendered when no item matches the current query. Default `"Nenhum resultado"`. */
     emptyMessage?: ReactNode;
+    /**
+     * Accessible name of the dialog and of its search box. Default
+     * `"Paleta de comandos"`. It used to be a fixed English `"Command palette"`,
+     * which a PT-BR screen reader announced in the wrong language.
+     */
+    label?: string;
     /** Forwarded to the dialog element. */
     className?: string;
 }
@@ -48,17 +55,18 @@ interface CommandGroup {
 }
 
 /**
- * Case-insensitively test whether `item` matches `query` by substring against
- * its label and any keywords. An empty query matches everything.
+ * Test whether `item` matches `query` by substring against its label and any
+ * keywords, ignoring case and accents — "usuarios" finds "Usuários" without an
+ * unaccented copy in `keywords` (#730). An empty query matches everything.
  *
  * @param item - The candidate command item.
- * @param query - The lowercased search query.
+ * @param query - The query, already passed through `foldText`.
  * @returns `true` when the item should be shown.
  */
 function matchesQuery(item: CommandItem, query: string): boolean {
     if (query === "") return true;
-    if (item.label.toLowerCase().includes(query)) return true;
-    return (item.keywords ?? []).some((keyword) => keyword.toLowerCase().includes(query));
+    if (foldText(item.label).includes(query)) return true;
+    return (item.keywords ?? []).some((keyword) => foldText(keyword).includes(query));
 }
 
 /**
@@ -93,8 +101,9 @@ export function Command({
     open,
     onOpenChange,
     items,
-    placeholder = "Type a command…",
-    emptyMessage = "No results",
+    placeholder = "Digite um comando…",
+    emptyMessage = "Nenhum resultado",
+    label = "Paleta de comandos",
     className,
 }: CommandProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
@@ -105,7 +114,7 @@ export function Command({
     useFocusTrap(dialogRef, open);
 
     const filtered = useMemo<CommandItem[]>(() => {
-        const normalized = query.trim().toLowerCase();
+        const normalized = foldText(query.trim());
         const visible = items.filter((item) => matchesQuery(item, normalized));
         return groupItems(visible).flatMap((group) => group.items);
     }, [items, query]);
@@ -170,7 +179,7 @@ export function Command({
                 ref={dialogRef}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Command palette"
+                aria-label={label}
                 className={cn(styles.dialog, className)}
                 onClick={(event) => event.stopPropagation()}
             >
@@ -182,6 +191,7 @@ export function Command({
                         aria-expanded="true"
                         aria-controls={listId}
                         aria-autocomplete="list"
+                        aria-label={label}
                         autoFocus
                         className={styles.input}
                         placeholder={placeholder}

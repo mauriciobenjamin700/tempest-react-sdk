@@ -92,6 +92,28 @@ export function hasInnerMark(glyphText: string | undefined, icon: ReactNode): bo
 }
 
 /**
+ * The text of a count badge: the number, or `"99+"` past 99 so the pill keeps
+ * a width the marker corner can hold.
+ *
+ * @param count - The count the app passed.
+ * @returns The text drawn in the pill and appended to the accessible name.
+ */
+export function formatBadge(count: number): string {
+    return count > 99 ? "99+" : String(count);
+}
+
+/**
+ * Half the width of the badge pill for a count, in px at scale 1.
+ *
+ * @param count - The count the app passed.
+ * @returns Half the pill width: 9 for one character, more for two or `"99+"`.
+ */
+export function badgeHalfWidth(count: number): number {
+    const length = formatBadge(count).length;
+    return length > 1 ? 4 + length * 3.5 : 9;
+}
+
+/**
  * Gap between a marker and its panel, in px, so the panel clears the drawn
  * glyph at any `markerScale` and emphasis. 18 px at scale 1, as before.
  *

@@ -21,6 +21,7 @@
     animation-duration: var(--tempest-duration-slow);
     animation-timing-function: var(--tempest-ease-emphasized);
     animation-fill-mode: both;
+    font-family: var(--tempest-font-sans);
 }
 
 .right {

@@ -217,8 +217,37 @@ export function Metricas() {
 | `value` | `ReactNode`                | —                                         |
 | `delta` | `ReactNode`                | —                                         |
 | `trend` | `"up" \| "down" \| "flat"` | inferred from `+`/`-` in the delta string |
+| `higherIsBetter` | `boolean`         | `true`                                    |
 | `hint`  | `ReactNode`                | —                                         |
 | `icon`  | `ReactNode`                | —                                         |
+
+### Polarity: when going up is bad
+
+The delta's color says **good** or **bad**, not "up" or "down". By default a rise
+is green and a fall is red. On a metric where growth is the problem — no-show
+rate, churn, response time, open tickets — pass `higherIsBetter={false}`: the rise
+turns red and the fall green. The direction is untouched; `trend` and the delta
+text still say which way the number moved.
+
+```tsx
+import { Stat } from "tempest-react-sdk";
+
+export function NoShowRate() {
+    return (
+        <Stat
+            label="No-shows"
+            value="7.5%"
+            delta="+1.2 pp"
+            higherIsBetter={false}
+            hint="vs. last week"
+        />
+    );
+}
+```
+
+The delta exposes `data-trend` (`up`/`down`/`flat`) and `data-tone`
+(`positive`/`negative`/`neutral`), for a test or an app style that should not
+depend on a hashed class.
 
 ## `Progress`
 
@@ -626,6 +655,11 @@ export function FalhaAoCarregar({
     );
 }
 ```
+
+Without `title`, `description` or `retryLabel`, the defaults come from
+[i18n](../i18n.md#component-default-texts) (`tempest.errorState.*`): English
+under an `en` locale, pt-BR with no provider. `description={null}` drops the
+description.
 
 ## `OfflineIndicator`
 

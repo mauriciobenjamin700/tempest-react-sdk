@@ -14,4 +14,10 @@ export {
     SEQUENTIAL_STEP_COUNT,
 } from "./scales";
 export type { ChartColorToken, DivergingScaleOptions, SequentialScaleOptions } from "./scales";
-export type { ChartData, CartesianChartProps, PieChartProps } from "./types";
+export type {
+    CartesianAxisChartProps,
+    CartesianChartProps,
+    ChartData,
+    PieChartProps,
+    ValueAxisProps,
+} from "./types";

@@ -28,6 +28,7 @@ export function FormFieldsSection() {
     const [lang, setLang] = useState("pt");
     const [status, setStatus] = useState(ALL_OPTION_VALUE);
     const [humor, setHumor] = useState("");
+    const [insurance, setInsurance] = useState("unimed");
 
     const emailError =
         email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? "Email inválido." : undefined;
@@ -216,6 +217,37 @@ const HUMOR = new Map([[5, "Ótimo"], [3, "Ok"], [1, "Ruim"]]);
                         value={bio}
                         onChange={(e) => setBio(e.target.value)}
                         helperText={`${bio.length}/280`}
+                    />
+                </div>
+            </Example>
+
+            <Example
+                title="Select — placeholder que volta ao vazio"
+                note='clearable deixa a entrada do placeholder selecionável: um campo opcional volta a "" depois de escolhido. Sem clearable ela é disabled hidden. Um Select sem value nem defaultValue com placeholder começa vazio, não na primeira opção.'
+                code={`<Select
+    label="Convênio"
+    placeholder="Nenhum"
+    clearable
+    value={insurance}
+    onChange={(e) => setInsurance(e.target.value)}
+    options={toOptions({ unimed: "Unimed", amil: "Amil" })}
+/>
+<Select label="Sala" placeholder="Selecione a sala" options={toOptions({ a: "Sala A", b: "Sala B" })} />`}
+            >
+                <div className="gallery-stack">
+                    <Select
+                        label="Convênio"
+                        placeholder="Nenhum"
+                        clearable
+                        value={insurance}
+                        onChange={(e) => setInsurance(e.target.value)}
+                        options={toOptions({ unimed: "Unimed", amil: "Amil" })}
+                        helperText={`valor: ${JSON.stringify(insurance)}`}
+                    />
+                    <Select
+                        label="Sala"
+                        placeholder="Selecione a sala"
+                        options={toOptions({ a: "Sala A", b: "Sala B" })}
                     />
                 </div>
             </Example>

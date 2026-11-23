@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { cn } from "@/utils/cn";
 import styles from "./Spinner.module.css";
+import { SPINNER_MESSAGES } from "@/i18n/messages/spinner";
+import { useTempestText } from "@/i18n/use-tempest-text";
 
 export type SpinnerSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -34,10 +36,12 @@ export interface SpinnerProps {
 export function Spinner({
     size = "md",
     className,
-    label = "Carregando",
+    label: labelProp,
     caption,
     overlay = false,
 }: SpinnerProps) {
+    const text = useTempestText(SPINNER_MESSAGES);
+    const label: string = labelProp ?? text.t("tempest.spinner.label");
     const dot = <span aria-hidden className={cn(styles.spinner, styles[size])} />;
 
     if (!overlay && caption === undefined) {

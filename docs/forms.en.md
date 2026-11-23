@@ -274,6 +274,101 @@ const form = useZodForm(loginSchema, { defaultValues: { email: "", password: "" 
 </Form>;
 ```
 
+#### Input and output — a required select that opens empty
+
+`useZodForm` types the form by **both sides** of the schema: the fields, `defaultValues`, `watch` and `setValue` by its **input** (`z.input`, what the input holds while the person edits), and `handleSubmit` by its **output** (`z.output`, what the parse returns). That is what lets a required select open empty without lying to the submit type:
+
+```tsx
+import { FormField, FormProvider, Select, toOptions, useZodForm } from "tempest-react-sdk";
+import { z } from "zod";
+
+const STATUS = { active: "Ativo", paused: "Pausado" };
+
+const schema = z.object({
+    status: z
+        .union([z.enum(["active", "paused"]), z.literal("")])
+        .refine((value) => value !== "", "Pick a status"),
+    stock: z.coerce.number().int().min(0),
+});
+
+export function StatusForm({ onSave }: { onSave: (values: z.output<typeof schema>) => void }) {
+    const form = useZodForm(schema, { defaultValues: { status: "", stock: "" } });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} noValidate>
+                <FormField name="status" label="Status" required>
+                    <Select placeholder="Select" options={toOptions(STATUS)} />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **`status: ""`** compiles as an initial value because the schema's input accepts `""`.
+- **`value !== ""`** is a type predicate: the output keeps only `"active" | "paused"`, and `onSave` never receives `""`.
+- **`stock`** holds the text the input typed (`unknown` on the input side) and reaches the submit as a `number`.
+
+!!! danger "Up to 0.92.0, both sides were the output"
+    With the fields typed by the output, `defaultValues: { status: "" }` did not compile, and the workaround (`refine((value) => value.length > 0)`, no predicate) leaked `""` into the type the submit receives. And the form type was **inferred from `defaultValues`**: `{ status: "" }` typed the field as `string` and dropped the schema's enum. `defaultValues` is now `NoInfer` — the type comes from the schema only. Code that annotated its initial values with `z.infer` now annotates them with `z.input`.
+
+### 4. Server errors on the fields — `applyApiFieldErrors`
+
+FastAPI's `422` (or a `tempest-fastapi-sdk` error naming `field`) arrives as `error.fields`, `{ name: message }`. `applyApiFieldErrors` puts each message on the form field with that name and focuses the first:
+
+```tsx
+import { useMutation } from "@tanstack/react-query";
+import {
+    FormField,
+    FormProvider,
+    Input,
+    applyApiFieldErrors,
+    createApiClient,
+    useDescribeApiError,
+    useToast,
+    useZodForm,
+} from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({ baseURL: "/api" });
+const schema = z.object({ name: z.string().min(3), email: z.email() });
+
+export function CustomerForm() {
+    const toast = useToast();
+    const describe = useDescribeApiError();
+    const form = useZodForm(schema, { defaultValues: { name: "", email: "" } });
+    const save = useMutation({
+        mutationFn: (values: z.output<typeof schema>) => api.post("/customers", { body: values }),
+        onError: (error) => {
+            const { marked, unmatched } = applyApiFieldErrors(form, error);
+            const others = Object.values(unmatched);
+            if (marked.length === 0) toast.error(describe(error, "Could not save."));
+            else if (others.length > 0) toast.error(others.join(" "));
+        },
+    });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit((values) => save.mutate(values))} noValidate>
+                <FormField name="name" label="Name">
+                    <Input />
+                </FormField>
+                <FormField name="email" label="E-mail">
+                    <Input type="email" />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **Only names of the form are marked.** By default a name counts when `form.getValues(name)` is not `undefined` — every field with an initial value, which is how `useZodForm` is meant to be used. Pass `{ fields: [...] }` to decide the list yourself.
+- **The rest comes back in `unmatched`**, keyed by name: an input that does not exist would never show the message, and it would stay stuck in an error nobody can clear.
+- **`{ focus: false }`** marks without moving focus.
+- Any other error — network, `500`, a plain `Error` — marks nothing and returns `{ marked: [], unmatched: {} }`.
+
+!!! info "It is the same code as `AuthForm`'s"
+    The rule (mark only what exists, focus the first, return the rest) was private to `AuthForm`; every form outside it rewrote the `setError` loop — and the three recipes that rewrote it disagreed with each other. `AuthForm` now uses `applyApiFieldErrors`.
+
 ## End-to-end example — schema → provider → fields → submit
 
 The three snippets above are slices of the same story. Here is an end-to-end
@@ -443,6 +538,8 @@ Convention inherited from alofans-frontend.
 
 - The SDK splits **layout** (`Form`/`FormSection`/`FormRow`/`FormActions`) from **validation** (zod) — adopt one without the other.
 - Validation has three rungs: `validateForm` (agnostic), `zodResolver` (RHF), `useZodForm` (all-in-one).
+- `useZodForm` types the fields by the schema's **input** and `handleSubmit` by its **output**: a required select opens with `""` and the submit only sees the enum.
+- `applyApiFieldErrors(form, error)` puts a `422`'s `error.fields` on the right fields and returns what matched nothing in `unmatched`.
 - A single **zod schema** drives the type (`z.infer`), validation, and error messages.
 - `<FormProvider>` + `<FormField>` remove the repeated `<Controller>` and propagate `error` + `aria-invalid` to the controls.
 - `handleSubmit` only calls your `onSubmit` with already-validated values.

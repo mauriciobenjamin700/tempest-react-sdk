@@ -380,7 +380,7 @@ formatDate(order.deliveredAt, { fallback: "pending" }); // the text is yours
 ABSENT_TEXT; // "—", for when your own cell has to match
 ```
 
-It applies to `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate` and `formatDateTime`. The two that feed an `<input>` — `formatDateForInput` and `formatDateTimeForInput` — answer **`""`**, because that is what an input reads as "no value"; an em dash would arrive as content the user has to delete before typing.
+It applies to `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate`, `formatDateTime` and `formatTime`. The two that feed an `<input>` — `formatDateForInput` and `formatDateTimeForInput` — answer **`""`**, because that is what an input reads as "no value"; an em dash would arrive as content the user has to delete before typing.
 
 !!! danger "Before 0.66.0, absent became a plausible number"
     Measured on 0.65.0 — what reached the screen for a column the backend left null:
@@ -396,6 +396,29 @@ It applies to `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPer
 
 !!! tip "Absent and invalid are not the same thing"
     A value that is present and unparseable — a corrupted ISO string — still answers **`""`**, deliberately. While reading a log, "nobody filled this in" and "what they filled in is broken" are different findings, and the second is the one worth chasing. A blank cell and a `—` stop meaning the same thing.
+
+---
+
+## Dates without a time, and times of day — `formatDate`, `formatDateTime`, `formatTime` {#date-without-time}
+
+A backend sends three different shapes, and each formatter reads them as what they are:
+
+```ts
+import { formatDate, formatDateTime, formatTime } from "tempest-react-sdk";
+
+formatDate("2026-11-16"); // "16/11/2026" — a `date` column, in any time zone
+formatDateTime("2026-11-16T20:30:00Z"); // "16/11/2026, 17:30" in America/Sao_Paulo
+formatTime("2026-11-16T20:30:00Z"); // "17:30" in America/Sao_Paulo
+formatTime("08:05:00"); // "08:05" — a `time` column, no zone conversion
+formatTime("2026-11-16"); // "" — a date without a time has no time to show
+```
+
+- **Date without a time** (`yyyy-MM-dd`) is a calendar day, not an instant: it prints as the day it names, in every time zone. A day the month does not have (`"2026-02-30"`) answers `""`.
+- **Instant** (a `Date`, or a string with a date **and** a time) is converted to the viewer's time zone.
+- **Time of day** (`HH:mm`, `HH:mm:ss`) is only read by `formatTime`, and prints as it came.
+
+!!! danger "Up to 0.92.0, every `date` column showed one day early in Brazil"
+    `new Date("2026-11-16")` is **UTC** midnight, which in UTC-3 is the 15th at 21:00. Measured with `TZ=America/Sao_Paulo node -e 'console.log(new Intl.DateTimeFormat("pt-BR").format(new Date("2026-11-16")))'`: `15/11/2026`. `formatDate` showed `15/11/2026`, `formatDateTime` showed `15/11/2026, 21:00`, and the `formatDate` of `createI18n`/`useI18n` was wrong the same way. A date without a time is now formatted in UTC — the same day in every zone — and a `timeZone` passed to the i18n `formatDate` does not move it.
 
 ---
 
@@ -776,7 +799,7 @@ Same best-effort policy as the JSON pair: SSR-safe, never throws, swallows quota
 - **ZIP**: `createZip(entries, { onProgress })` packs spreadsheet + photos in ~8 ms slices without freezing the screen, and stores already-compressed files instead of recompressing them.
 - **CSV**: `toCsv(rows, columns)` writes the file with RFC 4180 escaping and a BOM, and neutralizes formulas by default; `downloadCsv(...)` hands it straight to the user.
 - **User URLs**: `safeLinkUrl`, `safeImageUrl` and `safeAttachmentUrl` return the URL or `null` — a scheme allowlist before any `href`/`src`.
-- **Dates and percentages**: `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero; `formatPercent(v, { mode: "truncate" })` cuts without floating-point error; `relativeDayLabel` gives "Hoje"/"Ontem"/the date by local calendar day.
+- **Dates and percentages**: `formatDate("2026-11-16")` shows the 16th in every time zone and `formatTime` gives `HH:mm` from an instant or a `time` column; `formatDateForInput` gives the `yyyy-MM-dd` an `<input type="date">` insists on and `formatDateTimeForInput` gives the `yyyy-MM-ddTHH:mm` an `<input type="datetime-local">` wants (both from local parts, without the UTC shift); `percentOf` returns `0` instead of `NaN` when the base is zero; `formatPercent(v, { mode: "truncate" })` cuts without floating-point error; `relativeDayLabel` gives "Hoje"/"Ontem"/the date by local calendar day.
 - **Compressed storage**: `compressedStorage.get/set` gzips what it writes; the self-describing format (`~tgz1:`) reads older values with no migration. In React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objects**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — always immutable; `deepMerge` replaces arrays instead of merging them.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — safe narrowing + `switch` exhaustiveness.

@@ -1,19 +1,19 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { FormProvider } from "react-hook-form";
-import type { DefaultValues, Path, UseFormReturn } from "react-hook-form";
+import type { DefaultValues, FieldValues } from "react-hook-form";
 import type { z } from "zod";
 import { Alert } from "@/components/Alert";
 import { Button } from "@/components/Button";
 import { Divider } from "@/components/Divider";
 import { Form } from "@/components/Form";
+import { applyApiFieldErrors } from "@/forms/apply-api-field-errors";
 import { useZodForm } from "@/forms/use-zod-form";
-import { isApiError } from "@/http/errors";
 import { useDescribeApiError } from "@/http/use-describe-api-error";
 import { cn } from "@/utils/cn";
 import { AuthFieldControl } from "./AuthFieldControl";
 import { DEFAULT_AUTH_FORM_LABELS } from "./auth-defaults";
-import type { AuthField, AuthFormLabels, AuthFormProps, AuthFormValues } from "./types";
+import type { AuthField, AuthFormLabels, AuthFormProps } from "./types";
 import styles from "./AuthForm.module.css";
 
 /**
@@ -35,43 +35,6 @@ function initialValues(
     const base: Record<string, unknown> = {};
     for (const field of fields) base[field.name] = field.type === "checkbox" ? false : "";
     return { ...base, ...overrides };
-}
-
-/**
- * Attach the server's per-field messages to the fields this form shows.
- *
- * Only names present in `fields` are marked: the API can name a field the screen
- * does not render, and marking an input that does not exist leaves an error the
- * user can never clear. The first marked field takes focus.
- *
- * @param form - The form to mark.
- * @param fields - The declared fields.
- * @param messages - `error.fields`, keyed by field name.
- * @returns The messages that matched no declared field.
- */
-function markServerFields<TValues extends AuthFormValues<z.ZodTypeAny>>(
-    form: UseFormReturn<TValues>,
-    fields: readonly AuthField[],
-    messages: Record<string, string>,
-): { marked: number; unmatched: string[] } {
-    const names = new Set(fields.map((field) => field.name));
-    const unmatched: string[] = [];
-    let marked = 0;
-    for (const [name, message] of Object.entries(messages)) {
-        if (!names.has(name)) {
-            unmatched.push(message);
-            continue;
-        }
-        form.setError(
-            name as Path<TValues>,
-            { type: "server", message },
-            {
-                shouldFocus: marked === 0,
-            },
-        );
-        marked += 1;
-    }
-    return { marked, unmatched };
 }
 
 /**
@@ -118,7 +81,7 @@ export function AuthForm<TSchema extends z.ZodTypeAny>({
     const [failure, setFailure] = useState<string | null>(null);
     const form = useZodForm(schema, {
         defaultValues: initialValues(fields, defaultValues) as DefaultValues<
-            AuthFormValues<TSchema>
+            z.input<TSchema> & FieldValues
         >,
     });
 
@@ -127,12 +90,12 @@ export function AuthForm<TSchema extends z.ZodTypeAny>({
         try {
             await onSubmit(values);
         } catch (error) {
-            const messages = isApiError(error) ? error.fields : undefined;
-            const { marked, unmatched } = messages
-                ? markServerFields(form, fields, messages)
-                : { marked: 0, unmatched: [] };
-            if (marked === 0) setFailure(describe(error, text.error, errorOptions));
-            else if (unmatched.length > 0) setFailure(unmatched.join(" "));
+            const { marked, unmatched } = applyApiFieldErrors(form, error, {
+                fields: fields.map((field) => field.name),
+            });
+            const leftover = Object.values(unmatched);
+            if (marked.length === 0) setFailure(describe(error, text.error, errorOptions));
+            else if (leftover.length > 0) setFailure(leftover.join(" "));
             onError?.(error);
         }
     });

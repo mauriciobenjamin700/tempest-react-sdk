@@ -107,7 +107,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # @ -> ./src alias in "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -118,8 +118,8 @@ my-app/
     ├── pages/Home.tsx
     ├── pages/Login.tsx          # fakes a session via useAuth.use.setSession() then navigate("/dashboard")
     ├── pages/Dashboard.tsx      # default export (lazy), protected route
-    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" }))
-    └── lib/api.ts               # createApiClient({ baseURL, getToken, onUnauthorized }) + createQueryKeys
+    ├── stores/auth.ts           # createSelectors(createAuthStore<User>({ name: "app-auth" })) + configureApiAuth(...)
+    └── lib/api.ts               # createApiClient + configureApiAuth({ getToken, onUnauthorized }) + createQueryKeys("app", { me })
 ```
 
 ### Each file → the SDK feature it shows
@@ -137,14 +137,14 @@ Let's look at the three most important ones.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestCsp()],
+    plugins: [tempestThemeInit(), tempestCsp()],
 });
 ```
 
-One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md).
+One call. `createViteConfig` already wires up the React plugin, the `@ -> ./src` alias, and the defaults the SDK expects. See the [Vite Config](./vite-config.md) page to customize. `tempestCsp()` writes the Content-Security-Policy into `index.html`, in dev and build alike, with `connect-src` taken from the `VITE_*` URLs in `.env` — which is why the first step's `cp .env.example .env` matters. See [Content-Security-Policy](./csp.md). `tempestThemeInit()` puts the theme's anti-flash script in the `<head>`, so whoever picked dark never sees a light frame on load. See [No-flash](./theme.md#no-flash-avoiding-the-wrong-theme-flash).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 
@@ -167,6 +167,7 @@ export function App() {
 
 ```ts
 import { createAuthStore, createSelectors } from "tempest-react-sdk";
+import { configureApiAuth } from "@/lib/api";
 
 export interface User {
   id: string;
@@ -175,12 +176,19 @@ export interface User {
 }
 
 export const useAuth = createSelectors(createAuthStore<User>({ name: "app-auth" }));
+
+configureApiAuth({
+  getToken: () => useAuth.getState().token,
+  onUnauthorized: () => useAuth.getState().logout(),
+});
 ```
 
 `createAuthStore<User>` creates a persisted Zustand auth store (`name: "app-auth"` is the storage key). `createSelectors` gives you atomic access via `useAuth.use.<field>()` — that's how `RootLayout.tsx` reads `useAuth.use.isAuthenticated()` and `Login.tsx` calls `useAuth.use.setSession()`. More patterns in [State](./state.md).
 
+The `configureApiAuth` call at the end wires the store into the HTTP client: `lib/api.ts` imports nothing from auth, so a project without login deletes `stores/auth.ts` and the client keeps working without a token.
+
 !!! note "The rest is self-explanatory"
-    `routes.tsx` uses `defineRoutes([...])` with an index route, a login route, and a `dashboard` that is both **lazy** and **guarded**. `lib/api.ts` instantiates `createApiClient` with `baseURL`/`getToken`/`onUnauthorized` and exports `createQueryKeys` so you can organize your cache keys.
+    `routes.tsx` uses `defineRoutes([...])` with an index route, a login route, and a `dashboard` that is both **lazy** and **guarded**. `lib/api.ts` instantiates `createApiClient` reading the token through whatever `configureApiAuth` registered, and exports `queryKeys = createQueryKeys("app", { me })` so you can organize your cache keys.
 
 ## PWA mode (`--pwa`)
 
@@ -421,7 +429,16 @@ export const useCounter = createStore<{ count: number; inc: () => void }>((set) 
 
 ### 3. Fetch data with React Query + queryKeys + api
 
-Combine the HTTP client, the query keys, and `useQuery` (already available through `AppProviders`):
+The template only declares the `me` key. Add yours in `src/lib/api.ts`:
+
+```ts
+export const queryKeys = createQueryKeys("app", {
+  me: () => ["me"],
+  users: () => ["users"],
+});
+```
+
+Then combine the HTTP client, the key, and `useQuery` (already available through `AppProviders`):
 
 ```tsx
 import { useQuery } from "@tanstack/react-query";
@@ -429,7 +446,7 @@ import { api, queryKeys } from "@/lib/api";
 
 export function UserList() {
   const { data, isLoading } = useQuery({
-    queryKey: queryKeys.users.all,
+    queryKey: queryKeys.users(),
     queryFn: () => api.get("/users"),
   });
 

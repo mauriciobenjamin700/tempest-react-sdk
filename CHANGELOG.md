@@ -681,6 +681,7 @@ server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 
   173,9 kB); `ceiling: full barrel CJS` 205 381 (teto 204 → 205,6 kB); `styles.css` 32 610 (teto
   32,6 → 32,7 kB, a fonte declarada em `Drawer`/`Modal`/`Command` e as regras das colunas novas).
 - **Soma de #767 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #764 e #765 + este branch, bytes brotli): `slice: typical app` 13 376 B (teto 13.2 kB → 13.5 kB); `slice: DataTable with inline editing + server mode` 7 605 B (teto 7.3 KB → 7.7 kB); `slice: createZip + writeXlsx` 6 962 B (teto 6.95 KB → 7.1 kB); `ceiling: full barrel ESM` 176 264 B (teto 175.5 kB → 176.4 kB); `ceiling: full barrel CJS` 208 649 B (teto 207.7 kB → 208.7 kB). Nenhum estourava sozinho.
+- **Soma de #792 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #793 + este branch, bytes brotli): `slice: createZip` 5 851 B (teto 5.85 KB → 6.0 kB); `styles.css` 32 785 B (teto 32.7 kB → 32.9 kB). Nenhum estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

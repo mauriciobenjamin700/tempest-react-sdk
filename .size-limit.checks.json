@@ -489,7 +489,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createZip }"
     },
-    "limit": "5.85 KB",
+    "limit": "6.0 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -888,7 +888,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "32.7 kB"
+    "limit": "32.9 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

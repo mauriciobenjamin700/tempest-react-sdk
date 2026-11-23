@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.93.0] — 2026-11-23
+
 ### Adicionado
 
 - **`StorageFullError` e `isQuotaExceededError`: escrita do `OfflineStore` recusada por falta de

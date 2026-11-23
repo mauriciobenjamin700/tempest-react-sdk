@@ -786,7 +786,7 @@ Mount it once, at the app root. It opens by itself when `useBeforeInstallPrompt`
 import { ShareActions } from "tempest-react-sdk";
 
 export function ShareRide({ id }: { id: string }) {
-  const url = `https://app.example.com/c/${id}`;
+  const url = `https://app.example.com/s/${id}`;
   return (
     <ShareActions
       title="Ride Picos → Teresina"
@@ -832,7 +832,7 @@ What each button does:
 import { ShareButton } from "tempest-react-sdk";
 
 export function RideCardShare({ id }: { id: string }) {
-  const url = `https://app.example.com/c/${id}`;
+  const url = `https://app.example.com/s/${id}`;
   return <ShareButton iconOnly title="Ride Picos → Teresina" url={url} imageUrl={`${url}/og.png`} />;
 }
 ```

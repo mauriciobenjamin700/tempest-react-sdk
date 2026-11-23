@@ -780,7 +780,7 @@ Monte-o uma vez, na raiz do app. Ele abre sozinho quando o `installed` de `useBe
 import { ShareActions } from "tempest-react-sdk";
 
 export function ShareRide({ id }: { id: string }) {
-  const url = `https://app.exemplo.com/c/${id}`;
+  const url = `https://app.exemplo.com/s/${id}`;
   return (
     <ShareActions
       title="Carona Picos → Teresina"
@@ -826,7 +826,7 @@ O que cada botão faz:
 import { ShareButton } from "tempest-react-sdk";
 
 export function RideCardShare({ id }: { id: string }) {
-  const url = `https://app.exemplo.com/c/${id}`;
+  const url = `https://app.exemplo.com/s/${id}`;
   return <ShareButton iconOnly title="Carona Picos → Teresina" url={url} imageUrl={`${url}/og.png`} />;
 }
 ```

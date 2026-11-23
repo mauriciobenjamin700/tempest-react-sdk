@@ -87,8 +87,8 @@ export function whatsAppUrl(phone: string, text?: string): string {
  * Same contract as `whatsAppUrl`: a deep link, never a send.
  *
  * @example
- * whatsAppShareUrl("Carona Picos → Teresina, sex 07:05: https://app.example/c/42");
- * // "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.example%2Fc%2F42"
+ * whatsAppShareUrl("Carona Picos → Teresina, sex 07:05: https://app.example/s/42");
+ * // "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.example%2Fs%2F42"
  *
  * @param text - Message to pre-fill. Empty opens WhatsApp with a blank composer.
  * @returns The `https://wa.me/?text=…` URL, or `https://wa.me/` for an empty

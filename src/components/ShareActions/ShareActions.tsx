@@ -91,8 +91,8 @@ const COPIED_RESET_MS = 2000;
  * <ShareActions
  *     title="Carona Picos → Teresina"
  *     text="Sexta, 07:05 · 3 vagas"
- *     url="https://app.example/c/42"
- *     imageUrl="https://app.example/c/42/og.png"
+ *     url="https://app.example/s/42"
+ *     imageUrl="https://app.example/s/42/og.png"
  * />
  */
 export function ShareActions({

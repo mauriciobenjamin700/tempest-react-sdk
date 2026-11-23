@@ -62,8 +62,8 @@ export interface ShareButtonProps {
  * <ShareButton
  *     iconOnly
  *     title="Carona Picos → Teresina"
- *     url="https://app.example/c/42"
- *     imageUrl="https://app.example/c/42/og.png"
+ *     url="https://app.example/s/42"
+ *     imageUrl="https://app.example/s/42/og.png"
  * />
  */
 export function ShareButton({

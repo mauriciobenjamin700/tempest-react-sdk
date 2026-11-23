@@ -211,10 +211,10 @@ function outcomeOf(result: ShareResult): ShareOutcome {
  * const outcome = await share({
  *     title: "Carona Picos → Teresina",
  *     text: "Sexta, 07:05 · 3 vagas",
- *     url: "https://app.example/c/42",
- *     imageUrl: "https://app.example/c/42/og.png",
+ *     url: "https://app.example/s/42",
+ *     imageUrl: "https://app.example/s/42/og.png",
  * });
- * if (outcome === "unsupported") await copyLink("https://app.example/c/42");
+ * if (outcome === "unsupported") await copyLink("https://app.example/s/42");
  *
  * @param options - `imageTimeoutMs` and `onError`.
  * @returns Capabilities, `share`, `copyLink` and `prefetchImage`.

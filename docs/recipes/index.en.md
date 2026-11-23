@@ -44,7 +44,7 @@ Every page follows the same path, so you know where to look:
 | [BR sign-up + checkout](br-signup-checkout.md) | The customer signs up with CPF, CEP and phone and pays with Pix or card. | BR inputs, `MoneyInput`, CEP lookup, Pix and card checkout |
 | [Live trip (map + WebSocket)](live-trip.md) | The driver and the passenger follow the trip on the map, in real time. | `LiveRouteMap`, `LiveRouteMapLegend`, WebSocket, road matching |
 | [Real-time messenger](messenger.md) | A support chat with history, attachments and messages arriving live. | chat components, WebSocket, optimistic send, upload |
-| [Share with a WhatsApp preview](share-whatsapp.md) | The driver spreads the ride in a group, and the message arrives with image, title and link. | `ShareActions`, `ShareButton`, `useShare`, `whatsAppShareUrl`, Open Graph page on the backend |
+| [Share with a WhatsApp preview](share-whatsapp.md) | The driver spreads the ride in a group, and the message arrives with image, title and link; the QR frame goes as a file or is downloaded. | `ShareActions`, `ShareButton`, `useShare`, `whatsAppShareUrl`, `tempest-fastapi-sdk`'s `make_share_router` (`/s/{id}`) |
 | [Offline field app](field-app-offline.md) | A technician records visits with no signal and syncs when the network comes back. | offline queue, photo capture, resumable upload, zip export |
 
 ## Integrated example

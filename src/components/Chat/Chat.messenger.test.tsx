@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { Chat } from "./Chat";
 import type { ChatMessage } from "./chat-groups";
@@ -25,6 +25,25 @@ function message(overrides: Partial<ChatMessage> & { id: string }): ChatMessage 
 function renderThread(messages: ChatMessage[], props: Partial<Parameters<typeof Chat>[0]> = {}) {
     return render(<Chat messages={messages} currentUserId="me" now={now} {...props} />);
 }
+
+/**
+ * Load the two `lazy()` chunks before any test renders them (#768).
+ *
+ * Without this, the first test that reaches `ChatAttachments` paid the cold
+ * transform of the chunk and everything it imports (`Lightbox`, `AudioPlayer`,
+ * `VideoPlayer`) inside `findByAltText`'s 1 s window, on top of React 19's 300 ms
+ * Suspense reveal throttle. With 12 copies of the file running together it already
+ * took 660–1018 ms; with 24 copies and 48 busy loops it failed 20 of 24 runs. The transform
+ * runs in the Vitest main process, so a starved machine moves it and the clock
+ * does not wait.
+ *
+ * Awaiting the same module the `lazy()` factory imports makes that factory
+ * resolve from the module cache: what is left inside the `findBy*` window is the
+ * fixed reveal throttle and in-process rendering, not the load of the machine.
+ */
+beforeAll(async () => {
+    await Promise.all([import("./ChatAttachments"), import("./ChatActionsMenu")]);
+});
 
 describe("Chat — attachments", () => {
     /**

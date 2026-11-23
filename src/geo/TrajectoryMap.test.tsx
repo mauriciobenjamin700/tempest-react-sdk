@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { TrajectoryMap } from "./TrajectoryMap";
 import type { Coordinate } from "./types";
 
@@ -167,6 +167,19 @@ describe("TrajectoryMap — markers", () => {
 });
 
 describe("TrajectoryMap — tile mode", () => {
+    /**
+     * Load the `lazy()` chunk before the render that suspends on it (#768).
+     *
+     * Otherwise the cold transform of `leaflet-map` runs inside `findByText`'s 1 s
+     * window, next to React 19's 300 ms Suspense reveal throttle and the rejected
+     * `import("leaflet")`. The transform happens in the Vitest main process, which
+     * a loaded machine starves; with the module already in the cache the
+     * `lazy()` factory resolves without it.
+     */
+    beforeAll(async () => {
+        await import("./leaflet-map");
+    });
+
     it("renders the lazy Leaflet layer behind a loading fallback", async () => {
         render(<TrajectoryMap points={PATH} tileUrl="https://t/{z}/{x}/{y}.png" label="Rota" />);
         expect(screen.getByText("Carregando mapa…")).toBeInTheDocument();

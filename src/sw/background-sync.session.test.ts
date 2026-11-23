@@ -368,14 +368,33 @@ describe("provideBackgroundSyncCredentials", () => {
 
     afterEach(() => vi.unstubAllGlobals());
 
-    function ask(data: unknown): Promise<unknown> {
+    /**
+     * Post a message the way the worker does and resolve with the page's reply,
+     * or `"no-answer"` once `silenceMs` passes without one.
+     *
+     * A reply is awaited, not raced (#768): the 50 ms window that proves silence
+     * used to be the same one a real answer had to beat, and under three full
+     * suites running together the `getHeaders` round-trip lost it and the reply
+     * read `"no-answer"`. Cases that expect a reply pass the default 2 s, which
+     * is only there to turn a missing reply into a failed assertion on its line
+     * rather than a `TestTimeoutError` at 5 s.
+     *
+     * @param data - The message payload.
+     * @param silenceMs - How long without a reply counts as silence.
+     * @returns The reply, or `"no-answer"`.
+     */
+    function ask(data: unknown, silenceMs: number = 2_000): Promise<unknown> {
         const channel = new MessageChannel();
+        let timer: ReturnType<typeof setTimeout> | undefined;
         const answer = new Promise<unknown>((resolve) => {
             channel.port1.onmessage = (event: MessageEvent) => resolve(event.data);
-            setTimeout(() => resolve("no-answer"), 50);
+            timer = setTimeout(() => resolve("no-answer"), silenceMs);
         });
         container.dispatchEvent(new MessageEvent("message", { data, ports: [channel.port2] }));
-        return answer.finally(() => channel.port1.close());
+        return answer.finally(() => {
+            clearTimeout(timer);
+            channel.port1.close();
+        });
     }
 
     it("answers the worker with the headers for the queued request", async () => {
@@ -417,13 +436,13 @@ describe("provideBackgroundSyncCredentials", () => {
 
     it("ignores other messages and stops answering once removed", async () => {
         const stop = provideBackgroundSyncCredentials(() => ({ Authorization: "x" }));
-        expect(await ask({ type: "SKIP_WAITING" })).toBe("no-answer");
+        expect(await ask({ type: "SKIP_WAITING" }, 50)).toBe("no-answer");
         container.dispatchEvent(
             new MessageEvent("message", { data: { type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE } }),
         );
         stop();
         expect(
-            await ask({ type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE, url: "u", method: "POST" }),
+            await ask({ type: BACKGROUND_SYNC_CREDENTIALS_MESSAGE, url: "u", method: "POST" }, 50),
         ).toBe("no-answer");
     });
 

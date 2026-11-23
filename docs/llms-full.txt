@@ -5413,6 +5413,11 @@ npm i recharts
     rodado `npm i recharts`, o build quebra com `Cannot find module 'recharts'`.
     Instale-o no app que de fato usa gráficos.
 
+!!! note "recharts 3.2 ou mais novo"
+    O peer é `recharts@^3.2.0`: o eixo Y que se ajusta ao rótulo (`yAxisWidth="auto"`)
+    só existe a partir dessa versão: o código do `YAxis` do 2.15 e do 3.0/3.1 não
+    trata `"auto"` e soma a largura como número.
+
 ## A família cartesiana: Area, Bar, Line
 
 `AreaChart`, `BarChart` e `LineChart` compartilham a **mesma** interface de
@@ -5528,6 +5533,9 @@ Com `stack`, as três áreas se empilham e o topo mostra o total por hora.
 | `showGrid`       | `boolean`                   | `true`                 | Renderiza o grid cartesiano.                                                    |
 | `showTooltip`    | `boolean`                   | `true`                 | Renderiza o tooltip.                                                            |
 | `valueFormatter` | `(value: number) => string` | —                      | Formata valores numéricos no tooltip e no eixo Y.                               |
+| `labels`         | `Record<string, string>`    | —                      | Nome de cada série na legenda e no tooltip, por chave de `categories`.          |
+| `yAxisWidth`     | `number \| "auto"`          | `"auto"`               | Largura do eixo Y em px, ou `"auto"` para caber o maior rótulo. Não no Radar.   |
+| `yAxisFormatter` | `(value: number) => string` | `valueFormatter`       | Formata só os rótulos do eixo Y. Não no Radar.                                  |
 | `className`      | `string`                    | —                      | Classe extra aplicada ao wrapper do gráfico.                                    |
 
 `ChartData = Array<Record<string, string | number>>` — cada linha mapeia uma
@@ -5537,6 +5545,79 @@ chave de coluna a um rótulo (string) ou valor (number).
     `categories` é um array, então você decide quantas séries quer. Uma só
     (`categories={["receita"]}`) desenha um gráfico simples; várias desenham
     séries comparativas, cada uma com a próxima cor da paleta.
+
+### Rótulo da série separado da chave do dado (`labels`)
+
+A legenda e o tooltip mostram o **nome da série**, que por padrão é a própria
+chave (`"done"`). Para traduzir, passe `labels` — um mapa chave → texto. Os dados
+continuam com as chaves que a API mandou:
+
+```tsx
+import { BarChart } from "tempest-react-sdk/charts";
+
+const semana = [
+    { dia: "seg", done: 34, noShow: 3 },
+    { dia: "ter", done: 29, noShow: 5 },
+];
+
+export function Atendimentos({ t }: { t: (key: string) => string }) {
+    return (
+        <BarChart
+            data={semana}
+            index="dia"
+            categories={["done", "noShow"]}
+            labels={{ done: t("series.done"), noShow: t("series.noShow") }}
+            stack
+        />
+    );
+}
+```
+
+Categoria sem entrada em `labels` mostra a chave. Vale para `AreaChart`,
+`BarChart`, `LineChart` e `RadarChart`. O `PieChart` não precisa: o nome de
+cada fatia já vem da coluna `index`.
+
+### Eixo de valor: largura e formato
+
+Sem configuração, o eixo Y **se ajusta ao maior rótulo** (`yAxisWidth="auto"`).
+Antes ele reservava 60 px fixos, e `"R$ 50.000"` perdia os primeiros 10 px —
+em qualquer largura de tela, não só no celular (medido no Chromium, #740).
+
+Rótulo longo ocupa espaço do gráfico no celular. Para o eixo, use um formato
+curto em `yAxisFormatter`; o tooltip continua com o valor exato do
+`valueFormatter`:
+
+```tsx
+import { LineChart } from "tempest-react-sdk/charts";
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const brlCompacto = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+});
+
+const meses = [
+    { mes: "out", total: 164750 },
+    { mes: "nov", total: 186430 },
+];
+
+export function Faturamento() {
+    return (
+        <LineChart
+            data={meses}
+            index="mes"
+            categories={["total"]}
+            valueFormatter={(v) => brl.format(v)}
+            yAxisFormatter={(v) => brlCompacto.format(v)}
+        />
+    );
+}
+```
+
+O eixo mostra `R$ 186 mil`; o tooltip, `R$ 186.430,00`. Para alinhar as áreas de
+plotagem de gráficos empilhados, fixe a largura com um número
+(`yAxisWidth={72}`).
 
 ## PieChart
 
@@ -5855,6 +5936,8 @@ você passa `width`:
 - `AreaChart`, `BarChart` e `LineChart` compartilham `CartesianChartProps`:
   `data` + `index` (eixo X) + `categories` (séries). `stack` empilha em
   Area/Bar; o `LineChart` o ignora.
+- `labels` dá nome às séries sem trocar as chaves dos dados; o eixo Y se ajusta
+  ao maior rótulo e `yAxisFormatter` formata só o eixo.
 - `PieChart` usa `category` (valor) + `index` (rótulo), uma linha por fatia, com
   `donut` opcional.
 - `RadarChart` reusa `CartesianChartProps` (`index` = eixo angular); ignora
@@ -6542,7 +6625,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager, Lightbox
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Dados](./components/data.md)** — Table, VirtualList, VirtualTable, DataTable, ListTile, Accordion, Timeline, TreeView, Sparkline
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, StorageUsage, UpdatePrompt
 - **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 - **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Reveal, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
 - **[Telas de autenticação](./components/auth-screens.md)** — AuthPage, AuthForm, LoginForm, SignUpForm, ForgotPasswordForm, ResetPasswordForm
@@ -7988,21 +8071,139 @@ const columns: DataTableColumn<User>[] = [
 />;
 ```
 
-| Prop           | Tipo                                  | Default | Descrição                                               |
-| -------------- | ------------------------------------- | ------- | ------------------------------------------------------- |
-| `data`         | `T[]`                                 | —       | Dataset completo; sort/filtro/paginação são client-side |
-| `columns`      | `DataTableColumn<T>[]`                | —       | Definições de coluna                                    |
-| `pageSize`     | `number`                              | `10`    | Linhas por página                                       |
-| `searchable`   | `boolean`                             | `false` | Renderiza um input de busca acima da tabela             |
-| `searchKeys`   | `(keyof T)[]`                         | —       | Chaves buscadas; default = colunas string/number        |
-| `initialSort`  | `DataTableSort<T>`                    | —       | Ordenação inicial antes de interagir com o cabeçalho    |
-| `rowKey`       | `(row: T, index) => string \| number` | índice  | Extrator de chave estável por linha                     |
-| `emptyMessage` | `ReactNode`                           | —       | Conteúdo exibido quando nenhuma linha combina           |
+| Prop                | Tipo                                  | Default              | Descrição                                                    |
+| ------------------- | ------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| `data`              | `T[]`                                 | —                    | Dataset completo; sort/filtro/paginação são client-side      |
+| `columns`           | `DataTableColumn<T>[]`                | —                    | Definições de coluna                                         |
+| `pageSize`          | `number`                              | `10`                 | Linhas por página                                            |
+| `searchable`        | `boolean`                             | `false`              | Renderiza um input de busca acima da tabela                  |
+| `searchKeys`        | `(keyof T)[]`                         | —                    | Chaves buscadas; default = colunas string/number             |
+| `searchPlaceholder` | `string`                              | `"Buscar..."`        | Placeholder da caixa de busca                                |
+| `searchLabel`       | `string`                              | `"Buscar na tabela"` | Nome acessível da caixa de busca                             |
+| `searchDebounceMs`  | `number`                              | `0`                  | Espera sem digitar antes de o termo valer                    |
+| `search`            | `string`                              | —                    | Termo controlado (exige `onSearchChange`)                    |
+| `initialSort`       | `DataTableSort<T>`                    | —                    | Ordenação inicial, lida **só na montagem**                   |
+| `sort`              | `DataTableSort<T> \| null`            | —                    | Ordenação controlada (exige `onSortChange`)                  |
+| `rowKey`            | `(row: T, index) => string \| number` | índice               | Extrator de chave estável por linha                          |
+| `selectable`        | `true`                                | —                    | Coluna de checkbox (com `selectedKeys` e `onSelectionChange`) |
+| `rowActions`        | `(row: T) => ReactNode`               | —                    | Coluna final de ações, sem `key` emprestada                  |
+| `rowActionsLabel`   | `string`                              | `"Ações"`            | Cabeçalho (visualmente oculto) da coluna de ações            |
+| `stackOnMobile`     | `boolean`                             | `false`              | Abaixo de 768 px, cada linha vira um cartão                  |
+| `onRowClick`        | `(row: T) => void`                    | —                    | Clique na linha                                              |
+| `scrollLabel`       | `string`                              | —                    | Nome acessível da região rolável                             |
+| `emptyMessage`      | `ReactNode`                           | —                    | Conteúdo exibido quando nenhuma linha combina                |
 
-`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
+`DataTableColumn<T>` = `{ key: keyof T; header: ReactNode; render?: (row: T) => ReactNode; sortable?: boolean; align?: TableAlign; priority?: TablePriority; width?: string | number; className?: string }`. `DataTableSort<T>` = `{ key: keyof T; direction: "asc" | "desc" }`.
 
 !!! info "Comportamento"
-    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina substring case-insensitive nas `searchKeys` (ou em toda coluna string/number quando omitidas). A paginação some quando o resultado cabe em uma única página.
+    Clicar um cabeçalho ordenável cicla asc → desc → sem ordenação. A busca combina trecho do texto nas `searchKeys` (ou em toda coluna string/number quando omitidas), **sem diferenciar maiúscula nem acento**: "joao" acha "João", "usuarios" acha "Usuários". A paginação some quando o resultado cabe em uma única página.
+
+### Seleção de linhas e coluna de ações
+
+`selectable` põe uma coluna de checkbox no começo; `rowActions` põe uma coluna de ações no fim. Nenhuma das duas usa um campo da linha como `key`, então não há coluna duplicada nem chave repetida.
+
+```tsx
+import { useState } from "react";
+import { Button, DataTable, type DataTableRowKey } from "tempest-react-sdk";
+
+interface Product {
+  id: string;
+  name: string;
+  sku: string;
+}
+
+export function ProductTable({ products }: { products: Product[] }) {
+  const [selected, setSelected] = useState<DataTableRowKey[]>([]);
+
+  return (
+    <DataTable<Product>
+      data={products}
+      columns={[
+        { key: "sku", header: "SKU" },
+        { key: "name", header: "Produto", sortable: true },
+      ]}
+      rowKey={(product) => product.id}
+      selectable
+      selectedKeys={selected}
+      onSelectionChange={setSelected}
+      selectionLabel={(product) => `Selecionar ${product.name}`}
+      rowActions={(product) => (
+        <Button variant="ghost" size="sm" onClick={() => console.log("editar", product.id)}>
+          Editar
+        </Button>
+      )}
+      stackOnMobile
+    />
+  );
+}
+```
+
+- A seleção é **controlada** e guarda o retorno de `rowKey`. Passe um `rowKey` que devolva o id do registro; com o índice (default), a seleção segue a posição e muda de registro quando a página ou a ordem mudam.
+- O checkbox do cabeçalho marca e desmarca **a página que está na tela**, e fica `indeterminate` quando só parte dela está marcada. Chaves marcadas em outras páginas ficam como estão: "selecionar todos" alcançando linhas que a pessoa nunca viu é como uma exclusão em lote apaga o registro errado.
+- Clique no checkbox ou dentro da coluna de ações **não** dispara `onRowClick` — nem num `DropdownMenu` aberto em portal a partir dela.
+
+| Prop                | Tipo                                   | Default                                    | Descrição                           |
+| ------------------- | -------------------------------------- | ------------------------------------------ | ----------------------------------- |
+| `selectable`        | `true`                                 | —                                          | Liga a coluna de seleção            |
+| `selectedKeys`      | `readonly (string \| number)[]`        | —                                          | Chaves marcadas, de todas as páginas |
+| `onSelectionChange` | `(keys: (string \| number)[]) => void` | —                                          | Recebe a seleção inteira nova       |
+| `selectionLabel`    | `(row: T) => string`                   | `"Selecionar linha N"`                     | Nome acessível do checkbox da linha |
+| `selectAllLabel`    | `string`                               | `"Selecionar todas as linhas desta página"` | Nome acessível do checkbox do cabeçalho |
+
+!!! check "O tipo recusa a seleção pela metade"
+    `selectable` sem `selectedKeys` seria uma coluna de checkbox que nunca marca. Os três vêm juntos, ou o `tsc` reprova na chamada.
+
+### Busca e ordenação controladas
+
+Quando a busca e a ordenação moram fora da tabela — na URL, por exemplo —, passe `search` e `sort`. A caixa abre com o termo e acompanha quando ele muda por fora (botão voltar, link "Limpar filtros"); a seta do cabeçalho segue `sort` a cada render. `initialSort` continua existindo, mas é lido uma vez só, na montagem.
+
+```tsx
+import { DataTable, useUrlState, type DataTableSort } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+  city: string;
+}
+
+export function Members({ members }: { members: Member[] }) {
+  const { state, set } = useUrlState({ busca: "", ordem: "", dir: "" });
+  const sort: DataTableSort<Member> | null =
+    state.ordem === "name" || state.ordem === "city"
+      ? { key: state.ordem, direction: state.dir === "desc" ? "desc" : "asc" }
+      : null;
+
+  return (
+    <DataTable<Member>
+      data={members}
+      columns={[
+        { key: "name", header: "Nome", sortable: true },
+        { key: "city", header: "Cidade", sortable: true },
+      ]}
+      rowKey={(member) => member.id}
+      searchable
+      searchLabel="Buscar membros"
+      searchPlaceholder="Nome ou cidade"
+      search={state.busca}
+      searchDebounceMs={300}
+      onSearchChange={(busca) => set({ busca }, { replace: true })}
+      sort={sort}
+      onSortChange={(next) =>
+        set({ ordem: next ? String(next.key) : null, dir: next?.direction ?? null })
+      }
+    />
+  );
+}
+```
+
+`searchDebounceMs` deixa a caixa mostrar cada tecla e só publica o termo depois da pausa. No modo servidor, é o que faz uma busca custar **uma** requisição, e não uma por letra.
+
+!!! check "Par controlado sem destino não compila"
+    `sort` sem `onSortChange` (ou `search` sem `onSearchChange`) seria uma seta ou uma caixa que nunca mudam. Os dois tipos recusam.
+
+### No celular 📱
+
+`stackOnMobile` é repassado ao [`Table`](./data.md#tablet): abaixo de 768 px cada linha vira um cartão com rótulo e valor, em vez de uma tabela que rola para o lado. O rótulo vem do `header` quando ele é texto, inclusive em coluna `sortable` (cujo cabeçalho vira botão). A coluna de seleção e a de ações não ganham rótulo — o checkbox e o botão já dizem o que fazem. No modo cartão o cabeçalho fica visualmente oculto, então o "selecionar todos" da página só é alcançável por leitor de tela; ponha um botão próprio se a tela de celular precisa dele.
 
 ## `Wizard`
 
@@ -8901,7 +9102,7 @@ import { HoverCard } from "tempest-react-sdk";
 
 ## `Command` (paleta ⌘K)
 
-Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por substring (label + keywords), agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.
+Paleta de comandos estilo ⌘K: diálogo em overlay com input que filtra itens por trecho do texto (label + keywords), sem diferenciar maiúscula nem acento — "usuarios" acha "Usuários" —, agrupa resultados e suporta navegação por teclado (↑/↓, Enter, Escape). Prende o foco enquanto aberto.
 
 ```tsx
 import { Command } from "tempest-react-sdk";
@@ -8932,14 +9133,43 @@ const [open, setOpen] = useState(false);
 | `open`         | `boolean`                 | —                   | Se a paleta está visível                             |
 | `onOpenChange` | `(open: boolean) => void` | —                   | Próximo estado (Escape, seleção, clique no backdrop) |
 | `items`        | `CommandItem[]`           | —                   | Candidatos a filtrar e exibir                        |
-| `placeholder`  | `string`                  | `"Type a command…"` | Placeholder do input de busca                        |
-| `emptyMessage` | `ReactNode`               | `"No results"`      | Exibido quando nada combina com a busca              |
+| `placeholder`  | `string`                  | `"Digite um comando…"` | Placeholder do input de busca                     |
+| `emptyMessage` | `ReactNode`               | `"Nenhum resultado"`   | Exibido quando nada combina com a busca           |
+| `label`        | `string`                  | `"Paleta de comandos"` | Nome acessível do diálogo e do input de busca     |
 | `className`    | `string`                  | —                   | Repassado ao elemento de diálogo                     |
 
 `CommandItem` = `{ id: string; label: string; group?: string; keywords?: string[]; onSelect: () => void; icon?: ReactNode }`.
 
 !!! tip "Gatilho global"
-    Combine com `useKeyboardShortcut("mod+k", () => setOpen(true))` para abrir via ⌘K / Ctrl+K.
+    Combine com `useKeyboardShortcut`, que recebe um objeto `KeyboardShortcut`, para abrir via ⌘K / Ctrl+K:
+
+    ```tsx
+    import { useState } from "react";
+    import { Button, Command, Kbd, formatShortcut, useKeyboardShortcut } from "tempest-react-sdk";
+
+    export function Palette() {
+      const [open, setOpen] = useState<boolean>(false);
+      useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
+
+      return (
+        <>
+          <Button
+            variant="outline"
+            onClick={() => setOpen(true)}
+            rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
+          >
+            Buscar
+          </Button>
+          <Command open={open} onOpenChange={setOpen} items={[]} />
+        </>
+      );
+    }
+    ```
+
+    O hook já chama `preventDefault` e dispara com o foco num campo, porque o atalho leva Ctrl/Cmd. `formatShortcut` mostra `⌘K` ou `Ctrl+K` conforme o sistema. Veja [`useKeyboardShortcut`](../hooks.md#atalho-global-usekeyboardshortcut).
+
+!!! note "Textos padrão em PT-BR"
+    Até a versão anterior, `placeholder`, `emptyMessage` e o nome acessível vinham fixos em inglês (`"Type a command…"`, `"No results"`, `"Command palette"`). Um leitor de tela em PT-BR anunciava o diálogo em outra língua. Os três agora têm default em PT-BR e aceitam prop.
 
 ## Recap
 
@@ -9993,6 +10223,7 @@ export function Orders({
 | `render`    | `(row: T, index: number) => ReactNode`        | Default = `row[key]`                                       |
 | `align`     | `"left" \| "right" \| "center"`               | Default `"left"`                                           |
 | `priority`  | `"always" \| "tablet" \| "desktop"`           | `tablet`: escondida em < md. `desktop`: escondida em < lg. |
+| `label`     | `string`                                      | Rótulo do cartão empilhado no celular; default = `header` quando é texto. |
 | `width`     | `string \| number`                            | CSS width (`120px`, `20%`, `auto`)                         |
 | `className` | `string`                                      | Classe extra aplicada às células daquela coluna            |
 
@@ -10342,7 +10573,7 @@ export function Pessoas() {
 | `manualSort` | `boolean` | Delega a ordenação. Implícito com `totalItems`. |
 | `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
 | `manualSearch` | `boolean` | Delega a busca. Implícito com `totalItems`. |
-| `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
+| `onSearchChange` | `(term: string) => void` | Termo digitado, depois de `searchDebounceMs` quando definido. |
 | `loading` | `boolean` | Requisição em voo. |
 | `pageSize` | `number` | Linhas por página; obrigatório com `onPageSizeChange`. |
 | `onPageSizeChange` | `(size: number) => void` | Liga o seletor de itens por página ([abaixo](#itens-por-pagina)). |
@@ -11145,8 +11376,37 @@ export function Metricas() {
 | `value` | `ReactNode`                | —                                    |
 | `delta` | `ReactNode`                | —                                    |
 | `trend` | `"up" \| "down" \| "flat"` | inferido por `+`/`-` em delta string |
+| `higherIsBetter` | `boolean`         | `true`                               |
 | `hint`  | `ReactNode`                | —                                    |
 | `icon`  | `ReactNode`                | —                                    |
+
+### Polaridade: quando subir é ruim
+
+A cor do delta diz **bom** ou **ruim**, não "subiu" ou "desceu". Por padrão, alta é
+verde e queda é vermelha. Em métrica onde crescer é o problema — taxa de faltas,
+churn, tempo de resposta, chamados abertos — passe `higherIsBetter={false}`: a alta
+fica vermelha e a queda, verde. A direção não muda; `trend` e o texto do delta
+continuam dizendo para onde o número foi.
+
+```tsx
+import { Stat } from "tempest-react-sdk";
+
+export function TaxaDeFaltas() {
+    return (
+        <Stat
+            label="Faltas"
+            value="7,5%"
+            delta="+1,2 p.p."
+            higherIsBetter={false}
+            hint="vs. semana passada"
+        />
+    );
+}
+```
+
+O delta expõe `data-trend` (`up`/`down`/`flat`) e `data-tone`
+(`positive`/`negative`/`neutral`), para teste ou estilo do app sem depender de
+classe com hash.
 
 ## `Progress`
 
@@ -11514,6 +11774,11 @@ export function FalhaAoCarregar({
 }
 ```
 
+Sem `title`, `description` ou `retryLabel`, os textos padrão vêm do
+[i18n](../i18n.md#textos-padrao-dos-componentes) (`tempest.errorState.*`): em
+inglês com locale `en`, em pt-BR sem provider. `description={null}` some com a
+descrição.
+
 ## `OfflineIndicator`
 
 **Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
@@ -11561,6 +11826,50 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
 
 `sync` aceita o motor com o payload que ele tiver (`OfflineSync<Nota>` acima): a prop é tipada como `SyncStatusSource`, só o `getState` e o `subscribe` que o badge lê. Até a 0.92.0 ela era `OfflineSync<unknown>`, e todo motor tipado reprovava com TS2322 sob `strict` — o `enqueue` recebe o payload, então o motor não é covariante nele.
+
+## `StorageUsage`
+
+**Quando usar:** mostrar quanto do armazenamento do navegador o app usa, quanto disso ainda não foi enviado ao servidor, e avisar quando o espaço está acabando ou quando os dados pendentes podem ser apagados pelo navegador. O componente **não lê o navegador sozinho**: recebe os números por prop. `usage`, `quota` e `persisted` vêm do [`useStorageEstimate`](../pwa.md#4-durabilidade-peca-armazenamento-persistente); `pendingBytes` vem de quem sabe o que falta subir (o motor offline, a fila de upload do app); `warnAt` é o limite que **o app** escolhe.
+
+```tsx
+import { StorageUsage, useStorageEstimate } from "tempest-react-sdk";
+
+export function Armazenamento({ pendingBytes }: { pendingBytes: number }) {
+    const storage = useStorageEstimate({ pollMs: 30_000 });
+
+    return (
+        <StorageUsage
+            usage={storage.usage}
+            quota={storage.quota}
+            persisted={storage.persisted}
+            pendingBytes={pendingBytes}
+            warnAt={0.9}
+            onRequestPersist={storage.requestPersist}
+        />
+    );
+}
+```
+
+Mostra "X de Y usados · Z pendentes de envio" com os bytes formatados por `formatBytes`. Avisa em dois casos:
+
+- **Acima do limite**: `usage / quota >= warnAt` (default `0.8`) pinta a barra de vermelho e mostra "Armazenamento quase cheio".
+- **Pendências em armazenamento não permanente**: `persisted === false` com `pendingBytes > 0`. Fora da tela inicial, o Safari apaga os dados do site depois de ~7 dias sem uso, e qualquer navegador pode despejar sob pressão de disco.
+
+Com `persisted === false` e `onRequestPersist`, aparece o botão "Tornar armazenamento permanente"; se o callback devolve uma promise, o botão fica em `loading` até ela terminar. O SDK não chama `requestPersistentStorage()` sozinho porque no Firefox isso abre um pedido de permissão: quem decide o momento é o app.
+
+| Prop               | Tipo                            | Default |
+| ------------------ | ------------------------------- | ------- |
+| `usage`            | `number \| null`                | —       |
+| `quota`            | `number \| null`                | —       |
+| `pendingBytes`     | `number \| null`                | —       |
+| `persisted`        | `boolean \| null`               | —       |
+| `warnAt`           | `number` (razão em `[0, 1]`)    | `0.8`   |
+| `onRequestPersist` | `() => unknown`                 | —       |
+| `labels`           | `Partial<StorageUsageLabels>`   | PT-BR   |
+
+`null` é "o navegador não informa": com `usage` ou `quota` `null` (ou `quota` `0`) a barra dá lugar a uma frase, em vez de uma barra vazia que leria 0%. `pendingBytes` omitido esconde a linha de pendências; `persisted` `null` não mostra aviso nem botão.
+
+**A11y:** a barra é `role="meter"` (nível, não progresso de tarefa) nomeada pelo título, com `aria-valuetext` igual ao "X de Y usados" que o olho lê. Os avisos usam `role="status"` (polido), não o `role="alert"` padrão do `Alert`: o componente costuma montar numa tela com o aviso já verdadeiro, e um anúncio assertivo a cada montagem interromperia o leitor.
 
 ## `UpdatePrompt`
 
@@ -11711,6 +12020,13 @@ export function Cards({ navigate }: { navigate: (to: string) => void }) {
 
 !!! tip "Use `flush` para hospedar tabelas e listas"
     Cards têm padding interno por padrão. Ao colocar uma `Table` ou lista que já tem suas próprias margens, ative `flush` para o conteúdo encostar nas bordas do card sem padding duplo.
+
+!!! note "Blocos dentro do card ganham espaçamento"
+    Dois ou mais filhos em bloco — um `Stat` e uma `Timeline`, um parágrafo e uma
+    lista — ficam a `--tempest-space-4` (16 px) um do outro, sem precisar de
+    `Stack`. Conteúdo inline (`Olá <strong>Ana</strong>`) continua na mesma linha, e
+    o card `flush` não ganha espaçamento. Antes, como todo componente do SDK zera a
+    própria margem, os blocos encostavam (#710).
 
 !!! note "`interactive` torna o card inteiro um botão"
     Com `interactive`, o card recebe `role="button"`, `tabIndex={0}` e handler de teclado (Enter/Space). Evite colocar outros elementos clicáveis dentro de um card interativo — clicks aninhados disputam o mesmo gesto e confundem a navegação por teclado.
@@ -11915,6 +12231,43 @@ export function Estado() {
 | `variant`   | `"field" \| "chip" \| "bare"` | `"field"` |
 | `caretIcon` | `ReactNode`           | chevron do SDK |
 | `wrapperClassName` | `string`       | —         |
+| `placeholder` | `string`             | —         |
+| `clearable` | `boolean`             | `false`   |
+
+### Placeholder e campo opcional — `placeholder`, `clearable` {#select-placeholder}
+
+O `placeholder` é o texto do estado vazio (`""`). Por padrão a entrada dele é `disabled hidden`: lê como "nada escolhido ainda" e não volta a ser escolhida — certo para campo obrigatório. Num campo **opcional**, `clearable` deixa a entrada selecionável, e a pessoa volta ao vazio depois de ter escolhido:
+
+```tsx
+import { useState } from "react";
+import { Select, toOptions } from "tempest-react-sdk";
+
+const SALAS = { a: "Sala A", b: "Sala B" };
+
+export function Consulta() {
+    const [sala, setSala] = useState("a");
+    return (
+        <>
+            <Select
+                label="Sala (opcional)"
+                placeholder="Nenhuma"
+                clearable
+                value={sala}
+                onChange={(e) => setSala(e.target.value)}
+                options={toOptions(SALAS)}
+            />
+            <Select label="Sala" placeholder="Selecione a sala" options={toOptions(SALAS)} required />
+        </>
+    );
+}
+```
+
+- **`clearable`** põe uma entrada `""` com o texto do `placeholder` no topo da lista, habilitada e visível.
+- **Sem `value` nem `defaultValue`**, um `Select` com `placeholder` começa vazio, mostrando o placeholder.
+- Quando o vazio **tem nome** no domínio — "Particular", "Nenhum convênio" —, ele é um valor, não um aviso: use uma opção de verdade com `withEmptyOption(options, "Particular")`.
+
+!!! danger "Até a 0.92.0, `placeholder` sem `value` mostrava a primeira opção"
+    O algoritmo de seleção do HTML pula a entrada `disabled` e seleciona **a primeira opção** habilitada. Medido no Chromium (Playwright headless, `<select><option value="" disabled hidden>Selecione</option><option value="a">A</option>…`): `select.value === "a"` — e no jsdom, o mesmo. Um `<Select label="UF" placeholder="Selecione" options={ufs} />` não controlado abria em "São Paulo", e o submit mandava um valor que ninguém escolheu. Agora ele começa em `""`.
 
 ### Variante `chip` — linha de configurações
 
@@ -11998,7 +12351,7 @@ export function Filtros() {
 - Nenhuma das duas muta a lista recebida.
 
 !!! danger "Sem entrada vazia, salvar o formulário grava um valor que ninguém escolheu"
-    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. O `placeholder` do `Select` não resolve: a entrada dele é `disabled hidden`, então depois de escolher algo o campo **nunca mais volta a vazio**. Campo anulável usa `withEmptyOption`.
+    Medido no jsdom (que implementa o algoritmo de seleção do HTML): um `<select>` controlado com `value=""` e sem opção vazia devolve **a primeira opção** (`select.value === "a"`). Abrir um formulário de edição e salvar grava esse valor. Campo anulável usa `withEmptyOption` — ou, quando o vazio é só "não escolhido", `placeholder` com [`clearable`](#select-placeholder).
 
 !!! warning "Objeto reordena chave numérica — use `Map` para escala"
     `toOptions` preserva a ordem de um `Map` sempre, e a de um objeto **exceto nas chaves inteiras**, que o JavaScript enumera primeiro e em ordem crescente (`OrdinaryOwnPropertyKeys`). Medido no Node 24: `Object.keys({ 5: "Ótimo", 3: "Ok", 1: "Ruim" })` é `["1", "3", "5"]`. Uma escala de humor não é crescente por acaso — passe um `Map`.
@@ -14135,10 +14488,48 @@ export function BarraInferior({ cartCount }: { cartCount: number }) {
 | ------------ | ------------------------------ | ------- |
 | `items`      | `BottomNavigationItem[]` (3–5) | —       |
 | `value`      | `string`                       | —       |
+| `match`      | `"key" \| "route"`             | `"key"` |
 | `onChange`   | `(key: string) => void`        | —       |
 | `showLabels` | `boolean`                      | `true`  |
 
-Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled? }`.
+Tipo `BottomNavigationItem = { key, label, icon?, badge?, disabled?, href? }` — o
+mesmo contrato do `SidebarItem`, então uma lista só alimenta os dois.
+
+### Links e item ativo pela rota
+
+Com `href`, o item vira um `<a>` de verdade: segurar e "abrir em nova aba" funciona
+no celular e o leitor de tela anuncia link. Com `onChange`, o clique simples é do
+router do app (o `href` não recarrega a página); ctrl/cmd-clique fica com o
+navegador. Com `match="route"`, `value` é o `pathname` e o item aceso é o de `href`
+mais longo que cobre a rota, pela mesma regra do
+[`activeNavKey`](#activenavkey-a-mesma-resolucao-fora-do-sidebar):
+
+```tsx
+import { BottomNavigation, useLocation, useNavigate } from "tempest-react-sdk";
+import { LayoutDashboard, Users } from "lucide-react";
+
+export function AbasDoApp() {
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
+
+    return (
+        <BottomNavigation
+            match="route"
+            value={pathname}
+            items={[
+                { key: "/", href: "/", label: "Painel", icon: <LayoutDashboard size={20} /> },
+                { key: "/pacientes", href: "/pacientes", label: "Pacientes", icon: <Users size={20} /> },
+            ]}
+            onChange={(key) => navigate(key)}
+        />
+    );
+}
+```
+
+Em `/pacientes/42?aba=consultas`, "Pacientes" fica aceso; `/` só acende em `/`. O
+nome do landmark vem de `tempest.bottomNavigation.label` no catálogo do
+[i18n](../i18n.md#textos-padrao-dos-componentes) ("Navegação principal" /
+"Main navigation"); `aria-label` o substitui.
 
 **Safe-area**: aplica `padding-bottom: env(safe-area-inset-bottom)` automático.
 
@@ -14870,12 +15261,18 @@ import { RelativeTime } from "tempest-react-sdk";
 
 <RelativeTime date={post.createdAt} />; // pt-BR
 <RelativeTime date={post.createdAt} locale="en" />;
+<RelativeTime date={position.timestamp} updateEvery={15_000} />; // conta sozinho
+<RelativeTime date={position.timestamp} now={clock} />; // usa o relógio do app
 ```
 
-| Prop     | Tipo                       | Default | Notas                        |
-| -------- | -------------------------- | ------- | ---------------------------- |
-| `date`   | `Date \| string \| number` | —       | Instante a renderizar.       |
-| `locale` | `"pt" \| "en"`             | `"pt"`  | `"pt"` mapeia pra `"pt-BR"`. |
+| Prop          | Tipo                       | Default    | Notas                                                                           |
+| ------------- | -------------------------- | ---------- | ------------------------------------------------------------------------------- |
+| `date`        | `Date \| string \| number` | —          | Instante a renderizar.                                                          |
+| `locale`      | `"pt" \| "en"`             | `"pt"`     | `"pt"` mapeia pra `"pt-BR"`.                                                    |
+| `now`         | `Date \| number`           | o render   | O "agora" do app (um relógio para a lista inteira, ou o de um teste). Vence `updateEvery`. |
+| `updateEvery` | `number` (ms)              | desligado  | Re-renderiza sozinho nesse intervalo. Valor que não é número positivo desliga.  |
+
+Sem `now` nem `updateEvery`, o texto é calculado no render e **fica parado** até algo re-renderizar o componente — medido: 5 min depois, ainda "agora há pouco". O relógio interno é opt-in de propósito: cem linhas com um intervalo cada acordariam a página cem vezes por tick; numa lista, um `now` do pai é o formato barato, e `updateEvery` é para o horário solitário que não tem nada acima para re-renderizá-lo. O timer é limpo no unmount.
 
 Estende `HTMLAttributes<HTMLTimeElement>`.
 
@@ -15555,8 +15952,8 @@ export default createViteConfig({
 
 ## Script inline entra por hash
 
-Um `<script>` inline no `index.html` — o anti-flash do `themeInitScript()`, por
-exemplo — é liberado pelo **SHA-256 do conteúdo**, nunca por `'unsafe-inline'`. O
+Um `<script>` inline no `index.html` — o anti-flash do `themeInitScript()`, colado à
+mão ou injetado pelo `tempestThemeInit()`, por exemplo — é liberado pelo **SHA-256 do conteúdo**, nunca por `'unsafe-inline'`. O
 plugin roda como transform `post`, então enxerga o HTML final. No dev, o preâmbulo
 do React Refresh entra do mesmo jeito.
 
@@ -20388,6 +20785,101 @@ const form = useZodForm(loginSchema, { defaultValues: { email: "", password: "" 
 </Form>;
 ```
 
+#### Entrada e saída — select obrigatório que começa vazio
+
+O `useZodForm` tipa o formulário pelos **dois lados** do schema: os campos, `defaultValues`, `watch` e `setValue` pela **entrada** (`z.input`, o que o input guarda enquanto a pessoa edita), e o `handleSubmit` pela **saída** (`z.output`, o que o parse devolve). É o que deixa um select obrigatório abrir vazio sem mentir para o tipo do submit:
+
+```tsx
+import { FormField, FormProvider, Select, toOptions, useZodForm } from "tempest-react-sdk";
+import { z } from "zod";
+
+const STATUS = { active: "Ativo", paused: "Pausado" };
+
+const schema = z.object({
+    status: z
+        .union([z.enum(["active", "paused"]), z.literal("")])
+        .refine((value) => value !== "", "Escolha um status"),
+    stock: z.coerce.number().int().min(0),
+});
+
+export function StatusForm({ onSave }: { onSave: (values: z.output<typeof schema>) => void }) {
+    const form = useZodForm(schema, { defaultValues: { status: "", stock: "" } });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit(onSave)} noValidate>
+                <FormField name="status" label="Status" required>
+                    <Select placeholder="Selecione" options={toOptions(STATUS)} />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **`status: ""`** compila como valor inicial porque a entrada do schema aceita `""`.
+- **`value !== ""`** é um predicado de tipo: a saída fica só com `"active" | "paused"`, e o `onSave` nunca recebe `""`.
+- **`stock`** guarda o texto que o input digitou (`unknown` na entrada) e chega ao submit como `number`.
+
+!!! danger "Até a 0.92.0, os dois lados eram a saída"
+    Com os campos tipados pela saída, `defaultValues: { status: "" }` não compilava, e o contorno (`refine((value) => value.length > 0)`, sem predicado) deixava o `""` vazar para o tipo que o submit recebe. E o tipo do formulário era **inferido do `defaultValues`**: `{ status: "" }` tipava o campo como `string` e perdia o enum do schema. Hoje o `defaultValues` é `NoInfer` — o tipo vem só do schema. Quem anotava os valores iniciais com `z.infer` passa a anotar com `z.input`.
+
+### 4. Erro do servidor nos campos — `applyApiFieldErrors`
+
+O `422` do FastAPI (ou o erro do `tempest-fastapi-sdk` que nomeia `field`) chega como `error.fields`, `{ nome: mensagem }`. `applyApiFieldErrors` põe cada mensagem no campo do formulário com aquele nome e foca o primeiro:
+
+```tsx
+import { useMutation } from "@tanstack/react-query";
+import {
+    FormField,
+    FormProvider,
+    Input,
+    applyApiFieldErrors,
+    createApiClient,
+    useDescribeApiError,
+    useToast,
+    useZodForm,
+} from "tempest-react-sdk";
+import { z } from "zod";
+
+const api = createApiClient({ baseURL: "/api" });
+const schema = z.object({ name: z.string().min(3), email: z.email() });
+
+export function ClienteForm() {
+    const toast = useToast();
+    const describe = useDescribeApiError();
+    const form = useZodForm(schema, { defaultValues: { name: "", email: "" } });
+    const save = useMutation({
+        mutationFn: (values: z.output<typeof schema>) => api.post("/clientes", { body: values }),
+        onError: (error) => {
+            const { marked, unmatched } = applyApiFieldErrors(form, error);
+            const outros = Object.values(unmatched);
+            if (marked.length === 0) toast.error(describe(error, "Não foi possível salvar."));
+            else if (outros.length > 0) toast.error(outros.join(" "));
+        },
+    });
+    return (
+        <FormProvider {...form}>
+            <form onSubmit={form.handleSubmit((values) => save.mutate(values))} noValidate>
+                <FormField name="name" label="Nome">
+                    <Input />
+                </FormField>
+                <FormField name="email" label="E-mail">
+                    <Input type="email" />
+                </FormField>
+            </form>
+        </FormProvider>
+    );
+}
+```
+
+- **Só nomes do formulário são marcados.** Por padrão, um nome conta quando `form.getValues(nome)` não é `undefined` — todo campo com valor inicial, que é como o `useZodForm` se usa. Passe `{ fields: [...] }` para decidir a lista à mão.
+- **O resto volta em `unmatched`**, chaveado pelo nome: um input que não existe nunca mostraria a mensagem, e ela ficaria presa num erro que ninguém consegue limpar.
+- **`{ focus: false }`** marca sem mover o foco.
+- Qualquer outro erro — rede, `500`, `Error` comum — não marca nada e devolve `{ marked: [], unmatched: {} }`.
+
+!!! info "É o mesmo código do `AuthForm`"
+    A regra (marcar só o que existe, focar o primeiro, devolver o resto) era privada do `AuthForm`; cada formulário fora dele reescrevia o laço de `setError` — e as três receitas que o reescreviam discordavam entre si. O `AuthForm` agora usa o `applyApiFieldErrors`.
+
 ## Exemplo completo — schema → provider → fields → submit
 
 Os três trechos acima são fatias da mesma história. Aqui está um form ponta-a-ponta
@@ -20553,6 +21045,8 @@ Mantenha schemas em `src/schemas/<dominio>.ts`, exporte o `z.infer` em `src/type
 
 - O SDK separa **layout** (`Form`/`FormSection`/`FormRow`/`FormActions`) de **validação** (zod) — adote um sem o outro.
 - A validação tem três degraus: `validateForm` (agnóstico), `zodResolver` (RHF), `useZodForm` (tudo-em-um).
+- `useZodForm` tipa os campos pela **entrada** do schema e o `handleSubmit` pela **saída**: select obrigatório abre com `""` e o submit só vê o enum.
+- `applyApiFieldErrors(form, error)` põe o `error.fields` de um `422` nos campos certos e devolve o que não casou em `unmatched`.
 - Um único **schema zod** dirige tipo (`z.infer`), validação e mensagens de erro.
 - `<FormProvider>` + `<FormField>` removem o `<Controller>` repetido e propagam `error` + `aria-invalid` pros controles.
 - `handleSubmit` só chama seu `onSubmit` com valores já validados.
@@ -21033,6 +21527,7 @@ export function CorridaAoVivo() {
 
 - `minDistanceKm` (default `0.005` = 5 m) descarta amostras muito próximas — filtra o tremido do GPS parado.
 - `maxPoints` limita o array retido (a distância total continua contando).
+- `onPoint(point)` é chamado **uma vez por ponto aceito** (depois do filtro de `minDistanceKm`), na ordem. É o caminho para transmitir cada posição: um `useEffect` sobre `lastPoint` vê só a última de duas leituras que chegam antes de um render — medido com duas leituras no mesmo `act`, o efeito viu `[2, 3]` de `[1, 2, 3]`, e o `onPoint` viu as três. O hook lê o `onPoint` do último render, então uma arrow inline enxerga o estado atual.
 - `autoStart: true` já começa a rastrear na montagem.
 - Cada ponto traz `speed` (m/s, a unidade do navegador — `× 3.6` dá km/h) e `heading` (graus a partir do norte), `null` quando o aparelho não informa. O `heading` `NaN` que alguns navegadores mandam com o aparelho parado também vira `null`.
 
@@ -21234,8 +21729,8 @@ Pedaço por pedaço:
 | --- | --- | --- | --- |
 | `route` | `readonly Coordinate[]` | — | Rota planejada, tracejada. Enquadra o mapa. |
 | `trail` | `readonly Coordinate[]` | — | Caminho percorrido, sólido. |
-| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label? }`. |
-| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, content? }`. |
+| `vehicle` | `LiveVehicle \| null` | — | `{ position, heading?, label?, stale?, staleLabel? }`. |
+| `markers` | `readonly LiveRouteMarker[]` | — | `{ id, label, latitude, longitude, kind?, badge?, emphasis?, glyphText?, icon?, visited?, content? }`. |
 | `follow` | `boolean` | `false` | Mantém o veículo à vista sem mudar o zoom. |
 | `etaLabel` | `string` | — | Texto anunciado ao leitor de tela. |
 | `height` / `padding` | `number` | `360` / `32` | Altura e margem do enquadramento, em px. |
@@ -21245,6 +21740,7 @@ Pedaço por pedaço:
 | `tileUrl` / `tileAttribution` / `tileMaxZoom` | `string` / `string` / `number` | — / — / `19` | Tiles do **seu** servidor. |
 | `label` / `recenterLabel` / `closeLabel` | `string` | `"Mapa da viagem"` / `"Recentralizar"` / `"Fechar"` | Textos acessíveis. |
 | `kindLabels` | `Partial<Record<LiveRouteMarkerKind, string>>` | `origem` / `parada` / `destino` | Nome falado de cada tipo. |
+| `visitedLabel` | `string` | `"visita concluída"` | Acrescentado ao nome falado de um marcador `visited`. |
 | `onMarkerOpenChange` | `(id: string \| null) => void` | — | Painel de um marcador abriu (`id`) ou fechou (`null`). |
 | `roads` | `RoadGraph<E>` | — | Grafo do `createRoadGraph`: desenha as ruas e encaixa veículo e trilha. |
 | `onMatch` | `(match: MatchedFix<E> \| null) => void` | — | Cada posição nova encaixada (sua aresta, ponto, distância), ou `null` fora de qualquer rua. Só com `roads`. |
@@ -21296,6 +21792,48 @@ Pedaço por pedaço:
 !!! info "Alvo de toque de 44 px, em qualquer tamanho"
     Medido no Chromium sobre a gallery da 0.91.0 (`elementFromPoint` em 16 direções, a cada 2 px): uma parada só respondia dentro do disco de **16 px**, e depois só num anel de 3 px a 16 px do centro — o traço transparente do anel de foco. Agora cada marcador tem um círculo invisível de **44 px** (WCAG 2.2, SC 2.5.5) que recebe o toque, e o `markerScale` não o encolhe. Por isso o `markerScale` padrão continua `1`: ele serve para **ler** o glifo de longe, não para conseguir tocá-lo.
 
+### Estados: parada já visitada e posição velha
+
+O que já passou e o que vem pela frente não podem ter a mesma cara, e uma posição de quatro minutos atrás não pode parecer ao vivo. Dois campos dizem isso no próprio glifo:
+
+- **`visited`** no `LiveRouteMarker` pinta o marcador em cinza neutro (`--tempest-live-route-visited`, padrão `--tempest-text-muted`). A forma continua a do tipo — uma parada atendida segue redonda, o número segue dentro — e o nome acessível ganha `visitedLabel` (padrão `"visita concluída"`).
+- **`stale`** no `vehicle` deixa o veículo onde ele foi visto pela última vez, sem o halo e em cinza (`--tempest-live-route-stale`), e acrescenta `staleLabel` (padrão `"posição desatualizada"`) ao nome que o leitor de tela lê.
+
+```tsx
+import { LiveRouteMap, type Coordinate, type LiveRouteMarker, type TrackPoint } from "tempest-react-sdk";
+
+const STALE_AFTER_MS = 30_000;
+
+export function TripNow({
+  route,
+  stops,
+  position,
+  now,
+}: {
+  route: Coordinate[];
+  stops: (LiveRouteMarker & { departed: boolean })[];
+  position: TrackPoint;
+  now: number;
+}) {
+  return (
+    <LiveRouteMap
+      route={route}
+      markers={stops.map(({ departed, ...stop }) => ({ ...stop, visited: departed }))}
+      vehicle={{
+        position,
+        heading: position.heading ?? null,
+        label: "Van 12",
+        stale: now - position.timestamp > STALE_AFTER_MS,
+      }}
+    />
+  );
+}
+```
+
+- **Quem decide o "velho" é o app.** O mapa não tem relógio próprio: um timer dentro dele re-renderizaria um mapa que não tem nada novo a desenhar. O app já tem o `timestamp` da posição e um `now` que anda (veja o [`RelativeTime`](./components/utility.md#relativetime) com `updateEvery`).
+- **O cinza mede 6,92:1 (claro) e 7,43:1 (escuro) contra o fundo do mapa** (`--tempest-surface-2`), e o número dentro, em `--tempest-surface`, 7,30 e 8,39:1 — medido no browser e afirmado em `src/geo/LiveRouteMap.states.test.tsx`.
+- **Mesmo cinza nos dois estados, de propósito**: "já passou" e "parou de chegar" são o mesmo recado — isto é passado. A forma separa um do outro.
+
 ### Legenda — `LiveRouteMapLegend`
 
 Cada app desenhava a própria legenda imitando os glifos do SDK com SVG próprio — e uma mudança de tema ou de glifo deixava a legenda para trás. O `LiveRouteMapLegend` desenha **os mesmos glifos**, com as mesmas classes e os mesmos tokens do mapa:
@@ -21315,20 +21853,24 @@ export function PassengerLegend() {
         { symbol: "vehicle", label: "Ônibus" },
         { symbol: "route", label: "Rota planejada" },
         { symbol: "trail", label: "Já percorrido" },
+        { symbol: "stop", label: "Parada atendida", glyphText: "1", visited: true },
+        { symbol: "vehicle", label: "Sem sinal do ônibus", stale: true },
+        { symbol: "badge", label: "Embarques na parada", badge: 3 },
       ]}
     />
   );
 }
 ```
 
-- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"` ou uma das linhas (`"route"`, `"trail"`). Os campos `emphasis`, `glyphText` e `icon` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`.
+- **`symbol`** é um tipo de marcador (`"origin"`, `"stop"`, `"destination"`), o `"vehicle"`, uma das linhas (`"route"`, `"trail"`) ou o `"badge"`, o selo de contagem. Os campos `emphasis`, `glyphText`, `icon` e `visited` valem para os tipos de marcador, iguais aos do `LiveRouteMarker`; `stale`, para o veículo; `badge` (padrão `1`), para o selo.
+- **O selo da legenda é o mesmo desenho do mapa** (`BadgeShape` compartilhado): mesmo token de cor, mesma largura para `"99+"`. Antes não havia símbolo para ele, e a legenda não explicava o número sobre a parada.
 - **Sem `items`**, a legenda lista os seis símbolos com rótulos em PT-BR.
 - **Passe o mesmo `markerScale` do mapa** para os glifos baterem; veículo e linhas não escalam, como no mapa.
 - É uma lista (`<ul>`) com nome acessível `"Legenda do mapa"` (troque com `label`); os desenhos são `aria-hidden`, e o leitor de tela lê o texto.
 
 | Prop | Tipo | Default | Descrição |
 | --- | --- | --- | --- |
-| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon? }`, na ordem. |
+| `items` | `readonly LiveRouteLegendItem[]` | os seis símbolos, PT-BR | `{ symbol, label, emphasis?, glyphText?, icon?, visited?, stale?, badge? }`, na ordem. |
 | `markerScale` | `number` | `1` | O mesmo fator do mapa. |
 | `label` | `string` | `"Legenda do mapa"` | Nome acessível da lista. |
 
@@ -21351,6 +21893,8 @@ O mapa e a legenda são temados só por tokens. Para recolorir, sobrescreva no `
 | `--tempest-live-route-stop-ink` | `glyphText` e `icon` na parada | `--tempest-info-on-solid` |
 | `--tempest-live-route-destination-ink` | `glyphText` e `icon` no destino | `--tempest-danger-on-solid` |
 | `--tempest-live-route-road` / `--tempest-live-route-road-casing` | Ruas do `roads` | `--tempest-bg` / `--tempest-text-subtle` |
+| `--tempest-live-route-visited` / `--tempest-live-route-visited-ink` | Marcador `visited` / seu `glyphText` e `icon` | `--tempest-text-muted` / `--tempest-surface` |
+| `--tempest-live-route-stale` / `--tempest-live-route-stale-ink` | Veículo `stale` / sua seta | `--tempest-text-muted` / `--tempest-surface` |
 
 !!! note "Por que o selo não usa mais `--tempest-text` sobre `--tempest-bg`"
     Até a 0.91.0 o `badge` era `--tempest-text` de fundo com o número em `--tempest-bg` — o par invertido. No tema do próprio SDK isso dava 17,75:1 (claro) e 17,51:1 (escuro). Mas o contraste dependia de **dois** tokens que o app troca separados: um tema que clareou `--tempest-text` e deixou `--tempest-bg` branco pôs o número branco num selo quase branco — **1,11:1**, medido no Chromium. Agora o selo usa o par neutro fixo (`--tempest-gray-700` + `--tempest-neutral-on-solid`), o mesmo do `Badge` sólido neutro: **10,46:1** nos dois temas, e também com o tema parcial. As tintas dos glifos usam os pares `*-solid`/`*-on-solid` medidos — 5,17 e 4,83:1 no claro, 5,25 e 5,13:1 no escuro; a origem, `--tempest-surface` sobre `--tempest-success-fg` (8,65 e 10,28:1). Se o seu tema troca `--tempest-surface` sem trocar `--tempest-success-fg`, ajuste `--tempest-live-route-origin-ink` junto.
@@ -21801,11 +22345,43 @@ function CommandPalette() {
 
 `mod: true` aceita Ctrl ou Cmd, simplificando cross-OS.
 
-!!! note "Não dispara dentro de inputs"
-    Por default (`ignoreInput: true`) o atalho é ignorado quando o foco está num
-    `<input>`, `<textarea>`, `<select>` ou `[contenteditable]` — pra não roubar o
-    "k" que o usuário está digitando. Passe `{ ignoreInput: false }` se quiser o
-    contrário.
+Os defaults dependem do modificador do atalho:
+
+| Opção            | Atalho com `ctrl`/`meta`/`mod` | Com `alt` | Tecla sem modificador (`"/"`, `"?"`) |
+| ---------------- | ------------------------------ | --------- | ------------------------------------ |
+| `ignoreInput`    | `false`: dispara num campo     | `true`    | `true`: o campo fica com a tecla     |
+| `preventDefault` | `true`                         | `true`    | `false`                              |
+
+Ctrl/Cmd não digita nada, então ⌘K dispara mesmo com o foco na busca, e o
+`preventDefault` impede o navegador de agir na mesma tecla (Ctrl+K foca a busca do
+Chrome e do Firefox). Tecla simples digitada num `<input>`, `<textarea>`, `<select>` ou
+`[contenteditable]` continua do campo.
+
+!!! warning "Atalho de edição: devolva a tecla ao campo"
+    Ao ligar uma combinação que o próprio campo usa (`mod+z`, `mod+a`, `mod+c`),
+    passe `{ ignoreInput: true }`: sem isso, o Cmd+Z dentro de um `<textarea>` chama o
+    seu handler em vez de desfazer o texto.
+
+#### Mostrar o atalho — `formatShortcut` e `isApplePlatform`
+
+```tsx
+import { Kbd, formatShortcut, isApplePlatform } from "tempest-react-sdk";
+
+export function SearchHint() {
+  return (
+    <span>
+      Buscar <Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>
+      {isApplePlatform() ? null : " (no Mac, ⌘K)"}
+    </span>
+  );
+}
+```
+
+`formatShortcut` recebe o mesmo objeto do hook e devolve o rótulo na convenção do
+sistema: `⌘K` / `⇧⌘P` no Mac, iPhone e iPad (modificadores na ordem ⌃ ⌥ ⇧ ⌘, sem
+separador) e `Ctrl+K` / `Ctrl+Shift+P` no resto. `{ platform: "apple" | "other" }` fixa
+a convenção, para teste ou página de ajuda. `isApplePlatform()` responde a mesma
+pergunta de forma crua; fora do navegador, devolve `false`.
 
 ### Busca com debounce — `useDebounce`
 
@@ -22798,7 +23374,12 @@ await api.delete<void>(`/users/${encodeIdSegment(id)}`);
 // URL absoluta, sem enviar nada (EventSource, <img src>, link de download)
 api.url("/files/relatorio.pdf", { inline: true });
 // → "<VITE_API_URL>/files/relatorio.pdf?inline=true" — sem Authorization, sem token na query
+// URL do WebSocket no mesmo servidor: http → ws, https → wss
+api.wsUrl("/trips/42/watch");
+// → "wss://<host de VITE_API_URL>/trips/42/watch" quando a base é https
 ```
+
+`wsUrl(path, params?)` (0.84.0, #706) é o `url()` com o esquema trocado — `http:` vira `ws:`, `https:` vira `wss:`, e host, porta, `prefix` e query ficam iguais. É para o [`useWebSocket`](./websocket.md), que recebe URL e não cliente: o socket servido ao lado da API REST fica sob o mesmo `baseURL`, sem uma segunda variável de ambiente para o staging apontar para a produção. Com `baseURL` relativo (`"/api"`), resolve contra a página. Um esquema sem par de WebSocket (`blob:`, `data:`) lança `TypeError` na chamada, em vez de virar "URL de WebSocket inválida" lá no `new WebSocket`. O `.replace(/^http/, "ws")` à mão acertava os dois casos comuns e deixava esse passar.
 
 Comportamento:
 
@@ -22844,9 +23425,9 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
 
 É o mesmo helper que o [data provider](./data-provider.md#o-id-nunca-sai-do-proprio-segmento) aplica em todo id desde a 0.77.0 (#438), e que o código gerado pelo `tempest gen api` usa (#499). Só valores que **não** são id — query string — vão em `params`, que o cliente já serializa.
 
-!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0)"
-    O `url(path, params?)` entrou na interface `ApiClient` como método
-    obrigatório. Quem usa `createApiClient` não muda nada; um objeto que
+!!! warning "Mock de `ApiClient` escrito à mão: acrescente `url` (0.80.0) e `wsUrl` (0.84.0)"
+    O `url(path, params?)` e depois o `wsUrl(path, params?)` entraram na
+    interface `ApiClient` como métodos obrigatórios. Quem usa `createApiClient` não muda nada; um objeto que
     **finge** ser o cliente — o mock de teste mais comum — passa a dar erro de
     tipo até ganhar o método:
 
@@ -22865,6 +23446,7 @@ O id é a parte da URL que pode vir de fora do app: um search param, o hash, um 
         arrayBuffer: vi.fn(),
         upload: vi.fn(),
         url: (path) => `https://api.exemplo.com${path}`,
+        wsUrl: (path) => `wss://api.exemplo.com${path}`,
     };
     ```
 
@@ -24073,6 +24655,71 @@ plural("boxes", 2, undefined, { default: "{count} caixas" }); // "2 caixas"
     `default` e deixe ela responder. Este é o caminho que as strings internas do
     próprio SDK usam (`tempest.error.offline`, em `useDescribeApiError`).
 
+## Textos padrão dos componentes
+
+Componentes do SDK têm texto padrão: o título do `ErrorState`, os botões do
+`ConfirmDialog`, o "Fechar" do `Modal`. Com um `I18nProvider` montado, esses
+textos passam pelo catálogo, numa ordem só:
+
+1. **Prop explícita** (`title`, `retryLabel`, `confirmLabel`…) — sempre vence.
+2. **O seu catálogo**, pela chave `tempest.*` (locale ativo, depois `fallbackLocale`).
+3. **A tabela embutida do SDK**, em inglês quando o locale é `en` ou `en-*`.
+4. A mesma tabela em **pt-BR** — também o que aparece sem provider nenhum.
+
+Ou seja: um app em inglês recebe os textos padrão em inglês sem configurar nada,
+e um app em outro idioma traduz copiando as chaves para o próprio catálogo:
+
+```tsx
+import { ErrorState, I18nProvider, TEMPEST_MESSAGES } from "tempest-react-sdk";
+
+const messages = {
+    es: {
+        ...TEMPEST_MESSAGES.en,
+        "tempest.errorState.title": "Algo salió mal",
+        "tempest.errorState.retry": "Reintentar",
+    },
+};
+
+export function App({ refetch }: { refetch: () => void }) {
+    return (
+        <I18nProvider locale="es" messages={messages}>
+            <ErrorState onRetry={refetch} />
+        </I18nProvider>
+    );
+}
+```
+
+As chaves, com o padrão em pt-BR / en:
+
+| Chave                                | pt-BR                                          | en                                   | Onde                                           |
+| ------------------------------------ | ---------------------------------------------- | ------------------------------------ | ---------------------------------------------- |
+| `tempest.common.close`               | Fechar                                         | Close                                | botão fechar de `Modal`, `Drawer`, `Banner`, `Alert` |
+| `tempest.errorState.title`           | Algo deu errado                                | Something went wrong                 | `ErrorState`                                   |
+| `tempest.errorState.description`     | Não foi possível carregar essas informações.   | We couldn't load this information.   | `ErrorState`                                   |
+| `tempest.errorState.retry`           | Tentar novamente                               | Try again                            | `ErrorState`                                   |
+| `tempest.confirmDialog.confirm`      | Confirmar                                      | Confirm                              | `ConfirmDialog`                                |
+| `tempest.confirmDialog.cancel`       | Cancelar                                       | Cancel                               | `ConfirmDialog`                                |
+| `tempest.spinner.label`              | Carregando                                     | Loading                              | `Spinner`                                      |
+| `tempest.pagination.results_one`     | {count} resultado                              | {count} result                       | `Pagination`                                   |
+| `tempest.pagination.results_other`   | {count} resultados                             | {count} results                      | `Pagination`                                   |
+| `tempest.pagination.pageOf`          | Página {page} de {total}                       | Page {page} of {total}               | `Pagination`                                   |
+| `tempest.pagination.previous`        | Página anterior                                | Previous page                        | `Pagination`                                   |
+| `tempest.pagination.next`            | Próxima página                                 | Next page                            | `Pagination`                                   |
+| `tempest.pagination.pageSize`        | Itens por página                               | Items per page                       | `Pagination`                                   |
+| `tempest.pagination.pageSizeOption`  | {size} / página                                | {size} / page                        | `Pagination`                                   |
+| `tempest.bottomNavigation.label`     | Navegação principal                            | Main navigation                      | `BottomNavigation`                             |
+| `tempest.sidebar.label`              | Navegação lateral                              | Side navigation                      | `Sidebar`                                      |
+| `tempest.tag.remove`                 | Remover                                        | Remove                               | `Tag`                                          |
+| `tempest.searchBar.clear`            | Limpar busca                                   | Clear search                         | `SearchBar`                                    |
+| `tempest.searchBar.placeholder`      | Buscar...                                      | Search...                            | `SearchBar`                                    |
+
+!!! note "Ainda fora do catálogo"
+    `DataTable`, `Table`, `Command`, `Chat`, `FilterBar`, as telas de auth, os
+    componentes de captura e de PWA, entre outros, ainda têm o texto padrão fixo em
+    pt-BR — passe as props de texto deles. A migração continua no #746. As mensagens
+    do [`useDescribeApiError`](./http.md) já passavam pelo catálogo
+    (`tempest.error.offline`, `tempest.error.validation`), mas sem tabela em inglês.
+
 ## Plurais
 
 `plural(key, count, params?)` escolhe entre `${key}_one` (quando `count === 1`) e `${key}_other` (qualquer outro valor), com `{count}` disponível na interpolação:
@@ -24097,6 +24744,7 @@ const i18n = createI18n({ locale: "pt-BR", fallbackLocale: "en", messages });
 
 i18n.t("greet", { name: "Mau" }); // "Olá, Mau"
 i18n.formatDate(new Date(), { dateStyle: "long" });
+i18n.formatDate("2026-11-16", { weekday: "short", day: "2-digit" }); // "seg., 16" — data sem hora mantém o dia em qualquer fuso
 
 const en = i18n.withLocale("en"); // novo I18n, mesmo catálogo
 en.t("greet", { name: "Mau" }); // "Hi, Mau"
@@ -24118,6 +24766,7 @@ const ptBR = await fetch("/i18n/pt-BR.json").then((response) => response.json())
 - `t` interpola `{placeholder}`, cai no fallback e por fim devolve a própria chave — nunca quebra.
 - `plural` usa os sufixos `_one` / `_other`; plurais complexos pedem `i18next`.
 - `createI18n` roda fora do React; `withLocale` clona o objeto em outro idioma.
+- Os textos padrão dos componentes (`tempest.*`) passam pelo catálogo, com tabela embutida em pt-BR e en (`TEMPEST_MESSAGES`); prop explícita sempre vence.
 
 ## Veja também
 
@@ -25574,7 +26223,7 @@ O backend **sabe** qual campo derrubou a requisição — ele diz o nome. O que 
 Agora as três chaves singulares que o `tempest-fastapi-sdk` usa entram no mesmo `error.fields`:
 
 ```tsx
-import { createApiClient, describeApiError, isApiError } from "tempest-react-sdk";
+import { applyApiFieldErrors, createApiClient, describeApiError } from "tempest-react-sdk";
 
 const api = createApiClient({ baseURL: import.meta.env.VITE_API_URL });
 
@@ -25582,17 +26231,13 @@ async function salvarEndereco(values: { city: string; phone: string }): Promise<
     try {
         await api.post("/api/enderecos", { body: values });
     } catch (err) {
-        if (isApiError(err) && err.fields) {
-            for (const [field, message] of Object.entries(err.fields)) {
-                setError(field, { message });
-            }
-        }
+        applyApiFieldErrors(form, err);
         toast.error(describeApiError(err, "Não foi possível salvar o endereço"));
     }
 }
 ```
 
-Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `setError("city", …)` cola a frase no input certo.
+Com o corpo `{ "detail": { "detail": "Cidade não encontrada para o estado informado.", "field": "city" }, "code": "VALIDATION_ERROR" }`, o `err.fields` vale `{ city: "Cidade não encontrada para o estado informado." }` — e o `applyApiFieldErrors(form, err)` cola a frase no input certo (um nome que o formulário não tem volta em `unmatched`, em vez de marcar um input que não existe).
 
 !!! note "A ordem de precedência"
     `detail[].loc` (lista do FastAPI) → `detail.field` → `field` → `details.field`. A lista ganha porque um app `tempest-fastapi-sdk` sem handler de `RequestValidationError` continua respondendo o 422 padrão do FastAPI. O `details` responde por último: ele é o saco de contexto genérico do `AppException`, e o `field` dele pode ser sobre algo que não é input nenhum — uma coluna de ordenação recusada, por exemplo.
@@ -25693,6 +26338,9 @@ O hook **controla o estado de página** internamente, envia `page` + `size` para
 
 !!! check "Filtro novo começa da página 1"
     Ponha os filtros aplicados na `queryKey` (`["users", filtros]`). Quando ela muda estruturalmente, a página volta para 1 **no mesmo render** — sem a requisição intermediária da página antiga. Até a 0.68.0 a página sobrevivia: filtrar na página 7 pedia a página 7 de um resultado de duas. Para separar rascunho de aplicado, veja [`useDraftFilters`](./hooks.md#rascunho-aplicado-usedraftfilters).
+
+!!! tip "Página na URL: `page` + `onPageChange`"
+    Passe `page` e o hook deixa de guardar a página: `setPage`, `next` e `prev` viram chamadas a `onPageChange`, e quem lê a URL decide. Nesse modo uma `queryKey` nova **não** volta a página para 1 — quem é dono da página escreve o filtro e `pagina: null` na mesma atualização, que o [`useUrlState`](./routing.md#estado-da-tela-na-url-com-useurlstate) transforma numa navegação só.
 
 !!! tip "`size` vs `page_size`"
     O default segue o `fastapi-pagination` (`?size=`). Se o seu backend usa `page_size`, passe `sizeParam: "page_size"`. O `order_by`/`ascending` só são enviados quando você define `orderBy`.
@@ -27267,6 +27915,83 @@ useQuery({
 });
 ```
 
+## Armazenamento cheio: `StorageFullError`
+
+Toda escrita do store — `put`, `bulkPut`, `update`, `updateMany`, `delete` e `clear` — rejeita com `StorageFullError` quando o navegador recusa por falta de espaço. É o sinal para o app dizer "memória cheia, sincronize antes de continuar", em vez de mostrar o erro do Dexie:
+
+```ts
+import { StorageFullError, createOfflineStore } from "tempest-react-sdk";
+
+interface Visit {
+  id: string;
+  technician_id: string;
+  notes: string;
+}
+
+const visits = createOfflineStore<Visit, string>({
+  databaseName: "CampoVisitas",
+  version: 1,
+  tableName: "visits",
+  indexes: "&id, technician_id",
+  ownerField: "technician_id",
+});
+
+export async function saveVisit(visit: Visit, owner: string): Promise<"saved" | "full"> {
+  try {
+    await visits.put(visit, owner);
+    return "saved";
+  } catch (error) {
+    if (error instanceof StorageFullError) return "full";
+    throw error;
+  }
+}
+```
+
+Testar `error.name === "QuotaExceededError"` não basta, porque não é esse o erro que chega. Medido no Chromium 159, com a cota da origem em 1 MiB (`Storage.overrideQuotaForOrigin` do DevTools Protocol) e um registro de 4 MiB: as quatro escritas rejeitaram com o **`AbortError`** do Dexie. O pedido em si dá certo; a cota é cobrada quando a transação faz commit, e o `QuotaExceededError` só aparece no `inner` do abort. O store reconhece essa forma e as outras:
+
+| O que o Dexie entrega | Quando |
+| --- | --- |
+| `AbortError` com `inner` `QuotaExceededError` | cota cobrada no commit — o caso medido no Chromium |
+| `QuotaExceededError` do Dexie | o próprio pedido recusado |
+| `BulkError` / `ModifyError` com a cota em `failures` | `bulkPut` / `updateMany` com registros recusados um a um |
+
+O erro original fica em `cause`. Depois de um `bulkPut`, `cause` pode ser o `BulkError` do Dexie, cujo `failuresByPos` diz quais registros falharam — os outros podem ter sido gravados. Qualquer outro erro passa inalterado. O `enqueue` do [`createOfflineSync`](./offline-sync.md) herda o comportamento, porque a outbox é um `OfflineStore`.
+
+A reprodução sem browser (`npx vitest run src/offline/create-offline-store.quota.test.ts`) aborta o commit com `QuotaExceededError` no fake-indexeddb, como o Chromium faz, e cobre cada escrita.
+
+`raw` e `db` são o Dexie direto e **não** convertem. Numa transação sua, a cota é cobrada no commit **da transação**, então teste o erro dela com `isQuotaExceededError`, que reconhece as mesmas formas:
+
+```ts
+import { createOfflineStore, isQuotaExceededError } from "tempest-react-sdk";
+
+interface Draft {
+  id: string;
+  body: string;
+}
+
+const drafts = createOfflineStore<Draft, string>({
+  databaseName: "Rascunhos",
+  version: 1,
+  tableName: "drafts",
+  indexes: "&id",
+});
+
+export async function saveAll(items: Draft[]): Promise<boolean> {
+  try {
+    await drafts.db.transaction("rw", drafts.raw, async () => {
+      await drafts.raw.clear();
+      await drafts.raw.bulkAdd(items);
+    });
+    return true;
+  } catch (error) {
+    if (isQuotaExceededError(error)) return false;
+    throw error;
+  }
+}
+```
+
+O SDK **não** recusa gravação olhando o `navigator.storage.estimate()`: o número é aproximado, e a recusa do navegador é o sinal exato. Para avisar antes de encher, use o [`useStorageEstimate`](./pwa.md#4-durabilidade-peca-armazenamento-persistente).
+
 ## `createOfflineDatabase` — várias tabelas numa base
 
 `createOfflineStore` dá a cada store uma base só dela, que é a forma certa pra um cache isolado. Deixa de ser assim no instante em que as tabelas pertencem uma à outra: chats e suas mensagens, uma entidade e seus rascunhos, qualquer coisa que você leria ou limparia como uma unidade. Separá-las em bases diferentes custa a transação de verdade — o Dexie só roda uma atomicamente **dentro** de uma mesma base — e ainda espalha o bump de versão de uma mudança relacionada por dois lugares.
@@ -27328,6 +28053,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `ownerField` ativa scoping multi-tenant: `put`/`list`/`count`/`clear`/`updateMany` respeitam o `owner` e isolam dados por usuário.
 - CRUD: `put`/`bulkPut`, `get`/`list` (com `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
 - `listBy(índice, valor, owner)` lista por outro campo indexado pelo índice, sem perder o dono.
+- Escrita recusada por falta de espaço rejeita com `StorageFullError` (original em `cause`); em `raw`/`db`, use `isQuotaExceededError`.
 - `raw` e `db` abrem a porta pra queries Dexie avançadas.
 - Bump `version` ao mudar `indexes`; use `db.version(N).upgrade(...)` pra migrações de dados.
 
@@ -29630,24 +30356,27 @@ installBackgroundSync({
 
 ## 4. Durabilidade: peça armazenamento persistente
 
-Sem `navigator.storage.persist()`, o navegador pode **despejar** o IndexedDB e o Cache Storage sob pressão de disco — fatal pra dados offline. `useStorageEstimate` mostra uso/quota e expõe a ação de tornar o armazenamento permanente:
+Sem `navigator.storage.persist()`, o navegador pode **despejar** o IndexedDB e o Cache Storage sob pressão de disco — fatal pra dados offline. `useStorageEstimate` lê uso/quota e expõe a ação de tornar o armazenamento permanente; o [`<StorageUsage>`](./components/feedback.md#storageusage) exibe esses números, com os bytes pendentes de envio e os avisos:
 
 ```tsx
-import { useStorageEstimate } from "tempest-react-sdk";
+import { StorageUsage, useStorageEstimate } from "tempest-react-sdk";
 
-function StorageMeter() {
-  const { usage, quota, ratio, persisted, requestPersist } = useStorageEstimate();
+export function StorageMeter({ pendingBytes }: { pendingBytes: number }) {
+  const { usage, quota, persisted, requestPersist } = useStorageEstimate();
   return (
-    <div>
-      <progress value={ratio ?? 0} />
-      <span>
-        {((usage ?? 0) / 1e6).toFixed(1)} de {((quota ?? 0) / 1e6).toFixed(0)} MB
-      </span>
-      {!persisted && <button onClick={requestPersist}>Tornar permanente</button>}
-    </div>
+    <StorageUsage
+      usage={usage}
+      quota={quota}
+      persisted={persisted}
+      pendingBytes={pendingBytes}
+      warnAt={0.9}
+      onRequestPersist={requestPersist}
+    />
   );
 }
 ```
+
+O limite de aviso (`warnAt`) e o momento de pedir persistência são do app: o SDK não chama `requestPersistentStorage()` sozinho, porque no Firefox isso abre um pedido de permissão. Chame no login ou depois da instalação.
 
 Fora do React, use as funções puras `estimateStorage()` e `requestPersistentStorage()`.
 
@@ -30287,7 +31016,6 @@ src/
 └── features/products/
     ├── product.ts
     ├── use-product-filters.ts
-    ├── ProductSearch.tsx
     ├── ProductFormDrawer.tsx
     └── ProductsPage.tsx
 ```
@@ -30406,7 +31134,7 @@ export const productSchema = z.object({
     .regex(/^[A-Z0-9-]{4,20}$/, "De 4 a 20 caracteres: letras, números e hífen"),
   category: z
     .union([z.enum(CATEGORIES), z.literal("")])
-    .refine((value) => value.length > 0, "Escolha uma categoria"),
+    .refine((value) => value !== "", "Escolha uma categoria"),
   price_cents: z.number().int().min(1, "Informe o preço"),
   stock: z.coerce
     .number()
@@ -30415,9 +31143,10 @@ export const productSchema = z.object({
   status: z.enum(STATUSES),
 });
 
-export type ProductFormValues = z.infer<typeof productSchema>;
+export type ProductFormInput = z.input<typeof productSchema>;
+export type ProductFormValues = z.output<typeof productSchema>;
 
-export const EMPTY_PRODUCT: ProductFormValues = {
+export const EMPTY_PRODUCT: ProductFormInput = {
   name: "",
   sku: "",
   category: "",
@@ -30426,7 +31155,7 @@ export const EMPTY_PRODUCT: ProductFormValues = {
   status: "draft",
 };
 
-export function toFormValues(product: Product | null): ProductFormValues {
+export function toFormValues(product: Product | null): ProductFormInput {
   if (!product) return EMPTY_PRODUCT;
   return {
     name: product.name,
@@ -30447,7 +31176,11 @@ O schema zod é a fonte de verdade do formulário. Três detalhes:
 - **`sku`** passa por `toUpperCase()` antes do `regex`: a pessoa digita `mer-cafe-500` e o backend
   recebe `MER-CAFE-500`.
 - **`category`** aceita `""` na entrada e recusa no `refine`. Assim o formulário de cadastro abre
-  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido.
+  **sem** categoria escolhida, em vez de gravar a primeira da lista sem ninguém ter escolhido. O
+  `value !== ""` é um predicado de tipo: a **saída** do schema (`ProductFormValues`, o que o
+  `save` recebe) fica só com as categorias, enquanto a **entrada** (`ProductFormInput`, o tipo dos
+  valores iniciais) aceita o `""`. O `useZodForm` tipa os campos pela entrada e o `handleSubmit`
+  pela saída, então os dois lados batem sem cast.
 - **`stock`** usa `z.coerce.number()`, porque um `<input type="number">` entrega texto.
 
 `toFormValues` converte um produto da API nos valores do formulário. Sem produto, devolve o
@@ -30457,12 +31190,14 @@ formulário vazio de cadastro.
 
 ```ts
 // src/features/products/use-product-filters.ts
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import {
   ALL_OPTION_VALUE,
-  useSearchParams,
+  useUrlState,
   type DataTableSort,
   type GetListParams,
+  type UrlStatePatch,
+  type UrlStateWriteOptions,
 } from "tempest-react-sdk";
 
 import type { Product } from "@/features/products/product";
@@ -30473,15 +31208,13 @@ const DEFAULTS = {
   busca: "",
   categoria: ALL_OPTION_VALUE,
   status: ALL_OPTION_VALUE,
-  pagina: "1",
-  por_pagina: "20",
+  pagina: 1,
+  por_pagina: 20,
   ordem: "",
   dir: "",
 };
 
-type ParamName = keyof typeof DEFAULTS;
-
-export type FiltersPatch = Partial<Record<ParamName, string | number | null>>;
+export type FiltersPatch = UrlStatePatch<typeof DEFAULTS>;
 
 export interface ProductFilters {
   search: string;
@@ -30494,65 +31227,33 @@ export interface ProductFilters {
   key: string;
 }
 
-function readPositiveInt(raw: string | null, fallback: number): number {
-  const value = Number(raw);
-  return Number.isInteger(value) && value > 0 ? value : fallback;
-}
-
-function readSort(params: URLSearchParams): DataTableSort<Product> | null {
-  const field = SORTABLE.find((name) => name === params.get("ordem"));
-  if (!field) return null;
-  return { key: field, direction: params.get("dir") === "desc" ? "desc" : "asc" };
-}
-
 export function useProductFilters(): {
   filters: ProductFilters;
-  update: (patch: FiltersPatch, options?: { replace?: boolean }) => void;
+  update: (patch: FiltersPatch, options?: UrlStateWriteOptions) => void;
   clear: () => void;
 } {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const latest = useRef(searchParams);
-
-  useEffect(() => {
-    latest.current = searchParams;
-  }, [searchParams]);
+  const { state, set, reset } = useUrlState(DEFAULTS);
 
   const filters = useMemo<ProductFilters>(() => {
-    const search = searchParams.get("busca") ?? DEFAULTS.busca;
-    const category = searchParams.get("categoria") ?? DEFAULTS.categoria;
-    const status = searchParams.get("status") ?? DEFAULTS.status;
+    const field = SORTABLE.find((name) => name === state.ordem);
     return {
-      search,
-      category,
-      status,
-      page: readPositiveInt(searchParams.get("pagina"), 1),
-      pageSize: readPositiveInt(searchParams.get("por_pagina"), Number(DEFAULTS.por_pagina)),
-      sort: readSort(searchParams),
+      search: state.busca,
+      category: state.categoria,
+      status: state.status,
+      page: Math.max(1, Math.trunc(state.pagina)),
+      pageSize: Math.max(1, Math.trunc(state.por_pagina)),
+      sort: field ? { key: field, direction: state.dir === "desc" ? "desc" : "asc" } : null,
       isFiltered:
-        search !== DEFAULTS.busca || category !== DEFAULTS.categoria || status !== DEFAULTS.status,
-      key: [search, category, status].join("|"),
+        state.busca !== DEFAULTS.busca ||
+        state.categoria !== DEFAULTS.categoria ||
+        state.status !== DEFAULTS.status,
+      key: [state.busca, state.categoria, state.status].join("|"),
     };
-  }, [searchParams]);
+  }, [state]);
 
-  const update = useCallback(
-    (patch: FiltersPatch, options: { replace?: boolean } = {}) => {
-      const next = new URLSearchParams(latest.current);
-      for (const [name, value] of Object.entries(patch) as [ParamName, string | number | null][]) {
-        const text = value === null ? "" : String(value);
-        if (text === "" || text === DEFAULTS[name]) next.delete(name);
-        else next.set(name, text);
-      }
-      latest.current = next;
-      setSearchParams(next, { replace: options.replace ?? false });
-    },
-    [setSearchParams],
-  );
+  const clear = () => reset(["busca", "categoria", "status", "pagina"]);
 
-  const clear = useCallback(() => {
-    update({ busca: null, categoria: null, status: null, pagina: null });
-  }, [update]);
-
-  return { filters, update, clear };
+  return { filters, update: set, clear };
 }
 
 export function toListParams(filters: ProductFilters): GetListParams {
@@ -30577,78 +31278,23 @@ escrever nela.
   compartilha. `toListParams` traduz para os nomes do backend.
 - **Valor padrão sai da URL.** `pagina=1` e `categoria=all` são apagados, então a URL limpa é
   `/produtos`.
-- **URL inválida não quebra a tela.** `?pagina=abc` vira página 1; `?ordem=senha` é ignorado, porque
-  só os campos de `SORTABLE` passam.
+- **URL inválida não quebra a tela.** O `useUrlState` tipa cada parâmetro pelo default:
+  `?pagina=abc` vira página 1. `?ordem=senha` é ignorado, porque só os campos de `SORTABLE` passam.
 - **Filtro novo volta para a página 1**: quem chama `update` passa `pagina: null` junto.
 
-??? info "Por que um `useRef` com a última URL?"
-    O `setSearchParams` do React Router monta a URL nova a partir da URL **do último render**. Duas
-    chamadas no mesmo clique se atropelam: a segunda não vê a primeira.
+!!! check "Duas escritas no mesmo clique, nenhuma perdida"
+    O `DataTable` chama `onPageSizeChange(50)` e `onPageChange(1)` no mesmo clique. Com o
+    `setSearchParams` do React Router a segunda escrita partia da URL do último render e apagava o
+    `por_pagina=50`; esta receita carregava um `useRef` com a última URL para contornar isso. O
+    [`useUrlState`](../routing.md#estado-da-tela-na-url-com-useurlstate) acumula as escritas do
+    mesmo tique e navega uma vez — uma entrada no histórico por gesto.
 
-    O `DataTable` faz exatamente isso quando você troca o tamanho da página: chama
-    `onPageSizeChange(50)` e, logo em seguida, `onPageChange(1)`. Sem o ref, a segunda escrita
-    partiria da URL antiga e apagaria o `por_pagina=50`.
+### 5. A busca fica na tabela
 
-    Por isso `update` parte de `latest.current`, grava nele a URL nova na hora e só depois navega.
-    O `useEffect` ressincroniza o ref quando a URL muda por fora (botão voltar, link colado).
-
-### 5. Busca com debounce
-
-```tsx
-// src/features/products/ProductSearch.tsx
-import { useEffect, useState } from "react";
-import { SearchBar, useDebounce, useLatestRef } from "tempest-react-sdk";
-
-interface ProductSearchProps {
-  value: string;
-  onSearch: (term: string) => void;
-}
-
-export function ProductSearch({ value, onSearch }: ProductSearchProps) {
-  const [draft, setDraft] = useState(value);
-  const [lastValue, setLastValue] = useState(value);
-  const debounced = useDebounce(draft, 400);
-  const latest = useLatestRef({ value, onSearch });
-
-  if (value !== lastValue) {
-    setLastValue(value);
-    if (value !== debounced.trim()) setDraft(value);
-  }
-
-  useEffect(() => {
-    const term = debounced.trim();
-    const { value: applied, onSearch: search } = latest.current;
-    if (term !== applied) search(term);
-  }, [debounced, latest]);
-
-  return (
-    <SearchBar
-      value={draft}
-      onChange={setDraft}
-      placeholder="Buscar por nome ou SKU"
-      aria-label="Buscar produtos"
-    />
-  );
-}
-```
-
-A caixa tem o próprio estado (`draft`), que muda a cada tecla. O
-[`useDebounce`](../hooks.md#busca-com-debounce-usedebounce) entrega o texto estável 400 ms depois
-da última tecla, e só então o efeito chama `onSearch`. Digitar "café" faz **uma** requisição.
-
-O bloco `if (value !== lastValue)` cuida do caminho inverso: quando a URL muda por fora (voltar no
-navegador, "Limpar filtros"), a caixa acompanha. Ele compara com `debounced` para não confundir a
-volta da própria busca com uma mudança externa e apagar o que a pessoa ainda está digitando.
-
-O [`useLatestRef`](../hooks.md#valor-fresco-dentro-de-um-effect-que-roda-uma-vez-uselatestref)
-deixa o efeito ler o `value` e o `onSearch` mais recentes sem entrar na lista de dependências — o
-efeito roda quando o texto estabiliza, e só.
-
-!!! warning "Por que não o `searchable` do `DataTable`?"
-    O `DataTable` tem uma caixa de busca embutida (`searchable` + `onSearchChange`). Ela guarda o
-    texto em estado interno, que sempre começa vazio. Numa tela cuja busca vem da URL, abrir
-    `/produtos?busca=café` mostraria a lista filtrada com a caixa em branco. Por isso a busca fica
-    fora da tabela, controlada pela URL.
+Não há arquivo para a busca. O `DataTable` recebe o termo da URL em `search`, mostra cada tecla na
+caixa e só chama `onSearchChange` depois de `searchDebounceMs` sem digitar — digitar "café" faz
+**uma** requisição. Quando a URL muda por fora (voltar no navegador, "Limpar filtros"), a caixa
+acompanha. A busca não diferencia acento: "cafe" acha "Café".
 
 ### 6. O formulário no drawer
 
@@ -30665,6 +31311,7 @@ import {
   Input,
   MoneyInput,
   Select,
+  applyApiFieldErrors,
   isApiError,
   toOptions,
   useCreate,
@@ -30711,10 +31358,8 @@ export function ProductFormDrawer({ open, product, onClose }: ProductFormDrawerP
   }, [open, product, reset]);
 
   function handleError(error: unknown): void {
+    applyApiFieldErrors(form, error);
     if (isApiError(error)) {
-      for (const [field, message] of Object.entries(error.fields ?? {})) {
-        if (field in EMPTY_PRODUCT) setError(field as keyof ProductFormValues, { message });
-      }
       if (error.code === "PRODUCT_SKU_TAKEN") {
         setError("sku", { message: ERROR_CODES.PRODUCT_SKU_TAKEN });
       }
@@ -30799,7 +31444,9 @@ O mesmo componente cadastra e edita: `product === null` é cadastro.
 O tratamento de erro é o que separa uma tela de demo de uma tela de produção:
 
 1. `error.fields` traz o campo culpado, venha ele da lista de validação do FastAPI ou da chave
-   `field` do `tempest-fastapi-sdk`. Cada mensagem vai para o seu input com `setError`.
+   `field` do `tempest-fastapi-sdk`. O `applyApiFieldErrors` põe cada mensagem no seu input e
+   foca o primeiro; um nome que o formulário não tem volta em `unmatched`, em vez de marcar um
+   input que não existe.
 2. `PRODUCT_SKU_TAKEN` ganha uma frase escrita por você, no campo SKU.
 3. [`describeApiError`](../http.md#do-erro-tipado-para-a-frase-na-tela-describeapierror) monta a
    frase do toast: a sua frase para o código, "sem conexão" para `status: 0`, o `detail` do
@@ -30821,7 +31468,6 @@ import { MoreVertical, PackagePlus, Plus, SearchX, Trash2 } from "lucide-react";
 import {
   Badge,
   Button,
-  Checkbox,
   ConfirmDialog,
   DataTable,
   DropdownMenu,
@@ -30839,6 +31485,7 @@ import {
   withAllOption,
   type BadgeVariant,
   type DataTableColumn,
+  type DataTableRowKey,
 } from "tempest-react-sdk";
 
 import {
@@ -30848,7 +31495,6 @@ import {
   type ProductStatus,
 } from "@/features/products/product";
 import { ProductFormDrawer } from "@/features/products/ProductFormDrawer";
-import { ProductSearch } from "@/features/products/ProductSearch";
 import { toListParams, useProductFilters } from "@/features/products/use-product-filters";
 
 const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
@@ -30859,7 +31505,7 @@ const STATUS_VARIANT: Record<ProductStatus, BadgeVariant> = {
 
 interface Selection {
   key: string;
-  ids: string[];
+  ids: DataTableRowKey[];
 }
 
 export function ProductsPage() {
@@ -30881,20 +31527,13 @@ export function ProductsPage() {
   const lastPage = products.data?.pages ?? 0;
   const selectionKey = `${filters.key}|${filters.page}|${filters.pageSize}`;
   const selectedIds = selection.key === selectionKey ? selection.ids : [];
-  const allSelected = items.length > 0 && items.every((item) => selectedIds.includes(item.id));
 
   useEffect(() => {
     if (lastPage > 0 && filters.page > lastPage) update({ pagina: lastPage }, { replace: true });
   }, [filters.page, lastPage, update]);
 
-  function setSelected(ids: string[]): void {
+  function setSelected(ids: DataTableRowKey[]): void {
     setSelection({ key: selectionKey, ids });
-  }
-
-  function toggleOne(id: string): void {
-    setSelected(
-      selectedIds.includes(id) ? selectedIds.filter((item) => item !== id) : [...selectedIds, id],
-    );
   }
 
   function openForm(product: Product | null): void {
@@ -30920,25 +31559,7 @@ export function ProductsPage() {
   }
 
   const columns: DataTableColumn<Product>[] = [
-    {
-      key: "sku",
-      header: (
-        <Checkbox
-          aria-label="Selecionar todos os produtos desta página"
-          checked={allSelected}
-          indeterminate={selectedIds.length > 0 && !allSelected}
-          onChange={() => setSelected(allSelected ? [] : items.map((item) => item.id))}
-        />
-      ),
-      render: (product) => (
-        <Checkbox
-          label={product.sku}
-          aria-label={`Selecionar ${product.name}`}
-          checked={selectedIds.includes(product.id)}
-          onChange={() => toggleOne(product.id)}
-        />
-      ),
-    },
+    { key: "sku", header: "SKU" },
     { key: "name", header: "Produto", sortable: true },
     {
       key: "category",
@@ -30970,37 +31591,33 @@ export function ProductsPage() {
         <Badge variant={STATUS_VARIANT[product.status]}>{STATUS_LABELS[product.status]}</Badge>
       ),
     },
-    {
-      key: "id",
-      header: "",
-      align: "right",
-      render: (product) => (
-        <DropdownMenu
-          placement="bottom-end"
-          trigger={
-            <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
-              <MoreVertical size={16} />
-            </Button>
-          }
-          items={[
-            {
-              type: "item",
-              id: "edit",
-              label: "Editar",
-              onSelect: () => openForm(product),
-            },
-            {
-              type: "item",
-              id: "delete",
-              label: "Excluir",
-              danger: true,
-              onSelect: () => setToDelete([product]),
-            },
-          ]}
-        />
-      ),
-    },
   ];
+
+  const rowActions = (product: Product) => (
+      <DropdownMenu
+        placement="bottom-end"
+        trigger={
+          <Button variant="ghost" iconOnly aria-label={`Ações para ${product.name}`}>
+            <MoreVertical size={16} />
+          </Button>
+        }
+        items={[
+          {
+            type: "item",
+            id: "edit",
+            label: "Editar",
+            onSelect: () => openForm(product),
+          },
+          {
+            type: "item",
+            id: "delete",
+            label: "Excluir",
+            danger: true,
+            onSelect: () => setToDelete([product]),
+          },
+        ]}
+      />
+  );
 
   const emptyMessage = filters.isFiltered ? (
     <EmptyState
@@ -31040,10 +31657,6 @@ export function ProductsPage() {
       }
       toolbar={
         <Stack direction={{ mobile: "vertical", desktop: "horizontal" }} gap={3} align="stretch">
-          <ProductSearch
-            value={filters.search}
-            onSearch={(term) => update({ busca: term, pagina: null }, { replace: true })}
-          />
           <Select
             variant="chip"
             aria-label="Filtrar por categoria"
@@ -31101,7 +31714,7 @@ export function ProductsPage() {
           pageSize={filters.pageSize}
           pageSizeOptions={[10, 20, 50]}
           onPageSizeChange={(size) => update({ por_pagina: size, pagina: null })}
-          initialSort={filters.sort ?? undefined}
+          sort={filters.sort}
           onSortChange={(sort) =>
             update({
               ordem: sort ? String(sort.key) : null,
@@ -31109,6 +31722,19 @@ export function ProductsPage() {
               pagina: null,
             })
           }
+          searchable
+          search={filters.search}
+          searchDebounceMs={400}
+          searchLabel="Buscar produtos"
+          searchPlaceholder="Buscar por nome ou SKU"
+          onSearchChange={(term) => update({ busca: term, pagina: null }, { replace: true })}
+          selectable
+          selectedKeys={selectedIds}
+          onSelectionChange={setSelected}
+          selectionLabel={(product) => `Selecionar ${product.name}`}
+          rowActions={rowActions}
+          rowActionsLabel="Ações do produto"
+          stackOnMobile
           loading={products.isFetching}
           emptyMessage={emptyMessage}
         />
@@ -31159,14 +31785,15 @@ eventos que você trata. Cada um escreve na URL:
 | `onSortChange({ key: "price_cents", direction: "desc" })` | `ordem=price_cents&dir=desc` |
 | `onSortChange(null)` (terceiro clique) | remove `ordem` e `dir` |
 
-`initialSort={filters.sort}` faz a seta do cabeçalho abrir no lugar certo quando a tela já chega com
-`?ordem=` na URL.
+`sort={filters.sort}` mantém a seta do cabeçalho no lugar certo quando a tela chega com `?ordem=` na
+URL e quando o botão voltar muda a ordem. A busca segue o mesmo caminho: `search={filters.search}`,
+`onSearchChange` com `replace` para cada pausa na digitação não virar uma entrada no histórico.
 
 #### Seleção em lote
 
-O `DataTable` não tem seleção de linhas embutida, então ela é uma coluna: a de SKU renderiza um
-`Checkbox` por linha, e o cabeçalho dela tem o "selecionar todos desta página" com estado
-`indeterminate` quando só parte está marcada.
+`selectable` liga a coluna de checkbox do `DataTable`, controlada por `selectedKeys` e
+`onSelectionChange`. O checkbox do cabeçalho marca a página que está na tela e fica `indeterminate`
+quando só parte dela está marcada; as chaves são o retorno de `rowKey`, o id do produto.
 
 A seleção guarda junto a `key` dos filtros e da página. Mudou a busca, o filtro ou a página, a chave
 muda e a seleção some sozinha — sem `useEffect`, e sem o risco de excluir um produto que a pessoa
@@ -31174,8 +31801,8 @@ nem está vendo.
 
 #### Menu por linha e exclusão
 
-A última coluna usa a chave `id` para o [`DropdownMenu`](../components/actions.md#numa-linha-de-tabela)
-de "Editar" e "Excluir". O menu abre em portal, então não é cortado pela rolagem horizontal da
+`rowActions` desenha o [`DropdownMenu`](../components/actions.md#numa-linha-de-tabela) de "Editar" e
+"Excluir" numa coluna da própria tabela, sem emprestar a `key` de um campo do produto. O menu abre em portal, então não é cortado pela rolagem horizontal da
 tabela.
 
 Excluir um e excluir vários passam pelo mesmo `ConfirmDialog`. `confirmDelete` manda os ids para
@@ -31199,8 +31826,9 @@ backend ("Produto com pedidos em aberto").
 
 #### No celular 📱
 
-- `priority: "desktop"` esconde a categoria abaixo do desktop; `priority: "tablet"` esconde
-  estoque e situação no celular. Ficam SKU com a seleção, nome, preço e o menu.
+- `stackOnMobile` transforma cada linha num cartão abaixo de 768 px: rótulo à esquerda, valor à
+  direita, sem rolagem lateral e sem o SKU quebrando linha. `priority: "desktop"` ainda esconde a
+  categoria abaixo do desktop.
 - A barra de filtros empilha com `direction={{ mobile: "vertical", desktop: "horizontal" }}`.
 - O `Drawer` vira bottom sheet com `mobilePlacement="bottom"`, e o rodapé de paginação do
   `DataTable` fica compacto (‹ ›) abaixo de 640 px — veja
@@ -31227,9 +31855,9 @@ Com o backend rodando, abra `/produtos` e confira:
 - `createDataProvider` + `useList`/`useCreate`/`useUpdate`/`useDeleteMany` dão o CRUD inteiro sem
   uma `queryKey` escrita à mão. Callbacks de tela vão no `mutate(…, { onSuccess, onError })`.
 - O `DataTable` com `totalItems` delega página, tamanho e ordenação para você; guarde os três na URL.
-- Escrever na URL várias vezes no mesmo clique pede um ref com a última URL.
-- A busca tem estado próprio e chega na URL com `useDebounce`: uma requisição por busca, não por
-  tecla.
+- `useUrlState` guarda página, filtros e ordem na URL; escritas do mesmo clique viram uma navegação.
+- A busca é a do `DataTable`, controlada pela URL e com `searchDebounceMs`: uma requisição por busca,
+  não por tecla.
 - `useZodForm` + `FormField` validam no cliente; `error.fields` e `describeApiError` levam o erro
   do servidor para o campo certo e para o toast.
 - Toda tela real tem carregando, vazio, vazio por filtro, erro e celular. Os cinco estão aqui. ✅
@@ -32117,14 +32745,13 @@ import {
   Input,
   PhoneInput,
   SegmentedControl,
+  applyApiFieldErrors,
   describeApiError,
-  isApiError,
   unmask,
   useBreakpoint,
   useViaCEP,
   useWatch,
   useZodForm,
-  type Path,
   type SubmitHandler,
 } from "tempest-react-sdk";
 import { EMPTY_SIGNUP, signupSchema, type SignupValues } from "@/checkout/signup-schema";
@@ -32196,11 +32823,7 @@ export function SignupStep({ onCreated }: SignupStepProps) {
       });
       onCreated(customer);
     } catch (error) {
-      if (isApiError(error) && error.fields) {
-        for (const [field, message] of Object.entries(error.fields)) {
-          setError(field as Path<SignupValues>, { message });
-        }
-      }
+      applyApiFieldErrors(form, error);
       setSubmitError(
         describeApiError(error, "Não foi possível criar sua conta", { codes: SIGNUP_ERRORS }),
       );
@@ -32308,7 +32931,7 @@ Peça por peça:
    livres para digitar.
 5. **`unmask` antes de enviar.** A tela mostra `529.982.247-25`; o backend recebe `52998224725`.
 6. **Erro do backend em dois lugares.** O que nomeia um campo (`error.fields`) vai para o input
-   certo com `setError`. A frase geral vai para o `<Alert>` do topo, montada pelo
+   certo com `applyApiFieldErrors`. A frase geral vai para o `<Alert>` do topo, montada pelo
    `describeApiError` com o `code` `DOCUMENT_TAKEN` traduzido.
 
 !!! tip "CEP de cidade pequena não tem rua"
@@ -33204,15 +33827,13 @@ import {
   Button,
   Command,
   Kbd,
+  formatShortcut,
   useKeyboardShortcut,
   useNavigate,
   useTheme,
   type CommandItem,
 } from "tempest-react-sdk";
 import { useAuth } from "@/stores/auth";
-
-const isApple: boolean =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.userAgent);
 
 export function CommandPalette() {
   const [open, setOpen] = useState<boolean>(false);
@@ -33221,14 +33842,7 @@ export function CommandPalette() {
   const role: string | undefined = useAuth.use.user()?.role;
   const logout: () => void = useAuth.use.logout();
 
-  useKeyboardShortcut(
-    { key: "k", mod: true },
-    (event) => {
-      event.preventDefault();
-      setOpen(true);
-    },
-    { ignoreInput: false },
-  );
+  useKeyboardShortcut({ key: "k", mod: true }, () => setOpen(true));
 
   const items: CommandItem[] = [
     {
@@ -33294,7 +33908,7 @@ export function CommandPalette() {
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        rightIcon={<Kbd size="sm">{isApple ? "⌘ K" : "Ctrl K"}</Kbd>}
+        rightIcon={<Kbd size="sm">{formatShortcut({ key: "k", mod: true })}</Kbd>}
       >
         Buscar
       </Button>
@@ -33302,6 +33916,7 @@ export function CommandPalette() {
         open={open}
         onOpenChange={setOpen}
         placeholder="Ir para tela ou ação…"
+        label="Ir para tela ou ação"
         emptyMessage="Nada encontrado. Tente outro termo."
         items={items}
       />
@@ -33349,7 +33964,7 @@ Você entrega uma lista de `CommandItem` e controla `open` / `onOpenChange`. O r
 dele:
 
 - filtra os itens por trecho do texto em `label` **e** em `keywords`, sem diferenciar
-  maiúscula de minúscula;
+  maiúscula de minúscula **nem acento** — "usuarios" acha "Usuários";
 - agrupa os resultados por `group`, na ordem em que os grupos aparecem na lista;
 - navega com ↑ / ↓, executa com Enter e fecha com Escape, clique fora ou seleção;
 - prende o foco dentro da paleta enquanto ela está aberta.
@@ -33358,22 +33973,24 @@ Cada `onSelect` é a ação do item: `navigate(...)`, `toggle()` ou `logout()`.
 
 !!! tip "`keywords` é onde mora a usabilidade"
     Ninguém lembra se a tela se chama "Clientes" ou "Compradores". Ponha os sinônimos
-    em `keywords`, inclusive palavras sem acento ("usuarios") se a sua equipe digita
-    assim: a busca compara o texto como ele é, com acento.
+    em `keywords`. Versão sem acento não precisa: a busca já ignora acento nos dois
+    lados.
 
 ### O atalho funciona em qualquer sistema
 
 `useKeyboardShortcut({ key: "k", mod: true }, handler)` casa **Cmd+K no macOS e Ctrl+K
 no Windows e no Linux**. O hook recebe um objeto `KeyboardShortcut`, não uma string.
 
-Dois detalhes deixam o atalho pronto para uso real:
+Como o atalho leva o modificador, o hook já faz duas coisas sozinho:
 
-- `event.preventDefault()`: Ctrl+K é atalho do próprio navegador (focar a busca no
-  Chrome e no Firefox). Sem isso, a paleta abre **e** o navegador rouba o foco.
-- `{ ignoreInput: false }`: por padrão o hook ignora teclas digitadas dentro de um
-  campo, para não sequestrar a digitação. Para ⌘K isso é o contrário do que se quer:
-  a pessoa está com o foco na busca de pedidos e quer pular de tela. Como o atalho
-  exige o modificador, não há risco de engolir uma letra digitada.
+- chama `event.preventDefault()`: Ctrl+K é atalho do próprio navegador (focar a busca
+  no Chrome e no Firefox), e sem isso a paleta abre **e** o navegador rouba o foco;
+- dispara com o foco num campo: a pessoa está na busca de pedidos e quer pular de tela.
+  Tecla sem Ctrl/Cmd (`"/"`, `"?"`) continua pertencendo ao campo onde é digitada.
+
+Para mudar qualquer um dos dois, passe `{ preventDefault: false }` ou
+`{ ignoreInput: true }`. Veja
+[`useKeyboardShortcut`](../hooks.md#atalho-global-usekeyboardshortcut).
 
 ### Itens por papel
 
@@ -33388,21 +34005,19 @@ O botão "Buscar" tem dois papéis. No computador, ele **ensina** o atalho, com 
 certa para o sistema de quem está usando. No celular, é **o único jeito** de abrir a
 paleta, já que não há teclado físico. 📱
 
-!!! note "Por que detectar a plataforma na mão"
-    O `mod` do hook resolve Cmd vs. Ctrl na hora de **ouvir** a tecla. Para
-    **mostrar** a tecla, o app decide sozinho, e um teste em `navigator.userAgent`
-    basta. O `typeof navigator` evita erro se o módulo for importado fora do
-    navegador, num teste em Node, por exemplo.
+`formatShortcut` recebe o mesmo objeto que o hook escuta e devolve `⌘K` no Mac,
+iPhone e iPad, e `Ctrl+K` no resto. O rótulo e o atalho não têm como divergir.
 
 ## Recap
 
 - ✅ `Command` recebe `items`, `open` e `onOpenChange` e cuida de busca, grupos,
   teclado e foco.
-- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …, { ignoreInput: false })` abre a
-  paleta de qualquer lugar, com `preventDefault` para vencer o atalho do navegador.
+- ✅ `useKeyboardShortcut({ key: "k", mod: true }, …)` abre a paleta de qualquer lugar,
+  inclusive de dentro de um campo, e vence o atalho do navegador.
 - ✅ `keywords` acha a tela pelo sinônimo.
 - ✅ A lista depende do usuário, mas a proteção de verdade fica no guard e no backend.
-- ✅ Um botão com `Kbd` ensina o atalho e é a porta de entrada no celular.
+- ✅ Um botão com `Kbd` e `formatShortcut` ensina o atalho certo para o sistema e é a
+  porta de entrada no celular.
 
 ---
 
@@ -33436,41 +34051,20 @@ tema **antes da primeira pintura**.
 
 ### 1. O script no `<head>`
 
-=== "Vite (`index.html`)"
+=== "Vite (`vite.config.ts`)"
 
-    ```html
-    <!-- index.html -->
-    <!doctype html>
-    <html lang="pt-BR">
-      <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <meta name="theme-color" content="#ffffff" />
-        <title>Painel · Loja Aurora</title>
-        <script>
-          (function () {
-            try {
-              var key = "tempest-theme";
-              var def = "system";
-              var stored = localStorage.getItem(key);
-              var mode = stored || def;
-              var resolved =
-                mode === "dark" || mode === "light"
-                  ? mode
-                  : matchMedia("(prefers-color-scheme: dark)").matches
-                    ? "dark"
-                    : "light";
-              document.documentElement.setAttribute("data-tempest-theme", resolved);
-            } catch (e) {}
-          })();
-        </script>
-      </head>
-      <body>
-        <div id="root"></div>
-        <script type="module" src="/src/main.tsx"></script>
-      </body>
-    </html>
+    ```ts
+    // vite.config.ts
+    import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
+
+    export default createViteConfig({
+      plugins: [tempestThemeInit(), tempestCsp()],
+    });
     ```
+
+    O `tempestThemeInit()` escreve o script no topo do `<head>` do `index.html`, no
+    `vite dev` e no build. O `index.html` fica como está, sem script colado à mão. O app
+    gerado pelo `create-tempest-app` já vem com essa linha.
 
 === "SSR (React no servidor)"
 
@@ -33488,7 +34082,6 @@ tema **antes da primeira pintura**.
         <html lang="pt-BR">
           <head>
             <meta charSet="UTF-8" />
-            <meta name="theme-color" content="#ffffff" />
             <title>Painel · Loja Aurora</title>
             <script dangerouslySetInnerHTML={{ __html: themeInitScript() }} />
           </head>
@@ -33571,8 +34164,8 @@ Ele roda **antes do CSS e antes do React**. Lê a escolha salva em
 navegador com `prefers-color-scheme`. No fim, escreve `data-tempest-theme="dark"` (ou
 `"light"`) no `<html>`. Quando a primeira pintura acontece, os tokens já estão certos.
 
-O conteúdo da aba **Vite** é exatamente o que `themeInitScript()` devolve, só
-formatado. Na aba **SSR**, você injeta a própria função, e o script nunca sai de
+Na aba **Vite**, o plugin `tempestThemeInit()` injeta o que `themeInitScript()` devolve.
+Na aba **SSR**, você injeta a própria função. Nos dois casos o script nunca sai de
 sincronia com o SDK.
 
 !!! warning "Síncrono e cedo, sempre"
@@ -33580,8 +34173,8 @@ sincronia com o SDK.
     primeira pintura, senão o flash volta.
 
 !!! check "Com `tempestCsp()`, o script inline já é liberado"
-    O plugin de CSP do SDK calcula o SHA-256 de todo script inline do `index.html` e o
-    coloca na política. Você não precisa de `'unsafe-inline'`. Veja
+    O plugin de CSP do SDK calcula o SHA-256 de todo script inline do `index.html`,
+    inclusive o que o `tempestThemeInit()` injeta, e o coloca na política. Você não precisa de `'unsafe-inline'`. Veja
     [Script inline entra por hash](../csp.md#script-inline-entra-por-hash).
 
 ### O seletor usa o contexto do tema
@@ -33606,13 +34199,14 @@ O `<AppProviders>` monta o `ThemeProvider` por padrão. A prop `theme` só ajust
   provider escuta `prefers-color-scheme` e troca na hora em que o sistema operacional
   muda.
 - `themeColor` atualiza a `<meta name="theme-color">`, que pinta a barra do navegador
-  no Android e a barra de status do app instalado. 📱 Ele só **atualiza** a tag: ela
-  precisa existir no `<head>`, por isso as duas abas do passo 1 a declaram.
+  no Android e a barra de status do app instalado. 📱 Se a página não tem a tag, o provider
+  a cria no `<head>`.
 
 !!! tip "Mesma chave nos dois lados"
     O script e o provider precisam ler a mesma chave do `localStorage`. Os dois usam
     `"tempest-theme"` por padrão. Se você trocar, passe `storageKey` aos dois:
-    `themeInitScript({ storageKey: "aurora-theme" })` e
+    `tempestThemeInit({ storageKey: "aurora-theme" })` (ou
+    `themeInitScript({ storageKey: "aurora-theme" })` no SSR) e
     `theme={{ storageKey: "aurora-theme" }}`.
 
 ### O seu CSS usa os mesmos tokens
@@ -33625,8 +34219,8 @@ tema escuro é sempre esse atributo, nunca `class="dark"`. Veja
 
 ## Recap
 
-- ✅ O script de `themeInitScript()` no `<head>` aplica o tema antes da primeira
-  pintura: sem flash.
+- ✅ `tempestThemeInit()` no `vite.config.ts` (ou `themeInitScript()` no SSR) põe o
+  script no `<head>`, que aplica o tema antes da primeira pintura: sem flash.
 - ✅ `useTheme()` dá `theme`, `resolvedTheme`, `setTheme` e `toggle`.
 - ✅ `SegmentedControl` + `setTheme` viram o seletor **Claro / Escuro / Sistema**.
 - ✅ `<AppProviders theme={{ defaultTheme, themeColor }}>` acompanha o sistema e pinta a
@@ -33876,8 +34470,6 @@ export const messages: Catalog = {
         "nav.patients": "Pacientes",
         "nav.settings": "Configurações",
         "nav.logout": "Sair",
-        "common.errorTitle": "Algo deu errado",
-        "common.retry": "Tentar de novo",
         "page.error": "Esta tela encontrou um erro inesperado.",
         "dashboard.title": "Painel da clínica",
         "dashboard.description": "O dia de hoje e os últimos 7 dias, num relance.",
@@ -33891,7 +34483,6 @@ export const messages: Catalog = {
         "dashboard.series.done": "Realizadas",
         "dashboard.series.noShow": "Faltas",
         "dashboard.mix": "Pacientes por convênio",
-        "dashboard.series.patients": "Pacientes",
         "dashboard.empty": "Nenhuma consulta nos últimos 7 dias",
         "dashboard.emptyHint": "Os gráficos aparecem assim que a agenda tiver atendimentos.",
         "dashboard.error": "Não foi possível carregar o painel.",
@@ -33915,8 +34506,6 @@ export const messages: Catalog = {
         "nav.patients": "Patients",
         "nav.settings": "Settings",
         "nav.logout": "Sign out",
-        "common.errorTitle": "Something went wrong",
-        "common.retry": "Try again",
         "page.error": "This screen hit an unexpected error.",
         "dashboard.title": "Clinic dashboard",
         "dashboard.description": "Today and the last 7 days, at a glance.",
@@ -33930,7 +34519,6 @@ export const messages: Catalog = {
         "dashboard.series.done": "Attended",
         "dashboard.series.noShow": "No-shows",
         "dashboard.mix": "Patients by health plan",
-        "dashboard.series.patients": "Patients",
         "dashboard.empty": "No appointments in the last 7 days",
         "dashboard.emptyHint": "The charts show up once the schedule has appointments.",
         "dashboard.error": "Could not load the dashboard.",
@@ -34152,7 +34740,6 @@ import {
     Navbar,
     Outlet,
     Sidebar,
-    activeNavKey,
     useCan,
     useI18n,
     useLocation,
@@ -34225,10 +34812,8 @@ export function AppLayout(): ReactNode {
             bottomNav={
                 <BottomNavigation
                     items={items}
-                    value={activeNavKey(
-                        pathname,
-                        items.map((item) => item.key),
-                    )}
+                    value={pathname}
+                    match="route"
                     onChange={(key) => navigate(key)}
                 />
             }
@@ -34236,11 +34821,7 @@ export function AppLayout(): ReactNode {
             <ErrorBoundary
                 resetKeys={[pathname]}
                 fallback={({ reset }) => (
-                    <ErrorState
-                        title={t("common.errorTitle")}
-                        description={t("page.error")}
-                        retryLabel={t("common.retry")}
-                        onRetry={reset}
+                    <ErrorState description={t("page.error")} onRetry={reset}
                     />
                 )}
             >
@@ -34255,7 +34836,7 @@ O [`AppShell`](../components/layout.md#appshell) troca a navegação pelo tamanh
 
 - **Os itens dependem do papel.** `useCan` decide se "Pacientes" entra na lista. O médico nem vê a entrada — e se digitar `/pacientes`, o guard da rota o devolve ao painel.
 - **A `Sidebar` resolve o item ativo sozinha** com `match="route"`: em `/pacientes?page=2` o item "Pacientes" continua aceso. Os itens têm `href`, então ctrl-clique abre em outra aba.
-- **A `BottomNavigation` recebe a mesma lista**, com o item ativo calculado pelo [`activeNavKey`](../components/navigation.md#activenavkey-a-mesma-resolucao-fora-do-sidebar).
+- **A `BottomNavigation` recebe a mesma lista e o mesmo `match="route"`.** No celular os itens também são links de verdade, e o item ativo sai da rota pela mesma regra da `Sidebar`. Veja [`BottomNavigation`](../components/navigation.md#links-e-item-ativo-pela-rota).
 - **O Sair** chama `auth.logout()` e mais nada. O store limpa na hora, o `onSessionEnd` limpa o cache, e o guard da sessão leva para o login.
 
 O `ErrorBoundary` em volta do `<Outlet />` é o **segundo** boundary do app, e o que mais aparece: um erro de render no painel troca só o conteúdo por uma tela de erro, e o menu continua lá. O `resetKeys={[pathname]}` limpa o erro quando a pessoa navega para outra página. Veja [Error Boundary](../error-boundary.md).
@@ -34315,6 +34896,7 @@ function RevenueStat(): ReactNode {
 
 function RevenueChart(): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
+    const money = useMoney();
     const revenue = useRevenue();
     const compactMoney = (value: number): string =>
         formatNumber(value, { style: "currency", currency: "BRL", notation: "compact" });
@@ -34323,18 +34905,15 @@ function RevenueChart(): ReactNode {
     if (revenue.isError) {
         return (
             <ErrorState
-                title={t("common.errorTitle")}
                 description={t("dashboard.revenueError")}
-                retryLabel={t("common.retry")}
                 onRetry={() => void revenue.refetch()}
             />
         );
     }
 
-    const series = t("dashboard.series.revenue");
     const data = revenue.data.by_month.map((point) => ({
-        month: formatDate(`${point.month}-01`, { month: "short", timeZone: "UTC" }),
-        [series]: point.total,
+        month: formatDate(`${point.month}-01`, { month: "short" }),
+        total: point.total,
     }));
 
     return (
@@ -34342,8 +34921,10 @@ function RevenueChart(): ReactNode {
             <LineChart
                 data={data}
                 index="month"
-                categories={[series]}
-                valueFormatter={compactMoney}
+                categories={["total"]}
+                labels={{ total: t("dashboard.series.revenue") }}
+                valueFormatter={money}
+                yAxisFormatter={compactMoney}
                 height={280}
             />
         </Card>
@@ -34365,18 +34946,14 @@ function DashboardSkeleton(): ReactNode {
 
 function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
     const { t, formatDate, formatNumber } = useI18n();
-    const done = t("dashboard.series.done");
-    const noShow = t("dashboard.series.noShow");
-    const patients = t("dashboard.series.patients");
-
     const week = summary.appointments_by_day.map((day) => ({
-        day: formatDate(day.date, { weekday: "short", day: "2-digit", timeZone: "UTC" }),
-        [done]: day.done,
-        [noShow]: day.no_show,
+        day: formatDate(day.date, { weekday: "short", day: "2-digit" }),
+        done: day.done,
+        noShow: day.no_show,
     }));
     const mix = summary.insurance_mix.map((share) => ({
         insurance: share.insurance,
-        [patients]: share.patients,
+        patients: share.patients,
     }));
     const delta = summary.appointments_today_delta;
     const isEmptyWeek = summary.appointments_by_day.every((day) => day.done + day.no_show === 0);
@@ -34424,7 +35001,11 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
                         <BarChart
                             data={week}
                             index="day"
-                            categories={[done, noShow]}
+                            categories={["done", "noShow"]}
+                            labels={{
+                                done: t("dashboard.series.done"),
+                                noShow: t("dashboard.series.noShow"),
+                            }}
                             stack
                             height={280}
                         />
@@ -34433,7 +35014,7 @@ function DashboardBody({ summary }: { summary: DashboardSummary }): ReactNode {
                         <PieChart
                             data={mix}
                             index="insurance"
-                            category={patients}
+                            category="patients"
                             donut
                             height={280}
                         />
@@ -34462,9 +35043,7 @@ export default function Dashboard(): ReactNode {
                 <DashboardSkeleton />
             ) : summary.isError ? (
                 <ErrorState
-                    title={t("common.errorTitle")}
                     description={t("dashboard.error")}
-                    retryLabel={t("common.retry")}
                     onRetry={() => void summary.refetch()}
                 />
             ) : (
@@ -34477,9 +35056,9 @@ export default function Dashboard(): ReactNode {
 
 A tela mais densa do app. Vamos por partes. 📊
 
-**Os estados.** O componente de fora só decide qual dos três mostrar: `isPending` → esqueleto no formato da tela, `isError` → `ErrorState` com "Tentar de novo", senão o conteúdo. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.
+**Os estados.** O componente de fora só decide qual dos três mostrar: `isPending` → esqueleto no formato da tela, `isError` → `ErrorState` com o botão de tentar de novo, senão o conteúdo. O título e o botão do `ErrorState` vêm do próprio SDK, já no idioma ativo ([textos padrão](../i18n.md#textos-padrao-dos-componentes)); a tela só passa a descrição. O esqueleto tem o mesmo desenho do painel pronto, então nada pula quando os dados chegam.
 
-**Os indicadores.** Quatro [`Stat`](../components/feedback.md#stat) num `Grid` de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo `formatNumber` do i18n: `1.284` em português, `1,284` em inglês.
+**Os indicadores.** Quatro [`Stat`](../components/feedback.md#stat) num `Grid` de uma coluna no celular, duas no tablet e quatro no desktop. Os números passam pelo `formatNumber` do i18n: `1.284` em português, `1,284` em inglês. A taxa de faltas sai sem delta porque o resumo não traz a variação dela; quando trouxer, passe `higherIsBetter={false}` — numa taxa de faltas, subir é ruim e a cor do delta precisa dizer isso ([polaridade](../components/feedback.md#polaridade-quando-subir-e-ruim)).
 
 **O faturamento só para a gestora.** `RevenueStat` e `RevenueChart` estão dentro de `<Can action="read" resource="finance">`. O `<Can>` não renderiza os filhos para quem não pode — e componente que não monta não dispara a query. O `/dashboard/revenue` nunca é chamado pela recepção.
 
@@ -34489,14 +35068,14 @@ Os dois usam o mesmo `useRevenue()`, com a mesma query key. O React Query faz **
 
 **Os gráficos.** `BarChart` empilhado, `PieChart` em rosca e `LineChart`, do subpath [`tempest-react-sdk/charts`](../charts.md). O formato de dados é sempre o mesmo: `index` é a chave do eixo, `categories` são as séries.
 
-!!! warning "O nome da série é a chave do objeto"
-    O gráfico usa a chave de cada série como texto da legenda e do tooltip. Por isso os dados são remontados com a **frase traduzida** como chave: `[done]: day.done`, onde `done` vale `"Realizadas"` ou `"Attended"`. Trocar o idioma refaz os dados e a legenda acompanha.
+!!! tip "O nome da série vem de `labels`"
+    Os dados ficam com as chaves da API (`done`, `noShow`) e `labels` dá o texto da legenda e do tooltip: `labels={{ done: t("dashboard.series.done") }}`. Trocar o idioma muda só o rótulo. Veja [`labels`](../charts.md#rotulo-da-serie-separado-da-chave-do-dado-labels).
 
-!!! warning "`timeZone: \"UTC\"` em data sem hora"
-    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. Formatada no fuso local, a segunda-feira vira domingo. Como a data veio sem hora, formate em UTC — ela volta a ser o dia 16 que o backend mandou.
+!!! info "Data sem hora fica no dia que o backend mandou"
+    `"2026-11-16"` é lido pelo JavaScript como meia-noite **UTC**, que em Brasília ainda é dia 15 às 21h. O `formatDate` do `useI18n` trata a data sem hora como dia do calendário e a formata em UTC, então a segunda-feira continua segunda em qualquer fuso — sem `timeZone` no seu código.
 
-!!! tip "Eixo com dinheiro: notação compacta"
-    No gráfico de faturamento, o `valueFormatter` usa `notation: "compact"`. `R$ 186.430` vira `R$ 186 mil`, que cabe na largura do eixo Y no celular. O cartão do mês continua mostrando o valor inteiro.
+!!! tip "Eixo com dinheiro: compacto no eixo, inteiro no tooltip"
+    O eixo Y se ajusta ao maior rótulo sozinho. No celular, `R$ 186.430` inteiro tomaria espaço do gráfico, então o eixo usa `yAxisFormatter` com `notation: "compact"` (`R$ 186 mil`) e o tooltip continua com o valor inteiro do `valueFormatter`. Veja [eixo de valor](../charts.md#eixo-de-valor-largura-e-formato).
 
 ## Pacientes
 
@@ -34764,13 +35343,14 @@ import {
     Modal,
     PhoneInput,
     Select,
+    applyApiFieldErrors,
     encodeIdSegment,
-    isApiError,
     unmask,
     useDescribeApiError,
     useToast,
     useZodForm,
     validateCPF,
+    withEmptyOption,
 } from "tempest-react-sdk";
 import { z } from "zod";
 
@@ -34788,14 +35368,6 @@ const patientSchema = z.object({
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
-
-const FIELD_NAMES: ReadonlyArray<keyof PatientFormValues> = [
-    "name",
-    "cpf",
-    "phone",
-    "email",
-    "insurance",
-];
 
 export interface PatientFormModalProps {
     patient: Patient | null;
@@ -34835,11 +35407,7 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
             onClose();
         },
         onError: (error) => {
-            const fields = isApiError(error) ? error.fields : undefined;
-            for (const name of FIELD_NAMES) {
-                const message = fields?.[name];
-                if (message) form.setError(name, { message });
-            }
+            applyApiFieldErrors(form, error);
             toast.error(
                 describe(error, "Não foi possível salvar o paciente.", {
                     codes: { PATIENT_CPF_TAKEN: "Já existe um paciente com este CPF." },
@@ -34875,10 +35443,10 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
                     </FormField>
                     <FormField name="insurance" label="Convênio">
                         <Select
-                            options={[
-                                { value: "", label: "Particular" },
-                                ...INSURANCES.map((name) => ({ value: name, label: name })),
-                            ]}
+                            options={withEmptyOption(
+                                INSURANCES.map((name) => ({ value: name, label: name })),
+                                "Particular",
+                            )}
                         />
                     </FormField>
                     <FormActions align="end">
@@ -34899,8 +35467,8 @@ export function PatientFormModal({ patient, onClose }: PatientFormModalProps): R
 - **Um schema zod** é a fonte da verdade: tipo, validação e mensagens. O CPF passa pelo `validateCPF` de [Forms BR](../forms-br.md); o telefone precisa de pelo menos 10 dígitos.
 - **`CPFInput` e `PhoneInput`** mascaram enquanto a pessoa digita. Antes de enviar, o `unmask` tira a pontuação: o backend guarda só dígitos.
 - **Campo opcional vira `null`.** E-mail e convênio vazios saem como `null`, que é o que o backend espera para "não informado".
-- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio. Um `placeholder` seria desabilitado, e a recepcionista não conseguiria voltar um paciente para particular.
-- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `onError` copia cada mensagem para o campo do mesmo nome com `form.setError`, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
+- **O `Select` de convênio** tem "Particular" como uma opção de verdade, com valor vazio (`withEmptyOption`): é um valor com nome, não um aviso de "nada escolhido". Quando o vazio é só "não escolhido", `placeholder` com `clearable` deixa voltar ao vazio — veja [Select](../components/inputs.md#select-placeholder).
+- **Erros do servidor no campo certo.** O `422` do FastAPI chega com `error.fields`. O `applyApiFieldErrors` do `onError` põe cada mensagem no campo do mesmo nome e foca o primeiro, e o `PATIENT_CPF_TAKEN` vira "Já existe um paciente com este CPF.".
 - **`key` no modal.** A página monta o modal com `key={patient.id}`. Abrir outro paciente cria um formulário novo, com os valores certos — sem `reset()` manual.
 - **`fullscreenOnMobile`**: no celular, o formulário ocupa a tela inteira em vez de um diálogo espremido.
 
@@ -35812,7 +36380,7 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, StorageFullError, formatBytes, useToast } from "tempest-react-sdk";
 import {
   bestSupportedType,
   resizeImage,
@@ -35867,7 +36435,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
         });
         const thumb = await resizeImage(image.blob, { width: 480, type });
         await addPhoto(visitId, image, thumb);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -35933,6 +36505,12 @@ Comprimir antes do `put` é a alavanca mais barata contra o limite de espaço do
 cada foto ocupa o aparelho **até subir**, e no campo isso pode ser dias.
 
 O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no unmount.
+
+Quando o aparelho não tem mais espaço, o `photos.put` rejeita com
+[`StorageFullError`](../offline.md#armazenamento-cheio-storagefullerror), e o laço para:
+as próximas fotos também não caberiam, e a mensagem certa é "sincronize", não "fotografe
+de novo". O erro cru do navegador nem diria isso — no Chromium ele chega como `AbortError`
+do Dexie.
 
 !!! warning "Reencodar apaga o GPS da foto"
     O EXIF some no reencode, incluindo as coordenadas. Isso protege a localização de quem
@@ -36686,6 +37264,7 @@ installPrecache({
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
   o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
+- 💾 **`StorageFullError`** separa "memória cheia" de "foto ruim" no `catch` da câmera.
 - 🔒 O login pede armazenamento persistente; **`useStorageEstimate`** + `pendingBytes`
   avisam quando falta espaço; o `UpdatePrompt` não troca de versão no meio da vistoria; o
   service worker só faz precache.
@@ -36973,15 +37552,10 @@ const tripFrameSchema = z.object({
   status: z.enum(["scheduled", "in_progress", "finished", "cancelled"]),
 });
 
-const pingFrameSchema = z.object({
-  type: z.literal("ping"),
-});
-
 export const liveFrameSchema = z.discriminatedUnion("type", [
   positionFrameSchema,
   stopFrameSchema,
   tripFrameSchema,
-  pingFrameSchema,
 ]);
 
 export type LiveFrame = z.infer<typeof liveFrameSchema>;
@@ -36993,7 +37567,7 @@ Pedaço por pedaço:
 - **`TripStop` e `TripPlace` estendem `Coordinate`.** Como o backend já manda `latitude`/`longitude`, uma parada **é** uma coordenada: ela entra direto em `estimateTravel`, `boundingBox` e no marcador do mapa, sem conversão.
 - **`recorded_at` é a hora em que o GPS tomou a posição**, não a hora em que o frame chegou. É ela que diz se a posição está velha.
 - **Os frames são uma união discriminada por `type`.** O `liveFrameSchema` é o que o [`useWebSocket` valida](../websocket.md#validar-o-frame-com-schema) antes de entregar: um frame fora do contrato é descartado e nunca vira uma van em `latitude: undefined`.
-- **O `ping` está no schema de propósito.** O `tempest-fastapi-sdk` manda `{"type":"ping"}` como heartbeat. O SDK responde o `pong` mesmo que o schema recuse o ping — mas um ping recusado também chega no `onValidationError`, e o seu log de "backend mudou o contrato" encheria de falso alarme. Declarar o ping resolve.
+- **O `ping` não entra no schema.** O `tempest-fastapi-sdk` manda `{"type":"ping"}` como heartbeat, e o SDK responde o `pong` e descarta o ping sem chamar o `onValidationError` — o seu log de "backend mudou o contrato" só ouve frame de payload. Veja [O `pong` continua saindo](../websocket.md#validar-o-frame-com-schema).
 - **`Street`** é a aresta de rua da seção opcional [Ruas no mapa](#opcional-ruas-no-mapa-e-a-van-na-rua). Se você não for usar, pode apagar.
 
 ## Passo 2 — Cliente HTTP e a query da viagem
@@ -37022,15 +37596,14 @@ export function useTrip(tripId: string): UseQueryResult<Trip> {
 }
 
 export function liveTripUrl(tripId: string, channel: "watch" | "drive"): string {
-  const http = api.url(`/trips/${encodeIdSegment(tripId)}/${channel}`);
-  return http.replace(/^http/, "ws");
+  return api.wsUrl(`/trips/${encodeIdSegment(tripId)}/${channel}`);
 }
 ```
 
 - **[`createApiClient`](../http.md#createapiclient)** com `prefix: "/api"`: os caminhos ficam sem o prefixo, como o serviço FastAPI os declara.
 - **[`createQueryKeys`](../query.md#query-keys-tipadas)** dá a key `["trips", tripId]`. O hook de posição vai **escrever** nessa mesma key quando uma parada mudar — por isso ela mora num lugar só.
 - **`encodeIdSegment`** escapa o id antes de ir para o caminho: um id com `/` não vira outra rota.
-- **`liveTripUrl`** usa `api.url()` — a URL absoluta que o cliente atingiria, com o mesmo `baseURL` e `prefix` — e troca `http` por `ws` (e `https` por `wss`). O socket fala com o mesmo servidor, sem uma segunda variável de ambiente.
+- **`liveTripUrl`** usa [`api.wsUrl()`](../http.md#createapiclient) — a URL que o cliente atingiria, com o mesmo `baseURL` e `prefix`, com `http` trocado por `ws` (e `https` por `wss`). O socket fala com o mesmo servidor, sem uma segunda variável de ambiente.
 
 !!! tip "Autenticação do socket"
     O navegador não deixa um `WebSocket` mandar header `Authorization`. Aqui a sessão vai por cookie (`withCredentials: true` no HTTP, e o handshake do socket leva o cookie do mesmo site). Se o seu backend autentica por token, siga o que ele espera no handshake — o `useWebSocket` aceita `protocols`.
@@ -37169,11 +37742,11 @@ Pedaço por pedaço:
 - **`onReconnecting` / `onReconnected` / `onLost`** — os três estados que [não são a mesma coisa](../websocket.md#reconectando-erro). Reconectar é discreto; só `onLost` merece um botão. Ao voltar, o hook **invalida a query da viagem**: os frames de parada que se perderam no buraco voltam pelo `GET`.
 - **Frames de parada e de viagem escrevem no cache da query** com `setQueryData`. A tela não tem dois estados da mesma viagem — o painel, o mapa e a lista leem do mesmo lugar.
 - **A trilha junta duas fontes**: o histórico que veio no `GET` (`trip.trail`) e o que chegou pelo socket depois. O filtro `timestamp > lastKnown` evita duplicar o trecho quando o refetch depois da reconexão traz pontos que o socket também já tinha mandado.
-- **`useInterval` atualiza `now` a cada 5 s.** Sem ele, "há 1 min" ficaria congelado na tela: nada re-renderiza quando o socket fica em silêncio — que é justamente o caso que importa.
+- **`useInterval` atualiza `now` a cada 5 s.** É ele que vira o `signal` para `stale` quando nada chega: nada re-renderiza quando o socket fica em silêncio — que é justamente o caso que importa. O mesmo `now` vai para o `RelativeTime` do passo 6, então a tela inteira anda com um relógio só.
 - **`signal`** resume tudo em um estado: `connecting`, `waiting` (aberto, sem posição ainda), `live`, `stale` (última posição há mais de 30 s) e `lost`.
 
-!!! warning "Posição velha parece posição boa"
-    O mapa não sabe a idade da posição: a van continua desenhada onde estava, com a mesma seta. Quem diz "isso tem 4 minutos" é a sua tela — por isso o `signal` existe e o `SignalStatus` do passo 6 aparece logo acima do mapa.
+!!! info "Posição velha não pode parecer posição boa"
+    O mapa não sabe a idade da posição — quem sabe é o `signal`. Por isso a página passa `stale` para o mapa quando o sinal é `stale` ou `lost`: a van fica onde foi vista por último, em cinza e sem o halo, e o leitor de tela ouve "sem sinal, última posição conhecida". Veja [Estados](../geo.md#estados-parada-ja-visitada-e-posicao-velha).
 
 ## Passo 4 — Paradas viram marcadores
 
@@ -37181,21 +37754,14 @@ Pedaço por pedaço:
 // src/trips/trip-markers.tsx
 import type { ReactElement } from "react";
 import { Flag } from "lucide-react";
-import type { LiveRouteMarker } from "tempest-react-sdk";
+import { formatTime, type LiveRouteMarker } from "tempest-react-sdk";
 import type { Trip, TripStop } from "@/trips/contract";
 
 export type TripViewer = "passenger" | "driver";
 
-const clock = new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-export function formatClock(value: string | Date): string {
-  return clock.format(typeof value === "string" ? new Date(value) : value);
-}
-
 function stopLabel(stop: TripStop, isMine: boolean): string {
-  const served = stop.status === "departed" ? " (já atendida)" : "";
   const mine = isMine ? "Seu embarque — " : "";
-  return `${mine}Parada ${stop.order}, ${stop.name}${served}`;
+  return `${mine}Parada ${stop.order}, ${stop.name}`;
 }
 
 function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): ReactElement {
@@ -37205,7 +37771,7 @@ function StopDetails({ stop, viewer }: { stop: TripStop; viewer: TripViewer }): 
         {stop.order}. {stop.name}
       </strong>
       <p>{stop.address}</p>
-      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatClock(stop.eta_at)}</p>}
+      {stop.eta_at && stop.status === "pending" && <p>Previsão: {formatTime(stop.eta_at)}</p>}
       {viewer === "driver" && stop.passengers.length > 0 && (
         <ul>
           {stop.passengers.map((passenger) => (
@@ -37231,6 +37797,7 @@ export function tripMarkers(trip: Trip, viewer: TripViewer): LiveRouteMarker[] {
         kind: "stop",
         glyphText: String(stop.order),
         emphasis: isMine,
+        visited: stop.status === "departed",
         badge: viewer === "driver" && pendingBoarding > 0 ? pendingBoarding : undefined,
         content: <StopDetails stop={stop} viewer={viewer} />,
       };
@@ -37260,9 +37827,10 @@ export function tripMarkers(trip: Trip, viewer: TripViewer): LiveRouteMarker[] {
 - **`glyphText: String(stop.order)`** escreve o número da parada **dentro** do glifo. Quem olha o mapa sabe que a van passa no 2 antes do 3.
 - **`emphasis: isMine`** cresce o glifo do embarque da Juliana e põe um halo na mesma cor. Continua sendo uma parada — só que a dela. Veja [Simbologia](../geo.md#simbologia-destaque-numero-icone-e-tamanho).
 - **`badge`** só na visão do motorista, e só em parada pendente: é a contagem de quem ainda vai embarcar ali. Parada atendida perde o selo.
+- **`visited`** pinta de cinza a parada que a van já atendeu — o que ficou para trás deixa de parecer o que vem pela frente — e o leitor de tela ouve "visita concluída" depois do tipo.
 - **`icon: <Flag />`** na chegada: um ícone do `lucide-react` cabe direto e herda a tinta do glifo.
 - **`content`** abre um painel ao tocar no marcador. Para o motorista, a lista de nomes; para o passageiro, o endereço e a previsão.
-- **O `label` repete em texto o que o glifo mostra** — "Seu embarque — Parada 3, …" e "(já atendida)". O leitor de tela lê o `label` e o tipo; `emphasis`, `glyphText` e `icon` são só visuais.
+- **O `label` repete em texto o que o glifo mostra** — "Seu embarque — Parada 3, …". O leitor de tela lê o `label` e o tipo; `emphasis`, `glyphText` e `icon` são só visuais. O "já atendida" não precisa ir no `label`: o `visited` já o diz.
 
 ## Passo 5 — O mapa das duas telas
 
@@ -37287,6 +37855,7 @@ export interface TripMapProps {
   trip: Trip;
   viewer: TripViewer;
   vehicle: TrackPoint | null;
+  stale?: boolean;
   trail: readonly TrackPoint[];
   etaLabel?: string;
   roads?: RoadGraph<Street>;
@@ -37296,14 +37865,18 @@ export interface TripMapProps {
 const PASSENGER_LEGEND: LiveRouteLegendItem[] = [
   { symbol: "stop", label: "Seu embarque", emphasis: true },
   { symbol: "stop", label: "Outras paradas, na ordem", glyphText: "1" },
+  { symbol: "stop", label: "Parada já atendida", glyphText: "1", visited: true },
   { symbol: "destination", label: "Chegada", icon: <Flag /> },
   { symbol: "vehicle", label: "Van" },
+  { symbol: "vehicle", label: "Van sem sinal", stale: true },
   { symbol: "trail", label: "Já percorrido" },
 ];
 
 const DRIVER_LEGEND: LiveRouteLegendItem[] = [
   { symbol: "origin", label: "Garagem" },
   { symbol: "stop", label: "Parada, na ordem", glyphText: "1" },
+  { symbol: "badge", label: "Embarques pendentes na parada", badge: 3 },
+  { symbol: "stop", label: "Parada já atendida", glyphText: "1", visited: true },
   { symbol: "destination", label: "Chegada", icon: <Flag /> },
   { symbol: "route", label: "Rota planejada" },
   { symbol: "trail", label: "Já percorrido" },
@@ -37313,6 +37886,7 @@ export function TripMap({
   trip,
   viewer,
   vehicle,
+  stale = false,
   trail,
   etaLabel,
   roads,
@@ -37334,6 +37908,8 @@ export function TripMap({
                 position: vehicle,
                 heading: vehicle.heading ?? null,
                 label: `${trip.vehicle_label}, placa ${trip.plate}`,
+                stale,
+                staleLabel: "sem sinal, última posição conhecida",
               }
             : null
         }
@@ -37367,7 +37943,7 @@ export function TripMap({
 ```tsx
 // src/trips/SignalStatus.tsx
 import type { ReactElement } from "react";
-import { Badge, Banner, Button, relativeTime, type BadgeVariant } from "tempest-react-sdk";
+import { Badge, Banner, Button, RelativeTime, type BadgeVariant } from "tempest-react-sdk";
 import type { LiveVehicle, SignalState } from "@/trips/use-live-vehicle";
 
 const VARIANT: Record<Exclude<SignalState, "lost">, BadgeVariant> = {
@@ -37398,18 +37974,23 @@ export function SignalStatus({ live }: { live: LiveVehicle }): ReactElement {
     );
   }
 
-  const seen = live.position ? relativeTime(live.position.timestamp, { now: live.now }) : null;
 
   const text: Record<Exclude<SignalState, "lost">, string> = {
     connecting: "Conectando ao veículo…",
     waiting: "Aguardando a primeira posição",
     live: "Ao vivo",
-    stale: `Sem sinal do veículo · última posição ${seen ?? ""}`,
+    stale: "Sem sinal do veículo · última posição",
   };
 
   return (
     <Badge variant={VARIANT[live.signal]} dot role="status">
       {text[live.signal]}
+      {live.signal === "stale" && live.position ? (
+        <>
+          {" "}
+          <RelativeTime date={live.position.timestamp} now={live.now} />
+        </>
+      ) : null}
     </Badge>
   );
 }
@@ -37417,7 +37998,7 @@ export function SignalStatus({ live }: { live: LiveVehicle }): ReactElement {
 
 - **[`Badge`](../components/feedback.md#badge)** com `dot` e `role="status"` para os estados que se resolvem sozinhos: conectando, aguardando, ao vivo, sem sinal.
 - **[`Banner`](../components/feedback.md#banner)** só para `lost`, o único estado em que a pessoa pode fazer alguma coisa. `"rejected"` (o servidor recusou com 4400–4499) não ganha botão: tentar de novo não muda uma recusa.
-- **`relativeTime(…, { now })`** usa o `now` que o hook atualiza. O componente [`RelativeTime`](../components/utility.md#relativetime) calcula na hora do render e não aceita `now` — por isso o texto aqui usa a função.
+- **[`RelativeTime`](../components/utility.md#relativetime) com `now`** usa o relógio que o hook atualiza, e escreve a idade num `<time>` com `dateTime`. Sem um relógio no app, `updateEvery` faria o componente contar sozinho.
 
 ## Passo 7 — Próxima parada e ETA
 
@@ -37430,12 +38011,13 @@ import {
   Stat,
   Timeline,
   estimateTravel,
+  formatTime,
   type TimelineItem,
   type TimelineMarker,
   type TrackPoint,
 } from "tempest-react-sdk";
 import type { StopStatus, Trip, TripStop } from "@/trips/contract";
-import { formatClock, type TripViewer } from "@/trips/trip-markers";
+import type { TripViewer } from "@/trips/trip-markers";
 
 export interface StopEta {
   stop: TripStop;
@@ -37497,7 +38079,7 @@ function timelineItems(trip: Trip): TimelineItem[] {
       description: stop.address,
       meta:
         stop.status === "pending" && stop.eta_at
-          ? formatClock(stop.eta_at)
+          ? formatTime(stop.eta_at)
           : STATUS_TEXT[stop.status],
       marker: stop.id === trip.my_stop_id ? "primary" : MARKER[stop.status],
     }));
@@ -37527,7 +38109,7 @@ export function NextStopPanel({ trip, viewer, eta }: NextStopPanelProps): ReactE
   const value = !eta ? "—" : eta.minutes <= 1 ? "Chegando" : `${eta.minutes} min`;
   const hint = !eta
     ? "Aguardando a posição da van"
-    : `Previsão ${formatClock(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
+    : `Previsão ${formatTime(eta.at)}${eta.source === "estimate" ? " · estimativa" : ""}`;
 
   return (
     <Card title={title}>
@@ -37559,6 +38141,7 @@ import {
   OfflineIndicator,
   Skeleton,
   describeApiError,
+  formatTime,
   useMediaQuery,
 } from "tempest-react-sdk";
 import { useTrip } from "@/trips/api";
@@ -37566,7 +38149,6 @@ import type { Trip } from "@/trips/contract";
 import { NextStopPanel, etaAnnouncement, nextStop, stopEta } from "@/trips/NextStopPanel";
 import { SignalStatus } from "@/trips/SignalStatus";
 import { TripMap } from "@/trips/TripMap";
-import { formatClock } from "@/trips/trip-markers";
 import { useLiveVehicle } from "@/trips/use-live-vehicle";
 
 function LiveTrip({ trip }: { trip: Trip }): ReactElement {
@@ -37595,6 +38177,7 @@ function LiveTrip({ trip }: { trip: Trip }): ReactElement {
           trip={trip}
           viewer="passenger"
           vehicle={live.position}
+          stale={live.signal === "stale" || live.signal === "lost"}
           trail={live.trail}
           etaLabel={etaAnnouncement(eta)}
         />
@@ -37636,7 +38219,7 @@ export function PassengerTripPage(): ReactElement {
       <EmptyState
         icon={<BusFront />}
         title="A viagem ainda não começou"
-        description={`Saída prevista às ${formatClock(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
+        description={`Saída prevista às ${formatTime(trip.departure_at)}. O mapa aparece quando a van sair da garagem.`}
       />
     );
   }
@@ -37687,7 +38270,7 @@ Os estados, de cima para baixo:
 
 ```tsx
 // src/pages/DriverTripPage.tsx
-import { useEffect, useMemo, type ReactElement } from "react";
+import { useMemo, type ReactElement } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useParams } from "react-router";
 import {
@@ -37706,13 +38289,6 @@ import { TripMap } from "@/trips/TripMap";
 
 function Driving({ trip }: { trip: Trip }): ReactElement {
   const queryClient = useQueryClient();
-  const gps = usePositionTracker({
-    autoStart: true,
-    minDistanceKm: 0.01,
-    maxPoints: 2_000,
-    positionOptions: { enableHighAccuracy: true, maximumAge: 0 },
-  });
-
   const socket = useWebSocket<LiveFrame>(liveTripUrl(trip.id, "drive"), {
     schema: liveFrameSchema,
     silenceTimeout: 75_000,
@@ -37723,21 +38299,25 @@ function Driving({ trip }: { trip: Trip }): ReactElement {
     },
   });
 
-  const { lastPoint } = gps;
-  const { send } = socket;
+  const gps = usePositionTracker({
+    autoStart: true,
+    minDistanceKm: 0.01,
+    maxPoints: 2_000,
+    positionOptions: { enableHighAccuracy: true, maximumAge: 0 },
+    onPoint: (point) => {
+      const frame: PositionFrame = {
+        type: "position",
+        latitude: point.latitude,
+        longitude: point.longitude,
+        heading: point.heading ?? null,
+        speed_kmh: point.speed == null ? null : Math.round(point.speed * 3.6),
+        recorded_at: new Date(point.timestamp).toISOString(),
+      };
+      socket.send(JSON.stringify(frame));
+    },
+  });
 
-  useEffect(() => {
-    if (!lastPoint) return;
-    const frame: PositionFrame = {
-      type: "position",
-      latitude: lastPoint.latitude,
-      longitude: lastPoint.longitude,
-      heading: lastPoint.heading ?? null,
-      speed_kmh: lastPoint.speed == null ? null : Math.round(lastPoint.speed * 3.6),
-      recorded_at: new Date(lastPoint.timestamp).toISOString(),
-    };
-    send(JSON.stringify(frame));
-  }, [lastPoint, send]);
+  const { lastPoint } = gps;
 
   const stop = nextStop(trip, "driver");
   const now = lastPoint?.timestamp ?? Date.now();
@@ -37808,7 +38388,7 @@ export function DriverTripPage(): ReactElement {
 ```
 
 - **[`usePositionTracker`](../geo.md#rastreamento-ao-vivo-usepositiontracker)** liga o GPS na montagem (`autoStart`), com alta precisão, e descarta posições a menos de 10 m da anterior — parado no sinal, o celular não manda nada.
-- **Cada `lastPoint` novo vira um frame `position`** no socket `drive`. O tipo `PositionFrame` vem do mesmo schema que o passageiro valida: se o contrato mudar, o TypeScript reclama dos dois lados.
+- **Cada ponto aceito vira um frame `position`** no socket `drive`, pelo `onPoint`. Um `useEffect` sobre `lastPoint` perderia o primeiro de dois pontos que chegam antes de um render; o `onPoint` é chamado uma vez por ponto. O tipo `PositionFrame` vem do mesmo schema que o passageiro valida: se o contrato mudar, o TypeScript reclama dos dois lados.
 - **`send()` devolve `false` com o socket caído, e a posição é descartada.** É o que você quer aqui: uma posição de 40 s atrás não ajuda ninguém, e a próxima chega em segundos.
 - **O mapa do motorista usa o GPS local**, não o eco do servidor: zero latência, e funciona mesmo sem conexão.
 - **Recusa de localização é terminal** (`lastError.code === 1`) e ganha uma tela própria. Sem sinal de GPS (túnel) é passageiro: um selo, e o tracker volta sozinho na próxima leitura. Veja [Erro passageiro, recusa e `lastError`](../geo.md#erro-passageiro-recusa-e-lasterror).
@@ -37931,11 +38511,11 @@ O mapa e a legenda são temados só por tokens `--tempest-*`. Para dar a cor da 
 
 ## Recap
 
-- 📜 **Contrato primeiro**: tipos que estendem `Coordinate` e um schema zod com o `ping` incluso — o mesmo schema valida o que o passageiro recebe e tipa o que o motorista manda.
+- 📜 **Contrato primeiro**: tipos que estendem `Coordinate` e um schema zod só com o payload — o mesmo schema valida o que o passageiro recebe e tipa o que o motorista manda; o heartbeat é do SDK.
 - 📡 **`useWebSocket`** com `schema`, `silenceTimeout` e os três estados de conexão; `onReconnected` invalida a query para cobrir o buraco.
-- ⏱️ **Posição tem idade**: `recorded_at` + um `now` que anda com `useInterval` dão o estado "sem sinal há X" que o mapa sozinho não mostra.
-- 🗺️ **`LiveRouteMap`** com `route`, `trail`, `vehicle.heading`, `follow`, `glyphText` na ordem, `emphasis` no embarque, `badge` para o motorista, `icon` na chegada, `markerScale` no toque e a **`LiveRouteMapLegend`** com os mesmos glifos.
-- 🛰️ **Motorista**: `usePositionTracker` + `send()`; posição velha se descarta, a não ser que a trilha valha dinheiro (`queueWhileClosed`).
+- ⏱️ **Posição tem idade**: `recorded_at` + um `now` que anda com `useInterval` dão o estado "sem sinal há X", que vira `stale` no veículo e `RelativeTime` com `now` no selo.
+- 🗺️ **`LiveRouteMap`** com `route`, `trail`, `vehicle.heading`, `follow`, `glyphText` na ordem, `emphasis` no embarque, `badge` para o motorista, `visited` nas atendidas, `icon` na chegada, `markerScale` no toque e a **`LiveRouteMapLegend`** com os mesmos glifos.
+- 🛰️ **Motorista**: `usePositionTracker` com `onPoint` + `send()`; posição velha se descarta, a não ser que a trilha valha dinheiro (`queueWhileClosed`).
 - 🧩 **Estados reais**: `Skeleton`, `ErrorState` + `describeApiError`, `EmptyState`, `OfflineIndicator` e uma coluna só no celular.
 - 🛣️ **Opcional**: `roads` + `createRoadGraph` encaixam a van na rua e dão o nome da via por `onMatch`.
 
@@ -39891,7 +40471,7 @@ export function Team() {
   paginação no navegador. As colunas com `sortable: true` ordenam ao clicar no
   cabeçalho: asc → desc → sem ordenação.
 - `searchable` coloca uma caixa de busca acima da tabela. Ela filtra por trecho do
-  texto, sem diferenciar maiúscula de minúscula. `searchKeys` limita a busca a nome e
+  texto, sem diferenciar maiúscula de minúscula nem acento ("joao" acha "João"). `searchKeys` limita a busca a nome e
   e-mail, para "gerente" não casar com a coluna de papel.
 - `loading={isLoading}` desenha linhas-esqueleto enquanto a primeira resposta não
   chega. "Estou buscando" e "não há nada" são frases diferentes, e o `emptyMessage` só
@@ -39931,7 +40511,6 @@ import {
   Page,
   formatCPF,
   formatCurrency,
-  useDebounce,
   usePaginatedQuery,
   type DataTableColumn,
   type DataTableSort,
@@ -39978,12 +40557,11 @@ const columns: DataTableColumn<Customer>[] = [
 ];
 
 export function Customers() {
-  const [term, setTerm] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
   const [sort, setSort] = useState<DataTableSort<Customer> | null>({
     key: "nome",
     direction: "asc",
   });
-  const search = useDebounce(term, 400);
 
   const customers = usePaginatedQuery<Customer>({
     queryKey: ["clientes", search, sort],
@@ -40029,7 +40607,8 @@ export function Customers() {
         initialSort={{ key: "nome", direction: "asc" }}
         onSortChange={setSort}
         searchable
-        onSearchChange={setTerm}
+        searchDebounceMs={400}
+        onSearchChange={setSearch}
         emptyMessage={`Nenhum cliente encontrado para "${search}"`}
         loading={customers.isFetching}
       />
@@ -40051,10 +40630,9 @@ props que a tabela pede. Com `orderBy` definido, ele também manda `order_by` e
 `ascending`. A página anterior fica na tela enquanto a próxima carrega, então a tabela
 não pisca.
 
-**A busca tem debounce.** A tabela avisa cada tecla em `onSearchChange`. O
-`useDebounce(term, 400)` só entrega o termo quando a pessoa para de digitar por 400 ms.
-Sem isso, "souza" viraria cinco requisições. Veja
-[`useDebounce`](../hooks.md#busca-com-debounce-usedebounce).
+**A busca tem debounce.** Com `searchDebounceMs={400}` a caixa mostra cada tecla, mas
+`onSearchChange` só é chamado quando a pessoa para de digitar por 400 ms. Sem isso,
+"souza" viraria cinco requisições. A busca também ignora acento: "joao" acha "João".
 
 **Filtro novo volta para a página 1.** `search` e `sort` estão na `queryKey`. Quando ela
 muda, o `usePaginatedQuery` volta para a página 1 no mesmo render, sem pedir antes a
@@ -40096,7 +40674,7 @@ computador, onde há espaço.
   tudo no navegador.
 - ✅ **Lista grande**: `totalItems` + `page` + `onPageChange` ligam o modo servidor, e
   o `usePaginatedQuery` entrega essas props prontas.
-- ✅ `useDebounce` segura a busca; `search` e `sort` na `queryKey` voltam para a
+- ✅ `searchDebounceMs` segura a busca; `search` e `sort` na `queryKey` voltam para a
   página 1.
 - ✅ `loading`, `EmptyState`, `emptyMessage` e `ErrorState` cobrem carregando, vazio,
   busca sem resultado e erro.
@@ -41347,6 +41925,58 @@ O `useReturnTo` cai no `fallback` (padrão `"/"`) quando a página de login é a
 !!! tip "Use o valor com `navigate`, não com `window.location`"
     O caminho vem relativo ao `basename` do router, igual ao `useLocation()`. O `navigate()` recoloca o `basename`; o `window.location` não.
 
+## Estado da tela na URL com `useUrlState`
+
+Página, tamanho da página, busca, filtros e ordenação de uma lista pertencem à URL: é o que deixa o botão voltar funcionar e um link colado abrir a mesma tela. `useUrlState` lê esses parâmetros já tipados e escreve neles sem que uma escrita apague a outra.
+
+```tsx
+// MembersPage.tsx
+import { DataTable, useUrlState } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+}
+
+export function MembersPage({ members, total }: { members: Member[]; total: number }) {
+  const { state, set, reset } = useUrlState({ busca: "", pagina: 1, por_pagina: 20 });
+
+  return (
+    <>
+      <button type="button" onClick={() => reset()}>
+        Limpar filtros
+      </button>
+      <DataTable<Member>
+        data={members}
+        columns={[{ key: "name", header: "Nome" }]}
+        rowKey={(member) => member.id}
+        totalItems={total}
+        page={state.pagina}
+        onPageChange={(pagina) => set({ pagina })}
+        pageSize={state.por_pagina}
+        pageSizeOptions={[20, 50]}
+        onPageSizeChange={(por_pagina) => set({ por_pagina })}
+        searchable
+        search={state.busca}
+        searchDebounceMs={300}
+        onSearchChange={(busca) => set({ busca }, { replace: true })}
+      />
+    </>
+  );
+}
+```
+
+- **O tipo vem do default.** `pagina: 1` faz `?pagina=3` virar o número `3`; `?pagina=abc` volta para `1` em vez de quebrar a tela. Booleano lê `"true"`/`"false"`.
+- **Default sai da URL.** `set({ pagina: 1 })` ou `set({ pagina: null })` apaga `pagina`, então a tela sem filtro é a URL limpa.
+- **Escritas do mesmo tique viram uma navegação só.** Uma entrada no histórico por gesto, e nenhuma escrita perdida.
+- **`{ replace: true }`** troca a entrada atual em vez de empilhar — o certo para busca digitada. Num lote, basta uma escrita sem `replace` para o lote empilhar.
+- Parâmetros que o hook não conhece ficam intactos.
+
+!!! info "Por que não o `setSearchParams` direto"
+    O `setSearchParams` do React Router monta a URL nova a partir dos parâmetros **do último render** — inclusive na forma de função. Quando o `DataTable` troca o tamanho da página, ele chama `onPageSizeChange(50)` e `onPageChange(1)` no mesmo clique; partindo de `?pagina=3`, a URL final era `?pagina=1` e o `por_pagina=50` sumia (medido com `react-router` 8.5.2, teste em `src/router/use-url-state.test.tsx`). `useUrlState` acumula as escritas numa cópia pendente e navega uma vez.
+
+A página controlada também existe no [`usePaginatedQuery`](./integration-fastapi.md#offset-usepaginatedquery): passe `page` e `onPageChange` e ele deixa de guardar a página sozinho.
+
 ## Escolhendo o tipo de router
 
 O `<AppRouter>` aceita três tipos via a prop `router`:
@@ -41432,6 +42062,7 @@ Os tipos mais usados também vêm junto: `Location`, `NavigateFunction`, `Naviga
 - Permissão que resolve de forma assíncrona responde `"pending"`: a decisão fica segura e o `guardFallback` (ou o `fallback` do `<AppRouter>`) aparece, em vez de redirecionar quem tem acesso ou vazar a tela para quem não tem.
 - Escolha o router com a prop `router`: `"browser"` em produção, `"memory"` + `initialEntries` em testes.
 - Precisa de `matchPath`, `generatePath`, `useOutletContext` ou qualquer outro nome client-side do React Router? Também vem de `"tempest-react-sdk"`; o `Form` dele sai como `RouterForm`.
+- Estado de lista (página, busca, filtros, ordenação) mora na URL com `useUrlState`: tipado pelo default, e escritas do mesmo clique viram uma navegação só.
 
 ---
 
@@ -41546,7 +42177,7 @@ my-app/
 ├── index.html
 ├── package.json          # deps: react, react-dom, tempest-react-sdk; devDeps: vite, @vitejs/plugin-react, typescript, @types/*
 ├── tsconfig.json         # alias @ -> ./src em "paths"
-├── vite.config.ts        # createViteConfig({ plugins: [tempestCsp()] })
+├── vite.config.ts        # createViteConfig({ plugins: [tempestThemeInit(), tempestCsp()] })
 ├── .env.example          # VITE_API_URL
 ├── .gitignore
 └── src/
@@ -41576,14 +42207,14 @@ Vamos olhar os três mais importantes.
 #### `vite.config.ts` → `createViteConfig`
 
 ```ts
-import { createViteConfig, tempestCsp } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestCsp()],
+    plugins: [tempestThemeInit(), tempestCsp()],
 });
 ```
 
-Uma chamada. O `createViteConfig` já liga o plugin de React, o alias `@ -> ./src` e os defaults que o SDK espera. Veja a página [Vite Config](./vite-config.md) pra customizar. O `tempestCsp()` escreve a Content-Security-Policy no `index.html`, no dev e no build, com o `connect-src` tirado das URLs `VITE_*` do `.env` — por isso o `cp .env.example .env` do primeiro passo importa. Veja [Content-Security-Policy](./csp.md).
+Uma chamada. O `createViteConfig` já liga o plugin de React, o alias `@ -> ./src` e os defaults que o SDK espera. Veja a página [Vite Config](./vite-config.md) pra customizar. O `tempestCsp()` escreve a Content-Security-Policy no `index.html`, no dev e no build, com o `connect-src` tirado das URLs `VITE_*` do `.env` — por isso o `cp .env.example .env` do primeiro passo importa. Veja [Content-Security-Policy](./csp.md). O `tempestThemeInit()` põe o script anti-flash do tema no `<head>`, então quem escolheu o escuro não vê um quadro claro ao carregar. Veja [No-flash](./theme.md#no-flash-evitar-o-flash-do-tema-errado).
 
 #### `src/App.tsx` → `AppProviders` + `AppRouter`
 
@@ -43006,7 +43637,7 @@ o app não alcança.
     faz.
 
 !!! info "`styles.css` continua publicado"
-    Uma linha, todos os 134 componentes, e nada quebra: o bundler deduplica a
+    Uma linha, todos os 136 componentes, e nada quebra: o bundler deduplica a
     folha que o componente importa contra a que você importou. Custa bytes, nunca
     correção — é a mesma troca do `auto.css`.
 
@@ -45701,7 +46332,20 @@ O que cada campo significa:
 
 Há um problema clássico: o HTML pinta antes do React montar, então por um instante o usuário vê o tema padrão antes de o `ThemeProvider` corrigir. A solução é um script síncrono inline no `<head>`, **antes de qualquer CSS**, que aplica o atributo na primeira pintura.
 
-`themeInitScript()` devolve exatamente esse trecho. Em um `index.html` Vite:
+`themeInitScript()` devolve exatamente esse trecho. Num app Vite, o plugin `tempestThemeInit()` o injeta no topo do `<head>`, no `vite dev` e no build — o app do `create-tempest-app` já vem com ele:
+
+```ts
+// vite.config.ts
+import { createViteConfig, tempestCsp, tempestThemeInit } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+  plugins: [tempestThemeInit(), tempestCsp()],
+});
+```
+
+Passe ao plugin o mesmo `storageKey`/`defaultTheme` do `ThemeProvider` (`tempestThemeInit({ storageKey: "aurora-theme" })`). Com o `tempestCsp()`, o script entra na política pelo hash, sem `'unsafe-inline'`. Medido no app gerado pela 0.92.0 (`vite build` + `vite preview`, Chromium, `localStorage["tempest-theme"] = "dark"`, 5 cargas): sem o script, no primeiro `requestAnimationFrame` o atributo não existia e o `body` pintava `rgb(255, 255, 255)` nas 5.
+
+Sem o plugin, o mesmo trecho colado à mão num `index.html`:
 
 ```html
 <!doctype html>
@@ -45780,7 +46424,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 135 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 136 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 
@@ -46228,7 +46872,7 @@ Os componentes do SDK leem `data-tempest-theme`. Se o **CSS próprio do seu app*
 </ThemeProvider>
 ```
 
-Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (a meta tag precisa existir no `<head>`):
+Para sincronizar a barra do navegador / status bar do PWA, passe `themeColor` — o provider atualiza `<meta name="theme-color">` com a cor do tema resolvido (e cria a tag no `<head>` quando a página não tem):
 
 ```tsx
 <ThemeProvider themeColor={{ light: "#1f7a3f", dark: "#0f1411" }}>
@@ -46254,7 +46898,7 @@ Passe `target` para aplicar o tema em uma subárvore específica em vez de `<htm
 - `ThemeProvider` escreve `data-tempest-theme` no `<html>` (ou no elemento de `target`); os tokens `--tempest-*` reagem sozinhos.
 - Modos: `"light"`, `"dark"`, `"system"` — o último segue `prefers-color-scheme` ao vivo. A escolha persiste em `localStorage["tempest-theme"]`.
 - `useTheme()` dá `theme` (preferência crua), `resolvedTheme` (sempre `light`/`dark`), `setTheme` e `toggle`.
-- Inline o `themeInitScript()` **síncrono no `<head>`, antes do CSS**, para eliminar o flash do tema errado.
+- Ligue o `tempestThemeInit()` no `vite.config.ts` (ou inline o `themeInitScript()` **síncrono no `<head>`, antes do CSS**) para eliminar o flash do tema errado.
 - Customize o visual sobrescrevendo os tokens `--tempest-*`; use `target` para tema em subárvore.
 
 ## Veja também
@@ -48184,7 +48828,7 @@ formatDate(pedido.entregueEm, { fallback: "pendente" }); // o texto é seu
 ABSENT_TEXT; // "—", para quando a sua própria célula precisa combinar
 ```
 
-Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate` e `formatDateTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
+Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent`, `formatDate`, `formatDateTime` e `formatTime`. Os dois que alimentam `<input>` — `formatDateForInput` e `formatDateTimeForInput` — respondem **`""`**, porque é o que um input lê como "sem valor"; um travessão chegaria como conteúdo que o usuário precisa apagar antes de digitar.
 
 !!! danger "Antes da 0.66.0, ausente virava número plausível"
     Medido na 0.65.0, com o que chegava à tela para uma coluna que o backend deixou nula:
@@ -48200,6 +48844,29 @@ Vale para `formatCurrency`, `formatBytes`, `formatCompactNumber`, `formatPercent
 
 !!! tip "Ausente e inválido não são a mesma coisa"
     Valor presente que não dá para interpretar — um ISO corrompido — continua respondendo **`""`**, e isso é de propósito. Lendo um log, "ninguém preencheu" e "o que preencheram está quebrado" são achados diferentes, e o segundo é o que vale investigar. Uma célula vazia e uma com `—` param de significar a mesma coisa.
+
+---
+
+## Data sem hora e hora do dia — `formatDate`, `formatDateTime`, `formatTime` {#data-sem-hora}
+
+O backend manda três formas diferentes, e cada formatador lê as três pelo que elas são:
+
+```ts
+import { formatDate, formatDateTime, formatTime } from "tempest-react-sdk";
+
+formatDate("2026-11-16"); // "16/11/2026" — coluna `date`, em qualquer fuso
+formatDateTime("2026-11-16T20:30:00Z"); // "16/11/2026, 17:30" em America/Sao_Paulo
+formatTime("2026-11-16T20:30:00Z"); // "17:30" em America/Sao_Paulo
+formatTime("08:05:00"); // "08:05" — coluna `time`, sem conversão de fuso
+formatTime("2026-11-16"); // "" — data sem hora não tem hora para mostrar
+```
+
+- **Data sem hora** (`yyyy-MM-dd`) é um dia do calendário, não um instante: sai como o dia que ela nomeia, em qualquer fuso. Um dia que o mês não tem (`"2026-02-30"`) responde `""`.
+- **Instante** (`Date`, ou string com data **e** hora) é convertido para o fuso de quem está vendo.
+- **Hora do dia** (`HH:mm`, `HH:mm:ss`) só existe no `formatTime`, e sai como veio.
+
+!!! danger "Até a 0.92.0, toda coluna `date` aparecia um dia antes no Brasil"
+    `new Date("2026-11-16")` é meia-noite **UTC**, que em UTC-3 é dia 15 às 21:00. Medido com `TZ=America/Sao_Paulo node -e 'console.log(new Intl.DateTimeFormat("pt-BR").format(new Date("2026-11-16")))'`: `15/11/2026`. O `formatDate` mostrava `15/11/2026`, o `formatDateTime` mostrava `15/11/2026, 21:00`, e o `formatDate` do `createI18n`/`useI18n` errava igual. Agora a data sem hora é formatada em UTC — o mesmo dia em todo fuso —, e um `timeZone` passado ao `formatDate` do i18n não a move.
 
 ---
 
@@ -48581,7 +49248,7 @@ Mesma política best-effort do par JSON: SSR-safe, nunca lança, silencia erro d
 - **ZIP**: `createZip(entries, { onProgress })` monta planilha + fotos em fatias de ~8 ms, sem travar a tela, e guarda sem recomprimir o que já é comprimido.
 - **CSV**: `toCsv(rows, columns)` escreve o arquivo com escaping RFC 4180 e BOM, e neutraliza fórmula por padrão; `downloadCsv(...)` entrega direto ao usuário.
 - **URL de usuário**: `safeLinkUrl`, `safeImageUrl` e `safeAttachmentUrl` devolvem a URL ou `null` — allowlist de esquema antes de qualquer `href`/`src`.
-- **Datas e percentuais**: `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
+- **Datas e percentuais**: `formatDate("2026-11-16")` mostra o dia 16 em qualquer fuso e `formatTime` dá `HH:mm` de um instante ou de uma coluna `time`; `formatDateForInput` dá o `yyyy-MM-dd` que o `<input type="date">` exige e `formatDateTimeForInput` dá o `yyyy-MM-ddTHH:mm` do `<input type="datetime-local">` (os dois pelas partes locais, sem o desvio de UTC); `percentOf` devolve `0` em vez de `NaN` quando a base é zero; `formatPercent(v, { mode: "truncate" })` corta sem erro de ponto flutuante; `relativeDayLabel` dá "Hoje"/"Ontem"/data pelo dia do calendário local.
 - **Storage comprimido**: `compressedStorage.get/set` gzipa o que grava; formato autodescritivo (`~tgz1:`) lê valores antigos sem migração. Com React, `useLocalStorage(key, def, compressedStorageCodec)`.
 - **Arrays/Objetos**: `groupBy`, `uniqueBy`, `chunk`, `range`, `pick`, `omit`, `deepMerge`, `isEmpty` — sempre imutáveis; `deepMerge` substitui arrays em vez de fundir.
 - **Guards**: `isDefined`, `isString`, `isNumber`, `isPlainObject`, `assertNever` — narrowing seguro + exaustividade em `switch`.
@@ -50089,6 +50756,11 @@ Todas as opções são opcionais.
     O `tempestCsp()` mora no mesmo subpath e deriva o `connect-src` das variáveis
     `VITE_*` que o app lê em runtime. Veja [Content-Security-Policy](csp.md).
 
+!!! tip "Tema sem flash"
+    O `tempestThemeInit()` também mora aqui: injeta o `themeInitScript()` no topo do
+    `<head>`, e o `tempestCsp()` o libera pelo hash. Veja
+    [No-flash](theme.md#no-flash-evitar-o-flash-do-tema-errado).
+
 ## Recap
 
 - Importe `createViteConfig` de **`tempest-react-sdk/vite`** — subpath dedicado de
@@ -50950,6 +51622,15 @@ O que a opção garante:
     não chega ao seu `onMessage` quando o schema o recusa — o que é o certo, já
     que você não o declarou.
 
+    E a recusa **não** é reportada (0.84.0, #704): com `respondToPing` ligado, um
+    ping que o schema não descreve não dispara `onValidationError` nem o aviso de
+    desenvolvimento. Antes, cada heartbeat — um a cada 30 s contra o
+    `tempest-fastapi-sdk` — chegava no `onValidationError` como "o backend mudou o
+    contrato", e o único jeito de calar era declarar o ping no schema do app. Se o
+    schema declara o ping, ele continua chegando no `onMessage`; com
+    `respondToPing: false` (o app responde ao ping sozinho), a recusa volta a ser
+    reportada, porque aí o ping é payload do app.
+
 !!! check "Sinal que existe em produção, não só em dev"
     O aviso único é dev-only (passa por `isDevBuild()`, que responde certo sozinho
     em Vite, webpack, Rspack e Parcel — medido) e mora no console de quem estiver
@@ -50970,7 +51651,7 @@ O que a opção garante:
 - `onReconnecting` é estado discreto; `onLost` é o que merece UI e um botão de "tentar de novo".
 - `opened` separa "não consegui entrar" de "caiu no meio" — a primeira é erro, a segunda reconecta sozinha.
 - `pingInterval` + `pingPayload` mantêm a conexão viva.
-- `schema` valida cada frame antes de entregar — o `pong` do heartbeat continua saindo mesmo quando o schema recusa o ping.
+- `schema` valida cada frame antes de entregar — o `pong` do heartbeat continua saindo mesmo quando o schema recusa o ping, e essa recusa não vira `onValidationError`.
 - `useWebSocket` amarra tudo ao componente e expõe `status`/`lastMessage`/`send`/`reconnect`/`setSilenceTimeout`.
 
 ## Veja também

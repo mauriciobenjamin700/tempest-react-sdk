@@ -203,8 +203,37 @@ export function Metricas() {
 | `value` | `ReactNode`                | —                                    |
 | `delta` | `ReactNode`                | —                                    |
 | `trend` | `"up" \| "down" \| "flat"` | inferido por `+`/`-` em delta string |
+| `higherIsBetter` | `boolean`         | `true`                               |
 | `hint`  | `ReactNode`                | —                                    |
 | `icon`  | `ReactNode`                | —                                    |
+
+### Polaridade: quando subir é ruim
+
+A cor do delta diz **bom** ou **ruim**, não "subiu" ou "desceu". Por padrão, alta é
+verde e queda é vermelha. Em métrica onde crescer é o problema — taxa de faltas,
+churn, tempo de resposta, chamados abertos — passe `higherIsBetter={false}`: a alta
+fica vermelha e a queda, verde. A direção não muda; `trend` e o texto do delta
+continuam dizendo para onde o número foi.
+
+```tsx
+import { Stat } from "tempest-react-sdk";
+
+export function TaxaDeFaltas() {
+    return (
+        <Stat
+            label="Faltas"
+            value="7,5%"
+            delta="+1,2 p.p."
+            higherIsBetter={false}
+            hint="vs. semana passada"
+        />
+    );
+}
+```
+
+O delta expõe `data-trend` (`up`/`down`/`flat`) e `data-tone`
+(`positive`/`negative`/`neutral`), para teste ou estilo do app sem depender de
+classe com hash.
 
 ## `Progress`
 
@@ -572,6 +601,11 @@ export function FalhaAoCarregar({
 }
 ```
 
+Sem `title`, `description` ou `retryLabel`, os textos padrão vêm do
+[i18n](../i18n.md#textos-padrao-dos-componentes) (`tempest.errorState.*`): em
+inglês com locale `en`, em pt-BR sem provider. `description={null}` some com a
+descrição.
+
 ## `OfflineIndicator`
 
 **Quando usar:** avisar que o app está offline e confirmar quando a conexão volta. Guiado por `useOnline` — não renderiza nada online, então monte na raiz sem `if`.
@@ -619,6 +653,50 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 `tone`: `"idle"` | `"syncing"` | `"pending"` | `"offline"` | `"error"`. `iconOnly` esconde o label; `labels` sobrescreve os textos por tom.
 
 `sync` aceita o motor com o payload que ele tiver (`OfflineSync<Nota>` acima): a prop é tipada como `SyncStatusSource`, só o `getState` e o `subscribe` que o badge lê. Até a 0.92.0 ela era `OfflineSync<unknown>`, e todo motor tipado reprovava com TS2322 sob `strict` — o `enqueue` recebe o payload, então o motor não é covariante nele.
+
+## `StorageUsage`
+
+**Quando usar:** mostrar quanto do armazenamento do navegador o app usa, quanto disso ainda não foi enviado ao servidor, e avisar quando o espaço está acabando ou quando os dados pendentes podem ser apagados pelo navegador. O componente **não lê o navegador sozinho**: recebe os números por prop. `usage`, `quota` e `persisted` vêm do [`useStorageEstimate`](../pwa.md#4-durabilidade-peca-armazenamento-persistente); `pendingBytes` vem de quem sabe o que falta subir (o motor offline, a fila de upload do app); `warnAt` é o limite que **o app** escolhe.
+
+```tsx
+import { StorageUsage, useStorageEstimate } from "tempest-react-sdk";
+
+export function Armazenamento({ pendingBytes }: { pendingBytes: number }) {
+    const storage = useStorageEstimate({ pollMs: 30_000 });
+
+    return (
+        <StorageUsage
+            usage={storage.usage}
+            quota={storage.quota}
+            persisted={storage.persisted}
+            pendingBytes={pendingBytes}
+            warnAt={0.9}
+            onRequestPersist={storage.requestPersist}
+        />
+    );
+}
+```
+
+Mostra "X de Y usados · Z pendentes de envio" com os bytes formatados por `formatBytes`. Avisa em dois casos:
+
+- **Acima do limite**: `usage / quota >= warnAt` (default `0.8`) pinta a barra de vermelho e mostra "Armazenamento quase cheio".
+- **Pendências em armazenamento não permanente**: `persisted === false` com `pendingBytes > 0`. Fora da tela inicial, o Safari apaga os dados do site depois de ~7 dias sem uso, e qualquer navegador pode despejar sob pressão de disco.
+
+Com `persisted === false` e `onRequestPersist`, aparece o botão "Tornar armazenamento permanente"; se o callback devolve uma promise, o botão fica em `loading` até ela terminar. O SDK não chama `requestPersistentStorage()` sozinho porque no Firefox isso abre um pedido de permissão: quem decide o momento é o app.
+
+| Prop               | Tipo                            | Default |
+| ------------------ | ------------------------------- | ------- |
+| `usage`            | `number \| null`                | —       |
+| `quota`            | `number \| null`                | —       |
+| `pendingBytes`     | `number \| null`                | —       |
+| `persisted`        | `boolean \| null`               | —       |
+| `warnAt`           | `number` (razão em `[0, 1]`)    | `0.8`   |
+| `onRequestPersist` | `() => unknown`                 | —       |
+| `labels`           | `Partial<StorageUsageLabels>`   | PT-BR   |
+
+`null` é "o navegador não informa": com `usage` ou `quota` `null` (ou `quota` `0`) a barra dá lugar a uma frase, em vez de uma barra vazia que leria 0%. `pendingBytes` omitido esconde a linha de pendências; `persisted` `null` não mostra aviso nem botão.
+
+**A11y:** a barra é `role="meter"` (nível, não progresso de tarefa) nomeada pelo título, com `aria-valuetext` igual ao "X de Y usados" que o olho lê. Os avisos usam `role="status"` (polido), não o `role="alert"` padrão do `Alert`: o componente costuma montar numa tela com o aviso já verdadeiro, e um anúncio assertivo a cada montagem interromperia o leitor.
 
 ## `UpdatePrompt`
 

@@ -87,10 +87,10 @@ export function withAllOption<T extends OptionLike>(
  * Without it a `<select>` has no way to show "unset": a controlled
  * `value=""` with no matching option reads back as the **first option** (measured
  * in jsdom: `select.value === "a"`), so opening an edit form and saving it
- * writes a value nobody chose. `Select`'s `placeholder` does not cover this — its
- * entry is `disabled hidden`, so once something is picked the field can never be
- * cleared again. The entry's value is `""`, which is what an unanswered nullable field
- * submits.
+ * writes a value nobody chose. The entry's value is `""`, which is what an
+ * unanswered nullable field submits. When "empty" only means "not chosen yet",
+ * `Select`'s `placeholder` with `clearable` covers it without a list entry; this
+ * helper is for an empty choice with a name of its own ("Particular").
  *
  * @param options - The list to extend. It is not mutated.
  * @param label - The entry's label. Defaults to `"— Não definido —"`.

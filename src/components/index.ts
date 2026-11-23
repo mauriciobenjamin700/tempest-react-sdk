@@ -298,6 +298,9 @@ export type { StepItem, StepperProps } from "./Stepper";
 export { StepperInput } from "./StepperInput";
 export type { StepperInputProps } from "./StepperInput";
 
+export { StorageUsage } from "./StorageUsage";
+export type { StorageUsageLabels, StorageUsageProps } from "./StorageUsage";
+
 export { Switch } from "./Switch";
 export type { SwitchProps } from "./Switch";
 
@@ -464,7 +467,9 @@ export type {
     DataTablePagingProps,
     DataTableProps,
     DataTableSort,
+    DataTableRowKey,
     DataTableSearchProps,
+    DataTableSelectionProps,
     DataTableSortProps,
     SortDirection,
 } from "./DataTable";

@@ -607,10 +607,48 @@ export function BarraInferior({ cartCount }: { cartCount: number }) {
 | ------------ | ------------------------------ | ------- |
 | `items`      | `BottomNavigationItem[]` (3–5) | —       |
 | `value`      | `string`                       | —       |
+| `match`      | `"key" \| "route"`             | `"key"` |
 | `onChange`   | `(key: string) => void`        | —       |
 | `showLabels` | `boolean`                      | `true`  |
 
-Type `BottomNavigationItem = { key, label, icon?, badge?, disabled? }`.
+Type `BottomNavigationItem = { key, label, icon?, badge?, disabled?, href? }` — the
+same contract as `SidebarItem`, so one list feeds both.
+
+### Links and the active item from the route
+
+With `href`, the item is a real `<a>`: long-press "open in new tab" works on a
+phone and a screen reader announces a link. With `onChange`, a plain click belongs
+to the app's router (the `href` does not reload the page); ctrl/cmd-click stays
+with the browser. With `match="route"`, `value` is the `pathname` and the lit item
+is the one whose `href` is the longest covering the route, by the same rule as
+[`activeNavKey`](#activenavkey-the-same-resolution-outside-sidebar):
+
+```tsx
+import { BottomNavigation, useLocation, useNavigate } from "tempest-react-sdk";
+import { LayoutDashboard, Users } from "lucide-react";
+
+export function AppTabs() {
+    const { pathname } = useLocation();
+    const navigate = useNavigate();
+
+    return (
+        <BottomNavigation
+            match="route"
+            value={pathname}
+            items={[
+                { key: "/", href: "/", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
+                { key: "/patients", href: "/patients", label: "Patients", icon: <Users size={20} /> },
+            ]}
+            onChange={(key) => navigate(key)}
+        />
+    );
+}
+```
+
+On `/patients/42?tab=visits`, "Patients" stays lit; `/` lights only on `/`. The
+landmark's name comes from `tempest.bottomNavigation.label` in the
+[i18n](../i18n.md#component-default-texts) catalog ("Navegação principal" /
+"Main navigation"); `aria-label` replaces it.
 
 **Safe-area**: applies `padding-bottom: env(safe-area-inset-bottom)`
 automatically.

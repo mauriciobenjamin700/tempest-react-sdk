@@ -60,6 +60,11 @@ npm i recharts
     breaks with `Cannot find module 'recharts'`. Install it in the app that
     actually uses charts.
 
+!!! note "recharts 3.2 or newer"
+    The peer is `recharts@^3.2.0`: the Y axis that fits its labels
+    (`yAxisWidth="auto"`) only exists from that version on: the `YAxis` code of
+    2.15 and of 3.0/3.1 does not handle `"auto"` and adds the width up as a number.
+
 ## The cartesian family: Area, Bar, Line
 
 `AreaChart`, `BarChart`, and `LineChart` share the **same** props interface,
@@ -175,6 +180,9 @@ With `stack`, the three areas stack and the top shows the total per hour.
 | `showGrid`       | `boolean`                   | `true`                 | Renders the cartesian grid.                                                  |
 | `showTooltip`    | `boolean`                   | `true`                 | Renders the tooltip.                                                         |
 | `valueFormatter` | `(value: number) => string` | —                      | Formats numeric values in the tooltip and on the Y axis.                     |
+| `labels`         | `Record<string, string>`    | —                      | Each series' name in the legend and tooltip, keyed by `categories` entry.    |
+| `yAxisWidth`     | `number \| "auto"`          | `"auto"`               | Y axis width in px, or `"auto"` to fit the widest label. Not on Radar.        |
+| `yAxisFormatter` | `(value: number) => string` | `valueFormatter`       | Formats the Y axis labels only. Not on Radar.                                |
 | `className`      | `string`                    | —                      | Extra class name applied to the chart wrapper.                              |
 
 `ChartData = Array<Record<string, string | number>>` — each row maps a column key
@@ -184,6 +192,78 @@ to a label (string) or value (number).
     `categories` is an array, so you decide how many series you want. Just one
     (`categories={["income"]}`) draws a simple chart; several draw comparative
     series, each picking the next color in the palette.
+
+### Series label apart from the data key (`labels`)
+
+The legend and the tooltip show the **series name**, which by default is the key
+itself (`"done"`). To translate it, pass `labels` — a key → text map. The data
+keeps the keys the API sent:
+
+```tsx
+import { BarChart } from "tempest-react-sdk/charts";
+
+const week = [
+    { day: "Mon", done: 34, noShow: 3 },
+    { day: "Tue", done: 29, noShow: 5 },
+];
+
+export function Appointments({ t }: { t: (key: string) => string }) {
+    return (
+        <BarChart
+            data={week}
+            index="day"
+            categories={["done", "noShow"]}
+            labels={{ done: t("series.done"), noShow: t("series.noShow") }}
+            stack
+        />
+    );
+}
+```
+
+A category with no entry in `labels` shows its key. It applies to `AreaChart`,
+`BarChart`, `LineChart` and `RadarChart`. `PieChart` does not need it: each
+slice's name already comes from the `index` column.
+
+### Value axis: width and format
+
+With no setup, the Y axis **fits its widest label** (`yAxisWidth="auto"`). It
+used to reserve a fixed 60 px, and `"R$ 50.000"` lost its first 10 px — at any
+screen width, not only on phones (measured in Chromium, #740).
+
+A long label takes room from the plot on a phone. For the axis, use a short
+format in `yAxisFormatter`; the tooltip keeps the exact value from
+`valueFormatter`:
+
+```tsx
+import { LineChart } from "tempest-react-sdk/charts";
+
+const brl = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const brlCompact = new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    notation: "compact",
+});
+
+const months = [
+    { month: "Oct", total: 164750 },
+    { month: "Nov", total: 186430 },
+];
+
+export function Revenue() {
+    return (
+        <LineChart
+            data={months}
+            index="month"
+            categories={["total"]}
+            valueFormatter={(v) => brl.format(v)}
+            yAxisFormatter={(v) => brlCompact.format(v)}
+        />
+    );
+}
+```
+
+The axis shows `R$ 186 mil`; the tooltip, `R$ 186.430,00`. To line up the plot
+areas of stacked charts, pin the width with a number (`yAxisWidth={72}`).
 
 ## PieChart
 
@@ -503,6 +583,8 @@ tests, server-side rendering (SSR), exporting an exact-size PNG. Then you pass
 - `AreaChart`, `BarChart`, and `LineChart` share `CartesianChartProps`: `data` +
   `index` (X axis) + `categories` (series). `stack` stacks in Area/Bar;
   `LineChart` ignores it.
+- `labels` names the series without changing the data keys; the Y axis fits its
+  widest label and `yAxisFormatter` formats the axis only.
 - `PieChart` uses `category` (value) + `index` (label), one row per slice, with
   optional `donut`.
 - `RadarChart` reuses `CartesianChartProps` (`index` = angle axis); ignores

@@ -106,6 +106,13 @@ export function Cards({ navigate }: { navigate: (to: string) => void }) {
 !!! tip "Use `flush` to host tables and lists"
     Cards have internal padding by default. When placing a `Table` or a list that already has its own margins, turn on `flush` so the content reaches the card edges without doubled padding.
 
+!!! note "Blocks inside the card are spaced"
+    Two or more block children — a `Stat` and a `Timeline`, a paragraph and a list
+    — sit `--tempest-space-4` (16 px) apart, with no `Stack` needed. Inline content
+    (`Hi <strong>Ana</strong>`) stays on one line, and a `flush` card gets no
+    spacing. Before, since every SDK component zeroes its own margin, the blocks
+    touched (#710).
+
 !!! note "`interactive` makes the whole card a button"
     With `interactive`, the card gets `role="button"`, `tabIndex={0}`, and keyboard handling (Enter/Space). Avoid putting other clickable elements inside an interactive card — nested clicks compete for the same gesture and confuse keyboard navigation.
 

@@ -1,5 +1,7 @@
 import { forwardRef } from "react";
 import type { InputHTMLAttributes } from "react";
+import { SEARCH_BAR_MESSAGES } from "@/i18n/messages/search-bar";
+import { useTempestText } from "@/i18n/use-tempest-text";
 import { cn } from "@/utils/cn";
 import styles from "./SearchBar.module.css";
 
@@ -15,9 +17,10 @@ export interface SearchBarProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * pass `value` and `onChange`.
  */
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar(
-    { value, onChange, onClear, wrapperClassName, placeholder = "Buscar...", className, ...props },
+    { value, onChange, onClear, wrapperClassName, placeholder, className, ...props },
     ref,
 ) {
+    const text = useTempestText(SEARCH_BAR_MESSAGES);
     function handleClear(): void {
         onChange("");
         onClear?.();
@@ -33,7 +36,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function S
                 type="search"
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
-                placeholder={placeholder}
+                placeholder={placeholder ?? text.t("tempest.searchBar.placeholder")}
                 className={cn(styles.input, className)}
                 {...props}
             />
@@ -41,7 +44,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function S
                 <button
                     type="button"
                     className={styles.clear}
-                    aria-label="Limpar busca"
+                    aria-label={text.t("tempest.searchBar.clear")}
                     onClick={handleClear}
                 >
                     <ClearIcon />

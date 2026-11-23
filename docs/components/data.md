@@ -101,6 +101,7 @@ export function Orders({
 | `render`    | `(row: T, index: number) => ReactNode`        | Default = `row[key]`                                       |
 | `align`     | `"left" \| "right" \| "center"`               | Default `"left"`                                           |
 | `priority`  | `"always" \| "tablet" \| "desktop"`           | `tablet`: escondida em < md. `desktop`: escondida em < lg. |
+| `label`     | `string`                                      | Rótulo do cartão empilhado no celular; default = `header` quando é texto. |
 | `width`     | `string \| number`                            | CSS width (`120px`, `20%`, `auto`)                         |
 | `className` | `string`                                      | Classe extra aplicada às células daquela coluna            |
 
@@ -450,7 +451,7 @@ export function Pessoas() {
 | `manualSort` | `boolean` | Delega a ordenação. Implícito com `totalItems`. |
 | `onSortChange` | `(sort: DataTableSort<T> \| null) => void` | `asc` → `desc` → `null`. |
 | `manualSearch` | `boolean` | Delega a busca. Implícito com `totalItems`. |
-| `onSearchChange` | `(term: string) => void` | Termo digitado; debounce é seu. |
+| `onSearchChange` | `(term: string) => void` | Termo digitado, depois de `searchDebounceMs` quando definido. |
 | `loading` | `boolean` | Requisição em voo. |
 | `pageSize` | `number` | Linhas por página; obrigatório com `onPageSizeChange`. |
 | `onPageSizeChange` | `(size: number) => void` | Liga o seletor de itens por página ([abaixo](#itens-por-pagina)). |

@@ -37,6 +37,7 @@ import { Sparkline } from "./Sparkline";
 import { CodeBlock } from "./CodeBlock";
 import { QRCode } from "./QRCode";
 import { Spinner } from "./Spinner";
+import { StorageUsage } from "./StorageUsage";
 import { Switch } from "./Switch";
 import { Table } from "./Table";
 import { Tabs } from "./Tabs";
@@ -124,6 +125,17 @@ const CASES: [name: string, ui: ReactElement][] = [
     ["Spinner", <Spinner />],
     ["Progress (visible label)", <Progress value={42} label="Enviando arquivo" />],
     ["Progress (aria-label only)", <Progress value={42} aria-label="Enviando arquivo" />],
+    [
+        "StorageUsage (every warning)",
+        <StorageUsage
+            usage={95}
+            quota={100}
+            pendingBytes={10}
+            persisted={false}
+            onRequestPersist={() => undefined}
+        />,
+    ],
+    ["StorageUsage (unsupported)", <StorageUsage usage={null} quota={null} pendingBytes={10} />],
     ["Pagination", <Pagination page={2} totalPages={5} onPageChange={() => undefined} />],
     ["Breadcrumbs", <Breadcrumbs items={[{ label: "Início", href: "/" }, { label: "Detalhe" }]} />],
     [

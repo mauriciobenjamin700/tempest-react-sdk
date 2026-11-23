@@ -1,5 +1,6 @@
 export { createOfflineStore } from "./create-offline-store";
 export type { ListOptions, OfflineStore, OfflineStoreConfig } from "./create-offline-store";
+export { isQuotaExceededError, StorageFullError } from "./storage-full-error";
 export { createOfflineDatabase } from "./create-offline-database";
 export type {
     OfflineDatabase,

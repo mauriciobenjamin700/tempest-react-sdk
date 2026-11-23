@@ -775,7 +775,7 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, StorageFullError, formatBytes, useToast } from "tempest-react-sdk";
 import {
   bestSupportedType,
   resizeImage,
@@ -830,7 +830,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
         });
         const thumb = await resizeImage(image.blob, { width: 480, type });
         await addPhoto(visitId, image, thumb);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -896,6 +900,12 @@ Comprimir antes do `put` é a alavanca mais barata contra o limite de espaço do
 cada foto ocupa o aparelho **até subir**, e no campo isso pode ser dias.
 
 O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no unmount.
+
+Quando o aparelho não tem mais espaço, o `photos.put` rejeita com
+[`StorageFullError`](../offline.md#armazenamento-cheio-storagefullerror), e o laço para:
+as próximas fotos também não caberiam, e a mensagem certa é "sincronize", não "fotografe
+de novo". O erro cru do navegador nem diria isso — no Chromium ele chega como `AbortError`
+do Dexie.
 
 !!! warning "Reencodar apaga o GPS da foto"
     O EXIF some no reencode, incluindo as coordenadas. Isso protege a localização de quem
@@ -1649,6 +1659,7 @@ installPrecache({
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
   o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
+- 💾 **`StorageFullError`** separa "memória cheia" de "foto ruim" no `catch` da câmera.
 - 🔒 O login pede armazenamento persistente; **`useStorageEstimate`** + `pendingBytes`
   avisam quando falta espaço; o `UpdatePrompt` não troca de versão no meio da vistoria; o
   service worker só faz precache.

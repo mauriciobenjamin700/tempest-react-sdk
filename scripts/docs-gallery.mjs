@@ -57,6 +57,7 @@ const SECTION_OVERRIDES = {
     Markdown: "markdown",
     RadioGroup: "form-primitives",
     SyncStatusBadge: "pwa",
+    StorageUsage: "pwa",
     Toggle: "form-primitives",
     ToggleGroupItem: "feedback-extra",
     PostInstallPrompt: "pwa",

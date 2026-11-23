@@ -42,12 +42,18 @@ import { RelativeTime } from "tempest-react-sdk";
 
 <RelativeTime date={post.createdAt} />; // pt-BR
 <RelativeTime date={post.createdAt} locale="en" />;
+<RelativeTime date={position.timestamp} updateEvery={15_000} />; // keeps counting
+<RelativeTime date={position.timestamp} now={clock} />; // uses the app's clock
 ```
 
-| Prop     | Type                       | Default | Notes                     |
-| -------- | -------------------------- | ------- | ------------------------- |
-| `date`   | `Date \| string \| number` | —       | Instant to render.        |
-| `locale` | `"pt" \| "en"`             | `"pt"`  | `"pt"` maps to `"pt-BR"`. |
+| Prop          | Type                       | Default    | Notes                                                                        |
+| ------------- | -------------------------- | ---------- | ---------------------------------------------------------------------------- |
+| `date`        | `Date \| string \| number` | —          | Instant to render.                                                           |
+| `locale`      | `"pt" \| "en"`             | `"pt"`     | `"pt"` maps to `"pt-BR"`.                                                    |
+| `now`         | `Date \| number`           | the render | The app's "now" (one clock for a whole list, or a test's). Wins over `updateEvery`. |
+| `updateEvery` | `number` (ms)              | off        | Re-renders on its own at this interval. A value that is not a positive number turns it off. |
+
+Without `now` or `updateEvery` the text is computed at render and **stays put** until something re-renders the component — measured: 5 min later, still "agora há pouco". The internal clock is opt-in on purpose: a hundred rows with an interval each would wake the page a hundred times per tick; in a list, one `now` from the parent is the cheap shape, and `updateEvery` is for the lone timestamp with nothing above it to re-render it. The timer is cleared on unmount.
 
 Extends `HTMLAttributes<HTMLTimeElement>`.
 

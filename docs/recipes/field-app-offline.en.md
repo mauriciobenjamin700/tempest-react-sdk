@@ -780,7 +780,7 @@ what you want to see is a `401` or a `413` that will not go away on its own.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, StorageFullError, formatBytes, useToast } from "tempest-react-sdk";
 import {
   bestSupportedType,
   resizeImage,
@@ -835,7 +835,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
         });
         const thumb = await resizeImage(image.blob, { width: 480, type });
         await addPhoto(visitId, image, thumb);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -902,6 +906,12 @@ Compressing before the `put` is the cheapest lever against the browser's storage
 each photo takes up the device **until it uploads**, and in the field that can be days.
 
 `useImagePreview` creates the `Blob`'s preview URL and **revokes** it on its own at unmount.
+
+When the device runs out of space, `photos.put` rejects with
+[`StorageFullError`](../offline.md#storage-full-storagefullerror), and the loop stops: the
+next photos would not fit either, and the right message is "sync", not "shoot again". The
+browser's raw error would not even say that — in Chromium it arrives as Dexie's
+`AbortError`.
 
 !!! warning "Re-encoding drops the photo's GPS"
     EXIF is gone after the re-encode, coordinates included. That protects the location of
@@ -1666,6 +1676,8 @@ installPrecache({
   queue.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** deliver the report without a
   network.
+- 💾 **`StorageFullError`** tells "storage full" apart from "bad photo" in the camera's
+  `catch`.
 - 🔒 Login asks for persistent storage; **`useStorageEstimate`** + `pendingBytes` warn when
   space runs short; `UpdatePrompt` does not swap versions mid-inspection; the service
   worker only precaches.

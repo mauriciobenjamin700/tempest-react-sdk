@@ -406,6 +406,58 @@ On `<RouteGuard>` it is the same prop: `<RouteGuard when={isAuthenticated} redir
 !!! tip "Use the value with `navigate`, not `window.location`"
     The path is relative to the router's `basename`, exactly like `useLocation()`. `navigate()` puts the `basename` back; `window.location` does not.
 
+## Screen state in the URL with `useUrlState`
+
+A list's page, page size, search, filters and sort belong in the URL: it is what makes the back button work and a pasted link open the same screen. `useUrlState` reads those parameters already typed and writes to them without one write erasing another.
+
+```tsx
+// MembersPage.tsx
+import { DataTable, useUrlState } from "tempest-react-sdk";
+
+interface Member {
+  id: number;
+  name: string;
+}
+
+export function MembersPage({ members, total }: { members: Member[]; total: number }) {
+  const { state, set, reset } = useUrlState({ q: "", page: 1, size: 20 });
+
+  return (
+    <>
+      <button type="button" onClick={() => reset()}>
+        Clear filters
+      </button>
+      <DataTable<Member>
+        data={members}
+        columns={[{ key: "name", header: "Name" }]}
+        rowKey={(member) => member.id}
+        totalItems={total}
+        page={state.page}
+        onPageChange={(page) => set({ page })}
+        pageSize={state.size}
+        pageSizeOptions={[20, 50]}
+        onPageSizeChange={(size) => set({ size })}
+        searchable
+        search={state.q}
+        searchDebounceMs={300}
+        onSearchChange={(q) => set({ q }, { replace: true })}
+      />
+    </>
+  );
+}
+```
+
+- **The type comes from the default.** `page: 1` turns `?page=3` into the number `3`; `?page=abc` falls back to `1` instead of breaking the screen. Booleans read `"true"`/`"false"`.
+- **Defaults leave the URL.** `set({ page: 1 })` or `set({ page: null })` removes `page`, so the unfiltered screen is the bare URL.
+- **Writes in the same tick become one navigation.** One history entry per gesture, and no write lost.
+- **`{ replace: true }`** replaces the current entry instead of pushing — right for typed search. In a batch, one write without `replace` makes the batch push.
+- Parameters the hook does not know are left untouched.
+
+!!! info "Why not `setSearchParams` directly"
+    React Router's `setSearchParams` builds the next URL from the parameters **of the last render** — even in its function form. When `DataTable` changes the page size it calls `onPageSizeChange(50)` and `onPageChange(1)` in the same click; starting from `?page=3`, the final URL was `?page=1` and the size was gone (measured with `react-router` 8.5.2, test in `src/router/use-url-state.test.tsx`). `useUrlState` accumulates the writes on a pending copy and navigates once.
+
+The controlled page also exists in [`usePaginatedQuery`](./integration-fastapi.md#offset-usepaginatedquery): pass `page` and `onPageChange` and it stops keeping the page itself.
+
 ## Choosing the router kind
 
 `<AppRouter>` accepts three kinds via the `router` prop:
@@ -491,3 +543,4 @@ The most used types come along too: `Location`, `NavigateFunction`, `NavigateOpt
 - A permission that resolves asynchronously answers `"pending"`: the decision is held and `guardFallback` (or the `<AppRouter>` `fallback`) shows, instead of redirecting someone who has access or leaking the screen to someone who does not.
 - Pick the router with the `router` prop: `"browser"` in production, `"memory"` + `initialEntries` in tests.
 - Need `matchPath`, `generatePath`, `useOutletContext` or any other client-side React Router name? It also comes from `"tempest-react-sdk"`; its `Form` ships as `RouterForm`.
+- List state (page, search, filters, sort) lives in the URL with `useUrlState`: typed by its defaults, and writes from one click become a single navigation.

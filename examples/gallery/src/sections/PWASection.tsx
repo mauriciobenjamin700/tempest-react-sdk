@@ -7,6 +7,7 @@ import {
     InstallButton,
     InstallCopyLink,
     PostInstallPrompt,
+    StorageUsage,
     SyncStatusBadge,
     UpdatePrompt,
     isPushSupported,
@@ -18,6 +19,25 @@ import {
 import { Example } from "../Example";
 
 const TONES: SyncTone[] = ["idle", "syncing", "pending", "offline", "error"];
+
+const MB = 1024 * 1024;
+
+type StorageScenario = "real" | "normal" | "cheio" | "nao-persistente" | "sem-suporte";
+
+const STORAGE_SCENARIOS: Record<
+    Exclude<StorageScenario, "real">,
+    { usage: number | null; quota: number | null; pendingBytes: number; persisted: boolean | null }
+> = {
+    normal: { usage: 182 * MB, quota: 2048 * MB, pendingBytes: 12 * MB, persisted: true },
+    cheio: { usage: 1900 * MB, quota: 2048 * MB, pendingBytes: 340 * MB, persisted: true },
+    "nao-persistente": {
+        usage: 420 * MB,
+        quota: 2048 * MB,
+        pendingBytes: 36 * MB,
+        persisted: false,
+    },
+    "sem-suporte": { usage: null, quota: null, pendingBytes: 8 * MB, persisted: null },
+};
 
 const SHELL_TABS = [
     { key: "inicio", label: "Início" },
@@ -41,6 +61,16 @@ export function PWASection() {
     const [shellOpen, setShellOpen] = useState(false);
     const [shellTab, setShellTab] = useState("inicio");
     const storage = useStorageEstimate();
+    const [storageScenario, setStorageScenario] = useState<StorageScenario>("nao-persistente");
+    const storageProps =
+        storageScenario === "real"
+            ? {
+                  usage: storage.usage,
+                  quota: storage.quota,
+                  pendingBytes: 0,
+                  persisted: storage.persisted,
+              }
+            : STORAGE_SCENARIOS[storageScenario];
 
     return (
         <section className="gallery-section" id="pwa">
@@ -224,6 +254,43 @@ export function PWASection() {
                 <Button disabled={!storage.supported} onClick={() => void storage.requestPersist()}>
                     Tornar armazenamento permanente
                 </Button>
+            </Example>
+
+            <Example
+                title="StorageUsage"
+                note="Exibe os números que o app passa por prop; não lê o navegador sozinho. O limite de aviso (warnAt) é do app. Os cenários simulam o que useStorageEstimate e o motor offline devolveriam."
+                code={`const storage = useStorageEstimate();
+
+<StorageUsage
+  usage={storage.usage}
+  quota={storage.quota}
+  persisted={storage.persisted}
+  pendingBytes={pendingBytes}
+  warnAt={0.9}
+  onRequestPersist={storage.requestPersist}
+/>`}
+            >
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                    {(["real", "normal", "cheio", "nao-persistente", "sem-suporte"] as const).map(
+                        (scenario) => (
+                            <Button
+                                key={scenario}
+                                size="sm"
+                                variant={scenario === storageScenario ? "primary" : "outline"}
+                                onClick={() => setStorageScenario(scenario)}
+                            >
+                                {scenario}
+                            </Button>
+                        ),
+                    )}
+                </div>
+                <div data-testid="storage-usage-demo" style={{ width: "100%", maxWidth: 420 }}>
+                    <StorageUsage
+                        {...storageProps}
+                        warnAt={0.9}
+                        onRequestPersist={() => storage.requestPersist()}
+                    />
+                </div>
             </Example>
         </section>
     );

@@ -40813,9 +40813,11 @@ chega pelado.
 
 !!! info "Antes de começar"
     Instalação em [instalação manual](../index.md#instalacao-manual). O lado do servidor
-    segue o contrato de um serviço FastAPI sobre o `tempest-fastapi-sdk`; a página de
-    compartilhamento dele está em
-    [tempest-fastapi-sdk#814](https://github.com/mauriciobenjamin700/tempest-fastapi-sdk/issues/814).
+    segue o contrato de um serviço FastAPI sobre o `tempest-fastapi-sdk`: a página de
+    compartilhamento com Open Graph e o card PNG da prévia vêm prontos a partir de
+    `tempest-fastapi-sdk[image]>=0.371.0` (`make_share_router`), como mostra a receita
+    [Página de compartilhamento](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/share-preview/); o QR code com logo para o
+    mesmo link está em [QR com logo](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/recipes/qr-logo/).
 
 ## O que vamos construir
 

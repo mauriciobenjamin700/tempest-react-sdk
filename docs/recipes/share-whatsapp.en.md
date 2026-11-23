@@ -12,9 +12,11 @@ it, the link arrives bare.
 
 !!! info "Before you start"
     Installation in [manual install](../index.md#manual-install). The server
-    side follows the contract of a FastAPI service on `tempest-fastapi-sdk`; its share page
-    is tracked in
-    [tempest-fastapi-sdk#814](https://github.com/mauriciobenjamin700/tempest-fastapi-sdk/issues/814).
+    side follows the contract of a FastAPI service on `tempest-fastapi-sdk`: the share page
+    with Open Graph tags and the PNG preview card come ready from
+    `tempest-fastapi-sdk[image]>=0.371.0` (`make_share_router`), as the
+    [Share page](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/en/recipes/share-preview/) recipe shows; the QR code with a logo for
+    the same link is in [QR with logo](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/en/recipes/qr-logo/).
 
 ## What we will build
 

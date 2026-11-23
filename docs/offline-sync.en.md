@@ -339,6 +339,17 @@ sync.clearOutbox();
     - **Owner and `coalesce` come first.** An entry held or dropped by
       `getPrincipal`/`foreignEntries` uploads nothing; with `coalesce`, `list`
       receives the folded entry, with the newest payload.
+    - **A switch of account mid-upload stops it too.** The owner is checked again
+      after every step of the attachment phase (`list`, `upload`, each file) and
+      right before `deliver`: when somebody else signed in — in another tab, or
+      through a sign-in after an expired token without `resetWatermark()` —, the
+      remaining files are not uploaded and the entry stays queued (`summary.held`,
+      holding back the record's later edits) or is deleted (`summary.dropped`), per
+      `foreignEntries`. The engine's `getPrincipal` also binds an upload whose
+      options carry no `getPrincipal` (nor the preset's `getToken`): the file in
+      flight stops before its next chunk instead of finishing with the new account's
+      token. What already reached the server stays there, and the owner finishes the
+      rest when they come back.
     - **Logout mid-upload** (`clearOutbox()`/`resetWatermark()`) stops the run before
       `deliver` and skips `onUploaded`, which would write into the next user's store.
       The resume record keeps the final offset, so the owner's upload finishes

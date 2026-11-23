@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Segurança
+
+- **`createOfflineSync` com `attachments`: o dono da entrada é conferido de novo durante o upload
+  dos anexos** (regressão do #794, auditoria de segurança run-19). O `push()` conferia
+  `ownership(entry)` uma vez e depois aguardava o upload dos anexos, cujo `isCurrent` só olhava a
+  geração da sessão, e chamava o `deliver` sem nova conferência; na 0.92.0 a conferência era seguida
+  de forma síncrona pelo `deliver`. Uma troca de conta durante a janela do upload — noutra aba, ou num
+  login depois do token vencido sem `resetWatermark()`/`clearOutbox()` — mandava os arquivos que
+  faltavam e a entrada de carlos com a sessão de ana (ou sem sessão). Agora o `isCurrent` exige
+  também `ownership(entry) === "deliver"`, lido depois de cada `await` da fase (`list`, `upload`,
+  import do cliente tus, cada upload) e logo antes do `deliver`; quando a entrada deixou de ser do
+  principal atual, ela segue o `foreignEntries` como na conferência de antes: `"hold"` conta em
+  `summary.held` e segura as próximas entradas do registro, `"drop"` apaga sem envio e conta em
+  `summary.dropped`. O `getPrincipal` do motor passa a valer também para o upload cujas opções não
+  trazem `getPrincipal` nem o `getToken` do preset, então o arquivo em envio para antes do próximo
+  chunk com `ResumableUploadSupersededError` em vez de terminar com o token da conta nova. Efeito
+  colateral: um registro de retomada gravado pela 0.93.0 com binding só de `getToken` recomeça uma
+  vez. Medido com `npx vitest run src/offline/create-offline-sync.attachments-owner.test.ts`: na
+  `main` 6 de 7 casos reprovam (`POST@ana`, `PATCH@ana`, `deliver:v1@ana`, `deliver:v1@null`); o
+  controle (troca antes do flush) passa nos dois lados.
+
+### Budgets
+
+- **Re-checagem do dono no upload de anexos, medido com `npm run build && npx size-limit --json`
+  sobre a `main` em `808393e` e sobre este branch**, em bytes brotli: `slice: offline + PWA surface`
+  6 091 → 6 239 (teto 6.2 kB → 6.3 kB); `ceiling: full barrel CJS` 210 503 → 210 634 (teto 210.6 kB
+  → 210.7 kB). `ceiling: full barrel ESM` 177 722 → 177 701, teto mantido.
+
 ## [0.93.0] — 2026-11-23
 
 ### Adicionado

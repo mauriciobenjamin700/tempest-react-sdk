@@ -1,4 +1,9 @@
-import type { ResumableUploadOptions, ResumableUploadProgress } from "../http/resumable-upload";
+import { sessionIdentityOf } from "../auth/session-identity";
+import type {
+    ResumableUploadOptions,
+    ResumableUploadProgress,
+    ResumableUploadResult,
+} from "../http/resumable-upload";
 import type { OutboxEntry } from "./create-offline-sync";
 
 /**
@@ -92,8 +97,19 @@ export interface OutboxAttachments<TPayload> {
  * Hooks the engine passes to {@link uploadEntryAttachments}.
  */
 export interface AttachmentRunHooks {
-    /** Whether the session the run started under is still the current one. */
+    /**
+     * Whether the run may still go on for this entry: its session is the
+     * current one and the entry still belongs to whoever is signed in.
+     */
     isCurrent: () => boolean;
+    /**
+     * The engine's `getPrincipal`, bound to every upload whose options name no
+     * principal of their own (neither `getPrincipal` nor the auth preset's
+     * `getToken`), so a switch of account mid-file stops that upload with
+     * `ResumableUploadSupersededError` instead of finishing it as the next
+     * account.
+     */
+    getPrincipal?: () => string | number | null | undefined;
     /** Byte progress of the attachment in flight. */
     onProgress: (uploaded: number, total: number) => void;
     /** An attachment finished and its URL was persisted. */
@@ -121,12 +137,17 @@ function isUploaded(
  * refusal does: delivering the record without its file would point it at
  * nothing.
  *
+ * `hooks.isCurrent()` is read after every await — `list`, `upload`, the tus
+ * client's import, each upload — and a rejected upload while it is `false` ends
+ * the phase with `null` too, since that rejection is the upload noticing the
+ * same switch.
+ *
  * @typeParam TPayload - Record snapshot carried by outbox entries.
  * @param config - The app's attachment hooks.
  * @param entry - The entry about to be delivered.
  * @param hooks - Session check and progress reporting.
- * @returns The refs of every attachment, or `null` when the session ended and
- *   the run must stop without delivering.
+ * @returns The refs of every attachment, or `null` when `hooks.isCurrent()`
+ *   turned `false` and the entry must not be delivered.
  * @throws Whatever the upload or `onUploaded` threw, or an `Error` when an
  *   upload stopped short or a pending attachment has no blob.
  */
@@ -136,6 +157,7 @@ export async function uploadEntryAttachments<TPayload>(
     hooks: AttachmentRunHooks,
 ): Promise<OutboxAttachmentRef[] | null> {
     const attachments = await config.list(entry);
+    if (!hooks.isCurrent()) return null;
     const refs: OutboxAttachmentRef[] = [];
     for (const attachment of attachments) {
         if (isUploaded(attachment)) {
@@ -146,17 +168,25 @@ export async function uploadEntryAttachments<TPayload>(
         if (!blob) throw new Error(`Attachment ${attachment.id} has no blob and no uploadedUrl.`);
         const pending = { ...attachment, blob };
         const options = await config.upload(pending);
-        if (!hooks.isCurrent()) return null;
         const { createResumableUpload } = await import("../http/resumable-upload");
-        const result = await createResumableUpload({
-            ...options,
-            key: options.key ?? `outbox-attachment:${attachment.id}`,
-            file: blob,
-            onProgress: (progress: ResumableUploadProgress) => {
-                hooks.onProgress(progress.loaded, progress.total);
-                options.onProgress?.(progress);
-            },
-        }).start();
+        if (!hooks.isCurrent()) return null;
+        const bound = options.getPrincipal ?? sessionIdentityOf(options.getToken)?.current;
+        let result: ResumableUploadResult | null;
+        try {
+            result = await createResumableUpload({
+                ...options,
+                getPrincipal: bound ? options.getPrincipal : hooks.getPrincipal,
+                key: options.key ?? `outbox-attachment:${attachment.id}`,
+                file: blob,
+                onProgress: (progress: ResumableUploadProgress) => {
+                    hooks.onProgress(progress.loaded, progress.total);
+                    options.onProgress?.(progress);
+                },
+            }).start();
+        } catch (cause) {
+            if (!hooks.isCurrent()) return null;
+            throw cause;
+        }
         if (!hooks.isCurrent()) return null;
         if (result === null)
             throw new Error(`Upload of attachment ${attachment.id} stopped before completing.`);

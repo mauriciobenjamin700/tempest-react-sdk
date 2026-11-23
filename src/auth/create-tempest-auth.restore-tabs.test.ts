@@ -251,17 +251,28 @@ describe("createTempestAuth — a restore redeems once across tabs (#594)", () =
         expect(localStorage.getItem("tempest-auth-refresh")).toBe("ref-3");
     });
 
+    /**
+     * Both restores are observed the moment they start (#803). They reject
+     * while `logout()` is still settling, across macrotasks, and a promise
+     * held bare until `await expect(...)` was reported by Vitest as an
+     * unhandled rejection whenever the rejection landed before that line:
+     * 1 in 2400 runs under load (8 parallel copies of this test × 300, 16
+     * CPU burners on 24 cores), always on `first` — the promise `restore()`
+     * returned to the test, never one the SDK keeps for itself.
+     */
     it("rejects the waiting restore as superseded when the restore it waited for was signed out", async () => {
         const backend = bodyReuseBackend();
         const { tab1, tab2 } = await twoSignedInTabs(backend);
 
-        const first = tab1.restore();
-        const second = tab2.restore();
+        const settled = Promise.allSettled([tab1.restore(), tab2.restore()]);
         await new Promise((resolve) => setTimeout(resolve, 7));
         await tab1.logout();
 
-        await expect(first).rejects.toBeInstanceOf(SessionSupersededError);
-        await expect(second).rejects.toBeInstanceOf(SessionSupersededError);
+        const [first, second] = await settled;
+        expect(first.status === "rejected" && first.reason).toBeInstanceOf(SessionSupersededError);
+        expect(second.status === "rejected" && second.reason).toBeInstanceOf(
+            SessionSupersededError,
+        );
         expect(backend.presented).toEqual(["ref-1"]);
         expect(tab2.getToken()).toBeNull();
     });

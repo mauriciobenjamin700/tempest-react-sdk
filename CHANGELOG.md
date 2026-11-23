@@ -734,6 +734,7 @@ server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 
   5 179 B br e o chunk de entrada cresce 1 063 B br contra a `main` (build de produção, brotli
   do `node:zlib`). O tus client segue orçado pela fatia `resumable upload`, que o importa
   estático.
+- **Soma de #794 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #792 e #793 + este branch, bytes brotli): `slice: offline + PWA surface` 6 091 B (teto 6 KB → 6.2 kB). Nenhum estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

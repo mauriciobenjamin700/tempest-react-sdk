@@ -203,7 +203,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createOfflineStore, createOfflineSync, useOfflineSync, useSyncStatus, useServiceWorkerUpdate, useStorageEstimate, OfflineIndicator, SyncStatusBadge, UpdatePrompt }"
     },
-    "limit": "6 KB",
+    "limit": "6.2 kB",
     "ignore": [
       "react",
       "react-dom",

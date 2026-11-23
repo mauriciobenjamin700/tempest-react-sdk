@@ -23,6 +23,10 @@ import { FrameSeekError, ImageDecodeError } from "./exceptions";
 const decode = {
     fails: null as Error | null,
     size: { width: 640, height: 360 },
+    /** How many reads reject as "not usable yet" before one succeeds. */
+    notReadyFor: 0,
+    /** Every `createImageBitmap` call, the retries included. */
+    calls: 0,
 };
 
 class FakeContext {
@@ -44,6 +48,11 @@ class FakeOffscreenCanvas {
     async convertToBlob(options: { type: string }): Promise<Blob> {
         return new Blob([new Uint8Array(128)], { type: options.type });
     }
+}
+
+/** The `InvalidStateError` Chromium rejects with while the element holds no frame. */
+function notUsable(): DOMException {
+    return new DOMException("The image source is not usable.", "InvalidStateError");
 }
 
 /** A `SecurityError` shaped like the one a tainted canvas produces. */
@@ -155,8 +164,15 @@ async function settled(): Promise<void> {
 beforeEach(() => {
     decode.fails = null;
     decode.size = { width: 640, height: 360 };
+    decode.notReadyFor = 0;
+    decode.calls = 0;
     vi.stubGlobal("OffscreenCanvas", FakeOffscreenCanvas);
     vi.stubGlobal("createImageBitmap", async () => {
+        decode.calls += 1;
+        if (decode.notReadyFor > 0) {
+            decode.notReadyFor -= 1;
+            throw notUsable();
+        }
         if (decode.fails) throw decode.fails;
         return { ...decode.size, close: () => undefined };
     });
@@ -205,6 +221,125 @@ describe("captureFrame · the frame on screen", () => {
 
         await expect(captureFrame(fake.video, { timeoutMs: 10 })).rejects.toThrow(FrameSeekError);
         await expect(captureFrame(fake.video, { timeoutMs: 10 })).rejects.toThrow(/readyState 0/);
+    });
+});
+
+/**
+ * Measured 2026-11-23 in Chromium (#795): `readyState` 4 and a dispatched
+ * `loadeddata` do not mean `createImageBitmap(video)` can read a frame — 2 of 30
+ * reads taken inside `loadeddata` rejected with `InvalidStateError` and
+ * succeeded 11 and 94 ms later. Before the fix that surfaced as an
+ * `ImageDecodeError` from a video that was, a moment later, perfectly readable.
+ */
+describe("captureFrame · a frame that is not readable yet", () => {
+    it("reads again until the frame lands, instead of failing on the first try", async () => {
+        decode.notReadyFor = 3;
+        const fake = fakeVideo({ readyState: 4 });
+
+        const shot = await captureFrame(fake.video, { timeoutMs: 1_000 });
+
+        expect(decode.notReadyFor).toBe(0);
+        expect(decode.calls, "3 refused reads, the one that landed, and the encode's").toBe(5);
+        expect([shot.width, shot.height]).toEqual([640, 360]);
+    });
+
+    /**
+     * A paused `preload="metadata"` element never decodes a frame on its own:
+     * still refused 1.5 s later in 5 of 5 runs, readable 16–17 ms after a seek
+     * to where it already was (Chromium, 2026-11-23).
+     */
+    it("seeks a paused element to where it already is, once, so it decodes a frame", async () => {
+        decode.notReadyFor = 3;
+        const fake = fakeVideo({ readyState: 4 });
+        fake.video.currentTime = 7.25;
+        fake.seeks.length = 0;
+
+        const shot = await captureFrame(fake.video, { timeoutMs: 1_000 });
+
+        expect(fake.seeks).toEqual([7.25]);
+        expect(shot.atMs).toBe(7_250);
+    });
+
+    it("leaves a paused element alone when the first read works", async () => {
+        const fake = fakeVideo({ readyState: 4 });
+
+        await captureFrame(fake.video);
+
+        expect(fake.seeks).toEqual([]);
+    });
+
+    it("does not seek a playing element, which decodes frames by itself", async () => {
+        decode.notReadyFor = 2;
+        const fake = fakeVideo({ readyState: 4, frameCallback: false });
+        await fake.video.play();
+
+        await captureFrame(fake.video, { timeoutMs: 1_000 });
+
+        expect(fake.seeks).toEqual([]);
+    });
+
+    it("does not stack a seek on one already in flight", async () => {
+        decode.notReadyFor = 2;
+        const fake = fakeVideo({ readyState: 4 });
+        Object.defineProperty(fake.video, "seeking", { configurable: true, value: true });
+
+        await captureFrame(fake.video, { timeoutMs: 1_000 });
+
+        expect(fake.seeks).toEqual([]);
+    });
+
+    it("gives up after timeoutMs with a FrameSeekError naming the readyState", async () => {
+        decode.notReadyFor = Number.POSITIVE_INFINITY;
+        const fake = fakeVideo({ readyState: 4 });
+
+        const capture = captureFrame(fake.video, { timeoutMs: 40 });
+
+        await expect(capture).rejects.toThrow(FrameSeekError);
+        await expect(captureFrame(fake.video, { timeoutMs: 40 })).rejects.toThrow(
+            /readyState 4 but had no readable frame within 40ms/,
+        );
+    });
+
+    it("keeps the browser's rejection as the cause", async () => {
+        decode.notReadyFor = Number.POSITIVE_INFINITY;
+        const fake = fakeVideo();
+
+        const failure: unknown = await captureFrame(fake.video, { timeoutMs: 20 }).catch(
+            (error: unknown) => error,
+        );
+
+        expect(failure).toBeInstanceOf(FrameSeekError);
+        const decodeFailure = (failure as Error).cause as Error;
+        expect(decodeFailure).toBeInstanceOf(ImageDecodeError);
+        expect((decodeFailure.cause as DOMException).name).toBe("InvalidStateError");
+    });
+
+    it("does not retry a failure that is not about a missing frame", async () => {
+        decode.fails = new Error("not an image");
+        const fake = fakeVideo();
+
+        await expect(captureFrame(fake.video, { timeoutMs: 1_000 })).rejects.toThrow(
+            ImageDecodeError,
+        );
+        expect(decode.calls).toBe(1);
+    });
+
+    it("stops waiting the moment the caller aborts", async () => {
+        decode.notReadyFor = Number.POSITIVE_INFINITY;
+        const fake = fakeVideo();
+        const controller = new AbortController();
+
+        const capture = captureFrame(fake.video, {
+            timeoutMs: 60_000,
+            signal: controller.signal,
+        });
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        controller.abort();
+
+        await expect(capture).rejects.toThrow(/aborted/);
+        const calls = decode.calls;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(decode.calls, "no read after the abort").toBe(calls);
     });
 });
 

@@ -639,7 +639,7 @@
     "import": {
       "./dist/imaging.js": "{ captureFrame }"
     },
-    "limit": "2.5 KB",
+    "limit": "2.7 KB",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
   },
   {

@@ -94,9 +94,12 @@ An error follows the envelope of the [shared contract](../integration-fastapi.md
 Only one matters here: when the supervisor has already approved the visit, the `PUT`
 answers `409` with `{"detail": "Visita já aprovada pelo supervisor.", "code": "VISIT_LOCKED"}`.
 
-!!! warning "`tempest-fastapi-sdk` has no tus server"
-    The `/api/uploads` route needs a real tus server — `tusd` behind the same proxy is the
-    common path. The table of what it must answer is in
+!!! info "tus server on the backend"
+    The `/api/uploads` route needs a tus server. From 0.370.0 on, `tempest-fastapi-sdk` ships
+    one ([`make_tus_router`](https://mauriciobenjamin700.github.io/tempest-fastapi-sdk/en/recipes/resumable-upload/)), which binds each upload to
+    its owner through `current_user_id` — what matters on a shared tablet. On a backend
+    without it, `tusd` behind the same proxy is the common path. The table of what the server
+    must answer is in
     [Resumable upload](../resumable-upload.md#what-your-backend-must-implement).
 
 ## The code, file by file

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.94.0] — 2026-11-23
+
 ### Adicionado
 
 - **`useShare()`, `ShareActions`, `ShareButton` e `whatsAppShareUrl` — divulgar um link com

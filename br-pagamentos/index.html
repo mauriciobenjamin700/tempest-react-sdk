@@ -5726,8 +5726,8 @@ caso excepcional.</p>
 <p><code>whatsAppUrl</code> exige número — e devolve <code>""</code> sem um, de propósito: link de contato com typo tem que desabilitar o botão. Divulgar uma carona ou um produto não tem destinatário nenhum. Para isso existe <code>whatsAppShareUrl(text)</code>, que monta <code>https://wa.me/?text=…</code>: o WhatsApp abre o <strong>seletor de conversa</strong> com o texto pronto, e a pessoa escolhe o contato ou o grupo.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">whatsAppShareUrl</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
 
-<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">"Carona Picos → Teresina, sex 07:05: https://app.exemplo.com/c/42"</span><span class="p">);</span>
-<span class="c1">// "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.exemplo.com%2Fc%2F42"</span>
+<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">"Carona Picos → Teresina, sex 07:05: https://app.exemplo.com/s/42"</span><span class="p">);</span>
+<span class="c1">// "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.exemplo.com%2Fs%2F42"</span>
 
 <span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">""</span><span class="p">);</span><span class="w"> </span><span class="c1">// "https://wa.me/" — composer em branco</span>
 </code></pre></div>

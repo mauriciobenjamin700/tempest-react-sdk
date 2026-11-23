@@ -5726,8 +5726,8 @@ exceptional case.</p>
 <p><code>whatsAppUrl</code> needs a number — and returns <code>""</code> without one, on purpose: a contact link with a typo must disable the button. Spreading a ride or a product has no recipient at all. That is what <code>whatsAppShareUrl(text)</code> is for: it builds <code>https://wa.me/?text=…</code>, and WhatsApp opens its <strong>chat picker</strong> with the text ready, so the person chooses the contact or group.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">whatsAppShareUrl</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/br"</span><span class="p">;</span>
 
-<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">"Ride Picos → Teresina, Fri 07:05: https://app.example.com/c/42"</span><span class="p">);</span>
-<span class="c1">// "https://wa.me/?text=Ride%20Picos%20%E2%86%92%20Teresina%2C%20Fri%2007%3A05%3A%20https%3A%2F%2Fapp.example.com%2Fc%2F42"</span>
+<span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">"Ride Picos → Teresina, Fri 07:05: https://app.example.com/s/42"</span><span class="p">);</span>
+<span class="c1">// "https://wa.me/?text=Ride%20Picos%20%E2%86%92%20Teresina%2C%20Fri%2007%3A05%3A%20https%3A%2F%2Fapp.example.com%2Fs%2F42"</span>
 
 <span class="nx">whatsAppShareUrl</span><span class="p">(</span><span class="s2">""</span><span class="p">);</span><span class="w"> </span><span class="c1">// "https://wa.me/" — blank composer</span>
 </code></pre></div>

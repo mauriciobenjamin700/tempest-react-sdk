@@ -8,6 +8,13 @@
 import { randomId } from "../utils/ids";
 import { ownerFingerprint } from "../utils/owner-fingerprint";
 import { createOfflineStore } from "./create-offline-store";
+import {
+    pendingAttachmentBytes,
+    readStoragePersisted,
+    uploadEntryAttachments,
+    type OutboxAttachmentRef,
+    type OutboxAttachments,
+} from "./outbox-attachments";
 
 /**
  * Mutation kinds queued in the outbox.
@@ -52,6 +59,13 @@ export interface OutboxEntry<TPayload = unknown> {
      * it, which are delivered as before.
      */
     owner?: string | null;
+    /**
+     * The uploaded files of the entry, in the order
+     * {@link OutboxAttachments.list} returned them. Set only on the entry handed
+     * to `deliver` when {@link OfflineSyncConfig.attachments} is configured, and
+     * never stored in the outbox.
+     */
+    attachments?: OutboxAttachmentRef[];
 }
 
 /**
@@ -178,6 +192,34 @@ export interface SyncState {
     lastError: string | null;
     /** Epoch ms of the last non-skipped run, or `null` before the first. */
     lastSyncedAt: number | null;
+    /**
+     * Bytes of the attachment uploading right now that the server holds. `0`
+     * when none is uploading. See {@link OfflineSyncConfig.attachments}.
+     */
+    uploadedBytes: number;
+    /** Size of the attachment uploading right now, or `0` when none is. */
+    totalBytes: number;
+    /**
+     * Bytes of attachments the queued entries still have to upload, summed from
+     * {@link OutboxAttachments.list} (each file once). `0` without
+     * `attachments`. Recomputed on enqueue, after each run and on clear, and
+     * lowered as each upload finishes.
+     *
+     * Next to `useStorageEstimate()`, it tells the user how much of the
+     * device's storage is work that exists nowhere else yet.
+     */
+    pendingBytes: number;
+    /**
+     * Whether the browser made this origin's storage persistent
+     * (`navigator.storage.persisted()`), or `null` where the API is missing.
+     *
+     * Read, never requested: the engine does not call
+     * `requestPersistentStorage()`, because Firefox turns it into a permission
+     * prompt. Ask at login or install, and use this to warn when there are
+     * pending entries in storage the browser may evict — under disk pressure,
+     * or after Safari's ~7 days without use outside the home screen.
+     */
+    persisted: boolean | null;
 }
 
 /**
@@ -340,6 +382,30 @@ export interface OfflineSyncConfig<TPayload, TRemote> {
      * enforces that kind of reference on write.
      */
     coalesce?: OutboxCoalesce<TPayload>;
+    /**
+     * Files an entry depends on — the photos of a visit, say —, uploaded with
+     * `createResumableUpload` **before** the entry is delivered. Their URLs
+     * reach `deliver` in `entry.attachments`.
+     *
+     * Uploading inside the delivery is what keeps the order the server needs: a
+     * file queued as an outbox entry of its own is a different record, the
+     * engine orders only each record's own entries, and a failing record never
+     * holds up the others — so the record could reach the server pointing at a
+     * file that never arrived. Here the file uploads, or the entry fails:
+     *
+     * - an upload that is refused, or whose `start()` resolves `null`, fails the
+     *   entry like a throwing `deliver` — `attempts` bumped, later entries of the
+     *   record deferred, retried next run;
+     * - an attachment already uploaded (`uploadedUrl`) is not sent again, and an
+     *   interrupted one resumes from its offset (`key` per attachment);
+     * - owner checks (`getPrincipal`, `foreignEntries`) and `coalesce` run first,
+     *   so a held or dropped entry uploads nothing.
+     *
+     * The blobs stay in the app's store; the outbox holds no copy. Progress is
+     * in {@link SyncState.uploadedBytes}, {@link SyncState.totalBytes} and
+     * {@link SyncState.pendingBytes}.
+     */
+    attachments?: OutboxAttachments<TPayload>;
 }
 
 /**
@@ -520,6 +586,10 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         lastSummary: null,
         lastError: null,
         lastSyncedAt: null,
+        uploadedBytes: 0,
+        totalBytes: 0,
+        pendingBytes: 0,
+        persisted: null,
     };
 
     const crossTab = config.crossTab === true;
@@ -548,8 +618,49 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         };
     }
 
+    /**
+     * Re-read the queue length, the bytes its attachments still need and the
+     * storage persistence flag, and publish them in one state change.
+     */
     async function refreshPending(): Promise<void> {
-        setState({ pending: await outbox.count() });
+        const pending = await outbox.count();
+        const pendingBytes = config.attachments
+            ? await pendingAttachmentBytes(
+                  config.attachments,
+                  await outbox.list(undefined, { orderBy: "enqueuedAt" }),
+              )
+            : 0;
+        setState({ pending, pendingBytes, persisted: await readStoragePersisted() });
+    }
+
+    /**
+     * Upload the entry's pending attachments and return the entry `deliver`
+     * receives, with `attachments` set.
+     *
+     * @param entry - The (folded) entry about to be delivered.
+     * @param runGeneration - The session the run started under.
+     * @returns The entry to deliver, or `null` when the session ended mid-upload.
+     */
+    async function withAttachments(
+        entry: OutboxEntry<TPayload>,
+        runGeneration: number,
+    ): Promise<OutboxEntry<TPayload> | null> {
+        if (!config.attachments) return entry;
+        try {
+            const refs = await uploadEntryAttachments(config.attachments, entry, {
+                isCurrent: () => generation === runGeneration,
+                onProgress: (uploadedBytes, totalBytes) => setState({ uploadedBytes, totalBytes }),
+                onUploaded: (bytes) =>
+                    setState({
+                        uploadedBytes: 0,
+                        totalBytes: 0,
+                        pendingBytes: Math.max(0, state.pendingBytes - bytes),
+                    }),
+            });
+            return refs === null ? null : { ...entry, attachments: refs };
+        } finally {
+            if (state.totalBytes !== 0) setState({ uploadedBytes: 0, totalBytes: 0 });
+        }
     }
 
     /**
@@ -641,7 +752,9 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
                 continue;
             }
             try {
-                await config.deliver(entry);
+                const delivered = await withAttachments(entry, runGeneration);
+                if (delivered === null) return false;
+                await config.deliver(delivered);
                 await outbox.raw.bulkDelete(ids);
                 summary.succeeded += 1;
                 if (queued.length > 1) {

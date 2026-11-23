@@ -16,6 +16,10 @@ function fakeSync(state: Partial<SyncState>): OfflineSync<unknown> {
         lastSummary: null,
         lastError: null,
         lastSyncedAt: null,
+        uploadedBytes: 0,
+        totalBytes: 0,
+        pendingBytes: 0,
+        persisted: null,
         ...state,
     };
     return {

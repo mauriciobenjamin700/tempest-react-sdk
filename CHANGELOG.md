@@ -111,6 +111,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #794** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 177 722 B (teto 177.1 kB → 177.8 kB); `ceiling: full barrel CJS` 210 503 B (teto 209.8 kB → 210.6 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #792** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 177 041 B (teto 176.6 kB → 177.1 kB); `ceiling: full barrel CJS` 209 749 B (teto 209.3 kB → 209.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #793** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 176 472 B (teto 176.4 kB → 176.6 kB); `ceiling: full barrel CJS` 209 191 B (teto 208.7 kB → 209.3 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #765** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 424 B (teto 175.1 kB → 175.5 kB); `ceiling: full barrel CJS` 207 557 B (teto 207 kB → 207.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
@@ -682,6 +683,58 @@ server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 
   32,6 → 32,7 kB, a fonte declarada em `Drawer`/`Modal`/`Command` e as regras das colunas novas).
 - **Soma de #767 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #764 e #765 + este branch, bytes brotli): `slice: typical app` 13 376 B (teto 13.2 kB → 13.5 kB); `slice: DataTable with inline editing + server mode` 7 605 B (teto 7.3 KB → 7.7 kB); `slice: createZip + writeXlsx` 6 962 B (teto 6.95 KB → 7.1 kB); `ceiling: full barrel ESM` 176 264 B (teto 175.5 kB → 176.4 kB); `ceiling: full barrel CJS` 208 649 B (teto 207.7 kB → 208.7 kB). Nenhum estourava sozinho.
 - **Soma de #792 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #793 + este branch, bytes brotli): `slice: createZip` 5 851 B (teto 5.85 KB → 6.0 kB); `styles.css` 32 785 B (teto 32.7 kB → 32.9 kB). Nenhum estourava sozinho.
+
+### Adicionado
+
+- **`createOfflineSync({ attachments })`: arquivos da entrada sobem antes do `deliver`** (#726,
+  fatia 2). `list(entry)` lê do store do app os anexos (`{ id, blob, uploadedUrl }`), `upload(anexo)`
+  devolve as opções do `createResumableUpload` (`key` padrão `outbox-attachment:<id>`) e
+  `onUploaded(anexo, url)` grava a URL — e é onde o app libera o blob. O motor sobe os pendentes, um
+  por um, e entrega as URLs em `entry.attachments`. A issue propunha uma entrada de outbox para o
+  arquivo; reproduzido em 22/11/2026, isso quebra a ordem: o motor só ordena entradas do mesmo
+  registro, e com a foto falhando a visita que aponta para ela foi entregue mesmo assim
+  (`npx vitest run src/offline/create-offline-sync.attachments.test.ts -t "separate record"`:
+  `succeeded: 1, failed: 1`, visita no servidor sem a foto). Como anexo, upload recusado ou `start()`
+  que resolve `null` é falha da entrada (`attempts`, bloqueio por registro, retry), queda retoma do
+  offset, entrada segurada pelo dono não sobe nada, e `coalesce` lista a entrada juntada. Logout no
+  meio do upload para o run antes do `deliver` e não chama o `onUploaded`. O blob fica no store do
+  app; a outbox não guarda cópia. O tus client entra por `import()`: o motor sem anexos não o
+  carrega.
+- **`SyncState` ganha `uploadedBytes`, `totalBytes`, `pendingBytes` e `persisted`.** Os dois
+  primeiros acompanham o anexo em envio; `pendingBytes` soma, pelo `list()` de cada entrada da fila,
+  os anexos que ainda não subiram (cada arquivo uma vez); `persisted` lê
+  `navigator.storage.persisted()` (`null` sem a API). O motor **não** chama
+  `requestPersistentStorage()`, porque no Firefox isso abre pedido de permissão — o app pede no
+  login. Os quatro campos são obrigatórios no tipo: um `SyncState` montado à mão (mock de teste)
+  passa a precisar deles.
+- **Receita App de campo offline (PT e EN):** o `uploadPendingPhotos` manual (23 linhas chamadas
+  de dentro do `deliver`) vira a opção `attachments` — o `sync.ts` da receita vai de 135 para 130
+  linhas, e o que sai dele (ordem, retry, retomada, dono) passa a ser coberto pela suíte do SDK; o `onUploaded` troca o blob por `null` e a grade mostra uma
+  miniatura de 480 px gerada com `resizeImage`; o `signIn` chama `requestPersistentStorage()`; o
+  `StorageGuard` mostra `pendingBytes` junto do `useStorageEstimate`, e o `SyncPanel`, a barra do
+  envio em andamento. A compressão antes do `put` continua o `compress` com `maxBytes: 400_000`:
+  medido em 22/11/2026 no Chromium 159 headless, sobre uma imagem sintética de 12 MP (4032×3024,
+  JPEG 0,92) em três níveis de detalhe, o original de 2 705 / 3 807 / 5 085 KB vira 214 / 230 /
+  334 KB com `resizeImage({ width: 1600, type: "image/webp" })` e 343 / 388 / 393 KB com o
+  `compress` da receita — o `compress` fica porque garante o teto de bytes. Método no PR.
+
+### Budgets
+
+- **#726, medido com `npm run build && npx size-limit --json` sobre a `main` em `6a716c5` e sobre
+  este branch mergeado com ela**, em bytes brotli: `slice: offline + PWA surface` 5 366 → 5 869
+  (teto 6 kB, dentro); `ceiling: full barrel ESM` 173 112 → 173 443 (teto 173,3 → 173,5 kB);
+  `ceiling: full barrel CJS` 204 565 → 205 063 (teto 204,9 → 205,1 kB). Os bytes são o
+  `outbox-attachments` e os quatro campos novos do `SyncState`.
+- **O `.size-limit.js` marca como externo o `import()` do tus client feito pela outbox.** Sem
+  isso o esbuild, que não divide o bundle, embutia o `http/resumable-upload` com cada módulo que
+  ele alcança embrulhado num init preguiçoso — o núcleo de `http/` perdia o tree-shaking e
+  fatias que nem tocam a outbox subiam: `slice: http client` +139 B (estourava o teto),
+  `slice: resumable upload (tus client)` +152 B, `slice: offline + PWA surface` +5,1 kB. Num app
+  Vite 8 que importa só `{ createOfflineSync }`, o tus client sai num chunk preguiçoso de
+  5 179 B br e o chunk de entrada cresce 1 063 B br contra a `main` (build de produção, brotli
+  do `node:zlib`). O tus client segue orçado pela fatia `resumable upload`, que o importa
+  estático.
+- **Soma de #794 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #792 e #793 + este branch, bytes brotli): `slice: offline + PWA surface` 6 091 B (teto 6 KB → 6.2 kB). Nenhum estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

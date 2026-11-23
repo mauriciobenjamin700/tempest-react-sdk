@@ -171,6 +171,83 @@ useQuery({
 });
 ```
 
+## Storage full: `StorageFullError`
+
+Every write of the store — `put`, `bulkPut`, `update`, `updateMany`, `delete` and `clear` — rejects with `StorageFullError` when the browser refuses it for lack of space. It is the signal for the app to say "storage full, sync before going on", instead of showing Dexie's error:
+
+```ts
+import { StorageFullError, createOfflineStore } from "tempest-react-sdk";
+
+interface Visit {
+  id: string;
+  technician_id: string;
+  notes: string;
+}
+
+const visits = createOfflineStore<Visit, string>({
+  databaseName: "FieldVisits",
+  version: 1,
+  tableName: "visits",
+  indexes: "&id, technician_id",
+  ownerField: "technician_id",
+});
+
+export async function saveVisit(visit: Visit, owner: string): Promise<"saved" | "full"> {
+  try {
+    await visits.put(visit, owner);
+    return "saved";
+  } catch (error) {
+    if (error instanceof StorageFullError) return "full";
+    throw error;
+  }
+}
+```
+
+Checking `error.name === "QuotaExceededError"` is not enough, because that is not the error that arrives. Measured in Chromium 159, with the origin's quota at 1 MiB (DevTools Protocol `Storage.overrideQuotaForOrigin`) and a 4 MiB record: all four writes rejected with Dexie's **`AbortError`**. The request itself succeeds; the quota is enforced when the transaction commits, and the `QuotaExceededError` only shows up as the abort's `inner`. The store recognises that shape and the others:
+
+| What Dexie hands over | When |
+| --- | --- |
+| `AbortError` with `inner` `QuotaExceededError` | quota enforced at commit — the case measured in Chromium |
+| Dexie's `QuotaExceededError` | the request itself refused |
+| `BulkError` / `ModifyError` with the quota in `failures` | `bulkPut` / `updateMany` with records refused one by one |
+
+The original error is kept in `cause`. After a `bulkPut`, `cause` may be Dexie's `BulkError`, whose `failuresByPos` tells which records failed — the others may have been written. Any other error passes through unchanged. [`createOfflineSync`](./offline-sync.md)'s `enqueue` inherits the behavior, because the outbox is an `OfflineStore`.
+
+The browserless reproduction (`npx vitest run src/offline/create-offline-store.quota.test.ts`) aborts the commit with `QuotaExceededError` in fake-indexeddb, the way Chromium does, and covers every write.
+
+`raw` and `db` are Dexie itself and do **not** convert. In a transaction of your own, the quota is enforced when **the transaction** commits, so test its error with `isQuotaExceededError`, which recognises the same shapes:
+
+```ts
+import { createOfflineStore, isQuotaExceededError } from "tempest-react-sdk";
+
+interface Draft {
+  id: string;
+  body: string;
+}
+
+const drafts = createOfflineStore<Draft, string>({
+  databaseName: "Drafts",
+  version: 1,
+  tableName: "drafts",
+  indexes: "&id",
+});
+
+export async function saveAll(items: Draft[]): Promise<boolean> {
+  try {
+    await drafts.db.transaction("rw", drafts.raw, async () => {
+      await drafts.raw.clear();
+      await drafts.raw.bulkAdd(items);
+    });
+    return true;
+  } catch (error) {
+    if (isQuotaExceededError(error)) return false;
+    throw error;
+  }
+}
+```
+
+The SDK does **not** refuse writes by looking at `navigator.storage.estimate()`: the number is approximate, and the browser's refusal is the exact signal. To warn before it fills up, use [`useStorageEstimate`](./pwa.md#4-durability-request-persistent-storage).
+
 ## `createOfflineDatabase` — several tables in one database
 
 `createOfflineStore` gives each store a database of its own, which is the right shape for one isolated cache. It stops being right the moment the tables belong together: chats and their messages, an entity and its drafts, anything you would read or clear as a unit. Splitting those across databases costs the real transaction — Dexie runs one atomically only **within** a single database — and it scatters the version bump for a related change across two places.
@@ -232,6 +309,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `ownerField` enables multi-tenant scoping: `put`/`list`/`count`/`clear`/`updateMany` respect `owner` and isolate data per user.
 - CRUD: `put`/`bulkPut`, `get`/`list` (with `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
 - `listBy(index, value, owner)` lists by another indexed field through the index, keeping the owner scope.
+- A write refused for lack of space rejects with `StorageFullError` (original in `cause`); on `raw`/`db`, use `isQuotaExceededError`.
 - `raw` and `db` open the door to advanced Dexie queries.
 - Bump `version` when changing `indexes`; use `db.version(N).upgrade(...)` for data migrations.
 

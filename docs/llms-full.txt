@@ -27769,6 +27769,83 @@ useQuery({
 });
 ```
 
+## Armazenamento cheio: `StorageFullError`
+
+Toda escrita do store — `put`, `bulkPut`, `update`, `updateMany`, `delete` e `clear` — rejeita com `StorageFullError` quando o navegador recusa por falta de espaço. É o sinal para o app dizer "memória cheia, sincronize antes de continuar", em vez de mostrar o erro do Dexie:
+
+```ts
+import { StorageFullError, createOfflineStore } from "tempest-react-sdk";
+
+interface Visit {
+  id: string;
+  technician_id: string;
+  notes: string;
+}
+
+const visits = createOfflineStore<Visit, string>({
+  databaseName: "CampoVisitas",
+  version: 1,
+  tableName: "visits",
+  indexes: "&id, technician_id",
+  ownerField: "technician_id",
+});
+
+export async function saveVisit(visit: Visit, owner: string): Promise<"saved" | "full"> {
+  try {
+    await visits.put(visit, owner);
+    return "saved";
+  } catch (error) {
+    if (error instanceof StorageFullError) return "full";
+    throw error;
+  }
+}
+```
+
+Testar `error.name === "QuotaExceededError"` não basta, porque não é esse o erro que chega. Medido no Chromium 159, com a cota da origem em 1 MiB (`Storage.overrideQuotaForOrigin` do DevTools Protocol) e um registro de 4 MiB: as quatro escritas rejeitaram com o **`AbortError`** do Dexie. O pedido em si dá certo; a cota é cobrada quando a transação faz commit, e o `QuotaExceededError` só aparece no `inner` do abort. O store reconhece essa forma e as outras:
+
+| O que o Dexie entrega | Quando |
+| --- | --- |
+| `AbortError` com `inner` `QuotaExceededError` | cota cobrada no commit — o caso medido no Chromium |
+| `QuotaExceededError` do Dexie | o próprio pedido recusado |
+| `BulkError` / `ModifyError` com a cota em `failures` | `bulkPut` / `updateMany` com registros recusados um a um |
+
+O erro original fica em `cause`. Depois de um `bulkPut`, `cause` pode ser o `BulkError` do Dexie, cujo `failuresByPos` diz quais registros falharam — os outros podem ter sido gravados. Qualquer outro erro passa inalterado. O `enqueue` do [`createOfflineSync`](./offline-sync.md) herda o comportamento, porque a outbox é um `OfflineStore`.
+
+A reprodução sem browser (`npx vitest run src/offline/create-offline-store.quota.test.ts`) aborta o commit com `QuotaExceededError` no fake-indexeddb, como o Chromium faz, e cobre cada escrita.
+
+`raw` e `db` são o Dexie direto e **não** convertem. Numa transação sua, a cota é cobrada no commit **da transação**, então teste o erro dela com `isQuotaExceededError`, que reconhece as mesmas formas:
+
+```ts
+import { createOfflineStore, isQuotaExceededError } from "tempest-react-sdk";
+
+interface Draft {
+  id: string;
+  body: string;
+}
+
+const drafts = createOfflineStore<Draft, string>({
+  databaseName: "Rascunhos",
+  version: 1,
+  tableName: "drafts",
+  indexes: "&id",
+});
+
+export async function saveAll(items: Draft[]): Promise<boolean> {
+  try {
+    await drafts.db.transaction("rw", drafts.raw, async () => {
+      await drafts.raw.clear();
+      await drafts.raw.bulkAdd(items);
+    });
+    return true;
+  } catch (error) {
+    if (isQuotaExceededError(error)) return false;
+    throw error;
+  }
+}
+```
+
+O SDK **não** recusa gravação olhando o `navigator.storage.estimate()`: o número é aproximado, e a recusa do navegador é o sinal exato. Para avisar antes de encher, use o [`useStorageEstimate`](./pwa.md#4-durabilidade-peca-armazenamento-persistente).
+
 ## `createOfflineDatabase` — várias tabelas numa base
 
 `createOfflineStore` dá a cada store uma base só dela, que é a forma certa pra um cache isolado. Deixa de ser assim no instante em que as tabelas pertencem uma à outra: chats e suas mensagens, uma entidade e seus rascunhos, qualquer coisa que você leria ou limparia como uma unidade. Separá-las em bases diferentes custa a transação de verdade — o Dexie só roda uma atomicamente **dentro** de uma mesma base — e ainda espalha o bump de versão de uma mudança relacionada por dois lugares.
@@ -27830,6 +27907,7 @@ notificationsStore.db.version(2).upgrade(async (tx) => {
 - `ownerField` ativa scoping multi-tenant: `put`/`list`/`count`/`clear`/`updateMany` respeitam o `owner` e isolam dados por usuário.
 - CRUD: `put`/`bulkPut`, `get`/`list` (com `orderBy`/`reverse`/`limit`/`offset`/`filter`), `update`/`updateMany`, `delete`/`clear`, `count`.
 - `listBy(índice, valor, owner)` lista por outro campo indexado pelo índice, sem perder o dono.
+- Escrita recusada por falta de espaço rejeita com `StorageFullError` (original em `cause`); em `raw`/`db`, use `isQuotaExceededError`.
 - `raw` e `db` abrem a porta pra queries Dexie avançadas.
 - Bump `version` ao mudar `indexes`; use `db.version(N).upgrade(...)` pra migrações de dados.
 
@@ -36106,7 +36184,7 @@ você quer ver é um `401` ou um `413` que não vai passar sozinho.
 // src/components/VisitPhotos.tsx
 import { useQueryClient } from "@tanstack/react-query";
 import { Camera } from "lucide-react";
-import { Badge, Dropzone, EmptyState, Skeleton, formatBytes, useToast } from "tempest-react-sdk";
+import { Badge, Dropzone, EmptyState, Skeleton, StorageFullError, formatBytes, useToast } from "tempest-react-sdk";
 import { bestSupportedType, useImagePreview, useImageProcessing } from "tempest-react-sdk/imaging";
 import { addPhoto } from "@/visits/photos";
 import { useVisitPhotos } from "@/visits/use-visits";
@@ -36155,7 +36233,11 @@ export function VisitPhotos({ visitId, disabled }: { visitId: string; disabled: 
           type,
         });
         await addPhoto(visitId, image);
-      } catch {
+      } catch (error) {
+        if (error instanceof StorageFullError) {
+          toast.error("Memória cheia. Sincronize as visitas antes de tirar mais fotos.");
+          break;
+        }
         toast.error("Não deu para processar a foto. Tente fotografar de novo.");
       }
     }
@@ -36216,6 +36298,12 @@ dias. Então ela passa pelo [`useImageProcessing`](../imaging.md#no-react) antes
   um navegador que não codifica devolveria PNG, várias vezes maior, sem erro nenhum.
 
 O `useImagePreview` cria a URL de preview do `Blob` e a **revoga** sozinho no unmount.
+
+Quando o aparelho não tem mais espaço, o `photos.put` rejeita com
+[`StorageFullError`](../offline.md#armazenamento-cheio-storagefullerror), e o laço para:
+as próximas fotos também não caberiam, e a mensagem certa é "sincronize", não "fotografe
+de novo". O erro cru do navegador nem diria isso — no Chromium ele chega como `AbortError`
+do Dexie.
 
 !!! warning "Reencodar apaga o GPS da foto"
     O EXIF some no reencode, incluindo as coordenadas. Isso protege a localização de quem
@@ -36959,6 +37047,7 @@ installPrecache({
 - 🟢 **`SyncStatusBadge`**, **`useOfflineSync`** e **`OfflineIndicator`** contam ao técnico
   o que está acontecendo; com `foreignEntries: "hold"`, sair nunca arrisca a fila.
 - 📦 **`writeXlsx` + `createZip` + `shareOrDownloadBlob`** entregam o relatório sem rede.
+- 💾 **`StorageFullError`** separa "memória cheia" de "foto ruim" no `catch` da câmera.
 - 🔒 **`useStorageEstimate`** pede armazenamento persistente; o `UpdatePrompt` não troca
   de versão no meio da vistoria; o service worker só faz precache.
 - ⚠️ **`networkMode: "always"`** nas queries que leem o IndexedDB, senão elas pausam

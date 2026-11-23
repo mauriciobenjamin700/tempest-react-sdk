@@ -248,24 +248,27 @@ installBackgroundSync({
 
 ## 4. Durability: request persistent storage
 
-Without `navigator.storage.persist()`, the browser may **evict** IndexedDB and Cache Storage under disk pressure — fatal for offline data. `useStorageEstimate` shows usage/quota and exposes the action to make storage persistent:
+Without `navigator.storage.persist()`, the browser may **evict** IndexedDB and Cache Storage under disk pressure — fatal for offline data. `useStorageEstimate` reads usage/quota and exposes the action to make storage persistent; [`<StorageUsage>`](./components/feedback.md#storageusage) displays those numbers, with the bytes waiting to upload and the warnings:
 
 ```tsx
-import { useStorageEstimate } from "tempest-react-sdk";
+import { StorageUsage, useStorageEstimate } from "tempest-react-sdk";
 
-function StorageMeter() {
-  const { usage, quota, ratio, persisted, requestPersist } = useStorageEstimate();
+export function StorageMeter({ pendingBytes }: { pendingBytes: number }) {
+  const { usage, quota, persisted, requestPersist } = useStorageEstimate();
   return (
-    <div>
-      <progress value={ratio ?? 0} />
-      <span>
-        {((usage ?? 0) / 1e6).toFixed(1)} of {((quota ?? 0) / 1e6).toFixed(0)} MB
-      </span>
-      {!persisted && <button onClick={requestPersist}>Make persistent</button>}
-    </div>
+    <StorageUsage
+      usage={usage}
+      quota={quota}
+      persisted={persisted}
+      pendingBytes={pendingBytes}
+      warnAt={0.9}
+      onRequestPersist={requestPersist}
+    />
   );
 }
 ```
+
+The warning threshold (`warnAt`) and the moment to ask for persistence belong to the app: the SDK does not call `requestPersistentStorage()` by itself, because in Firefox that opens a permission prompt. Call it at login or after install.
 
 Outside React, use the pure functions `estimateStorage()` and `requestPersistentStorage()`.
 

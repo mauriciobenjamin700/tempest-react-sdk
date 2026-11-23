@@ -20,6 +20,16 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`npx vitest run src/offline/create-offline-store.quota.test.ts src/offline/storage-full-error.test.ts`).
   A receita [App de campo offline](docs/recipes/field-app-offline.md) separa "memória cheia" de
   "foto ruim" no `catch` da câmera.
+- **`<StorageUsage>`: exibe uso, quota e bytes pendentes de envio do armazenamento do navegador**
+  (parte de #726). Recebe tudo por prop (`usage`, `quota`, `pendingBytes`, `persisted`, `warnAt`,
+  `onRequestPersist`) e não lê `navigator.storage` sozinho: o app decide o limite e o momento de
+  pedir persistência. Mostra "X de Y usados · Z pendentes de envio" (bytes por `formatBytes`), avisa
+  quando `usage / quota >= warnAt` e quando há pendências num armazenamento não permanente, e troca a
+  barra por uma frase quando o navegador não informa os números (`null`). A barra é `role="meter"`
+  com `aria-valuetext`; os avisos, `role="status"`. A seção 4 de [PWA](docs/pwa.md) troca o medidor
+  escrito à mão (`<progress>` + `toFixed`) pelo componente. Doc em
+  [Status & feedback](docs/components/feedback.md#storageusage) e cenários na seção `pwa` da
+  gallery.
 - **`createQueryClient(defaultOptions?)`: o `QueryClient` com os defaults do SDK, para usar fora do
   React** (#741). O `QueryProvider` criava o client por dentro e o deixava preso lá; o app que
   precisava dele no `onSessionEnd` (`queryClient.clear()`), no `persistQueryClientOffline` ou num
@@ -101,6 +111,7 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **Budgets remedidos sobre a soma com a `main` ao mergear #792** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 177 041 B (teto 176.6 kB → 177.1 kB); `ceiling: full barrel CJS` 209 749 B (teto 209.3 kB → 209.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #793** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 176 472 B (teto 176.4 kB → 176.6 kB); `ceiling: full barrel CJS` 209 191 B (teto 208.7 kB → 209.3 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #765** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 424 B (teto 175.1 kB → 175.5 kB); `ceiling: full barrel CJS` 207 557 B (teto 207 kB → 207.7 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #764** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 175 039 B (teto 173.9 kB → 175.1 kB); `ceiling: full barrel CJS` 206 910 B (teto 205.6 kB → 207 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
@@ -116,6 +127,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   dá a quatro identificadores mudam (`C`/`I` → `E`/`F`), o que muda o brotli em 13 B (conferido com
   `npx size-limit --save-bundle <dir>` com só essa entrada no `.size-limit.checks.json`, e `diff`
   dos dois `index.js`). Teto 5,75 → 5,8 kB.
+- **`<StorageUsage>` (parte de #726), medido com `npm run build && npx size-limit --json` sobre a
+  `main` em `6a716c5` e sobre este branch**, bytes brotli: `ceiling: full barrel ESM` 173 112 →
+  173 576 (teto 173,3 → 173,6 kB); `ceiling: full barrel CJS` 204 565 → 205 444 (teto 204,9 →
+  205,5 kB); `styles.css` 32 526 → 32 658 (teto 32,6 → 32,7 kB). Os bytes são o componente novo e a
+  folha dele; nenhuma fatia existente o alcança.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #752** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 834 B (teto 204.8 kB → 204.9 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #756** (`npm run build && npx size-limit --json`): `ceiling: full barrel CJS` 204 660 B (teto 204.5 kB → 204.8 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
 - **Budgets remedidos sobre a soma com a `main` ao mergear #753** (`npm run build && npx size-limit --json`): `ceiling: full barrel ESM` 173 161 B (teto 172.8 kB → 173.3 kB); `ceiling: full barrel CJS` 204 436 B (teto 204.3 kB → 204.5 kB). Só tetos do barrel e budgets que os dois lados do merge mexeram.
@@ -665,6 +681,7 @@ server mode` 7 185 (teto 6,1 → 7,3 kB; dos ~1,08 kB acima do teto antigo, 757 
   173,9 kB); `ceiling: full barrel CJS` 205 381 (teto 204 → 205,6 kB); `styles.css` 32 610 (teto
   32,6 → 32,7 kB, a fonte declarada em `Drawer`/`Modal`/`Command` e as regras das colunas novas).
 - **Soma de #767 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #764 e #765 + este branch, bytes brotli): `slice: typical app` 13 376 B (teto 13.2 kB → 13.5 kB); `slice: DataTable with inline editing + server mode` 7 605 B (teto 7.3 KB → 7.7 kB); `slice: createZip + writeXlsx` 6 962 B (teto 6.95 KB → 7.1 kB); `ceiling: full barrel ESM` 176 264 B (teto 175.5 kB → 176.4 kB); `ceiling: full barrel CJS` 208 649 B (teto 207.7 kB → 208.7 kB). Nenhum estourava sozinho.
+- **Soma de #792 com a `main` (fila de merge)** (`npm run build && npx size-limit --json` sobre `origin/main` com #793 + este branch, bytes brotli): `slice: createZip` 5 851 B (teto 5.85 KB → 6.0 kB); `styles.css` 32 785 B (teto 32.7 kB → 32.9 kB). Nenhum estourava sozinho.
 
 ## [0.92.0] — 2026-11-21
 

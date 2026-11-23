@@ -147,7 +147,7 @@ mais voltam:
   (0.1.0 → 0.92.0); até a 0.82.0 com provenance via OIDC, depois publicadas da
   máquina do mantenedor, sem provenance. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
-- **Superfície**: 42 módulos em `src/` (`ls -d src/*/`), 134 componentes
+- **Superfície**: 42 módulos em `src/` (`ls -d src/*/`), 136 componentes
   (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
   raiz: **673 em 13/11/2026** (70 em `/br`, 21 em `/icons`); o método de

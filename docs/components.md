@@ -17,7 +17,7 @@ O catálogo foi dividido por categoria para facilitar navegação. Cada arquivo 
 - **[Overlay](./components/overlay.md)** — Modal, Drawer, BottomSheet, ModalsManager, Lightbox
 - **[Layout](./components/layout.md)** — AppShell, Page, Container, Stack, Grid, Divider, Spacer, Center, AspectRatio, SafeArea, Show, Hide
 - **[Dados](./components/data.md)** — Table, VirtualList, VirtualTable, DataTable, ListTile, Accordion, Timeline, TreeView, Sparkline
-- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, UpdatePrompt
+- **[Status & feedback](./components/feedback.md)** — Alert, Banner, Badge, Tag, Stat, Progress, NProgress, Spinner, Skeleton, RefreshIndicator, Toast, EmptyState, ErrorState, OfflineIndicator, SyncStatusBadge, StorageUsage, UpdatePrompt
 - **[Identidade & micro](./components/identity.md)** — Avatar, AvatarGroup, Card, Kbd
 - **[Utilitários & headless](./components/utility.md)** — CopyButton, RelativeTime, Money, TruncateText, VisuallyHidden, Reveal, Portal, ClickOutside, ConditionalWrapper, For, ErrorText, Image, DataList, DescriptionList, CodeBlock, QRCode
 - **[Telas de autenticação](./components/auth-screens.md)** — AuthPage, AuthForm, LoginForm, SignUpForm, ForgotPasswordForm, ResetPasswordForm

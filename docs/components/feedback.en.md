@@ -709,6 +709,60 @@ export function Status({ notesSync }: { notesSync: OfflineSync<Nota> }) {
 
 `sync` accepts the engine with whatever payload it carries (`OfflineSync<Nota>` above): the prop is typed `SyncStatusSource`, just the `getState` and `subscribe` the badge reads. Up to 0.92.0 it was `OfflineSync<unknown>`, and every typed engine failed with TS2322 under `strict` — `enqueue` takes the payload, so the engine is not covariant in it.
 
+## `StorageUsage`
+
+**When to use:** show how much browser storage the app uses, how much of it has not been sent to the server yet, and warn when space is running out or when pending data could be cleared by the browser. The component **does not read the browser by itself**: it takes the numbers as props. `usage`, `quota` and `persisted` come from [`useStorageEstimate`](../pwa.md#4-durability-request-persistent-storage); `pendingBytes` comes from whoever knows what is left to upload (the offline engine, the app's upload queue); `warnAt` is the threshold **the app** picks.
+
+```tsx
+import { StorageUsage, useStorageEstimate } from "tempest-react-sdk";
+
+export function Storage({ pendingBytes }: { pendingBytes: number }) {
+    const storage = useStorageEstimate({ pollMs: 30_000 });
+
+    return (
+        <StorageUsage
+            usage={storage.usage}
+            quota={storage.quota}
+            persisted={storage.persisted}
+            pendingBytes={pendingBytes}
+            warnAt={0.9}
+            onRequestPersist={storage.requestPersist}
+            labels={{
+                title: "Storage",
+                used: (usage, quota) => `${usage} of ${quota} used`,
+                pending: (pending) => `${pending} waiting to upload`,
+                nothingPending: "Nothing waiting to upload",
+                unsupported: "This browser does not report storage usage.",
+                overLimit: "Storage almost full. Sync before recording more data.",
+                notPersisted: "Storage is not persistent: the browser may clear data not sent yet.",
+                persistAction: "Make storage persistent",
+            }}
+        />
+    );
+}
+```
+
+It shows "X of Y used · Z waiting to upload", with bytes formatted by `formatBytes`. It warns in two cases:
+
+- **Over the threshold**: `usage / quota >= warnAt` (default `0.8`) turns the bar red and shows the "almost full" warning.
+- **Pending data in non-persistent storage**: `persisted === false` with `pendingBytes > 0`. Outside the home screen, Safari clears site data after ~7 days without use, and any browser may evict under disk pressure.
+
+With `persisted === false` and `onRequestPersist`, a "make storage persistent" button shows up; if the callback returns a promise, the button stays `loading` until it settles. The SDK does not call `requestPersistentStorage()` by itself because in Firefox that opens a permission prompt: the app decides when.
+
+| Prop               | Type                            | Default |
+| ------------------ | ------------------------------- | ------- |
+| `usage`            | `number \| null`                | —       |
+| `quota`            | `number \| null`                | —       |
+| `pendingBytes`     | `number \| null`                | —       |
+| `persisted`        | `boolean \| null`               | —       |
+| `warnAt`           | `number` (ratio in `[0, 1]`)    | `0.8`   |
+| `onRequestPersist` | `() => unknown`                 | —       |
+| `labels`           | `Partial<StorageUsageLabels>`   | PT-BR   |
+
+`null` means "the browser does not report it": with `usage` or `quota` `null` (or `quota` `0`) the bar is replaced by a sentence, instead of an empty bar that would read as 0%. Omitting `pendingBytes` hides the pending line; `persisted` `null` shows neither warning nor button.
+
+**A11y:** the bar is a `role="meter"` (a level, not task progress) named by the title, with `aria-valuetext` equal to the "X of Y used" the eye reads. Warnings use `role="status"` (polite), not the `Alert` default `role="alert"`: the component usually mounts on a screen with the warning already true, and an assertive announcement on every mount would interrupt the reader.
+
 ## `UpdatePrompt`
 
 **When to use:** announce a new app version (service worker) and let the user reload. Pairs with `useServiceWorkerUpdate`.

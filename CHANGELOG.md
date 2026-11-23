@@ -4,6 +4,49 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`useShare()`, `ShareActions`, `ShareButton` e `whatsAppShareUrl` — divulgar um link com
+  prévia no WhatsApp** (#800). O fluxo que cada app reescrevia em volta do `share()`, tirado do
+  BusCar (TempestTecnology/transport-frontend#217).
+- **`useShare()`** devolve `{ canShare, canShareFiles, share, copyLink, prefetchImage }`. O
+  `share(content)` **nunca rejeita** e resolve `"shared"`, `"cancelled"`, `"unsupported"` ou
+  `"failed"`: `AbortError` é `"cancelled"`, e um `NotAllowedError` vira `"failed"` com o erro em
+  `onError` — não `"unsupported"`, que faria o app esconder o botão num navegador que compartilha.
+  A imagem (`imageUrl`) só é baixada onde `canShare({ files })` aceita (perguntado com um PNG
+  vazio, antes de qualquer request), vai como `File` com o link dentro do texto, e qualquer falha
+  — rede, não-2xx, tipo recusado, mais de `imageTimeoutMs` (3 s) — compartilha sem ela. O
+  `prefetchImage` existe porque a ativação do clique expira: medido no Chromium 159 headless do
+  Playwright, `navigator.userActivation.isActive` continua `true` depois de um `await fetch` de
+  4,5 s e vira `false` depois de 5,5 s, em desktop e com emulação de Pixel 7.
+- **`ShareActions`**: WhatsApp (`<a>` para `wa.me/?text=…`), folha do sistema (só onde
+  `navigator.share` existe) e "Copiar link" (Clipboard API → `execCommand` → campo selecionado).
+  **`ShareButton`**: um botão só — folha do sistema onde existe Web Share, link `wa.me` rotulado
+  "Compartilhar no WhatsApp" onde não existe. A escolha é **por capacidade**, nunca por user
+  agent. Textos por `tempest.share.*` no `TEMPEST_MESSAGES` (pt-BR e en).
+- **`whatsAppShareUrl(text)`** em `/br`: `https://wa.me/?text=…`, o link sem destinatário que
+  abre o seletor de conversa. `whatsAppUrl` continua exigindo número.
+- Receita **"Compartilhar com prévia no WhatsApp"** (`docs/recipes/share-whatsapp.md`), com a
+  página Open Graph no backend (tempest-fastapi-sdk#814) e o nginx.
+
+### Corrigido
+
+- **`useClipboard` reportava cópia quando o navegador recusava.** O fallback ignorava o retorno de
+  `execCommand("copy")`, então um `false` virava `copied: true`; e uma Clipboard API que
+  **rejeita** (navegador interno sem permissão) ia direto para `false` sem tentar o
+  `execCommand`. Agora `useClipboard`, `InstallCopyLink` e `useShare().copyLink` usam a mesma
+  cadeia (a do `InstallCopyLink`, extraída): Clipboard API → `execCommand` honrando o retorno.
+
+### Budgets
+
+- **Medido com `npm run build && npx size-limit --json` sobre a `main` em `6541473` e sobre este
+  branch**, bytes brotli: `ceiling: full barrel ESM` 177 629 → 179 263 (teto 177,8 → 179,4 kB);
+  `ceiling: full barrel CJS` 210 283 → 212 483 (teto 210,7 → 212,6 kB). Os bytes compram dois
+  componentes, um hook e uma tabela de textos; ninguém importa o barrel inteiro.
+- Fatias novas: `{ useShare }` 1 055 B (teto 1,2 kB); `{ ShareActions, ShareButton }` 3 748 B (teto
+  4,2 kB). `slice: WhatsApp deep link` passa a importar `whatsAppShareUrl` também: 223 → 253 B
+  (teto 300 B, sem mudança). `{ Button }` continua 1 388 B.
+
 ## [0.93.0] — 2026-11-23
 
 ### Segurança

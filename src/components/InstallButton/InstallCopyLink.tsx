@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/Button";
+import { writeToClipboard } from "@/share/write-to-clipboard";
 import styles from "./InstallButton.module.css";
 
 /** Copy shown by {@link InstallCopyLink}. */
@@ -32,47 +33,6 @@ export interface InstallCopyLinkProps {
     url?: string;
     /** Overrides for any of the PT-BR default labels. */
     labels?: Partial<InstallCopyLinkLabels>;
-}
-
-/**
- * Writes `text` to the clipboard through the first path the runtime allows.
- *
- * `navigator.clipboard.writeText` comes first, but an embedded browser is where
- * it most often fails: absent outside a secure context, and rejected by web
- * views that never grant the permission. The legacy `execCommand("copy")` on a
- * selected, off-screen `<textarea>` still works in many of those, so it is the
- * second try rather than a branch only for missing APIs.
- *
- * @tempest-limits empty-catch — a rejected or throwing copy path is the signal to
- * try the next one, and the caller turns the final `false` into the visible
- * selection fallback.
- *
- * @param text - The text to copy.
- * @returns Whether either path reported success.
- */
-async function writeToClipboard(text: string): Promise<boolean> {
-    try {
-        if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(text);
-            return true;
-        }
-    } catch {
-        /* empty */
-    }
-    const textarea = document.createElement("textarea");
-    textarea.value = text;
-    textarea.setAttribute("readonly", "");
-    textarea.style.position = "fixed";
-    textarea.style.opacity = "0";
-    document.body.appendChild(textarea);
-    try {
-        textarea.select();
-        return typeof document.execCommand === "function" && document.execCommand("copy");
-    } catch {
-        return false;
-    } finally {
-        document.body.removeChild(textarea);
-    }
 }
 
 /**

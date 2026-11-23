@@ -271,6 +271,12 @@ export type {
     SelectProps,
 } from "./Select";
 
+export { ShareActions } from "./ShareActions";
+export type { ShareAction, ShareActionsLabels, ShareActionsProps } from "./ShareActions";
+
+export { ShareButton } from "./ShareButton";
+export type { ShareButtonLabels, ShareButtonProps } from "./ShareButton";
+
 export { activeNavKey, Sidebar } from "./Sidebar";
 export type {
     SidebarEntry,

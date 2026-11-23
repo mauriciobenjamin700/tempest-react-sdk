@@ -132,7 +132,7 @@ reaches.
     what it does.
 
 !!! info "`styles.css` is still published"
-    One line, all 136 components, and nothing breaks: the bundler deduplicates the
+    One line, all 138 components, and nothing breaks: the bundler deduplicates the
     sheet a component imports against the one you imported. It costs bytes, never
     correctness — the same trade `auto.css` makes.
 

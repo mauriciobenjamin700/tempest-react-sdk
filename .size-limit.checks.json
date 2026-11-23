@@ -559,7 +559,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "177.8 kB",
+    "limit": "179.4 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -578,7 +578,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "210.7 kB",
+    "limit": "212.6 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -682,10 +682,54 @@
     "name": "slice: WhatsApp deep link (number normalisation + wa.me URL)",
     "path": "dist/br.js",
     "import": {
-      "./dist/br.js": "{ toWhatsAppNumber, whatsAppUrl, openWhatsApp }"
+      "./dist/br.js": "{ toWhatsAppNumber, whatsAppUrl, whatsAppShareUrl, openWhatsApp }"
     },
     "limit": "300 B",
     "ignore": ["react", "react-dom", "react/jsx-runtime"]
+  },
+  {
+    "name": "slice: `useShare` (Web Share + image file + copy fallback)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ useShare }"
+    },
+    "limit": "1.2 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: share buttons (`ShareActions` + `ShareButton`)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ ShareActions, ShareButton }"
+    },
+    "limit": "4.2 KB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
   },
   {
     "name": "slice: BR payment rails (Pix + boleto + chave NFe + feriados)",

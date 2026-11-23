@@ -227,6 +227,8 @@ function CopyButton() {
 }
 ```
 
+A cópia tenta a Clipboard API e, quando ela falta **ou rejeita** (navegador interno sem permissão), `execCommand("copy")` — a mesma cadeia do `InstallCopyLink` e do [`useShare`](./share.md#useshare-compartilhar-com-imagem-e-fallback). `copy` devolve `false` (e `copied` não liga) quando o navegador recusa as duas.
+
 ### Responsive — `useBreakpoint`
 
 ```tsx

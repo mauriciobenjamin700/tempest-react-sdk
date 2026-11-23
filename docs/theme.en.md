@@ -158,7 +158,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-That's it: all 136 components pick up the new brand, in light and dark.
+That's it: all 138 components pick up the new brand, in light and dark.
 
 ### What it generates
 

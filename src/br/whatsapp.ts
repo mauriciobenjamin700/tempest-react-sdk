@@ -73,6 +73,32 @@ export function whatsAppUrl(phone: string, text?: string): string {
 }
 
 /**
+ * Build the `wa.me` link that opens WhatsApp's **chat picker** with `text`
+ * already typed — the link for spreading something, not for talking to one
+ * person.
+ *
+ * {@link whatsAppUrl} needs a recipient and returns `""` without one, on
+ * purpose: a contact link with a typo must disable the button. Publicising a
+ * ride or a product has no recipient at all; `https://wa.me/?text=…` makes
+ * WhatsApp ask the person which chat or group gets the message. When `text`
+ * carries a link, WhatsApp builds the preview card from that page's Open Graph
+ * tags (`og:title`, `og:image`), so the image travels without being attached.
+ *
+ * Same contract as `whatsAppUrl`: a deep link, never a send.
+ *
+ * @example
+ * whatsAppShareUrl("Carona Picos → Teresina, sex 07:05: https://app.example/c/42");
+ * // "https://wa.me/?text=Carona%20Picos%20%E2%86%92%20Teresina%2C%20sex%2007%3A05%3A%20https%3A%2F%2Fapp.example%2Fc%2F42"
+ *
+ * @param text - Message to pre-fill. Empty opens WhatsApp with a blank composer.
+ * @returns The `https://wa.me/?text=…` URL, or `https://wa.me/` for an empty
+ *   text.
+ */
+export function whatsAppShareUrl(text: string): string {
+    return text ? `https://wa.me/?text=${encodeURIComponent(text)}` : "https://wa.me/";
+}
+
+/**
  * Open the WhatsApp chat in a new tab.
  *
  * @example

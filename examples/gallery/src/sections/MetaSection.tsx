@@ -3,6 +3,8 @@ import {
     Badge,
     Button,
     Card,
+    ShareActions,
+    ShareButton,
     Stack,
     isShareSupported,
     share,
@@ -104,6 +106,35 @@ const clipboard = useClipboard();
                             Compartilhar
                         </Button>
                     </Card>
+                </Stack>
+            </Example>
+
+            <Example
+                title="ShareActions · ShareButton"
+                note="Divulgar um link: WhatsApp (wa.me), folha do sistema onde existe Web Share e copiar link com fallback. O ShareButton escolhe um caminho por capacidade."
+                code={`<ShareActions
+    title="Carona Picos → Teresina"
+    text="Sexta, 07:05 · 3 vagas"
+    url="https://app.exemplo.com/c/42"
+    imageUrl="https://app.exemplo.com/c/42/og.png"
+/>
+
+<ShareButton url="https://app.exemplo.com/c/42" text="Sexta, 07:05" />
+<ShareButton iconOnly url="https://app.exemplo.com/c/42" />`}
+            >
+                <Stack gap={3}>
+                    <ShareActions
+                        title="Carona Picos → Teresina"
+                        text="Sexta, 07:05 · 3 vagas"
+                        url="https://app.exemplo.com/c/42"
+                        onCopy={(copied) => {
+                            if (copied) toast.success("Link copiado");
+                        }}
+                    />
+                    <Stack direction="horizontal" gap={2} wrap>
+                        <ShareButton url="https://app.exemplo.com/c/42" text="Sexta, 07:05" />
+                        <ShareButton iconOnly url="https://app.exemplo.com/c/42" />
+                    </Stack>
                 </Stack>
             </Example>
 

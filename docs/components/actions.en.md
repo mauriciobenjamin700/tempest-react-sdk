@@ -772,6 +772,82 @@ Mount it once, at the app root. It opens by itself when `useBeforeInstallPrompt`
 !!! note "It only opens where there is an install signal"
     `appinstalled` is fired by Chromium browsers (Chrome, Edge, Samsung Internet), whatever the install path was — prompt, address-bar icon or menu. Safari (iOS and macOS) and Firefox do not fire it, so there the overlay never opens: there is no signal to rely on.
 
+## `ShareActions`
+
+<!-- gallery:meta -->
+[![Network · Clipboard · Share in the gallery](../assets/gallery/meta.webp)](../gallery.md)
+
+*Section `meta` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
+> **When to use**: the user is about to **spread** something from the app — a ride, a product, an event — on WhatsApp or another network. Three ready buttons: WhatsApp, the system share sheet and "Copy link".
+
+```tsx
+import { ShareActions } from "tempest-react-sdk";
+
+export function ShareRide({ id }: { id: string }) {
+  const url = `https://app.example.com/c/${id}`;
+  return (
+    <ShareActions
+      title="Ride Picos → Teresina"
+      text="Friday, 07:05 · R$ 25.00 per seat · 3 seats"
+      url={url}
+      imageUrl={`${url}/og.png`}
+    />
+  );
+}
+```
+
+| Prop            | Type                                         | Default                           |
+| --------------- | -------------------------------------------- | --------------------------------- |
+| `url`           | `string` — the link being shared             | —                                 |
+| `title`         | `string`                                     | —                                 |
+| `text`          | `string` — `url` is appended on WhatsApp     | —                                 |
+| `imageUrl`      | `string` — sent as a file where the device accepts one | —                       |
+| `imageFileName` | `string`                                     | path name, or `preview.<ext>`     |
+| `actions`       | `("whatsapp" \| "native" \| "copy")[]`       | `["whatsapp", "native", "copy"]`  |
+| `labels`        | `Partial<ShareActionsLabels>`                | `tempest.share.*`                 |
+| `variant`       | `ButtonVariant`                              | `"outline"`                       |
+| `size`          | `ButtonSize`                                 | `"md"`                            |
+| `onShare`       | `(outcome: ShareOutcome) => void`            | —                                 |
+| `onCopy`        | `(copied: boolean) => void`                  | —                                 |
+
+What each button does:
+
+- **WhatsApp** is a real link to `https://wa.me/?text=…` (built by [`whatsAppShareUrl`](../br-pagamentos.md#spreading-without-a-recipient-whatsappshareurl)), carrying the text and the link. Being an `<a>`, it needs no popup permission and opens the app on a phone. The preview image comes from the Open Graph tags of the linked page — see the [recipe](../recipes/share-whatsapp.md).
+- **Share** opens the system sheet through [`useShare`](../share.md#useshare-sharing-with-an-image-and-a-fallback), with the image attached where the device accepts files. It renders only where `navigator.share` exists.
+- **Copy link** tries the Clipboard API, then `execCommand("copy")`; when both are refused (some in-app browsers) it shows the link in a read-only field, **already selected**, with a hint to press and hold. Success is announced through a `role="status"` region.
+
+!!! info "The choice is by capability, not user agent"
+    The "Share" button renders where `navigator.share` exists — not where the user agent says "mobile". Desktop Chrome on Windows and macOS has the system sheet and gets the button; desktop Firefox and Chrome on Linux do not. Sniffing "phone" gets both sides wrong.
+
+!!! tip "Translatable texts"
+    The defaults go through [`I18nProvider`](../i18n.md#component-default-texts) (`tempest.share.whatsapp`, `.native`, `.copy`, `.copied`, `.manual`, `.field`): an English app gets "Share on WhatsApp" with no setup. `labels` wins over both.
+
+## `ShareButton`
+
+> **When to use**: there is room for **one** button only — the share icon on a list card, for example.
+
+```tsx
+import { ShareButton } from "tempest-react-sdk";
+
+export function RideCardShare({ id }: { id: string }) {
+  const url = `https://app.example.com/c/${id}`;
+  return <ShareButton iconOnly title="Ride Picos → Teresina" url={url} imageUrl={`${url}/og.png`} />;
+}
+```
+
+Where `navigator.share` exists it opens the system sheet (with the image, where the device accepts it). Where it does not, **the same button becomes the `wa.me` link** and says so: "Share on WhatsApp". A label promising the system sheet that opens WhatsApp Web would be a lie on desktop Firefox.
+
+| Prop       | Type                                    | Default      |
+| ---------- | --------------------------------------- | ------------ |
+| `url`      | `string`                                | —            |
+| `title`, `text`, `imageUrl`, `imageFileName` | as in `ShareActions` | — |
+| `labels`   | `Partial<{ native: string; whatsapp: string }>` | `tempest.share.*` |
+| `iconOnly` | `boolean` — the label becomes the accessible name | `false` |
+| `variant`, `size`, `fullWidth` | as in `Button`      | `"outline"`, `"md"` |
+| `onShare`  | `(outcome: ShareOutcome) => void` — sheet path only | — |
+
 ## Recap
 
 | Component       | Use for                                         | Trigger     |
@@ -781,6 +857,8 @@ Mount it once, at the app root. It opens by itself when `useBeforeInstallPrompt`
 | `InstallButton` | Install the PWA, or teach how where no prompt exists | click  |
 | `InstallBanner` | Dismissible invite to install the PWA           | click       |
 | `PostInstallPrompt` | Tell the tab the app is already installed   | `appinstalled` |
+| `ShareActions`  | Spread a link: WhatsApp, system sheet, copy | click |
+| `ShareButton`   | One share button, through the path the browser has | click |
 | `Tooltip`       | Non-critical context on a control               | hover/focus |
 | `DropdownMenu`  | A list of secondary actions (closes on pick)    | click       |
 | `Popover`       | A floating panel with arbitrary content         | click       |

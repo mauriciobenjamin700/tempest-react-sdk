@@ -158,7 +158,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 136 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 138 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 

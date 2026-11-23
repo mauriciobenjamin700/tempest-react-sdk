@@ -4,6 +4,7 @@ import { ERROR_STATE_MESSAGES } from "./messages/error-state";
 import { NAVIGATION_MESSAGES } from "./messages/navigation";
 import { PAGINATION_MESSAGES } from "./messages/pagination";
 import { SEARCH_BAR_MESSAGES } from "./messages/search-bar";
+import { SHARE_MESSAGES } from "./messages/share";
 import { SPINNER_MESSAGES } from "./messages/spinner";
 import { TAG_MESSAGES } from "./messages/tag";
 
@@ -16,6 +17,7 @@ const TABLES = [
     NAVIGATION_MESSAGES,
     TAG_MESSAGES,
     SEARCH_BAR_MESSAGES,
+    SHARE_MESSAGES,
 ] as const;
 
 /**

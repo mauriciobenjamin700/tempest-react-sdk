@@ -1,6 +1,6 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ToastProvider, useToast } from "./ToastProvider";
 
 function Trigger() {
@@ -21,21 +21,35 @@ describe("ToastProvider dismiss", () => {
         expect(screen.queryByText("Heads up")).not.toBeInTheDocument();
     });
 
-    it("auto-dismisses after duration", async () => {
+    /**
+     * #768: on a real clock the 30 ms `duration` ran out during `userEvent.click`
+     * under load (three full suites together), so the toast was already gone when
+     * the test looked for it. A stopped fake clock makes "shown" and "gone after
+     * `duration`" two states the test moves between, not a race against the click.
+     */
+    it("auto-dismisses after duration", () => {
         function FastTrigger() {
             const toast = useToast();
             return <button onClick={() => toast.info("auto", { duration: 30 })}>fire</button>;
         }
-        render(
-            <ToastProvider>
-                <FastTrigger />
-            </ToastProvider>,
-        );
-        await userEvent.click(screen.getByText("fire"));
-        expect(screen.getByText("auto")).toBeInTheDocument();
-        await act(async () => {
-            await new Promise((r) => setTimeout(r, 60));
-        });
-        expect(screen.queryByText("auto")).not.toBeInTheDocument();
+        vi.useFakeTimers();
+        try {
+            render(
+                <ToastProvider>
+                    <FastTrigger />
+                </ToastProvider>,
+            );
+            fireEvent.click(screen.getByText("fire"));
+            act(() => {
+                vi.advanceTimersByTime(29);
+            });
+            expect(screen.getByText("auto")).toBeInTheDocument();
+            act(() => {
+                vi.advanceTimersByTime(31);
+            });
+            expect(screen.queryByText("auto")).not.toBeInTheDocument();
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });

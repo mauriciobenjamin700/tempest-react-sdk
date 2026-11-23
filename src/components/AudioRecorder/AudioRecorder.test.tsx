@@ -81,15 +81,27 @@ describe("AudioRecorder", () => {
         expect(screen.getByText("Gravando")).toBeInTheDocument();
     });
 
+    /**
+     * #768: the meter used to be awaited with `waitFor` under
+     * `shouldAdvanceTime`, which returns as soon as the meter is in the DOM — while
+     * the effect that arms the polling interval could still be pending outside
+     * `act`. The `advanceTimersByTime(150)` below then ran with no interval to fire
+     * and the meter stayed at `0` (2 of 24 runs with 24 parallel copies and 48 busy
+     * loops). Clicking inside `act` and letting the async `act` flush the whole
+     * permission → stream → recorder → effect chain guarantees the interval is armed
+     * before the clock moves, and the fake clock never moves by itself.
+     */
     it("shows a live level meter while recording", async () => {
         const devices = installMediaDevices({});
         restores.push(devices.restore);
-        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.useFakeTimers();
 
         try {
             render(<AudioRecorder />);
-            await userEvent.click(screen.getByRole("button", { name: "Gravar" }));
-            await waitFor(() => expect(screen.getByRole("meter")).toBeInTheDocument());
+            await act(async () => {
+                screen.getByRole("button", { name: "Gravar" }).click();
+            });
+            expect(screen.getByRole("meter")).toBeInTheDocument();
 
             FakeAudioContext.instances[0].analyser.sample = 0.5;
             act(() => {
@@ -290,25 +302,32 @@ describe("AudioRecorder", () => {
         );
     });
 
+    /**
+     * Same ordering as the level meter (#768): the click and the cap are flushed
+     * inside an async `act`, so the tick that enforces `maxDurationMs` is armed
+     * before the clock moves and `onRecorded` has fired when `act` returns —
+     * no clock running on its own, no `waitFor` racing it.
+     */
     it("stops on its own at maxDurationMs and shows the cap", async () => {
         const devices = installMediaDevices({});
         restores.push(devices.restore);
         const onRecorded = vi.fn();
-        vi.useFakeTimers({ shouldAdvanceTime: true });
+        vi.useFakeTimers();
 
         try {
             render(<AudioRecorder maxDurationMs={1_000} onRecorded={onRecorded} />);
-            await userEvent.click(screen.getByRole("button", { name: "Gravar" }));
-            await waitFor(() =>
-                expect(screen.getByRole("button", { name: "Parar" })).toBeInTheDocument(),
-            );
+            await act(async () => {
+                screen.getByRole("button", { name: "Gravar" }).click();
+            });
+            expect(screen.getByRole("button", { name: "Parar" })).toBeInTheDocument();
             expect(screen.getByText("/ 0:01")).toBeInTheDocument();
+            expect(onRecorded).not.toHaveBeenCalled();
 
-            act(() => {
+            await act(async () => {
                 vi.advanceTimersByTime(1_200);
             });
 
-            await waitFor(() => expect(onRecorded).toHaveBeenCalledTimes(1));
+            expect(onRecorded).toHaveBeenCalledTimes(1);
         } finally {
             vi.useRealTimers();
         }

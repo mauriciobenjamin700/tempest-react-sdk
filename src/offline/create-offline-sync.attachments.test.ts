@@ -147,8 +147,25 @@ function makeSync(overrides: Partial<OfflineSyncConfig<Visit, never>>) {
     });
 }
 
-async function settle(): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, 20));
+/**
+ * Resolve with the first state the sync publishes after it is built.
+ *
+ * That publish is the startup `refreshPending()`, the one that reads
+ * `navigator.storage.persisted()`. Waiting for it replaces a fixed 20 ms sleep
+ * (#768), which lost to the IndexedDB reads ahead of it under load: with three
+ * full suites running together, the `persisted` case read `null`.
+ *
+ * @param sync - A sync returned by `makeSync`, subscribed before its startup
+ * read finishes.
+ * @returns The published state.
+ */
+function firstPublish(sync: ReturnType<typeof makeSync>): Promise<SyncState> {
+    return new Promise<SyncState>((resolve) => {
+        const stop = sync.subscribe((state: SyncState) => {
+            stop();
+            resolve(state);
+        });
+    });
 }
 
 let server: TusDouble;
@@ -424,9 +441,8 @@ describe("createOfflineSync attachments — bytes in SyncState", () => {
             storage: { persisted: async () => true, persist },
         });
         const sync = makeSync({});
-        await settle();
 
-        expect(sync.getState().persisted).toBe(true);
+        expect((await firstPublish(sync)).persisted).toBe(true);
         await sync.enqueue("create", "v1", { id: "v1", photoIds: [] });
         await sync.flush();
         expect(persist).not.toHaveBeenCalled();
@@ -434,8 +450,7 @@ describe("createOfflineSync attachments — bytes in SyncState", () => {
 
     it("reports persisted as null where the Storage API is missing or fails", async () => {
         const plain = makeSync({});
-        await settle();
-        expect(plain.getState().persisted).toBeNull();
+        expect((await firstPublish(plain)).persisted).toBeNull();
 
         vi.stubGlobal("navigator", {
             ...navigator,
@@ -447,7 +462,6 @@ describe("createOfflineSync attachments — bytes in SyncState", () => {
             },
         });
         const failing = makeSync({});
-        await settle();
-        expect(failing.getState().persisted).toBeNull();
+        expect((await firstPublish(failing)).persisted).toBeNull();
     });
 });

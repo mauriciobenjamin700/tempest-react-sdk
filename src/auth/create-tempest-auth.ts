@@ -662,6 +662,16 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * account's user. Following first turns that into a session ended
      * elsewhere, and the profile is discarded.
      *
+     * A failed request follows the shared storage too, before the error
+     * surfaces: the caller undoes a sign-in whose user failed to load
+     * (#748), and that undo revokes and clears whatever the storage holds.
+     * When another tab signed in meanwhile and its storage event had not
+     * reached this tab yet, the undo used to send that account's refresh
+     * token to `logoutPath` next to this account's bearer and sign it out of
+     * every tab (security audit run-19, a regression of #752). Following
+     * first turns that into a session ended elsewhere, and the failure into
+     * {@link SessionSupersededError}, which the undo leaves alone.
+     *
      * Bound to the session, not to the token the request carried: a token
      * that changed because another tab rotated the same session still
      * belongs to this user, and discarding the profile then would fail a
@@ -678,7 +688,9 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
         try {
             user = await api.get<TUser>(mePath, { skipAuthRetry: true });
         } catch (error) {
-            if (epoch !== started) throw new SessionSupersededError();
+            if (epoch !== started || !followSharedSession().continues) {
+                throw new SessionSupersededError();
+            }
             throw error;
         }
         if (epoch !== started || !followSharedSession().continues) {
@@ -1438,6 +1450,11 @@ export function createTempestAuth<TUser, TCredentials = { email: string; passwor
      * `redirectTo`: the `login()` caller is the one handling the failure.
      * Waits for the hook, so the store is clean and the teardown done when
      * the sign-in rejects.
+     *
+     * Reached only after `fetchUser` followed the shared storage and found
+     * the sign-in still there, within the same task: what `revoke()`
+     * reads and `finish()` clears is this sign-in's own session, never one
+     * another tab installed.
      */
     async function undoSignIn(): Promise<void> {
         const revocation = revoke();

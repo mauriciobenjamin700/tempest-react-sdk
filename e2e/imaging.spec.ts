@@ -479,6 +479,47 @@ test.describe("captureFrame", () => {
         expect(result.band, `centre pixel was rgb(${result.rgb.join(",")})`).toBe(0);
     });
 
+    /**
+     * `readyState` running ahead of the first readable frame, made
+     * deterministic (#795). The e2e above failed once under machine load with
+     * `ImageDecodeError: ... The image source is not usable`: read inside its
+     * own `loadeddata` handler, a paused element rejected `createImageBitmap`
+     * in 2 of 30 reads at `readyState` 4 (measured 2026-11-23). A
+     * `preload="metadata"` element read at `loadedmetadata` sits in that window
+     * every time — it reports `readyState` 4 with no frame decoded yet — so it
+     * pins the case without depending on load: 60 of 60 captures failed before
+     * the fix. CPU throttling, the lever #680 used, does **not** reproduce it
+     * (0 of 30 at 20×): the race is the page's thread getting ahead of the
+     * media pipeline, and throttling the page slows the wrong side.
+     */
+    test("reads the first frame even when readyState got there before it", async ({ page }) => {
+        const result = await page.evaluate(async () => {
+            const api = window as never as {
+                makeBandedVideo: (bands: number) => Promise<{ url: string }>;
+                bandOf: (blob: Blob) => Promise<{ band: number; rgb: number[] }>;
+            };
+            const { captureFrame } = await import("/imaging-dist/frame.js");
+            const { url } = await api.makeBandedVideo(2);
+            const video = document.createElement("video");
+            video.muted = true;
+            video.preload = "metadata";
+            video.src = url;
+            document.body.append(video);
+            await new Promise((resolve) =>
+                video.addEventListener("loadedmetadata", resolve, { once: true }),
+            );
+            const readyState = video.readyState;
+
+            const shot = await captureFrame(video, { type: "image/png" });
+            const read = await api.bandOf(shot.blob);
+            return { readyState, band: read.band, rgb: read.rgb, width: shot.width };
+        });
+
+        expect(result.readyState).toBeGreaterThanOrEqual(2);
+        expect(result.width).toBe(64);
+        expect(result.band, `centre pixel was rgb(${result.rgb.join(",")})`).toBe(0);
+    });
+
     test("seeks to an instant and captures that instant's band", async ({ page }) => {
         const result = await page.evaluate(async () => {
             const api = window as never as {

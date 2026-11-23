@@ -6,6 +6,27 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Segurança
 
+- **`createTempestAuth`: desfazer um `login()` cujo `mePath` falhou não revoga nem limpa mais a
+  sessão que outra aba acabou de instalar** (auditoria run-19 §3.1, regressão do #752). O desfazer
+  do #748 revogava e limpava o que o armazenamento compartilhado guardava sem antes segui-lo, como o
+  `logout()` faz desde o #524. Com a aba 1 em `login(A)` esperando o `/me`, a aba 2 entrando como B
+  e o `/me` da aba 1 falhando antes de o evento `storage` chegar, medido na 808393e: o `logoutPath`
+  recebia `Bearer tok-A` com `ref-B`, o armazenamento ficava `{ user: null, token: null }` sem
+  refresh token e a aba 2 rodava `onSessionEnd` `"logout"` com `elsewhere: true` — B saía de todas
+  as abas e era revogado no servidor. O mesmo valia para `restore()` e para o modo cookie. O
+  `fetchUser` agora segue o armazenamento também na falha, como já fazia no sucesso: a entrada
+  substituída por outra aba termina com `"switch"` e `elsewhere: true`, o `login()` rejeita com
+  `SessionSupersededError` e a sessão de B não é revogada nem limpa. Entrada sozinha cujo `/me` falha continua
+  sendo desfeita
+  (`npx vitest run src/auth/create-tempest-auth.undo-sign-in-tabs.test.ts`; três dos cinco testes
+  falham sem a correção).
+
+### Budgets
+
+- **Auditoria run-19 §3.1, medido com `npm run build && npx size-limit --json` sobre a `main` em
+  `808393e` e sobre este branch**, bytes brotli: `ceiling: full barrel CJS` 210 503 → 210 553 (teto
+  210,6 kB, dentro); `ceiling: full barrel ESM` 177 722 → 177 399 (teto 177,8 kB, dentro). Nenhum
+  teto mudou; as fatias não se mexeram.
 - **`createOfflineSync` com `attachments`: o dono da entrada é conferido de novo durante o upload
   dos anexos** (regressão do #794, auditoria de segurança run-19). O `push()` conferia
   `ownership(entry)` uma vez e depois aguardava o upload dos anexos, cujo `isCurrent` só olhava a

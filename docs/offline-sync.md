@@ -338,6 +338,16 @@ sync.clearOutbox();
     - **Dono e `coalesce` vêm antes.** Entrada segurada ou apagada pelo
       `getPrincipal`/`foreignEntries` não sobe nada; com `coalesce`, o `list` recebe a
       entrada juntada, com o payload mais novo.
+    - **Troca de conta no meio do upload também para.** O dono é conferido de novo
+      depois de cada passo dos anexos (`list`, `upload`, cada arquivo) e logo antes
+      do `deliver`: se outra pessoa entrou — noutra aba, ou num login depois do token
+      vencido sem `resetWatermark()` —, os arquivos que faltam não sobem e a entrada
+      fica na fila (`summary.held`, segurando as próximas edições do registro) ou é
+      apagada (`summary.dropped`), conforme o `foreignEntries`. O `getPrincipal` do
+      motor vale também para o upload cujas opções não trazem `getPrincipal` (nem o
+      `getToken` do preset): o arquivo em envio para antes do próximo chunk, em vez de
+      terminar com o token da conta nova. O que já subiu fica no servidor, e o dono
+      termina o resto quando voltar.
     - **Logout no meio do upload** (`clearOutbox()`/`resetWatermark()`) para o run
       antes do `deliver` e não chama o `onUploaded`, que escreveria no store do
       próximo usuário. O registro de retomada guarda o offset final, então o envio

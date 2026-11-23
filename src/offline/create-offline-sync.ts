@@ -639,7 +639,19 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      *
      * @param entry - The (folded) entry about to be delivered.
      * @param runGeneration - The session the run started under.
-     * @returns The entry to deliver, or `null` when the session ended mid-upload.
+     * The run counts as current only while its session is (see `endSession`)
+     * **and** the entry still belongs to whoever is signed in (see `ownership`),
+     * re-read after every await of the attachment phase. Up to 0.93.0 only the
+     * session was, so a principal switch during the upload window — another tab,
+     * or a sign-in after an expired session without `resetWatermark()` — sent
+     * the remaining files and then the entry under the next account, or with no
+     * session at all (security audit run-19). The engine's `getPrincipal` also
+     * binds each upload whose options name no principal of their own, so a
+     * switch mid-file stops that file instead of finishing it as the next
+     * account.
+     *
+     * @returns The entry to deliver, or `null` when the session ended or the
+     *   entry stopped being the signed-in principal's mid-upload.
      */
     async function withAttachments(
         entry: OutboxEntry<TPayload>,
@@ -648,7 +660,8 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
         if (!config.attachments) return entry;
         try {
             const refs = await uploadEntryAttachments(config.attachments, entry, {
-                isCurrent: () => generation === runGeneration,
+                isCurrent: () => generation === runGeneration && ownership(entry) === "deliver",
+                getPrincipal,
                 onProgress: (uploadedBytes, totalBytes) => setState({ uploadedBytes, totalBytes }),
                 onUploaded: (bytes) =>
                     setState({
@@ -688,6 +701,31 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
     }
 
     /**
+     * Leave an entry the signed-in principal does not own unsent, per
+     * {@link OfflineSyncConfig.foreignEntries}: held entries stay queued and
+     * block the later entries of their record; dropped ones are deleted.
+     *
+     * @param verdict - What `ownership` decided for the entry.
+     * @param queued - The queued members of the delivery group.
+     * @param summary - Mutated with the `held`/`dropped` count.
+     * @param blocked - Records whose later entries must wait.
+     */
+    async function setAside(
+        verdict: "hold" | "drop",
+        queued: OutboxEntry<TPayload>[],
+        summary: SyncRunSummary,
+        blocked: Set<string>,
+    ): Promise<void> {
+        if (verdict === "hold") {
+            summary.held = (summary.held ?? 0) + queued.length;
+            blocked.add(queued[0].recordId);
+            return;
+        }
+        await outbox.raw.bulkDelete(queued.map((member) => member.id));
+        summary.dropped = (summary.dropped ?? 0) + queued.length;
+    }
+
+    /**
      * Drain the outbox in `enqueuedAt` order, one record at a time.
      *
      * Once an entry for a record fails, the remaining entries **for that record**
@@ -706,7 +744,8 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
      * its session is still current (see `endSession`) and that the entry is still
      * in the outbox — another tab sharing the IndexedDB may have cleared it on
      * logout. With `getPrincipal`, the entry's owner stamp is checked at the same
-     * point (see `ownership`): an entry that is not the current principal's is
+     * point (see `ownership`), and again after every await of the attachment
+     * phase and right before `deliver`: an entry that is not the current principal's is
      * deleted unsent or stays queued, per `foreignEntries`. A dropped entry blocks
      * nothing, since it will never be delivered; a held one blocks the later
      * entries of its record, exactly like a failure, because it will be delivered
@@ -741,19 +780,18 @@ export function createOfflineSync<TPayload = unknown, TRemote = unknown>(
             const entry = foldEntries(queued);
             const ids = queued.map((member) => member.id);
             const verdict = ownership(entry);
-            if (verdict === "hold") {
-                summary.held = (summary.held ?? 0) + queued.length;
-                blocked.add(entry.recordId);
-                continue;
-            }
-            if (verdict === "drop") {
-                await outbox.raw.bulkDelete(ids);
-                summary.dropped = (summary.dropped ?? 0) + queued.length;
+            if (verdict !== "deliver") {
+                await setAside(verdict, queued, summary, blocked);
                 continue;
             }
             try {
                 const delivered = await withAttachments(entry, runGeneration);
-                if (delivered === null) return false;
+                if (generation !== runGeneration) return false;
+                const settled = ownership(entry);
+                if (delivered === null || settled !== "deliver") {
+                    await setAside(settled === "drop" ? "drop" : "hold", queued, summary, blocked);
+                    continue;
+                }
                 await config.deliver(delivered);
                 await outbox.raw.bulkDelete(ids);
                 summary.succeeded += 1;

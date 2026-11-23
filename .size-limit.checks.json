@@ -203,7 +203,7 @@
     "import": {
       "./dist/tempest-react-sdk.js": "{ createOfflineStore, createOfflineSync, useOfflineSync, useSyncStatus, useServiceWorkerUpdate, useStorageEstimate, OfflineIndicator, SyncStatusBadge, UpdatePrompt }"
     },
-    "limit": "6.2 kB",
+    "limit": "6.3 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -578,7 +578,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "210.6 kB",
+    "limit": "210.7 kB",
     "ignore": [
       "react",
       "react-dom",

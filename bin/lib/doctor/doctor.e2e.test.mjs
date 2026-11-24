@@ -324,21 +324,30 @@ describe("tempest doctor — a project that does use the SDK", () => {
 
     it("does not demand an optional peer a test only renders to prove it degrades", () => {
         write(
-            "src/TileMap.test.tsx",
-            'import { TrajectoryMap } from "tempest-react-sdk";\n' +
-                'export const t = <TrajectoryMap points={[]} tileUrl="https://t/{z}/{x}/{y}.png" />;',
+            "src/Chart.test.tsx",
+            'import { LineChart } from "tempest-react-sdk/charts";\n' +
+                "export const c = LineChart;",
         );
         const { out } = doctor();
-        expect(out).not.toContain("leaflet missing");
+        expect(out).not.toContain("recharts missing");
     });
 
     it("still demands the optional peer when production code uses it", () => {
+        write(
+            "src/Chart.tsx",
+            'import { LineChart } from "tempest-react-sdk/charts";\n' +
+                "export const C = LineChart;",
+        );
+        expect(doctor().out).toContain("recharts missing");
+    });
+
+    it("does not demand leaflet when TrajectoryMap uses tileUrl (#808)", () => {
         write(
             "src/TileMap.tsx",
             'import { TrajectoryMap } from "tempest-react-sdk";\n' +
                 'export const T = () => <TrajectoryMap points={[]} tileUrl="https://t/{z}/{x}/{y}.png" />;',
         );
-        expect(doctor().out).toContain("leaflet missing");
+        expect(doctor().out).not.toContain("leaflet missing");
     });
 
     it("warns when Vitest would load the SDK without the plugin", () => {

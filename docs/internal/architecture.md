@@ -129,7 +129,7 @@ número medido e a razão escritos no CHANGELOG. Sem isso, o teto vira carimbo.
 - **Deps diretas** (instaladas junto): `@tanstack/react-query`, `zod`, `zustand`,
   `dexie`, `react-hook-form`, `lucide-react`, `fflate`. Todas externalizadas no
   `vite.config.ts`.
-- **Peers opcionais**: `recharts`, `@tiptap/*`, `leaflet`, `onnxruntime-web`,
+- **Peers opcionais**: `recharts`, `@tiptap/*`, `onnxruntime-web`,
   `vite` + `@vitejs/plugin-react`.
 - **Adapters injetam a instância** (Sentry, PostHog, GrowthBook, LaunchDarkly):
   nunca peer dep. O caller passa o SDK; exportamos uma interface `<X>Like` com o

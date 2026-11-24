@@ -517,7 +517,7 @@ export const SECTIONS: SectionEntry[] = [
         id: "geo",
         label: "Geolocalização (mapas & trajetória)",
         keywords:
-            "geolocation geo trajectory map trajectorymap liveroutemap usepositiontracker createpositiontracker haversinekm pathlengthkm estimatetravel coordinate bearingdeg boundingbox osrm leaflet mercator latitude longitude",
+            "geolocation geo trajectory map trajectorymap liveroutemap usepositiontracker createpositiontracker haversinekm pathlengthkm estimatetravel coordinate bearingdeg boundingbox osrm tiles mercator latitude longitude",
         group: "Receitas",
         Component: GeoSection,
     },

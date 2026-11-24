@@ -4,6 +4,25 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`TrajectoryMap` com `tileUrl` agora desenha tiles `{z}/{x}/{y}` direto no SVG e respeita
+  `markers` / `onMarkerClick` (#808).** Antes, `dist/geo/leaflet-map.js` chamava
+  `import(/* @vite-ignore */ "leaflet")`, o que impedia o Vite de reescrever o especificador e
+  mostrava sempre `"Leaflet não encontrado"` mesmo com `leaflet` instalado; além disso,
+  `<LeafletTrajectory>` não recebia `markers` nem `onMarkerClick` e enquadrava em `[0, 0]` quando
+  `points` era vazio. O `TrajectoryMap` agora usa o mesmo motor de tiles nativo (`fitLiveView`,
+  `projectLive`, `tilesForView`, `kmPerPixel`) do `LiveRouteMap`, adiciona a prop opcional
+  `tileMaxZoom` (default `19`), renderiza `tileAttribution` e usa `role="region"` quando há
+  `onMarkerClick`. O peer opcional `leaflet` (e sua checagem no `tempest doctor`) foi removido.
+
+### Budgets
+
+- **#808, medido com `npm run build && npx size-limit --json` sobre a `main` em `ec1d50b` e sobre
+  este branch**, bytes brotli: `slice: geo` 3 810 → 3 387 (−423 B); `slice: LiveRouteMap`
+  9 296 → 9 262 (−34 B); `ceiling: full barrel ESM` 179 263 → 178 673 (−590 B);
+  `ceiling: full barrel CJS` 212 483 → 211 864 (−619 B). Nenhum teto precisou subir.
+
 ## [0.94.0] — 2026-11-23
 
 ### Adicionado

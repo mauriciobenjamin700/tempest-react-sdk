@@ -1,24 +1,18 @@
 /**
  * @tempest-limits file-lines, props-count, function-lines — the SVG plot (points,
  * current, height, padding, showGrid, showScale, strokeColor, label), the optional
- * leaflet tile layer (tileUrl, tileAttribution) and the overlay (markers,
- * onMarkerClick). The body projects the path, fits the bounds and hands the same
- * bounds to the tile layer when there is one.
+ * self-hosted tile layer (tileUrl, tileAttribution, tileMaxZoom) and the overlay
+ * (markers, onMarkerClick). Every layer shares one Web Mercator view from
+ * `live-route-view`, so tiles, path and markers stay aligned with zero extra deps.
  */
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
+import { useEffect, useMemo, useRef, useState, type HTMLAttributes } from "react";
 import { cn } from "@/utils/cn";
 import { boundingBox, expandBounds } from "./bounds";
-import { haversineKm } from "./distance";
-import { fitProjection, type PixelPoint } from "./projection";
+import { fitLiveView, kmPerPixel, projectLive, tilesForView } from "./live-route-view";
+import type { PixelPoint } from "./projection";
 import { formatScale, pickScaleKm } from "./scale";
 import type { Coordinate, GeoMarker } from "./types";
 import styles from "./TrajectoryMap.module.css";
-
-// Leaflet layer is loaded on demand — only when a `tileUrl` is supplied, so
-// apps that stick to the tile-free SVG never pull leaflet into their bundle.
-const LeafletTrajectory = lazy(() =>
-    import("./leaflet-map").then((m) => ({ default: m.LeafletTrajectory })),
-);
 
 export interface TrajectoryMapProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
     /** Ordered coordinates forming the trajectory. */
@@ -29,20 +23,22 @@ export interface TrajectoryMapProps extends Omit<HTMLAttributes<HTMLDivElement>,
     height?: number;
     /** Inner padding in pixels kept clear on every edge. Default: `24`. */
     padding?: number;
-    /** Draw a light reference grid behind the path (SVG mode). Default: `true`. */
+    /** Draw a light reference grid behind the path when no tiles are active. Default: `true`. */
     showGrid?: boolean;
-    /** Draw a distance scale bar (SVG mode). Default: `true`. */
+    /** Draw a distance scale bar. Default: `true`. */
     showScale?: boolean;
     /** Path stroke color. Default: the primary token. */
     strokeColor?: string;
     /**
-     * Tile URL template (`{z}/{x}/{y}`) of a map server **you host**. When set,
-     * the map upgrades to a real Leaflet tile layer (requires `leaflet` to be
-     * installed). Omit for the zero-dependency, zero-network SVG plot.
+     * Tile URL template (`{z}/{x}/{y}`) of a map server **you host**. Tiles are
+     * drawn directly inside the SVG under the same Web Mercator projection, with
+     * no extra dependency. Omit for the zero-network SVG plot.
      */
     tileUrl?: string;
     /** Attribution text shown over the tile layer. */
     tileAttribution?: string;
+    /** Highest zoom level your tile server serves. Default: `19`. */
+    tileMaxZoom?: number;
     /** Accessible label for the map region. Default: `"Trajetória"`. */
     label?: string;
     /** Point markers to overlay (e.g. stops, POIs). Included in the auto-fit. */
@@ -53,17 +49,23 @@ export interface TrajectoryMapProps extends Omit<HTMLAttributes<HTMLDivElement>,
 
 /**
  * Plot a GPS trajectory. By default it renders a **tile-free SVG** map (Web
- * Mercator projection, auto-fit to the points, optional grid + scale bar) —
- * 100% self-contained, no external tiles or paid API. Pass `tileUrl` pointing
- * at a map server **you host** to upgrade to a real Leaflet tile layer.
+ * Mercator projection, auto-fit to the points and markers, optional grid +
+ * scale bar) — 100% self-contained, no external tiles or paid API. Pass
+ * `tileUrl` pointing at a map server **you host** to render `{z}/{x}/{y}` tiles
+ * under the same projection, with no map library required.
  *
  * @example
  * // Zero-dependency SVG plot
  * <TrajectoryMap points={points} current={lastPoint} height={360} />
  *
  * @example
- * // Real tiles from your own server (requires `leaflet` installed)
- * <TrajectoryMap points={points} tileUrl="https://tiles.internal/{z}/{x}/{y}.png" />
+ * // Self-hosted tiles with markers (no map library required)
+ * <TrajectoryMap
+ *   points={points}
+ *   markers={[{ id: "shop", latitude: -23.5505, longitude: -46.6333, label: "Loja" }]}
+ *   tileUrl="https://tiles.internal/{z}/{x}/{y}.png"
+ *   tileAttribution="© OpenStreetMap"
+ * />
  */
 export function TrajectoryMap({
     points,
@@ -75,6 +77,7 @@ export function TrajectoryMap({
     strokeColor,
     tileUrl,
     tileAttribution,
+    tileMaxZoom = 19,
     label = "Trajetória",
     markers,
     onMarkerClick,
@@ -105,56 +108,33 @@ export function TrajectoryMap({
         const box = boundingBox(allPoints);
         if (!box) return null;
 
-        const projection = fitProjection(expandBounds(box, 0.12), width, height, { padding });
-        const pixels: PixelPoint[] = points.map((p) => projection.project(p));
+        const viewport = { width, height };
+        const view = fitLiveView(expandBounds(box, 0.12), viewport, padding);
+        if (!view) return null;
+
+        const pixels: PixelPoint[] = points.map((p) => projectLive(view, viewport, p));
         const polyline = pixels.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
 
         const startPixel = pixels[0] ?? null;
         const endPixel = pixels.length > 0 ? pixels[pixels.length - 1] : null;
-        const currentPixel = current ? projection.project(current) : null;
+        const currentPixel = current ? projectLive(view, viewport, current) : null;
+        const markerPixels = (markers ?? []).map((m) => ({
+            marker: m,
+            p: projectLive(view, viewport, m),
+        }));
+        const tiles = tileUrl ? tilesForView(view, viewport, tileUrl, tileMaxZoom) : [];
 
-        // Distance-per-pixel at the map center, for the scale bar: measure the
-        // center → east-edge span in both km (haversine) and pixels (projected).
-        const centerCoord = {
-            latitude: (box.minLatitude + box.maxLatitude) / 2,
-            longitude: (box.minLongitude + box.maxLongitude) / 2,
+        return {
+            polyline,
+            startPixel,
+            endPixel,
+            currentPixel,
+            kmPerPixel: kmPerPixel(view),
+            markerPixels,
+            tiles,
         };
-        const center = projection.project(centerCoord);
-        const eastRef = projection.project({ ...centerCoord, longitude: box.maxLongitude });
-        const edgeKm = haversineKm(centerCoord, { ...centerCoord, longitude: box.maxLongitude });
-        const edgePixels = Math.abs(eastRef.x - center.x) || 1;
-        const kmPerPixel = edgeKm / edgePixels || 0;
+    }, [allPoints, points, current, markers, width, height, padding, tileUrl, tileMaxZoom]);
 
-        const markerPixels = (markers ?? []).map((m) => ({ marker: m, p: projection.project(m) }));
-
-        return { polyline, startPixel, endPixel, currentPixel, kmPerPixel, markerPixels };
-    }, [allPoints, points, current, markers, width, height, padding]);
-
-    // ── Leaflet tile mode ────────────────────────────────────────────────────
-    if (tileUrl) {
-        return (
-            <div
-                ref={containerRef}
-                className={cn(styles.map, className)}
-                style={{ height, ...style }}
-                role="img"
-                aria-label={label}
-                {...rest}
-            >
-                <Suspense fallback={<div className={styles.loading}>Carregando mapa…</div>}>
-                    <LeafletTrajectory
-                        points={points}
-                        current={current}
-                        tileUrl={tileUrl}
-                        tileAttribution={tileAttribution}
-                        strokeColor={strokeColor}
-                    />
-                </Suspense>
-            </div>
-        );
-    }
-
-    // ── Tile-free SVG mode ─────────────────────────────────────────────────────
     const scale =
         showScale && svg && svg.kmPerPixel > 0
             ? pickScaleKm(svg.kmPerPixel, Math.min(120, width * 0.35))
@@ -165,7 +145,7 @@ export function TrajectoryMap({
             ref={containerRef}
             className={cn(styles.map, className)}
             style={{ height, ...style }}
-            role="img"
+            role={onMarkerClick ? "region" : "img"}
             aria-label={label}
             {...rest}
         >
@@ -179,7 +159,23 @@ export function TrajectoryMap({
                     viewBox={`0 0 ${width} ${height}`}
                     preserveAspectRatio="xMidYMid meet"
                 >
-                    {showGrid && (
+                    {svg.tiles.length > 0 && (
+                        <g className={styles.tiles} aria-hidden="true">
+                            {svg.tiles.map((tile) => (
+                                <image
+                                    key={`${tile.url}@${tile.x.toFixed(0)}`}
+                                    href={tile.url}
+                                    x={tile.x}
+                                    y={tile.y}
+                                    width={tile.size + 0.5}
+                                    height={tile.size + 0.5}
+                                    preserveAspectRatio="none"
+                                />
+                            ))}
+                        </g>
+                    )}
+
+                    {showGrid && !tileUrl && (
                         <g className={styles.grid}>
                             {[0.25, 0.5, 0.75].map((f) => (
                                 <line
@@ -291,6 +287,10 @@ export function TrajectoryMap({
                     )}
                 </svg>
             )}
+
+            {svg && tileUrl && tileAttribution ? (
+                <span className={styles.attribution}>{tileAttribution}</span>
+            ) : null}
         </div>
     );
 }

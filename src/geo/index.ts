@@ -53,7 +53,7 @@ export type {
 export { usePositionTracker } from "./use-position-tracker";
 export type { UsePositionTrackerOptions, UsePositionTrackerResult } from "./use-position-tracker";
 
-// Trajectory map component (tile-free SVG + optional Leaflet tiles)
+// Trajectory map component (tile-free SVG + optional self-hosted tiles)
 export { TrajectoryMap } from "./TrajectoryMap";
 export type { TrajectoryMapProps } from "./TrajectoryMap";
 

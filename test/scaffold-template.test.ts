@@ -44,7 +44,7 @@ const sdk = manifest(".");
 /**
  * Peers the consuming app must install, i.e. every entry in `peerDependencies`
  * that `peerDependenciesMeta` does not mark optional. Optional peers belong to a
- * single subpath (`recharts` → `/charts`, `leaflet` → the geo tile layer) and
+ * single subpath (`recharts` → `/charts`, `@tiptap/*` → `/editor`) and
  * only the apps using that subpath pay for them.
  */
 const REQUIRED_PEERS = Object.keys(sdk.peerDependencies ?? {}).filter(

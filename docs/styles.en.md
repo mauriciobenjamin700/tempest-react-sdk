@@ -131,10 +131,25 @@ reaches.
     per-component path are **identical**. What changes is how much CSS arrives, not
     what it does.
 
-!!! info "`styles.css` is still published"
-    One line, all 138 components, and nothing breaks: the bundler deduplicates the
-    sheet a component imports against the one you imported. It costs bytes, never
-    correctness — the same trade `auto.css` makes.
+!!! info "`styles.css` is still published — and app overrides always win via `@layer`"
+    One line, all 138 components, and nothing breaks. Because `styles.css` and
+    `styles/component/*.css` are distinct files, a component's stylesheet can land
+    after your app's CSS in the document (for instance, on a lazy route). So a class
+    you pass via `className` or `wrapperClassName` always wins on equal specificity,
+    the SDK declares the layer order:
+
+    ```css
+    @layer tempest.reset, tempest.components, tempest.utilities;
+    ```
+
+    Any **unlayered** rule in your app beats every SDK layer regardless of import
+    order. Token sheets (`tokens.css` and `inverse.css`) intentionally stay unlayered
+    so an unlayered `:root` override in the app never crushes
+    `[data-tempest-theme="dark"]` or `[data-tempest-tone="inverse"]`.
+
+    If your app uses a layered framework (such as **Tailwind v4**, which places
+    utilities in `@layer utilities`), declare `@layer tempest, utilities;` at the top
+    of your stylesheet so utilities beat SDK component rules.
 
 ### You still need the foundation
 

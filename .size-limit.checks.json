@@ -965,7 +965,7 @@
   {
     "name": "styles/forms.css (the largest group)",
     "path": "dist/styles/forms.css",
-    "limit": "6.4 kB"
+    "limit": "6.5 kB"
   },
   {
     "name": "utilities.css (opt-in layer)",

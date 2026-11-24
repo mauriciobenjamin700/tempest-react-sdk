@@ -23,4 +23,19 @@ describe("SearchBar", () => {
         await userEvent.click(clear);
         expect((input as HTMLInputElement).value).toBe("");
     });
+
+    it("applies the fullWidth class to the wrapper only when fullWidth is set", () => {
+        const { container, rerender } = render(<SearchBar value="" onChange={() => {}} />);
+        expect((container.firstChild as HTMLElement).className).not.toContain("fullWidth");
+
+        rerender(<SearchBar value="" onChange={() => {}} fullWidth />);
+        expect((container.firstChild as HTMLElement).className).toContain("fullWidth");
+    });
+
+    it("forwards wrapperClassName alongside the component wrapper classes", () => {
+        const { container } = render(
+            <SearchBar value="" onChange={() => {}} wrapperClassName="custom-search" />,
+        );
+        expect((container.firstChild as HTMLElement).className).toContain("custom-search");
+    });
 });

@@ -515,7 +515,7 @@ export function Tags() {
 
 ## `SearchBar`
 
-A search input with a clear button + optional debounce via `useDebounce`.
+A search input with a clear button + optional debounce via `useDebounce`. By default the wrapper caps at `360px`; pass `fullWidth` to fill the container width.
 
 ```tsx
 import { useState } from "react";
@@ -524,7 +524,7 @@ import { SearchBar } from "tempest-react-sdk";
 export function Busca() {
     const [q, setQ] = useState("");
 
-    return <SearchBar value={q} onChange={setQ} placeholder="What are you looking for?" />;
+    return <SearchBar value={q} onChange={setQ} fullWidth placeholder="What are you looking for?" />;
 }
 ```
 

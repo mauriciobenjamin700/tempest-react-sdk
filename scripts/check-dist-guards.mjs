@@ -432,6 +432,52 @@ try {
     );
 }
 
+/**
+ * Cascade layer contract (#809): every reset, component and utility stylesheet
+ * ships inside `@layer tempest.{reset,components,utilities}` with the layer
+ * order declared up front so any unlayered app rule wins on equal specificity
+ * regardless of import order. Token sheets stay unlayered so an unlayered
+ * `:root` override in the app never crushes `[data-tempest-theme="dark"]` or
+ * `[data-tempest-tone="inverse"]`.
+ */
+const LAYER_ORDER = "@layer tempest.reset, tempest.components, tempest.utilities;";
+const LAYERED_SHEETS = [
+    ["styles.css", ["@layer tempest.reset {", "@layer tempest.components {"]],
+    ["styles/core.css", ["@layer tempest.reset {"]],
+    ["styles/base.css", ["@layer tempest.reset {"]],
+    ["styles/scoped.css", ["@layer tempest.reset {"]],
+    ["utilities.css", ["@layer tempest.utilities {"]],
+];
+for (const [sheet, expectedLayers] of LAYERED_SHEETS) {
+    const css = readFileSync(join(DIST, sheet), "utf8");
+    if (!css.includes(LAYER_ORDER)) {
+        problems.push(`dist/${sheet} is missing the cascade layer order declaration (#809)`);
+    }
+    for (const layer of expectedLayers) {
+        if (!css.includes(layer)) {
+            problems.push(`dist/${sheet} is missing \`${layer}\` (#809)`);
+        }
+    }
+}
+const componentSheetDir = join(DIST, "styles", "component");
+const componentSheets = readdirSync(componentSheetDir).filter((file) => file.endsWith(".css"));
+for (const file of componentSheets) {
+    const css = readFileSync(join(componentSheetDir, file), "utf8");
+    if (!css.includes(LAYER_ORDER) || !css.includes("@layer tempest.components {")) {
+        problems.push(
+            `dist/styles/component/${file} is not wrapped in \`@layer tempest.components\` (#809)`,
+        );
+    }
+}
+for (const tokenSheet of ["styles/tokens.css", "styles/inverse.css"]) {
+    const css = readFileSync(join(DIST, tokenSheet), "utf8");
+    if (css.includes("@layer ")) {
+        problems.push(
+            `dist/${tokenSheet} must stay unlayered so unlayered :root overrides never crush dark/inverse tokens (#809)`,
+        );
+    }
+}
+
 if (problems.length > 0) {
     console.error("check-dist-guards: FAIL");
     for (const problem of problems) console.error(`  - ${problem}`);
@@ -443,5 +489,6 @@ console.log(
         `Icon reaches ${iconGraph.size} modules and none is the slug list, ` +
         `${cssModuleLookups} CSS-module lookups in ${cssModuleImports} imports all resolve, ` +
         `gen icons reads ${iconTableSize} slugs in plain Node, ` +
-        `root reaches no ${ONNX_PEER} importer while /vision reaches ${visionOnnx.length})`,
+        `root reaches no ${ONNX_PEER} importer while /vision reaches ${visionOnnx.length}, ` +
+        `${componentSheets.length} component sheets + foundation/utilities wrapped in @layer tempest.*)`,
 );

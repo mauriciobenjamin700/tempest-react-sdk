@@ -84,7 +84,7 @@ Tooling
     As checagens que perguntam "esse projeto usa X?" leem o **código**, não a prosa:
     comentários saem antes da busca, então um `@example` mostrando
     `import "tempest-react-sdk/styles.css"` não vira um segundo import, e um docstring
-    com `<TrajectoryMap tileUrl=…>` não passa a exigir o `leaflet`. Arquivos de teste
+    com `import "tempest-react-sdk/charts"` não passa a exigir o `recharts`. Arquivos de teste
     também ficam de fora — um teste que renderiza um componente justamente para provar
     como ele degrada **sem** o peer opcional não é o projeto pedindo aquele peer.
 
@@ -137,7 +137,7 @@ Tooling
 - **Deps declaradas mas não instaladas** (drift entre `package.json` e `node_modules`) → `npm install`.
 - **`peerDependencies` do próprio app** não satisfeitas.
 - **`@types/react` × `react`** com majors diferentes → erros de tipo fantasma.
-- **Peers opcionais de subpaths usados**: se você importa `tempest-react-sdk/charts` sem `recharts`, `/editor` sem `@tiptap/react`, `/vision` sem `onnxruntime-web`, ou passa `tileUrl` no `TrajectoryMap` sem `leaflet` — tudo compila, mas quebra no import lazy em runtime.
+- **Peers opcionais de subpaths usados**: se você importa `tempest-react-sdk/charts` sem `recharts`, `/editor` sem `@tiptap/react`, ou `/vision` sem `onnxruntime-web` — tudo compila, mas quebra no import em runtime.
 - **SDK desatualizado** vs o `latest` no npm (best-effort, com timeout curto; pulado offline).
 - **`lucide-react` em cópia dupla** — checagem separada da de cima, porque duas cópias de lucide não quebram hooks como um segundo React: elas duplicam bytes e, o que é pior, deixam as **tabelas de slug geradas** do `/icons` apontando pra exports que a cópia mais antiga não tem. Avisa quando o seu `package.json` declara lucide numa faixa diferente da do SDK (é a causa), quando existe cópia aninhada sob `tempest-react-sdk` (é a prova), e **reprova** quando a versão instalada é mais antiga do que as tabelas exigem — esse caso quebra o build com `… is not exported by lucide-react` apontando pra dentro do SDK. Ver [Ícones por slug](./icons.md).
 

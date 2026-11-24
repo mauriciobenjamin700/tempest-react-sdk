@@ -13,14 +13,17 @@
     width: 100%;
 }
 
-.empty,
-.loading {
+.empty {
     display: flex;
     align-items: center;
     justify-content: center;
     height: 100%;
     color: var(--tempest-text-muted);
     font-size: var(--tempest-text-sm);
+}
+
+.tiles image {
+    pointer-events: none;
 }
 
 .grid line {
@@ -105,4 +108,18 @@
     fill: var(--tempest-text);
     font-size: var(--tempest-text-xs);
     font-family: var(--tempest-font-sans);
+    paint-order: stroke;
+    stroke: var(--tempest-surface);
+    stroke-width: 3;
+}
+
+.attribution {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    padding: 2px 6px;
+    background: var(--tempest-surface);
+    color: var(--tempest-text-muted);
+    font-size: var(--tempest-text-2xs);
+    border-top-left-radius: var(--tempest-radius-sm);
 }

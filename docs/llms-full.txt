@@ -6053,7 +6053,7 @@ Tooling
     As checagens que perguntam "esse projeto usa X?" leem o **código**, não a prosa:
     comentários saem antes da busca, então um `@example` mostrando
     `import "tempest-react-sdk/styles.css"` não vira um segundo import, e um docstring
-    com `<TrajectoryMap tileUrl=…>` não passa a exigir o `leaflet`. Arquivos de teste
+    com `import "tempest-react-sdk/charts"` não passa a exigir o `recharts`. Arquivos de teste
     também ficam de fora — um teste que renderiza um componente justamente para provar
     como ele degrada **sem** o peer opcional não é o projeto pedindo aquele peer.
 
@@ -6106,7 +6106,7 @@ Tooling
 - **Deps declaradas mas não instaladas** (drift entre `package.json` e `node_modules`) → `npm install`.
 - **`peerDependencies` do próprio app** não satisfeitas.
 - **`@types/react` × `react`** com majors diferentes → erros de tipo fantasma.
-- **Peers opcionais de subpaths usados**: se você importa `tempest-react-sdk/charts` sem `recharts`, `/editor` sem `@tiptap/react`, `/vision` sem `onnxruntime-web`, ou passa `tileUrl` no `TrajectoryMap` sem `leaflet` — tudo compila, mas quebra no import lazy em runtime.
+- **Peers opcionais de subpaths usados**: se você importa `tempest-react-sdk/charts` sem `recharts`, `/editor` sem `@tiptap/react`, ou `/vision` sem `onnxruntime-web` — tudo compila, mas quebra no import em runtime.
 - **SDK desatualizado** vs o `latest` no npm (best-effort, com timeout curto; pulado offline).
 - **`lucide-react` em cópia dupla** — checagem separada da de cima, porque duas cópias de lucide não quebram hooks como um segundo React: elas duplicam bytes e, o que é pior, deixam as **tabelas de slug geradas** do `/icons` apontando pra exports que a cópia mais antiga não tem. Avisa quando o seu `package.json` declara lucide numa faixa diferente da do SDK (é a causa), quando existe cópia aninhada sob `tempest-react-sdk` (é a prova), e **reprova** quando a versão instalada é mais antiga do que as tabelas exigem — esse caso quebra o build com `… is not exported by lucide-react` apontando pra dentro do SDK. Ver [Ícones por slug](./icons.md).
 
@@ -21462,7 +21462,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
 Módulo de geolocalização **100% self-hosted**: coleta de latitude/longitude pela API do navegador, cálculo de distância/trajetória e plot de mapas — **sem nenhuma API paga ou externa**. O mapa padrão é um plot **SVG tile-free** (sem imagens de tiles, sem requests). Espelha o módulo `geo` do [`tempest-fastapi-sdk`](https://pypi.org/project/tempest-fastapi-sdk/), então os tipos e a matemática batem entre cliente e servidor.
 
 !!! info "Por que tile-free?"
-    Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa _tiles_ de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o `TrajectoryMap` desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você **hospeda seu próprio** servidor de tiles, dá pra ligar a camada Leaflet opcional passando `tileUrl`.
+    Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa _tiles_ de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o `TrajectoryMap` desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você **hospeda seu próprio** servidor de tiles, basta passar `tileUrl` e os tiles são desenhados sob a mesma projeção SVG, sem biblioteca de mapa extra.
 
 <!-- gallery:geo -->
 [![Geolocalização (mapas & trajetória) na gallery](assets/gallery/geo.webp)](gallery.md)
@@ -21688,36 +21688,38 @@ import { TrajectoryMap } from "tempest-react-sdk";
 />;
 ```
 
-### Tiles reais (opt-in) com Leaflet
+### Tiles reais (opt-in, sem dependência)
 
-Se você **hospeda tiles próprios**, passe `tileUrl` — o componente carrega o Leaflet sob demanda (import dinâmico) e sobe uma camada de tiles de verdade. Requer o `leaflet` instalado no app e a folha de estilo importada uma vez.
+Se você **hospeda tiles próprios**, passe `tileUrl` — o componente desenha os tiles `{z}/{x}/{y}` diretamente no SVG sob a mesma projeção Web Mercator da trajetória e dos marcadores, sem Leaflet e sem folha de estilo extra. Funciona inclusive só com `markers` (`points={[]}`).
 
 ```tsx
-// npm install leaflet
-import "leaflet/dist/leaflet.css";
 import { TrajectoryMap } from "tempest-react-sdk";
 
 <TrajectoryMap
-  points={points}
+  points={[]}
+  markers={[{ id: "loja-1", latitude: -23.5505, longitude: -46.6333, label: "Loja" }]}
   tileUrl="https://tiles.SEU-SERVIDOR/{z}/{x}/{y}.png"
   tileAttribution="© Seus dados de mapa"
   height={420}
 />;
 ```
 
-!!! note "Leaflet é peer opcional"
-    Sem `tileUrl`, o Leaflet **nunca** entra no bundle (o import é lazy). Se `tileUrl` for passado e o `leaflet` não estiver instalado, o componente mostra uma mensagem em vez de quebrar.
+!!! note "Zero dependência externa"
+    Sem `tileUrl`, nenhum request sai da página. Com `tileUrl`, o mapa usa o mesmo motor de tiles SVG do `LiveRouteMap` — nenhuma biblioteca extra precisa ser instalada.
 
 | Prop | Tipo | Default | Descrição |
 | --- | --- | --- | --- |
 | `points` | `readonly Coordinate[]` | — | Trajetória a desenhar. |
 | `current` | `Coordinate \| null` | — | Marcador de posição atual (pulsante). |
+| `markers` | `readonly GeoMarker[]` | — | Marcadores pontuais sobrepostos (entram no auto-fit com ou sem `points`). |
+| `onMarkerClick` | `(marker: GeoMarker, index: number) => void` | — | Clique ou Enter/Espaço num marcador. |
 | `height` | `number` | `320` | Altura do viewport em px. |
 | `padding` | `number` | `24` | Margem interna em px. |
-| `showGrid` / `showScale` | `boolean` | `true` | Grid e barra de escala (modo SVG). |
+| `showGrid` / `showScale` | `boolean` | `true` | Grade (quando sem `tileUrl`) e barra de escala. |
 | `strokeColor` | `string` | token primário | Cor da linha. |
-| `tileUrl` | `string` | — | Template `{z}/{x}/{y}` do **seu** tile server → liga o Leaflet. |
-| `tileAttribution` | `string` | — | Atribuição sobre os tiles. |
+| `tileUrl` | `string` | — | Template `{z}/{x}/{y}` do **seu** tile server — desenha os tiles direto no SVG. |
+| `tileAttribution` | `string` | — | Atribuição exibida no canto inferior direito sobre os tiles. |
+| `tileMaxZoom` | `number` | `19` | Zoom máximo servido pelo tile server. |
 
 ## Mapa de viagem ao vivo — `LiveRouteMap`
 
@@ -22280,7 +22282,7 @@ Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabe
 
 - **Coleta**: `usePositionTracker` / `createPositionTracker` gravam trajetória via `navigator.geolocation`, filtrando jitter — tudo no navegador.
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
-- **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
+- **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` desenha tiles do **seu** servidor sob a mesma projeção, sem dependência externa.
 - **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app. `emphasis`, `glyphText`, `icon` e `markerScale` mudam o glifo, e o `LiveRouteMapLegend` desenha a legenda com os mesmos glifos.
 - **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua. Com `timestamp`, uma posição a cada 5–30 s não quebra a cadeia na esquina.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.
@@ -25928,7 +25930,7 @@ daquele instante ser apresentado, captura e **devolve o player onde estava**.
 | --- | --- |
 | `atMs` | Instante a capturar. Omitido: o frame na tela agora |
 | `restore` | Devolve `currentTime` e a reprodução. Padrão `true` |
-| `timeoutMs` | Teto para a busca e para o frame depois dela. Padrão `3000` |
+| `timeoutMs` | Teto para cada espera: a busca, o frame depois dela e o primeiro frame legível. Padrão `3000` |
 | `signal` | `AbortSignal`; rejeita com `AbortError` |
 | `width` / `height` / `fit` / `type` / `quality` | Iguais ao `resizeImage` |
 
@@ -25956,7 +25958,7 @@ de fato saiu, e `confirmed`.
     - captura com **`atMs`** espera `seeked` + dois animation frames →
       `confirmed: false`, sempre;
     - captura do frame corrente de vídeo **pausado** não espera nada — o frame
-      na tela já é o frame.
+      na tela já é o frame — desde que ele exista (veja abaixo).
 
     `false` num seek é o normal, não um aviso. Tratar como falha rejeitaria a
     maioria das capturas corretas. E é por isso que o seek **não** bloqueia no
@@ -25975,6 +25977,25 @@ de fato saiu, e `confirmed`.
     caminho a sondagem não roda. Ela existe para os caminhos que omitem —
     gravação em chunks por `timeslice`, e outros navegadores. O
     `useVideoRecorder` mantém o próprio relógio justamente por isso.
+
+!!! info "`readyState` diz que há dado, não que há frame"
+    O Chromium sobe o `readyState` — e dispara `loadeddata` — antes de o player
+    ter um frame que o `createImageBitmap` consiga ler. Nessa janela a leitura
+    rejeita com `InvalidStateError` ("The image source is not usable"), e
+    nenhum evento avisa quando ela fecha. Medido em 23/11/2026: lendo um vídeo
+    pausado dentro do próprio `loadeddata`, 2 de 30 leituras falharam com
+    `readyState` 4 e funcionaram 11 e 94 ms depois. Pior: um vídeo **pausado**
+    com `preload="metadata"` nunca decodifica frame sozinho — 60 de 60
+    capturas falhavam, e 1,5 s depois de `loadeddata` e `canplay` ele ainda
+    recusava; um seek para a posição atual destrava em ~17 ms.
+
+    Por isso, quando a leitura de um vídeo pausado é recusada, o
+    `captureFrame` faz **um** seek para onde ele já está (a posição não muda,
+    mas `seeking`/`seeked` disparam no elemento) e repete a leitura a cada
+    ~16 ms até dar certo, o `signal` abortar ou o `timeoutMs` acabar — aí sai
+    `FrameSeekError` dizendo o `readyState`. Vídeo tocando só é esperado.
+    Qualquer outra falha de leitura (vídeo de outra origem, fonte quebrada)
+    não é repetida.
 
 !!! warning "Vídeo de outra origem precisa de `crossOrigin`"
     Sem `crossOrigin="anonymous"` no elemento **antes** da fonte carregar, o
@@ -26086,8 +26107,8 @@ por dezenas de milissegundos por imagem.
 
 Erros: `ImagingError` na raiz, com `ImageDecodeError`, `ImageEncodeError`,
 `FrameSeekError`, `UnsupportedImageTypeError` e `ImagingUnavailableError`. O
-`FrameSeekError` é o do `captureFrame`: a busca não chegou, ou o vídeo não tem
-linha do tempo. Ele existe como classe própria porque a alternativa seria
+`FrameSeekError` é o do `captureFrame`: a busca não chegou, o vídeo não tem
+linha do tempo, ou nenhum frame ficou legível dentro do `timeoutMs`. Ele existe como classe própria porque a alternativa seria
 devolver frame do instante errado, que é indistinguível de um correto para tudo
 o que vem depois.
 

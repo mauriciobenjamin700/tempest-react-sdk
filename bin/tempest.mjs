@@ -127,9 +127,9 @@ function nestedDupe(name) {
  *
  * Every usage check below asks "does this project do X?" of raw source text, and
  * a JSDoc `@example` showing X is not the project doing X — a docstring telling
- * you to `import "tempest-react-sdk/styles.css"`, or one rendering a
- * `<TrajectoryMap tileUrl=…>`, used to be read as a second import and as a
- * leaflet dependency. Strings survive because the checks match import paths,
+ * you to `import "tempest-react-sdk/styles.css"`, or one importing
+ * `tempest-react-sdk/charts`, used to be read as a second import and as a
+ * recharts dependency. Strings survive because the checks match import paths,
  * which live inside them; the design rules use `maskSource` instead, which blanks
  * both.
  *
@@ -303,12 +303,6 @@ const OPTIONAL_PEERS = [
     { peer: "recharts", used: (s) => importsSubpath(s, "charts"), why: "charts" },
     { peer: "@tiptap/react", used: (s) => importsSubpath(s, "editor"), why: "editor" },
     { peer: "onnxruntime-web", used: (s) => importsSubpath(s, "vision"), why: "vision" },
-    {
-        peer: "leaflet",
-        // Only when a TrajectoryMap actually receives a tileUrl prop.
-        used: (s) => /<TrajectoryMap[^>]*\stileUrl\s*=/.test(s),
-        why: "TrajectoryMap tiles",
-    },
 ];
 
 // SDK child-deps that hold module-level state / React context — a second

@@ -216,8 +216,6 @@ export default defineConfig({
                 // Optional peer for `tempest-react-sdk/neural` — the worklet
                 // module is served by the caller, the package is never bundled.
                 "@sapphi-red/web-noise-suppressor",
-                // Optional peer for the geo module's Leaflet tile layer (lazy).
-                "leaflet",
                 // `tempest-react-sdk/vite` is a Node-only config helper — keep
                 // vite + its react plugin (and node builtins) out of the bundle.
                 "vite",

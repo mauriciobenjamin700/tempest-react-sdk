@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TrajectoryMap } from "./TrajectoryMap";
 import type { Coordinate } from "./types";
 
@@ -168,23 +168,95 @@ describe("TrajectoryMap — markers", () => {
 
 describe("TrajectoryMap — tile mode", () => {
     /**
-     * Load the `lazy()` chunk before the render that suspends on it (#768).
-     *
-     * Otherwise the cold transform of `leaflet-map` runs inside `findByText`'s 1 s
-     * window, next to React 19's 300 ms Suspense reveal throttle and the rejected
-     * `import("leaflet")`. The transform happens in the Vitest main process, which
-     * a loaded machine starves; with the module already in the cache the
-     * `lazy()` factory resolves without it.
+     * Regression for #808: `tileUrl` used to lazy-load Leaflet through
+     * `import(/* @vite-ignore *\/ "leaflet")`, which failed in every Vite app
+     * even with `leaflet` installed, and dropped `markers`/`onMarkerClick`.
+     * Tiles are now rendered directly inside the SVG through `tilesForView`
+     * (the same projection `LiveRouteMap` uses), with no peer dependency.
      */
-    beforeAll(async () => {
-        await import("./leaflet-map");
+    it("renders self-hosted tiles directly inside the SVG without Leaflet", () => {
+        const { container } = render(
+            <TrajectoryMap
+                points={PATH}
+                tileUrl="https://tiles.example/{z}/{x}/{y}.png"
+                tileAttribution="© OpenStreetMap"
+                label="Rota"
+            />,
+        );
+        expect(screen.getByRole("img", { name: "Rota" })).toBeInTheDocument();
+        expect(screen.queryByText(/Leaflet não encontrado/i)).not.toBeInTheDocument();
+        const images = container.querySelectorAll("g[class*='tiles'] image");
+        expect(images.length).toBeGreaterThan(0);
+        for (const image of images) {
+            expect(image.getAttribute("href")).toMatch(
+                /^https:\/\/tiles\.example\/\d+\/\d+\/\d+\.png$/,
+            );
+        }
+        expect(screen.getByText("© OpenStreetMap")).toBeInTheDocument();
+        expect(container.querySelector("g[class*='grid']")).toBeNull();
     });
 
-    it("renders the lazy Leaflet layer behind a loading fallback", async () => {
-        render(<TrajectoryMap points={PATH} tileUrl="https://t/{z}/{x}/{y}.png" label="Rota" />);
-        expect(screen.getByText("Carregando mapa…")).toBeInTheDocument();
-        expect(screen.getByRole("img", { name: "Rota" })).toBeInTheDocument();
-        expect(await screen.findByText(/Leaflet não encontrado/)).toBeInTheDocument();
+    it("renders tiles and interactive markers when points is empty", () => {
+        const onMarkerClick = vi.fn();
+        const store = {
+            id: "1",
+            latitude: -2.9037,
+            longitude: -41.7539,
+            label: "Loja",
+        };
+        const { container } = render(
+            <TrajectoryMap
+                points={[]}
+                markers={[store]}
+                onMarkerClick={onMarkerClick}
+                tileUrl="https://tiles.example/{z}/{x}/{y}.png"
+                tileAttribution="© OpenStreetMap"
+                height={220}
+            />,
+        );
+        expect(container.querySelectorAll("g[class*='tiles'] image").length).toBeGreaterThan(0);
+        const marker = screen.getByRole("button", { name: "Loja" });
+        expect(marker).toBeInTheDocument();
+        fireEvent.click(marker);
+        expect(onMarkerClick).toHaveBeenCalledWith(store, 0);
+        expect(screen.getByText("© OpenStreetMap")).toBeInTheDocument();
+    });
+
+    it("caps the tile zoom level at tileMaxZoom", () => {
+        const { container } = render(
+            <TrajectoryMap
+                points={[]}
+                markers={[{ id: "1", latitude: -2.9037, longitude: -41.7539, label: "Loja" }]}
+                tileUrl="https://tiles.example/{z}/{x}/{y}.png"
+                tileMaxZoom={12}
+            />,
+        );
+        const hrefs = [...container.querySelectorAll("g[class*='tiles'] image")].map(
+            (node) => node.getAttribute("href") ?? "",
+        );
+        expect(hrefs.length).toBeGreaterThan(0);
+        for (const href of hrefs) {
+            const zoom = Number(href.match(/\/(\d+)\/\d+\/\d+\.png$/)?.[1]);
+            expect(zoom).toBeLessThanOrEqual(12);
+        }
+    });
+
+    it("omits attribution when tileUrl is absent and renders the empty state with no points or markers", () => {
+        const { unmount } = render(
+            <TrajectoryMap points={PATH} tileAttribution="© OpenStreetMap" />,
+        );
+        expect(screen.queryByText("© OpenStreetMap")).not.toBeInTheDocument();
+        unmount();
+
+        render(
+            <TrajectoryMap
+                points={[]}
+                tileUrl="https://tiles.example/{z}/{x}/{y}.png"
+                tileAttribution="© OpenStreetMap"
+            />,
+        );
+        expect(screen.getByText(/sem pontos de trajetória/i)).toBeInTheDocument();
+        expect(screen.queryByText("© OpenStreetMap")).not.toBeInTheDocument();
     });
 });
 

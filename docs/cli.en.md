@@ -83,7 +83,7 @@ Tooling
     The checks that ask "does this project use X?" read the **code**, not the prose:
     comments are stripped before the search, so an `@example` showing
     `import "tempest-react-sdk/styles.css"` is not a second import, and a docstring with
-    `<TrajectoryMap tileUrl=…>` does not start demanding `leaflet`. Test files are left
+    `import "tempest-react-sdk/charts"` does not start demanding `recharts`. Test files are left
     out too — a test that renders a component precisely to prove how it degrades
     **without** an optional peer is not the project asking for that peer.
 
@@ -136,7 +136,7 @@ Tooling
 - **Declared-but-not-installed deps** (drift between `package.json` and `node_modules`) → `npm install`.
 - **The app's own `peerDependencies`** left unmet.
 - **`@types/react` vs `react`** major mismatch → phantom type errors.
-- **Optional peers for used subpaths**: importing `tempest-react-sdk/charts` without `recharts`, `/editor` without `@tiptap/react`, `/vision` without `onnxruntime-web`, or passing `tileUrl` to `TrajectoryMap` without `leaflet` — it all compiles, then breaks on the lazy import at runtime.
+- **Optional peers for used subpaths**: importing `tempest-react-sdk/charts` without `recharts`, `/editor` without `@tiptap/react`, or `/vision` without `onnxruntime-web` — it all compiles, then breaks on import at runtime.
 - **SDK out of date** vs `latest` on npm (best-effort, short timeout; skipped offline).
 - **A duplicated `lucide-react`** — a separate check from the one above, because two copies of lucide do not break hooks the way a second React does: they duplicate bytes and, worse, leave `/icons`' **generated slug tables** pointing at exports the older copy lacks. It warns when your `package.json` declares lucide on a different range than the SDK's (the cause), when a nested copy exists under `tempest-react-sdk` (the proof), and **fails** when the installed version is older than the tables need — that case breaks the build with `… is not exported by lucide-react` pointing inside the SDK. See [Icons by slug](./icons.md).
 

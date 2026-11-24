@@ -49,7 +49,7 @@ Peers obrigatórios: `react`, `react-dom` (`^18 || ^19`), `react-router`
 (`^7 || ^8`) — os três carregam contexto React. Deps diretas:
 `@tanstack/react-query`, `zod`, `zustand`, `dexie`, `react-hook-form`,
 `lucide-react`, `fflate`. Peers opcionais por módulo: `recharts` (`/charts`),
-`@tiptap/*` (`/editor`), `leaflet` (`geo`), `onnxruntime-web` (`/vision`,
+`@tiptap/*` (`/editor`), `onnxruntime-web` (`/vision`,
 `/tabular`), `vite` + `@vitejs/plugin-react` (`/vite`).
 
 ## Mapa do repositório

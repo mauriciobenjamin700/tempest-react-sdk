@@ -37,6 +37,50 @@ function simulateWalk(center: Coordinate, steps: number): TrackPoint[] {
 
 const SAO_PAULO: Coordinate = { latitude: -23.5505, longitude: -46.6333 };
 
+const LOCAL_TILE_URL =
+    "data:image/svg+xml," +
+    encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256">' +
+            '<rect width="256" height="256" fill="#edf2f7"/>' +
+            '<path d="M0 64H256M0 192H256M64 0V256M192 0V256" stroke="#cbd5e1" stroke-width="2"/>' +
+            '<path d="M0 128H256M128 0V256" stroke="#94a3b8" stroke-width="4"/>' +
+            "</svg>",
+    ) +
+    "#z={z}&x={x}&y={y}";
+
+const SINGLE_STORE_MARKERS = [
+    {
+        id: "store-1",
+        latitude: -2.9037,
+        longitude: -41.7539,
+        label: "Loja Centro",
+    },
+];
+
+/** Self-hosted tile rendering on TrajectoryMap with markers alone (no Leaflet). */
+function TrajectoryTilesDemo(): ReactElement {
+    const [selected, setSelected] = useState<string | null>(null);
+
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
+            <TrajectoryMap
+                points={[]}
+                markers={SINGLE_STORE_MARKERS}
+                onMarkerClick={(marker) => setSelected(marker.label ?? marker.id ?? null)}
+                tileUrl={LOCAL_TILE_URL}
+                tileAttribution="© Mapa local"
+                label="Localização da loja"
+                height={220}
+            />
+            <span style={{ fontSize: 13, color: "var(--tempest-text-muted)" }}>
+                {selected
+                    ? `Marcador selecionado: ${selected}`
+                    : "Clique no marcador para selecioná-lo."}
+            </span>
+        </div>
+    );
+}
+
 /** Live SVG trajectory: real GPS tracking + a synthetic-walk fallback. */
 function TrajectoryDemo(): ReactElement {
     const [simulated, setSimulated] = useState<TrackPoint[]>([]);
@@ -608,11 +652,37 @@ function LiveRun() {
                     {
                         name: "TrajectoryMap.tileUrl",
                         type: "string",
-                        description: "Template {z}/{x}/{y} do SEU tile server → liga o Leaflet.",
+                        description:
+                            "Template {z}/{x}/{y} do SEU tile server — desenha tiles direto no SVG, sem dependência extra.",
                     },
                 ]}
             >
                 <TrajectoryDemo />
+            </Example>
+
+            <Example
+                id="ex-trajectory-map-tiles"
+                title="TrajectoryMap — tiles próprios com marcador (sem Leaflet)"
+                note={
+                    <>
+                        Com <code>tileUrl</code>, o mapa desenha os tiles{" "}
+                        <code>{"{z}/{x}/{y}"}</code> direto no SVG sob a mesma projeção Web
+                        Mercator, sem Leaflet. Funciona inclusive com <code>points={"[]"}</code> e
+                        apenas <code>markers</code>.
+                    </>
+                }
+                code={`import { TrajectoryMap } from "tempest-react-sdk";
+
+<TrajectoryMap
+  points={[]}
+  markers={[{ id: "store-1", latitude: -2.9037, longitude: -41.7539, label: "Loja Centro" }]}
+  onMarkerClick={(marker) => console.log(marker.id)}
+  tileUrl="https://tiles.SEU-SERVIDOR/{z}/{x}/{y}.png"
+  tileAttribution="© OpenStreetMap"
+  height={220}
+/>`}
+            >
+                <TrajectoryTilesDemo />
             </Example>
 
             <Example

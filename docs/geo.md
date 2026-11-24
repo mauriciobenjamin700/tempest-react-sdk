@@ -3,7 +3,7 @@
 Módulo de geolocalização **100% self-hosted**: coleta de latitude/longitude pela API do navegador, cálculo de distância/trajetória e plot de mapas — **sem nenhuma API paga ou externa**. O mapa padrão é um plot **SVG tile-free** (sem imagens de tiles, sem requests). Espelha o módulo `geo` do [`tempest-fastapi-sdk`](https://pypi.org/project/tempest-fastapi-sdk/), então os tipos e a matemática batem entre cliente e servidor.
 
 !!! info "Por que tile-free?"
-    Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa _tiles_ de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o `TrajectoryMap` desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você **hospeda seu próprio** servidor de tiles, dá pra ligar a camada Leaflet opcional passando `tileUrl`.
+    Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa _tiles_ de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o `TrajectoryMap` desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você **hospeda seu próprio** servidor de tiles, basta passar `tileUrl` e os tiles são desenhados sob a mesma projeção SVG, sem biblioteca de mapa extra.
 
 <!-- gallery:geo -->
 [![Geolocalização (mapas & trajetória) na gallery](assets/gallery/geo.webp)](gallery.md)
@@ -229,36 +229,38 @@ import { TrajectoryMap } from "tempest-react-sdk";
 />;
 ```
 
-### Tiles reais (opt-in) com Leaflet
+### Tiles reais (opt-in, sem dependência)
 
-Se você **hospeda tiles próprios**, passe `tileUrl` — o componente carrega o Leaflet sob demanda (import dinâmico) e sobe uma camada de tiles de verdade. Requer o `leaflet` instalado no app e a folha de estilo importada uma vez.
+Se você **hospeda tiles próprios**, passe `tileUrl` — o componente desenha os tiles `{z}/{x}/{y}` diretamente no SVG sob a mesma projeção Web Mercator da trajetória e dos marcadores, sem Leaflet e sem folha de estilo extra. Funciona inclusive só com `markers` (`points={[]}`).
 
 ```tsx
-// npm install leaflet
-import "leaflet/dist/leaflet.css";
 import { TrajectoryMap } from "tempest-react-sdk";
 
 <TrajectoryMap
-  points={points}
+  points={[]}
+  markers={[{ id: "loja-1", latitude: -23.5505, longitude: -46.6333, label: "Loja" }]}
   tileUrl="https://tiles.SEU-SERVIDOR/{z}/{x}/{y}.png"
   tileAttribution="© Seus dados de mapa"
   height={420}
 />;
 ```
 
-!!! note "Leaflet é peer opcional"
-    Sem `tileUrl`, o Leaflet **nunca** entra no bundle (o import é lazy). Se `tileUrl` for passado e o `leaflet` não estiver instalado, o componente mostra uma mensagem em vez de quebrar.
+!!! note "Zero dependência externa"
+    Sem `tileUrl`, nenhum request sai da página. Com `tileUrl`, o mapa usa o mesmo motor de tiles SVG do `LiveRouteMap` — nenhuma biblioteca extra precisa ser instalada.
 
 | Prop | Tipo | Default | Descrição |
 | --- | --- | --- | --- |
 | `points` | `readonly Coordinate[]` | — | Trajetória a desenhar. |
 | `current` | `Coordinate \| null` | — | Marcador de posição atual (pulsante). |
+| `markers` | `readonly GeoMarker[]` | — | Marcadores pontuais sobrepostos (entram no auto-fit com ou sem `points`). |
+| `onMarkerClick` | `(marker: GeoMarker, index: number) => void` | — | Clique ou Enter/Espaço num marcador. |
 | `height` | `number` | `320` | Altura do viewport em px. |
 | `padding` | `number` | `24` | Margem interna em px. |
-| `showGrid` / `showScale` | `boolean` | `true` | Grid e barra de escala (modo SVG). |
+| `showGrid` / `showScale` | `boolean` | `true` | Grade (quando sem `tileUrl`) e barra de escala. |
 | `strokeColor` | `string` | token primário | Cor da linha. |
-| `tileUrl` | `string` | — | Template `{z}/{x}/{y}` do **seu** tile server → liga o Leaflet. |
-| `tileAttribution` | `string` | — | Atribuição sobre os tiles. |
+| `tileUrl` | `string` | — | Template `{z}/{x}/{y}` do **seu** tile server — desenha os tiles direto no SVG. |
+| `tileAttribution` | `string` | — | Atribuição exibida no canto inferior direito sobre os tiles. |
+| `tileMaxZoom` | `number` | `19` | Zoom máximo servido pelo tile server. |
 
 ## Mapa de viagem ao vivo — `LiveRouteMap`
 
@@ -821,7 +823,7 @@ Os padrões estão em `ROAD_MATCH_DEFAULTS` e `ROAD_MATCHER_DEFAULT_LAG`. A tabe
 
 - **Coleta**: `usePositionTracker` / `createPositionTracker` gravam trajetória via `navigator.geolocation`, filtrando jitter — tudo no navegador.
 - **Matemática**: `haversineKm`, `pathLengthKm`, `bearingDeg`, `estimateTravel` — offline, espelhando o `tempest-fastapi-sdk`.
-- **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` liga o Leaflet só com servidor **seu**.
+- **Mapa**: `TrajectoryMap` plota em SVG sem tiles por padrão; `tileUrl` desenha tiles do **seu** servidor sob a mesma projeção, sem dependência externa.
 - **Viagem ao vivo**: `LiveRouteMap` mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com `roads`, desenha as ruas e encaixa veículo e trilha nelas, sem código no app. `emphasis`, `glyphText`, `icon` e `markerScale` mudam o glifo, e o `LiveRouteMapLegend` desenha a legenda com os mesmos glifos.
 - **Encaixe na rua**: `createRoadGraph` + `matchToRoads` (trajeto inteiro) e `createRoadMatcher` (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua. Com `timestamp`, uma posição a cada 5–30 s não quebra a cadeia na esquina.
 - **Rota real**: `createOSRMBackend` é opt-in e aponta pro **seu** OSRM — o único ponto que toca a rede.

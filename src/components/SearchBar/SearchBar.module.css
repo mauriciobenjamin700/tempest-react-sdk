@@ -5,6 +5,10 @@
     font-family: var(--tempest-font-sans);
 }
 
+.fullWidth {
+    max-width: 100%;
+}
+
 .input {
     width: 100%;
     height: var(--tempest-control-height-md);

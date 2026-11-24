@@ -10,6 +10,8 @@ export interface SearchBarProps extends Omit<InputHTMLAttributes<HTMLInputElemen
     onChange: (value: string) => void;
     onClear?: () => void;
     wrapperClassName?: string;
+    /** Stretch the search bar to the full width of its container, removing the 360px cap. Default: `false`. */
+    fullWidth?: boolean;
 }
 
 /**
@@ -17,7 +19,16 @@ export interface SearchBarProps extends Omit<InputHTMLAttributes<HTMLInputElemen
  * pass `value` and `onChange`.
  */
 export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function SearchBar(
-    { value, onChange, onClear, wrapperClassName, placeholder, className, ...props },
+    {
+        value,
+        onChange,
+        onClear,
+        wrapperClassName,
+        fullWidth = false,
+        placeholder,
+        className,
+        ...props
+    },
     ref,
 ) {
     const text = useTempestText(SEARCH_BAR_MESSAGES);
@@ -27,7 +38,7 @@ export const SearchBar = forwardRef<HTMLInputElement, SearchBarProps>(function S
     }
 
     return (
-        <div className={cn(styles.wrapper, wrapperClassName)}>
+        <div className={cn(styles.wrapper, fullWidth && styles.fullWidth, wrapperClassName)}>
             <span className={styles.iconLeft} aria-hidden>
                 <SearchIcon />
             </span>

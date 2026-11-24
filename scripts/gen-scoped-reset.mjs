@@ -42,6 +42,15 @@ const OUT = join(REPO_ROOT, "src", "styles", "scoped.css");
 const SCOPE = ':where([class*="tempest_"])';
 
 /**
+ * Cascade layer order shared across every stylesheet the SDK ships (#809).
+ *
+ * Putting the reset, components and utilities into named layers keeps every
+ * unlayered rule in the consuming app above them on equal specificity, even
+ * when a component imports its own stylesheet after the app's CSS.
+ */
+const LAYER_ORDER = "@layer tempest.reset, tempest.components, tempest.utilities;";
+
+/**
  * Selectors dropped rather than scoped: they address the document, not a component.
  *
  * Matched against the whole selector text, comma-separated parts included, because
@@ -282,10 +291,14 @@ function main() {
  * normalisation they are written against, and \`html\`, \`body\` and \`#root\` are left
  * to the app.
  *
- * \`:where()\` contributes no specificity, so every selector here weighs what it
- * weighed globally.
+ * \`:where()\` contributes no specificity, and \`@layer tempest.reset\` keeps every
+ * declaration below \`tempest.components\`, \`tempest.utilities\` and any unlayered
+ * rule in the consuming app.
  */
 
+${LAYER_ORDER}
+
+@layer tempest.reset {
 ${SCOPE},
 ${SCOPE} *,
 ${SCOPE} *::before,
@@ -308,7 +321,7 @@ ${SCOPE} *::after {
         return;
     }
 
-    const text = `${header}\n${rules.join("\n\n")}\n`;
+    const text = `${header}\n${rules.join("\n\n")}\n}\n`;
     assertNoPropertyLost(css, text);
     const stale = !existsSync(OUT) || readFileSync(OUT, "utf8") !== text;
     if (!check) writeFileSync(OUT, text);

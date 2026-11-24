@@ -129,10 +129,25 @@ o app não alcança.
     componente são **idênticos**. O que muda é quanto CSS chega, não o que ele
     faz.
 
-!!! info "`styles.css` continua publicado"
-    Uma linha, todos os 138 componentes, e nada quebra: o bundler deduplica a
-    folha que o componente importa contra a que você importou. Custa bytes, nunca
-    correção — é a mesma troca do `auto.css`.
+!!! info "`styles.css` continua publicado — e overrides do app vencem sempre via `@layer`"
+    Uma linha, todos os 138 componentes, e nada quebra. Como `styles.css` e os
+    `styles/component/*.css` são arquivos distintos, o CSS do componente pode entrar
+    no documento depois do CSS do seu app (por exemplo, numa rota lazy). Para que uma
+    classe sua passada em `className` ou `wrapperClassName` sempre vença com a mesma
+    especificidade, o SDK declara a ordem:
+
+    ```css
+    @layer tempest.reset, tempest.components, tempest.utilities;
+    ```
+
+    Qualquer regra **sem `@layer`** no seu app vence todas as camadas do SDK,
+    independentemente da ordem de import. Os tokens (`tokens.css` e `inverse.css`)
+    ficam intencionalmente fora de `@layer` para que um `:root` do app não esmague
+    `[data-tempest-theme="dark"]` nem `[data-tempest-tone="inverse"]`.
+
+    Se o seu app usa um framework baseado em camadas (como **Tailwind v4**, que coloca
+    utilitários em `@layer utilities`), declare `@layer tempest, utilities;` no topo
+    do seu CSS para os utilitários vencerem os componentes do SDK.
 
 ### Ainda precisa de fundação
 

@@ -6,6 +6,20 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Corrigido
 
+- **CSS do SDK agora usa Cascade Layers (`@layer tempest.reset, tempest.components,
+tempest.utilities;`) para que overrides do app vençam sempre com a mesma especificidade (#809).**
+  Como cada módulo de componente importa seu `styles/component/<X>.css` como efeito colateral, a
+  folha do componente pode entrar no documento depois do CSS do app (inclusive em rotas lazy ou
+  mesmo quando `styles.css` já foi importado no entry) e vencer classes passadas em
+  `className`/`wrapperClassName` no empate de especificidade. Agora `reset`/`scoped` entram em
+  `tempest.reset`, componentes/grupos em `tempest.components` e `utilities.css` em
+  `tempest.utilities`, colocando qualquer regra sem `@layer` do app acima sempre e preservando
+  `reset < components < utilities` dentro do SDK. As folhas de tokens (`tokens.css` e `inverse.css`)
+  ficam intencionalmente fora de `@layer` para que um `:root` do app não esmague
+  `[data-tempest-theme="dark"]` nem `[data-tempest-tone="inverse"]`. Guard adicionado em
+  `scripts/check-dist-guards.mjs` e validação em browser real em `e2e/css-cascade-layers.spec.ts`.
+- **`SearchBar` ganhou a prop `fullWidth`** (#809), removendo o teto padrão de `360px` do wrapper
+  no mesmo padrão de `Button`, `SegmentedControl`, `ShareButton` e `Center`.
 - **`TrajectoryMap` com `tileUrl` agora desenha tiles `{z}/{x}/{y}` direto no SVG e respeita
   `markers` / `onMarkerClick` (#808).** Antes, `dist/geo/leaflet-map.js` chamava
   `import(/* @vite-ignore */ "leaflet")`, o que impedia o Vite de reescrever o especificador e
@@ -18,6 +32,14 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ### Budgets
 
+- **#809, medido com `npm run build && npx size-limit --json` sobre a `main` em `5be3750` e sobre
+  este branch**, bytes brotli: `styles.css` 32 886 → 32 862 (−24 B); `styles/core.css` 3 307 →
+  3 335 (+28 B); `styles: foundation without the global reset` 3 052 → 3 073 (+21 B);
+  `styles: a typical app (core + 12 components)` 9 337 → 9 668 (+331 B); `utilities.css` 1 360 →
+  1 386 (+26 B); `styles/forms.css` 6 354 → 6 407 (+53 B, teto 6,4 → 6,5 kB); `ceiling: full barrel
+ESM` 178 579 → 178 937 (teto 179,4 kB, sem mudança); `ceiling: full barrel CJS` 211 912 → 212 021
+  (teto 212,6 kB, sem mudança). Os +53 B em `styles/forms.css` compram o embrulho em
+  `@layer tempest.components` e a regra `.fullWidth` do `SearchBar`.
 - **#808, medido com `npm run build && npx size-limit --json` sobre a `main` em `ec1d50b` e sobre
   este branch**, bytes brotli: `slice: geo` 3 810 → 3 387 (−423 B); `slice: LiveRouteMap`
   9 296 → 9 262 (−34 B); `ceiling: full barrel ESM` 179 263 → 178 673 (−590 B);

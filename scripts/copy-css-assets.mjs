@@ -32,11 +32,19 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
  * nothing imports it.
  */
 const ASSETS = [
-    ["src/styles/utilities.css", "dist/utilities.css"],
     ["src/styles/scoped.css", "dist/styles/scoped.css"],
     ["src/styles/inverse.css", "dist/styles/inverse.css"],
     ["src/icons/virtual-id.d.ts", "dist/icons-virtual-id.d.ts"],
 ];
+
+/**
+ * Cascade layer order shared with `split-css.mjs` and `gen-scoped-reset.mjs` (#809).
+ *
+ * `utilities.css` is placed in `tempest.utilities`, above `tempest.components`
+ * (so a utility class overrides a component rule regardless of import order) and
+ * below any unlayered app CSS (so the app wins on equal specificity).
+ */
+const LAYER_ORDER = "@layer tempest.reset, tempest.components, tempest.utilities;";
 
 /**
  * Declaration files that get a reference to the legacy virtual module id.
@@ -61,6 +69,16 @@ async function main() {
         await copyFile(join(ROOT, from), join(ROOT, to));
         console.log(`copy-css-assets: ${from} → ${to}`);
     }
+
+    const utilitiesSource = await readFile(join(ROOT, "src/styles/utilities.css"), "utf8");
+    await writeFile(
+        join(ROOT, "dist/utilities.css"),
+        `${LAYER_ORDER}\n@layer tempest.utilities {\n${utilitiesSource.trimEnd()}\n}\n`,
+        "utf8",
+    );
+    console.log(
+        "copy-css-assets: src/styles/utilities.css → dist/utilities.css (@layer tempest.utilities)",
+    );
 
     for (const target of VIRTUAL_ID_REFERENCE) {
         const path = join(ROOT, target);

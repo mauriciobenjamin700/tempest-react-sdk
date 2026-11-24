@@ -253,12 +253,19 @@ const HUMOR = new Map([[5, "Ótimo"], [3, "Ok"], [1, "Ruim"]]);
             </Example>
 
             <Example
+                id="ex-searchbar"
                 title="SearchBar"
-                note="onChange recebe o valor direto (sem event)."
-                code={`<SearchBar value={search} onChange={setSearch} placeholder="Buscar usuários…" />`}
+                note="onChange recebe o valor direto (sem event). Passe fullWidth para ocupar toda a largura do container."
+                code={`<SearchBar value={search} onChange={setSearch} placeholder="Buscar usuários…" />\n<SearchBar value={search} onChange={setSearch} fullWidth placeholder="Busca em largura total…" />`}
             >
-                <div className="gallery-stack">
+                <div className="gallery-stack" style={{ width: "100%", maxWidth: "none" }}>
                     <SearchBar value={search} onChange={setSearch} placeholder="Buscar usuários…" />
+                    <SearchBar
+                        value={search}
+                        onChange={setSearch}
+                        fullWidth
+                        placeholder="Busca em largura total…"
+                    />
                 </div>
             </Example>
         </section>

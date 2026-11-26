@@ -86,7 +86,7 @@ export interface InteractionReport {
     startTime: number;
     /** Milliseconds from `trace()` to `end()`. */
     totalMs: number;
-    /** Every step, in the order it started. */
+    /** Every step, in the order it was opened: a parent always before its children. */
     spans: readonly TraceSpan[];
     cpu: TraceCpuCost;
     /** Battery at the start and end of the trace; `null` where unsupported. */

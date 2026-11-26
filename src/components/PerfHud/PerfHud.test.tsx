@@ -78,7 +78,9 @@ describe("PerfHud", () => {
         render(<PerfHud snapshot={SNAPSHOT} defaultOpen />);
         expect(screen.getByText("82% na bateria · 6.3 %/h")).toBeInTheDocument();
         expect(screen.getByText("alta")).toBeInTheDocument();
-        const input = screen.getByRole("region", { name: "Último toque" });
+        const input = screen
+            .getByText("Último toque", { exact: false })
+            .closest("[data-part='input']") as HTMLElement;
         expect(within(input).getByText("espera 20 ms")).toBeInTheDocument();
         expect(within(input).getByText("handler 60 ms")).toBeInTheDocument();
         expect(within(input).getByText("pintura 20 ms")).toBeInTheDocument();
@@ -98,7 +100,7 @@ describe("PerfHud", () => {
         render(<PerfHud snapshot={EMPTY} defaultOpen />);
         expect(screen.getAllByText("indisponível neste navegador")).toHaveLength(2);
         expect(screen.getByText("Nenhuma interação medida ainda.")).toBeInTheDocument();
-        expect(screen.queryByRole("region", { name: "Último toque" })).not.toBeInTheDocument();
+        expect(screen.queryByText("Último toque", { exact: false })).not.toBeInTheDocument();
     });
 
     it("shows a placeholder while a supported source has not reported yet", () => {
@@ -151,6 +153,26 @@ describe("PerfHud", () => {
         const inlineClass = panel.className;
         rerender(<PerfHud snapshot={EMPTY} position="top-left" />);
         expect(screen.getByRole("complementary").className).not.toBe(inlineClass);
+    });
+
+    it("is a single landmark, renamable so two HUDs on a page stay distinct", () => {
+        const { container } = render(
+            <>
+                <PerfHud snapshot={SNAPSHOT} defaultOpen position="inline" />
+                <PerfHud
+                    snapshot={SNAPSHOT}
+                    defaultOpen
+                    position="inline"
+                    aria-label="Desempenho (gravado)"
+                />
+            </>,
+        );
+        expect(screen.queryAllByRole("region")).toHaveLength(0);
+        expect(screen.getByRole("complementary", { name: "Desempenho" })).toBeInTheDocument();
+        expect(
+            screen.getByRole("complementary", { name: "Desempenho (gravado)" }),
+        ).toBeInTheDocument();
+        expect(container.querySelectorAll("section")).toHaveLength(0);
     });
 
     it("lets the app replace every text", () => {

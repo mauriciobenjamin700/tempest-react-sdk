@@ -1,8 +1,148 @@
 import { useState } from "react";
 import { Button, PerfHud, createPerfMonitor, usePerfMonitor } from "tempest-react-sdk";
+import type { PerfSnapshot } from "tempest-react-sdk";
 import { Example } from "../Example";
 
 const perf = createPerfMonitor();
+
+const DEVICE = { hardwareConcurrency: 8, deviceMemoryGb: 4, jsHeapUsedMb: null };
+
+/**
+ * A snapshot recorded from this section's own buttons on Chromium 159 (two
+ * checkouts, the second one refused), frozen so the documentation capture
+ * shows a full waterfall and does not change between runs the way live
+ * timings, CPU pressure and battery do.
+ */
+const RECORDED: PerfSnapshot = {
+    battery: { level: 1, charging: true, at: 0, drainPerHour: null },
+    pressure: "serious",
+    inputs: [
+        {
+            interactionId: 2,
+            type: "click",
+            startTime: 4100,
+            inputDelayMs: 18,
+            processingMs: 120,
+            presentationMs: 22,
+            durationMs: 160,
+        },
+    ],
+    reports: [
+        {
+            name: "checkout",
+            startTime: 4100,
+            totalMs: 437,
+            spans: [
+                {
+                    name: "validate",
+                    path: "validate",
+                    depth: 0,
+                    startMs: 0,
+                    durationMs: 120,
+                    longFrameMs: 120,
+                    failed: false,
+                },
+                {
+                    name: "pay",
+                    path: "pay",
+                    depth: 0,
+                    startMs: 121,
+                    durationMs: 253,
+                    longFrameMs: 0,
+                    failed: true,
+                },
+                {
+                    name: "tokenize",
+                    path: "pay/tokenize",
+                    depth: 1,
+                    startMs: 121,
+                    durationMs: 97,
+                    longFrameMs: 0,
+                    failed: false,
+                },
+                {
+                    name: "charge",
+                    path: "pay/charge",
+                    depth: 1,
+                    startMs: 218,
+                    durationMs: 156,
+                    longFrameMs: 0,
+                    failed: true,
+                },
+                {
+                    name: "rollback",
+                    path: "rollback",
+                    depth: 0,
+                    startMs: 375,
+                    durationMs: 62,
+                    longFrameMs: 0,
+                    failed: false,
+                },
+            ],
+            cpu: { longFrameMs: 133, longFrames: 1, peakPressure: "serious" },
+            battery: { start: null, end: null },
+            input: null,
+            device: DEVICE,
+            failed: true,
+            measuredAt: 0,
+        },
+        {
+            name: "checkout",
+            startTime: 1200,
+            totalMs: 373,
+            spans: [
+                {
+                    name: "validate",
+                    path: "validate",
+                    depth: 0,
+                    startMs: 0,
+                    durationMs: 120,
+                    longFrameMs: 120,
+                    failed: false,
+                },
+                {
+                    name: "pay",
+                    path: "pay",
+                    depth: 0,
+                    startMs: 121,
+                    durationMs: 253,
+                    longFrameMs: 0,
+                    failed: false,
+                },
+                {
+                    name: "tokenize",
+                    path: "pay/tokenize",
+                    depth: 1,
+                    startMs: 121,
+                    durationMs: 81,
+                    longFrameMs: 0,
+                    failed: false,
+                },
+                {
+                    name: "charge",
+                    path: "pay/charge",
+                    depth: 1,
+                    startMs: 202,
+                    durationMs: 171,
+                    longFrameMs: 0,
+                    failed: false,
+                },
+            ],
+            cpu: { longFrameMs: 131, longFrames: 1, peakPressure: "serious" },
+            battery: { start: null, end: null },
+            input: null,
+            device: DEVICE,
+            failed: false,
+            measuredAt: 0,
+        },
+    ],
+    support: {
+        battery: true,
+        pressure: true,
+        longFrames: "long-animation-frame",
+        eventTiming: true,
+    },
+};
 
 /**
  * Block the main thread for `ms`, standing in for heavy synchronous work.
@@ -58,6 +198,22 @@ export function PerfSection() {
     return (
         <section className="gallery-section" id="perf">
             <h3>Desempenho: etapas, CPU e bateria</h3>
+            <Example
+                id="perf-hud-recorded"
+                title="PerfHud com um relatório gravado"
+                note="Snapshot fixo, gravado dos botões abaixo no Chromium 159: dois checkouts, o segundo recusado. A validação de 120 ms aparece como frame longo; a cobrança recusada pinta a etapa e o pai de vermelho."
+                code={`import { PerfHud } from "tempest-react-sdk";
+import type { PerfSnapshot } from "tempest-react-sdk";
+
+<PerfHud snapshot={gravado} position="inline" defaultOpen />`}
+            >
+                <PerfHud
+                    snapshot={RECORDED}
+                    position="inline"
+                    defaultOpen
+                    aria-label="Desempenho — relatório gravado"
+                />
+            </Example>
             <Example
                 id="perf-hud"
                 title="createPerfMonitor + PerfHud"

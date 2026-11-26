@@ -801,7 +801,7 @@ Collapsed, it takes one line in a corner ("Desempenho 82% · CPU normal · check
 
 A source the browser does not expose (battery and pressure on Safari/Firefox) reads "unavailable", never zero; a supported source that has not answered yet reads "…". `"inline"` drops the `position: fixed`, for a debug page. Default texts are PT-BR; pass `labels` for English.
 
-**A11y:** an `<aside>` named by the title, with the content inside a native `<details>` — it opens and closes from the keyboard without script. Bars are decorative (`aria-hidden`): each has its number written next to it.
+**A11y:** an `<aside>` named by the title — the only landmark; the blocks inside are not `region`s, and a second HUD on the same page takes its own `aria-label` — with the content inside a native `<details>` — it opens and closes from the keyboard without script. Bars are decorative (`aria-hidden`): each has its number written next to it.
 
 ## `UpdatePrompt`
 

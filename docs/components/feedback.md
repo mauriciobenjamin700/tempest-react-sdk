@@ -698,6 +698,46 @@ Com `persisted === false` e `onRequestPersist`, aparece o botão "Tornar armazen
 
 **A11y:** a barra é `role="meter"` (nível, não progresso de tarefa) nomeada pelo título, com `aria-valuetext` igual ao "X de Y usados" que o olho lê. Os avisos usam `role="status"` (polido), não o `role="alert"` padrão do `Alert`: o componente costuma montar numa tela com o aviso já verdadeiro, e um anúncio assertivo a cada montagem interromperia o leitor.
 
+## `PerfHud`
+
+<!-- gallery:perf -->
+[![Desempenho: etapas · CPU · bateria na gallery](../assets/gallery/perf.webp)](../gallery.md)
+
+*Seção `perf` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+**Quando usar:** ver, em desenvolvimento, o que um [`createPerfMonitor`](../perf-monitor.md) está medindo — bateria e taxa de descarga, pressão de CPU, a latência do último toque e uma cascata das últimas interações com cada etapa. O componente **não lê o navegador sozinho**: recebe o snapshot do `usePerfMonitor(monitor)`, então o mesmo monitor que alimenta a telemetria de produção alimenta o HUD.
+
+```tsx
+import { PerfHud, createPerfMonitor, usePerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+export function DevOverlay() {
+    const snapshot = usePerfMonitor(perf);
+    return import.meta.env.DEV ? <PerfHud snapshot={snapshot} /> : null;
+}
+```
+
+Fechado, ocupa uma linha no canto ("Desempenho 82% · CPU normal · checkout 410 ms"); aberto, mostra:
+
+- **Bateria**: nível, "na bateria"/"carregando" e a taxa em %/h — ou "medindo consumo…" até o segundo degrau de 1 %.
+- **CPU**: o estado de pressão (`normal`, `moderada`, `alta`, `crítica`), em âmbar e vermelho nos dois últimos.
+- **Último toque**: barra empilhada de espera do input, handler e pintura, com o número de cada um.
+- **Interações**: as últimas `maxReports`, cada etapa numa linha recuada pela profundidade, com a barra posicionada pelo início e largura pela duração. Etapa que falhou fica vermelha.
+
+| Prop          | Tipo                                                                     | Default          |
+| ------------- | ------------------------------------------------------------------------ | ---------------- |
+| `snapshot`    | `PerfSnapshot`                                                           | —                |
+| `position`    | `"bottom-right" \| "bottom-left" \| "top-right" \| "top-left" \| "inline"` | `"bottom-right"` |
+| `maxReports`  | `number`                                                                 | `5`              |
+| `defaultOpen` | `boolean`                                                                | `false`          |
+| `labels`      | `Partial<PerfHudLabels>`                                                 | PT-BR            |
+
+Fonte que o navegador não expõe (bateria e pressão no Safari/Firefox) aparece como "indisponível neste navegador", nunca como zero; fonte suportada que ainda não respondeu aparece como "…". `"inline"` tira o `position: fixed`, para uma página de debug.
+
+**A11y:** é um `<aside>` nomeado pelo título, com o conteúdo dentro de um `<details>` nativo — abre e fecha pelo teclado sem script. As barras são decorativas (`aria-hidden`): cada uma tem o número escrito ao lado.
+
 ## `UpdatePrompt`
 
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.

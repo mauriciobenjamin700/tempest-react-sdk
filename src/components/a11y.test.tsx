@@ -37,6 +37,7 @@ import { Sparkline } from "./Sparkline";
 import { CodeBlock } from "./CodeBlock";
 import { QRCode } from "./QRCode";
 import { Spinner } from "./Spinner";
+import { PerfHud } from "./PerfHud";
 import { StorageUsage } from "./StorageUsage";
 import { Switch } from "./Switch";
 import { Table } from "./Table";
@@ -133,6 +134,58 @@ const CASES: [name: string, ui: ReactElement][] = [
             pendingBytes={10}
             persisted={false}
             onRequestPersist={() => undefined}
+        />,
+    ],
+    [
+        "PerfHud (open, every block)",
+        <PerfHud
+            defaultOpen
+            position="inline"
+            snapshot={{
+                battery: { level: 0.5, charging: false, at: 0, drainPerHour: 4 },
+                pressure: "critical",
+                inputs: [
+                    {
+                        interactionId: 1,
+                        type: "click",
+                        startTime: 0,
+                        inputDelayMs: 10,
+                        processingMs: 30,
+                        presentationMs: 20,
+                        durationMs: 64,
+                    },
+                ],
+                reports: [
+                    {
+                        name: "checkout",
+                        startTime: 0,
+                        totalMs: 100,
+                        spans: [
+                            {
+                                name: "pay",
+                                path: "pay",
+                                depth: 0,
+                                startMs: 0,
+                                durationMs: 80,
+                                longFrameMs: 60,
+                                failed: true,
+                            },
+                        ],
+                        cpu: { longFrameMs: 60, longFrames: 1, peakPressure: "critical" },
+                        battery: { start: null, end: null },
+                        input: null,
+                        device: { hardwareConcurrency: 4, deviceMemoryGb: 4, jsHeapUsedMb: null },
+                        failed: true,
+                        measuredAt: 0,
+                    },
+                ],
+                support: {
+                    battery: true,
+                    pressure: true,
+                    longFrames: "long-animation-frame",
+                    eventTiming: true,
+                },
+            }}
         />,
     ],
     ["StorageUsage (unsupported)", <StorageUsage usage={null} quota={null} pendingBytes={10} />],

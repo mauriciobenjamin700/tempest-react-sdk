@@ -763,6 +763,46 @@ With `persisted === false` and `onRequestPersist`, a "make storage persistent" b
 
 **A11y:** the bar is a `role="meter"` (a level, not task progress) named by the title, with `aria-valuetext` equal to the "X of Y used" the eye reads. Warnings use `role="status"` (polite), not the `Alert` default `role="alert"`: the component usually mounts on a screen with the warning already true, and an assertive announcement on every mount would interrupt the reader.
 
+## `PerfHud`
+
+<!-- gallery:perf -->
+[![Desempenho: etapas · CPU · bateria in the gallery](../assets/gallery/perf.webp)](../gallery.md)
+
+*Section `perf` of the [gallery](../gallery.md) — run it locally to interact.*
+<!-- /gallery -->
+
+**When to use:** see, in development, what a [`createPerfMonitor`](../perf-monitor.md) is measuring — battery and drain rate, CPU pressure, the latency of the last gesture and a waterfall of the last interactions with each step. The component **does not read the browser itself**: it takes the snapshot from `usePerfMonitor(monitor)`, so the same monitor that feeds production telemetry feeds the HUD.
+
+```tsx
+import { PerfHud, createPerfMonitor, usePerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+export function DevOverlay() {
+    const snapshot = usePerfMonitor(perf);
+    return import.meta.env.DEV ? <PerfHud snapshot={snapshot} /> : null;
+}
+```
+
+Collapsed, it takes one line in a corner ("Desempenho 82% · CPU normal · checkout 410 ms"); open, it shows:
+
+- **Battery**: level, on battery/charging and the rate in %/h — or "measuring…" until the second 1 % step.
+- **CPU**: the pressure state, in amber and red for the two worst.
+- **Last gesture**: a stacked bar of input delay, handler and paint, with each number.
+- **Interactions**: the last `maxReports`, each step on a row indented by depth, its bar placed by start and sized by duration. A failed step is red.
+
+| Prop          | Type                                                                     | Default          |
+| ------------- | ------------------------------------------------------------------------ | ---------------- |
+| `snapshot`    | `PerfSnapshot`                                                           | —                |
+| `position`    | `"bottom-right" \| "bottom-left" \| "top-right" \| "top-left" \| "inline"` | `"bottom-right"` |
+| `maxReports`  | `number`                                                                 | `5`              |
+| `defaultOpen` | `boolean`                                                                | `false`          |
+| `labels`      | `Partial<PerfHudLabels>`                                                 | PT-BR            |
+
+A source the browser does not expose (battery and pressure on Safari/Firefox) reads "unavailable", never zero; a supported source that has not answered yet reads "…". `"inline"` drops the `position: fixed`, for a debug page. Default texts are PT-BR; pass `labels` for English.
+
+**A11y:** an `<aside>` named by the title, with the content inside a native `<details>` — it opens and closes from the keyboard without script. Bars are decorative (`aria-hidden`): each has its number written next to it.
+
 ## `UpdatePrompt`
 
 **When to use:** announce a new app version (service worker) and let the user reload. Pairs with `useServiceWorkerUpdate`.

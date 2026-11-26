@@ -58,6 +58,7 @@ const SECTION_OVERRIDES = {
     RadioGroup: "form-primitives",
     SyncStatusBadge: "pwa",
     StorageUsage: "pwa",
+    PerfHud: "perf",
     Toggle: "form-primitives",
     ToggleGroupItem: "feedback-extra",
     PostInstallPrompt: "pwa",

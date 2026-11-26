@@ -135,12 +135,13 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 61 | SSE · Push · Audio | `#integrations` | Receitas |
 | 62 | NotificationCenter (inbox) | `#notification-center` | Receitas |
 | 63 | PWA: Install · Push | `#pwa` | Receitas |
-| 64 | Store (Zustand) | `#foundation` | Fundação |
-| 65 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 66 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 67 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 68 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 69 | Tema + i18n | `#theme-i18n` | Fundação |
+| 64 | Desempenho: etapas · CPU · bateria | `#perf` | Receitas |
+| 65 | Store (Zustand) | `#foundation` | Fundação |
+| 66 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 67 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 68 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 69 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 70 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -212,7 +213,7 @@ Cada exemplo aparece **lado a lado com o código-fonte** (botão "Copiar"), ent�
 gallery é também uma referência copia-e-cola. Capturas do app rodando:
 
 <!-- gallery:screenshots -->
-Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 79 imagens são regeneradas por `npm run docs:shots`.
+Cada seção tem a própria captura ao lado do componente que documenta; os pares abaixo são aqueles em que o tema é o assunto. As 80 imagens são regeneradas por `npm run docs:shots`.
 
 ### Buttons
 
@@ -281,7 +282,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 69 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 70 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.

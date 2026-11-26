@@ -179,6 +179,9 @@ export type {
 export { OfflineIndicator } from "./OfflineIndicator";
 export type { OfflineIndicatorPosition, OfflineIndicatorProps } from "./OfflineIndicator";
 
+export { PerfHud } from "./PerfHud";
+export type { PerfHudLabels, PerfHudProps } from "./PerfHud";
+
 export { SyncStatusBadge } from "./SyncStatusBadge";
 export type { SyncStatusBadgeProps } from "./SyncStatusBadge";
 

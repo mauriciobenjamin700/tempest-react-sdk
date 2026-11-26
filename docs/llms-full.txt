@@ -11964,6 +11964,46 @@ Com `persisted === false` e `onRequestPersist`, aparece o botão "Tornar armazen
 
 **A11y:** a barra é `role="meter"` (nível, não progresso de tarefa) nomeada pelo título, com `aria-valuetext` igual ao "X de Y usados" que o olho lê. Os avisos usam `role="status"` (polido), não o `role="alert"` padrão do `Alert`: o componente costuma montar numa tela com o aviso já verdadeiro, e um anúncio assertivo a cada montagem interromperia o leitor.
 
+## `PerfHud`
+
+<!-- gallery:perf -->
+[![Desempenho: etapas · CPU · bateria na gallery](../assets/gallery/perf.webp)](../gallery.md)
+
+*Seção `perf` da [gallery](../gallery.md) — rode localmente para interagir.*
+<!-- /gallery -->
+
+**Quando usar:** ver, em desenvolvimento, o que um [`createPerfMonitor`](../perf-monitor.md) está medindo — bateria e taxa de descarga, pressão de CPU, a latência do último toque e uma cascata das últimas interações com cada etapa. O componente **não lê o navegador sozinho**: recebe o snapshot do `usePerfMonitor(monitor)`, então o mesmo monitor que alimenta a telemetria de produção alimenta o HUD.
+
+```tsx
+import { PerfHud, createPerfMonitor, usePerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+export function DevOverlay() {
+    const snapshot = usePerfMonitor(perf);
+    return import.meta.env.DEV ? <PerfHud snapshot={snapshot} /> : null;
+}
+```
+
+Fechado, ocupa uma linha no canto ("Desempenho 82% · CPU normal · checkout 410 ms"); aberto, mostra:
+
+- **Bateria**: nível, "na bateria"/"carregando" e a taxa em %/h — ou "medindo consumo…" até o segundo degrau de 1 %.
+- **CPU**: o estado de pressão (`normal`, `moderada`, `alta`, `crítica`), em âmbar e vermelho nos dois últimos.
+- **Último toque**: barra empilhada de espera do input, handler e pintura, com o número de cada um.
+- **Interações**: as últimas `maxReports`, cada etapa numa linha recuada pela profundidade, com a barra posicionada pelo início e largura pela duração. Etapa que falhou fica vermelha.
+
+| Prop          | Tipo                                                                     | Default          |
+| ------------- | ------------------------------------------------------------------------ | ---------------- |
+| `snapshot`    | `PerfSnapshot`                                                           | —                |
+| `position`    | `"bottom-right" \| "bottom-left" \| "top-right" \| "top-left" \| "inline"` | `"bottom-right"` |
+| `maxReports`  | `number`                                                                 | `5`              |
+| `defaultOpen` | `boolean`                                                                | `false`          |
+| `labels`      | `Partial<PerfHudLabels>`                                                 | PT-BR            |
+
+Fonte que o navegador não expõe (bateria e pressão no Safari/Firefox) aparece como "indisponível neste navegador", nunca como zero; fonte suportada que ainda não respondeu aparece como "…". `"inline"` tira o `position: fixed`, para uma página de debug.
+
+**A11y:** é um `<aside>` nomeado pelo título, com o conteúdo dentro de um `<details>` nativo — abre e fecha pelo teclado sem script. As barras são decorativas (`aria-hidden`): cada uma tem o número escrito ao lado.
+
 ## `UpdatePrompt`
 
 **Quando usar:** avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de `useServiceWorkerUpdate`.
@@ -21292,12 +21332,13 @@ Cada seção é um arquivo em [`examples/gallery/src/sections/`](https://github.
 | 61 | SSE · Push · Audio | `#integrations` | Receitas |
 | 62 | NotificationCenter (inbox) | `#notification-center` | Receitas |
 | 63 | PWA: Install · Push | `#pwa` | Receitas |
-| 64 | Store (Zustand) | `#foundation` | Fundação |
-| 65 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
-| 66 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
-| 67 | Ícones por slug (/icons) | `#icons` | Fundação |
-| 68 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
-| 69 | Tema + i18n | `#theme-i18n` | Fundação |
+| 64 | Desempenho: etapas · CPU · bateria | `#perf` | Receitas |
+| 65 | Store (Zustand) | `#foundation` | Fundação |
+| 66 | Escalas contínuas (heatmap) | `#dataviz-scales` | Fundação |
+| 67 | createTheme · presets · tokens de gráfico | `#theme-factory` | Fundação |
+| 68 | Ícones por slug (/icons) | `#icons` | Fundação |
+| 69 | utilities.css (camada opt-in) | `#utilities-css` | Fundação |
+| 70 | Tema + i18n | `#theme-i18n` | Fundação |
 <!-- /gallery -->
 
 ## Matriz de variantes
@@ -21438,7 +21479,7 @@ Cada seção tem a própria captura ao lado do componente que documenta; os pare
   o papel de Storybook.
 - Rode com `npm run build` na raiz, depois `npm run dev` em `examples/gallery`
   (porta `5173`).
-- 69 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
+- 70 seções cobrem componentes, overlays, mídia/imagens, inputs avançados,
   DataTable, store, tema/i18n, integrações ao vivo, PWA e utils — cada exemplo
   com código copia-e-cola ao lado. A tabela acima sai do registry, então não
   envelhece.
@@ -29071,6 +29112,216 @@ Tipos: `PixCharge`, `CardCharge`, `CardChargeRequest`, `PaymentPayer`, `PaymentS
 - O cartão é digitado nos iframes do Mercado Pago; o seu código recebe só `{ token, payment_method_id, installments }`. ✅
 - Parcelas mostram o texto do provedor, com juros. 💡
 - Recusa é resposta (`status: "failed"` + `status_detail`), não erro de rede; `waiting_capture` é "reservado", não "pago". ⚠️
+
+---
+
+# perf-monitor.md
+
+# Desempenho de interações: etapas, CPU e bateria
+
+Quando alguém diz *"o app esquenta o celular"* ou *"travou no checkout"*, você
+precisa de três respostas: **quanto tempo cada etapa levou**, **quanto a CPU
+trabalhou** e **quanto de bateria aquilo custou**. O `createPerfMonitor` junta as
+três no mesmo relatório, do mesmo jeito em desenvolvimento e em produção. 🔋
+
+!!! info "O que o navegador deixa medir"
+    Nenhuma API web expõe joules, tempo de CPU ou FLOPs. O monitor usa o que
+    **existe** e devolve `null` para o resto — nunca um número inventado.
+
+| Medida | De onde vem | Chrome/Android | Safari/iOS | Firefox |
+| --- | --- | --- | --- | --- |
+| Tempo por etapa | `performance.now()` | ✅ | ✅ | ✅ |
+| Main thread travada | `long-animation-frame` (ou `longtask`) | ✅ | — | — |
+| Pressão de CPU | Compute Pressure (`PressureObserver`) | ✅ | — | — |
+| Latência do toque | Event Timing (`event`) | ✅ | ✅ | ✅ |
+| Bateria | Battery Status (`getBattery`) | ✅ | — | — |
+
+Sondado no Chromium 159 com Playwright (`PerformanceObserver.supportedEntryTypes`,
+`typeof navigator.getBattery`, `typeof PressureObserver`) em 26/11/2026.
+
+## 1. Crie um monitor, uma vez
+
+```typescript
+import { createPerfMonitor } from "tempest-react-sdk";
+
+export const perf = createPerfMonitor();
+```
+
+Crie **fora do React, na inicialização do app**. Os observers só enxergam o que
+acontece depois de existirem (mais o pequeno buffer que o navegador guarda), e um
+monitor recriado a cada render perde o histórico.
+
+## 2. Meça uma interação, etapa por etapa
+
+```typescript
+import { createPerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+async function finalizarCompra(): Promise<void> {
+    const trace = perf.trace("checkout");
+
+    trace.spanSync("validar", () => true);
+
+    await trace.span("pagar", async (etapa) => {
+        await etapa.span("tokenizar", async () => "tok_123");
+        await etapa.span("cobrar", async () => "ok");
+    });
+
+    const report = await trace.end();
+    console.log(report.spans);
+    // [
+    //   { path: "validar",          depth: 0, startMs: 0,   durationMs: 3,   longFrameMs: 0 },
+    //   { path: "pagar",            depth: 0, startMs: 3,   durationMs: 410, longFrameMs: 0 },
+    //   { path: "pagar/tokenizar",  depth: 1, startMs: 3,   durationMs: 160, longFrameMs: 0 },
+    //   { path: "pagar/cobrar",     depth: 1, startMs: 163, durationMs: 250, longFrameMs: 0 },
+    // ]
+}
+```
+
+| Método | Para |
+| --- | --- |
+| `span(nome, fn)` | Etapa assíncrona. `fn` recebe um escopo para sub-etapas |
+| `spanSync(nome, fn)` | Etapa síncrona, idem |
+| `mark(nome, ms)` | Duração medida em outro lugar (`Server-Timing`, `speed` do `/vision`), posicionada terminando agora |
+| `end()` | Fecha e devolve o relatório. Chamar de novo devolve o mesmo |
+
+Uma etapa que lança é registrada com `failed: true` e o erro **segue** para quem
+chamou. O relatório inteiro fica `failed: true`.
+
+!!! tip "Comece o trace dentro do handler"
+    `perf.trace()` chamado dentro do `onClick` pareia o relatório com o gesto que o
+    disparou: `report.input` traz atraso de input, tempo de handler e tempo até a
+    pintura. Fora de um handler (polling, timer), `input` fica `null`.
+
+## 3. O custo computacional
+
+```typescript
+import { createPerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+async function processar(): Promise<void> {
+    const trace = perf.trace("relatorio");
+    await trace.span("montar", async () => [1, 2, 3].map((n) => n * 2));
+    const { cpu, spans } = await trace.end();
+
+    console.log(cpu.longFrameMs); // 240   — ms em que a tela não respondia
+    console.log(cpu.longFrames); // 3      — quantos frames ≥ 50 ms
+    console.log(cpu.peakPressure); // "serious" — pior estado de CPU no período
+    console.log(spans[0]?.longFrameMs); // a fatia que cabe a esta etapa
+}
+```
+
+- **`longFrameMs`** soma os frames longos (≥ 50 ms) que **sobrepõem** a etapa,
+  contando só a parte sobreposta. É o custo que o usuário sente como tela
+  congelada. Trabalho num Worker ou nas threads WASM do onnxruntime **não**
+  entra — de propósito: ali a tela continua respondendo.
+- **`peakPressure`** é o pior estado de CPU (`nominal` → `fair` → `serious` →
+  `critical`) visto durante o trace, incluindo o que já valia quando ele começou.
+  `serious` e `critical` significam que o aparelho está desacelerando o trabalho
+  — é a hora de um pipeline pesado recuar.
+
+!!! warning "Pressure precisa de contexto seguro"
+    `PressureObserver.observe()` recusa em HTTP e dentro de iframe de outra origem
+    (política `compute-pressure`). O monitor engole a recusa e deixa `pressure` em
+    `null`, em vez de lançar.
+
+## 4. Bateria: taxa de descarga, não custo por clique
+
+```typescript
+import { createPerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+perf.subscribe(() => {
+    const battery = perf.getSnapshot().battery;
+    if (battery && battery.drainPerHour !== null) {
+        console.log(`${battery.drainPerHour.toFixed(1)} %/h`);
+    }
+});
+```
+
+O navegador entrega o nível em **degraus de 1 %**. Uma interação de segundos
+nunca move o ponteiro sozinha, então o monitor mede o que dá para medir com
+honestidade: a **taxa de descarga da sessão**, em pontos percentuais por hora.
+
+- A taxa é medida **de degrau a degrau** (entre duas mudanças de nível), nunca de
+  um instante qualquer: assim o arredondamento de 1 % não distorce a conta.
+- Fica `null` até o segundo degrau na bateria, e zera a cada vez que o aparelho
+  é ligado ou desligado da tomada.
+- `report.battery.start` / `.end` registram o nível no começo e no fim de cada
+  trace, para cruzar com a taxa depois.
+
+!!! tip "Comparar, não medir no absoluto"
+    Use a taxa para **comparar**: build nova × build anterior, recurso pesado
+    ligado × desligado, na mesma sessão de teste e com a tela no mesmo brilho.
+    Para joules por interação, perfile no próprio aparelho: Perfetto /
+    `adb shell dumpsys batterystats` no Android.
+
+## 5. Em desenvolvimento: DevTools e `<PerfHud>`
+
+Toda etapa vira um `performance.measure()` numa trilha **"Tempest"** do painel
+Performance do Chrome DevTools, uma faixa por interação. Grave um perfil, clique,
+e as etapas aparecem alinhadas com os frames e as tarefas da main thread.
+`createPerfMonitor({ devtools: false })` desliga.
+
+O [`<PerfHud>`](components/feedback.md#perfhud) mostra o mesmo monitor ao vivo,
+por cima do app:
+
+```tsx
+import { PerfHud, createPerfMonitor, usePerfMonitor } from "tempest-react-sdk";
+
+const perf = createPerfMonitor();
+
+export function DevOverlay() {
+    const snapshot = usePerfMonitor(perf);
+    return import.meta.env.DEV ? <PerfHud snapshot={snapshot} /> : null;
+}
+```
+
+## 6. Em produção: amostragem e telemetria
+
+```typescript
+import { consoleTelemetryAdapter, createPerfMonitor, perfReportToEvent } from "tempest-react-sdk";
+
+export const perf = createPerfMonitor({
+    sampleRate: import.meta.env.PROD ? 0.1 : 1,
+    onReport: (report) => consoleTelemetryAdapter.track(perfReportToEvent(report)),
+});
+```
+
+- `sampleRate` decide que fração dos relatórios vai para o `onReport` (o
+  snapshot local recebe todos). Cada relatório é um evento de telemetria — em
+  produção, 10 % costuma bastar.
+- `perfReportToEvent` achata o relatório num `TelemetryEvent` com propriedades
+  planas (`totalMs`, `longFrameMs`, `peakPressure`, `batteryLevel`,
+  `inputDelayMs`, `span.pagar/cobrar.ms`…), o formato que PostHog, Amplitude e
+  tags do Sentry filtram e plotam. Valores retidos pelo navegador ficam `null`,
+  nunca `0` — senão o Safari pareceria infinitamente rápido.
+
+## Opções
+
+| Opção | Tipo | Default | Para |
+| --- | --- | --- | --- |
+| `onReport` | `(report) => void` | — | Recebe os relatórios sorteados |
+| `sampleRate` | `number` (`[0, 1]`) | `1` | Fração enviada ao `onReport` |
+| `devtools` | `boolean` | `true` | Trilha "Tempest" no DevTools |
+| `historySize` | `number` | `20` | Relatórios e gestos guardados no snapshot |
+| `pressureIntervalMs` | `number` | `1000` | Período de amostragem da pressão de CPU |
+
+## Recap
+
+- `createPerfMonitor()` uma vez → `trace(nome)` → `span` / `spanSync` / `mark` →
+  `end()`. ✅
+- Tempo por etapa em todo navegador; main thread travada, pressão de CPU e
+  bateria no Chromium; o resto vem `null`.
+- Bateria é taxa de descarga da sessão (%/h), medida de degrau a degrau — não
+  custo por clique.
+- Dev: trilha "Tempest" no DevTools + `<PerfHud>`. Produção: `sampleRate` +
+  `perfReportToEvent` para a telemetria.
+- Para custo de inferência on-device (tamanho de modelo, `speed` do `/vision`),
+  veja o [módulo `perf`](perf.md).
 
 ---
 
@@ -44569,7 +44820,7 @@ Aliases:
     build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
     depois 88 nós de `color-contrast` em `incomplete`, sem nada mudar entre as
     duas execuções. É um ratchet, não uma allowlist: a gallery
-    renderiza 69 seções de demo e carrega dívida real de acessibilidade, e
+    renderiza 70 seções de demo e carrega dívida real de acessibilidade, e
     reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
     deletado. Cair não falha; os números estão lá para serem baixados.
 
@@ -47049,7 +47300,7 @@ const theme = createTheme({ primary: "#7c3aed" });
 applyTheme(theme);
 ```
 
-Pronto: os 138 componentes passam a usar a marca nova, no claro e no escuro.
+Pronto: os 139 componentes passam a usar a marca nova, no claro e no escuro.
 
 ### O que ele gera
 

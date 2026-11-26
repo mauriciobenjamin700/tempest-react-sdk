@@ -736,7 +736,7 @@ Fechado, ocupa uma linha no canto ("Desempenho 82% · CPU normal · checkout 410
 
 Fonte que o navegador não expõe (bateria e pressão no Safari/Firefox) aparece como "indisponível neste navegador", nunca como zero; fonte suportada que ainda não respondeu aparece como "…". `"inline"` tira o `position: fixed`, para uma página de debug.
 
-**A11y:** é um `<aside>` nomeado pelo título, com o conteúdo dentro de um `<details>` nativo — abre e fecha pelo teclado sem script. As barras são decorativas (`aria-hidden`): cada uma tem o número escrito ao lado.
+**A11y:** é um `<aside>` nomeado pelo título — o único landmark; os blocos de dentro não são `region`, e um segundo HUD na mesma página recebe `aria-label` próprio — com o conteúdo dentro de um `<details>` nativo — abre e fecha pelo teclado sem script. As barras são decorativas (`aria-hidden`): cada uma tem o número escrito ao lado.
 
 ## `UpdatePrompt`
 

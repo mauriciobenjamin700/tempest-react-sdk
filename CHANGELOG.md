@@ -25,7 +25,7 @@ navigator.getBattery`, `typeof PressureObserver`) em 26/11/2026; Safari/Firefox 
 - **`<PerfHud>`**: overlay apresentacional do monitor — bateria e %/h, pressão de CPU, latência do
   último toque em barra empilhada e cascata das últimas interações por etapa. `<details>` nativo,
   fechado por padrão; `position` nos quatro cantos ou `"inline"`; textos PT-BR substituíveis por
-  `labels`. Seção `perf` na gallery com interações reais. Doc nova:
+  `labels`. O `<aside>` é o único landmark (os blocos internos não são `region`), e um segundo HUD na mesma página recebe `aria-label` próprio. Seção `perf` na gallery com um relatório gravado e outro ao vivo. Doc nova:
   `docs/perf-monitor.md` (+ `.en.md`).
 
 ### Corrigido

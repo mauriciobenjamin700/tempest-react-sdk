@@ -151,7 +151,7 @@ function InputBlock({ input, labels }: { input: InputTiming; labels: PerfHudLabe
         { key: labels.presentation, ms: input.presentationMs, tone: styles.phasePresentation },
     ];
     return (
-        <section className={styles.section} aria-label={labels.lastInput}>
+        <div className={styles.section} data-part="input">
             <p className={styles.heading}>
                 {labels.lastInput} · {input.type}{" "}
                 <span className={styles.total}>{formatDurationMs(input.durationMs)}</span>
@@ -173,7 +173,7 @@ function InputBlock({ input, labels }: { input: InputTiming; labels: PerfHudLabe
                     </li>
                 ))}
             </ul>
-        </section>
+        </div>
     );
 }
 
@@ -240,6 +240,12 @@ function ReportItem({ report, labels }: { report: InteractionReport; labels: Per
  * Every value the browser withholds (battery and pressure on Safari/Firefox)
  * reads "indisponível" instead of a fake zero. Bars are decorative
  * (`aria-hidden`); each one has its number written next to it.
+ *
+ * The `<aside>` is the only landmark: the blocks inside are plain groups with a
+ * visible label, not named `<section>`s, because each named section is a
+ * `region` landmark and two HUDs on one page (a live one and a recorded one)
+ * would repeat them all. A second HUD on the same page takes its own
+ * `aria-label`, which overrides the title as the landmark's name.
  *
  * @example
  * ```tsx
@@ -313,7 +319,7 @@ export function PerfHud({
                         </div>
                     </dl>
                     {input ? <InputBlock input={input} labels={text} /> : null}
-                    <section className={styles.section} aria-label={text.interactions}>
+                    <div className={styles.section}>
                         <p className={styles.heading}>{text.interactions}</p>
                         {snapshot.reports.length === 0 ? (
                             <p className={styles.note}>{text.empty}</p>
@@ -328,7 +334,7 @@ export function PerfHud({
                                 ))}
                             </ul>
                         )}
-                    </section>
+                    </div>
                 </div>
             </details>
         </aside>

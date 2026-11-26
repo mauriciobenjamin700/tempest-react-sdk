@@ -207,7 +207,12 @@ import type { PerfSnapshot } from "tempest-react-sdk";
 
 <PerfHud snapshot={gravado} position="inline" defaultOpen />`}
             >
-                <PerfHud snapshot={RECORDED} position="inline" defaultOpen />
+                <PerfHud
+                    snapshot={RECORDED}
+                    position="inline"
+                    defaultOpen
+                    aria-label="Desempenho — relatório gravado"
+                />
             </Example>
             <Example
                 id="perf-hud"

@@ -4,6 +4,18 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Corrigido
+
+- **`<PerfHud>` passa a ser um único landmark.** Na 0.95.0 os blocos "Último toque" e
+  "Interações" eram `<section>` nomeadas, ou seja, landmarks `region`: dois HUDs na mesma página
+  repetiam três landmarks, e o axe da gallery subiu `landmark-unique` de 3 para 6 quando a seção
+  `perf` ganhou um segundo HUD. Os blocos viraram grupos com o rótulo visível; o `<aside>` é o
+  único landmark, e um segundo HUD recebe `aria-label` próprio, que substitui o título como nome.
+- A seção `perf` da gallery abre com um HUD alimentado por um relatório gravado dos próprios
+  botões no Chromium 159, e o `docs-shots` remove `getBattery` e `PressureObserver` junto das
+  outras fontes de variação: a captura da doc mostra a cascata completa e não muda entre execuções
+  (segunda rodada do `npm run docs:shots -- --only=perf --check`: 0 mudanças).
+
 ## [0.95.0] — 2026-11-26
 
 ### Adicionado
@@ -27,7 +39,7 @@ navigator.getBattery`, `typeof PressureObserver`) em 26/11/2026; Safari/Firefox 
 - **`<PerfHud>`**: overlay apresentacional do monitor — bateria e %/h, pressão de CPU, latência do
   último toque em barra empilhada e cascata das últimas interações por etapa. `<details>` nativo,
   fechado por padrão; `position` nos quatro cantos ou `"inline"`; textos PT-BR substituíveis por
-  `labels`. O `<aside>` é o único landmark (os blocos internos não são `region`), e um segundo HUD na mesma página recebe `aria-label` próprio. Seção `perf` na gallery com um relatório gravado e outro ao vivo. Doc nova:
+  `labels`. Seção `perf` na gallery com interações reais. Doc nova:
   `docs/perf-monitor.md` (+ `.en.md`).
 
 ### Corrigido

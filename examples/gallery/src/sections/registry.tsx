@@ -46,6 +46,7 @@ import { FoundationSection } from "./FoundationSection";
 import { ThemeI18nSection } from "./ThemeI18nSection";
 import { MetaSection } from "./MetaSection";
 import { IntegrationsSection } from "./IntegrationsSection";
+import { PerfSection } from "./PerfSection";
 import { PWASection } from "./PWASection";
 import { UtilsSection } from "./UtilsSection";
 import { LayoutSection } from "./LayoutSection";
@@ -574,6 +575,14 @@ export const SECTIONS: SectionEntry[] = [
         keywords: "usebeforeinstallprompt installbutton installbanner usepushsubscription",
         group: "Receitas",
         Component: PWASection,
+    },
+    {
+        id: "perf",
+        label: "Desempenho: etapas · CPU · bateria",
+        keywords:
+            "perfhud createperfmonitor useperfmonitor perfreporttoevent trace etapa span bateria battery cpu pressure long animation frame inp event timing devtools",
+        group: "Receitas",
+        Component: PerfSection,
     },
     // ── Fundação ─────────────────────────────────────────────────────────────
     {

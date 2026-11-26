@@ -16,7 +16,7 @@ src/
 ├── br/           ⇢  5.571 municípios do IBGE + 35 RAs do DF + mapa UF clicável
 ├── capture/         createMediaRecorder, useVideoRecorder, useBarcodeScanner
 ├── charts/       ⇢  wrappers recharts
-├── components/      138 componentes UI
+├── components/      139 componentes UI
 ├── data/            createDataProvider, <TempestDataProvider>, useDataProvider
 ├── editor/       ⇢  RichTextEditor (tiptap)
 ├── error-boundary/  ErrorBoundary, useErrorHandler
@@ -32,7 +32,7 @@ src/
 ├── oauth/           <GoogleSignIn>, useOAuthCallback
 ├── offline/         createOfflineStore (Dexie), createOfflineSync, resolvers
 ├── payments/        PixCheckout, usePixCharge, useMercadoPagoCard, describeCardCharge
-├── perf/            createInferenceProfiler, readDeviceProfile
+├── perf/            createPerfMonitor, usePerfMonitor, createInferenceProfiler
 ├── push/            usePushSubscription, isPushSupported
 ├── query/           QueryProvider, createQueryKeys, useOfflineMutation
 ├── router/          defineRoutes, <AppRouter>, <RouteGuard>

@@ -160,10 +160,10 @@ mais voltam:
 - **Empacotamento**: `dist/` com `preserveModules`; CSS por componente carregado
   pelo próprio componente (0.63.0); loader `/node-css-loader` para Node cru.
   Budgets do `size-limit` são por **fatia importada**.
-- **Docs**: 116 páginas base (232 com as traduções `.en.md`) + `llms.txt` /
+- **Docs**: 117 páginas base (234 com as traduções `.en.md`) + `llms.txt` /
   `llms-full.txt`. Site MkDocs bilíngue no GitHub Pages; `docs/internal/` fica
   fora dele.
-- **Demo vivo**: `examples/gallery`, app Vite com 69 seções consumindo o SDK via
+- **Demo vivo**: `examples/gallery`, app Vite com 70 seções consumindo o SDK via
   `file:../..`.
 
 Os números acima envelhecem — quando divergirem do repo, o repo está certo e esta

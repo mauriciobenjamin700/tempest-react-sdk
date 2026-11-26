@@ -4,6 +4,30 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`createPerfMonitor`: tempo por etapa de cada interação, custo de CPU e bateria, no mesmo
+  relatório, em dev e em produção.** `perf.trace("checkout")` abre um trace; `span` /
+  `spanSync` / `mark` registram etapas aninhadas (`pagar/cobrar`), cada uma com `startMs`,
+  `durationMs`, `failed` e `longFrameMs` (a parte dos frames longos ≥ 50 ms que a sobrepõe,
+  via `long-animation-frame`, com fallback para `longtask`). `end()` devolve o
+  `InteractionReport` com `cpu.peakPressure` (Compute Pressure), bateria no início e no fim, e
+  `input` — o gesto que disparou o trace, quebrado em atraso de input / handler / pintura (Event
+  Timing). A bateria vira **taxa de descarga da sessão em %/h**, medida de degrau a degrau de 1 %:
+  o navegador não resolve o custo de uma interação isolada, e a doc diz isso. Toda etapa vira um
+  `performance.measure()` numa trilha "Tempest" do DevTools (`devtools: false` desliga). Em
+  produção, `sampleRate` + `onReport` e `perfReportToEvent(report)` achatam o relatório num
+  `TelemetryEvent` (`span.<path>.ms`, `longFrameMs`, `inputDelayMs`…), com `null` onde o navegador
+  não expõe. `usePerfMonitor(monitor)` assina o snapshot via `useSyncExternalStore`. APIs sondadas
+  no Chromium 159 com Playwright (`PerformanceObserver.supportedEntryTypes`, `typeof
+navigator.getBattery`, `typeof PressureObserver`) em 26/11/2026; Safari/Firefox ficam com tempo
+  e latência de toque, o resto `null`.
+- **`<PerfHud>`**: overlay apresentacional do monitor — bateria e %/h, pressão de CPU, latência do
+  último toque em barra empilhada e cascata das últimas interações por etapa. `<details>` nativo,
+  fechado por padrão; `position` nos quatro cantos ou `"inline"`; textos PT-BR substituíveis por
+  `labels`. Seção `perf` na gallery com interações reais. Doc nova:
+  `docs/perf-monitor.md` (+ `.en.md`).
+
 ### Corrigido
 
 - **CSS do SDK agora usa Cascade Layers (`@layer tempest.reset, tempest.components,
@@ -32,6 +56,15 @@ tempest.utilities;`) para que overrides do app vençam sempre com a mesma especi
 
 ### Budgets
 
+- **`createPerfMonitor` + `<PerfHud>`, medido com `npm run build && npx size-limit --json` sobre a
+  `main` em `566eac4` e sobre este branch**, bytes brotli: `ceiling: full barrel ESM` 178 937 →
+  182 488 (+3 551 B, teto 179,4 → 183 kB); `ceiling: full barrel CJS` 212 021 → 216 249 (+4 228 B,
+  teto 212,6 → 216,8 kB); `styles.css` 32 851 → 33 574 (+723 B, teto 32,9 → 33,7 kB). Os bytes são
+  o monitor (trace, long frames, pressão, bateria, Event Timing) e a folha do HUD; nenhuma fatia
+  existente importa o módulo. `slice: auth screens` 9 285 → 9 303 (+18 B, teto 9 300 → 9 350 B):
+  ruído de brotli/ordem de módulos, que nas outras fatias foi de −15 a +37 B — a fatia já estava a
+  15 B do teto na `main`. Fatias novas: `slice: perf monitor` 2 350 B (teto 2,45 kB) e
+  `slice: PerfHud` 4 408 B (teto 4,6 kB).
 - **#809, medido com `npm run build && npx size-limit --json` sobre a `main` em `5be3750` e sobre
   este branch**, bytes brotli: `styles.css` 32 886 → 32 862 (−24 B); `styles/core.css` 3 307 →
   3 335 (+28 B); `styles: foundation without the global reset` 3 052 → 3 073 (+21 B);

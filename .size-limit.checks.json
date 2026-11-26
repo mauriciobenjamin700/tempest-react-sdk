@@ -176,12 +176,56 @@
     ]
   },
   {
+    "name": "slice: perf monitor (`createPerfMonitor` + `usePerfMonitor` + `perfReportToEvent`, no HUD)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ createPerfMonitor, usePerfMonitor, perfReportToEvent }"
+    },
+    "limit": "2.45 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
+    "name": "slice: PerfHud (overlay + monitor)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ PerfHud, createPerfMonitor, usePerfMonitor }"
+    },
+    "limit": "4.6 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
     "name": "slice: auth screens (`AuthPage` + `LoginForm` — shell, generated form, its controls)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
       "./dist/tempest-react-sdk.js": "{ AuthPage, LoginForm }"
     },
-    "limit": "9.3 kB",
+    "limit": "9.35 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -559,7 +603,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "179.4 kB",
+    "limit": "183 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -578,7 +622,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "212.6 kB",
+    "limit": "216.8 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -932,7 +976,7 @@
   {
     "name": "styles.css",
     "path": "dist/styles.css",
-    "limit": "32.9 kB"
+    "limit": "33.7 kB"
   },
   {
     "name": "styles/core.css (foundation alone — no component)",

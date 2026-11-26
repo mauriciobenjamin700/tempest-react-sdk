@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.95.0] — 2026-11-26
+
 ### Adicionado
 
 - **`createPerfMonitor`: tempo por etapa de cada interação, custo de CPU e bateria, no mesmo

@@ -160,6 +160,22 @@ describe("createPerfMonitor traces", () => {
         expect((await trace.end()).spans.map((s) => s.path)).toEqual(["pay", "pay/tokenize"]);
     });
 
+    it("lists a parent before a mark whose back-dated start precedes it", async () => {
+        const monitor = createPerfMonitor({ devtools: false });
+        now = 100;
+        const trace = monitor.trace("detect");
+        now = 110;
+        await trace.span("predict", async (step) => {
+            now = 112;
+            step.mark("forward", 30);
+        });
+        const report = await trace.end();
+        expect(report.spans.map((s) => [s.path, s.startMs])).toEqual([
+            ["predict", 10],
+            ["predict/forward", -18],
+        ]);
+    });
+
     it("flags a step that throws, rethrows the error and marks the report failed", async () => {
         const monitor = createPerfMonitor({ devtools: false });
         const trace = monitor.trace("upload");

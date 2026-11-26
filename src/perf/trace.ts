@@ -26,7 +26,12 @@ export interface TraceSources {
 
 /** A step as recorded, before the long-frame cost is attached. */
 interface RawSpan {
-    /** Opening order, so a parent and the child it starts in the same millisecond sort parent-first. */
+    /**
+     * Opening order, the order the report lists steps in. It puts a parent
+     * before its children even when a child starts first on the clock — a
+     * `mark()` carries a duration measured elsewhere, so its start is
+     * back-dated and can precede the span it was recorded in.
+     */
     seq: number;
     name: string;
     path: string;
@@ -159,7 +164,7 @@ export function startTrace(
 
     const finish = async (): Promise<InteractionReport> => {
         const endTime = performance.now();
-        const ordered = [...spans].sort((a, b) => a.start - b.start || a.seq - b.seq);
+        const ordered = [...spans].sort((a, b) => a.seq - b.seq);
         const whole = sources.longFrames.costBetween(startTime, endTime);
         const report: InteractionReport = {
             name,

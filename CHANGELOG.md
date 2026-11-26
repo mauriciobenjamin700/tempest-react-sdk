@@ -11,6 +11,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   repetiam três landmarks, e o axe da gallery subiu `landmark-unique` de 3 para 6 quando a seção
   `perf` ganhou um segundo HUD. Os blocos viraram grupos com o rótulo visível; o `<aside>` é o
   único landmark, e um segundo HUD recebe `aria-label` próprio, que substitui o título como nome.
+- **`InteractionReport.spans` lista o pai antes dos filhos também com `mark()`.** Na 0.95.0 a
+  ordem era por instante de início, e um `mark()` registra uma duração já medida, com início
+  retroativo: dentro de um `span`, ele podia vir antes do pai (`["a/b", "a"]`, visto instalando a
+  0.95.0 do npm num projeto limpo), e o `<PerfHud>` desenhava o filho acima do pai. A ordem agora é
+  a de abertura; `startMs` continua sendo o instante real.
 - A seção `perf` da gallery abre com um HUD alimentado por um relatório gravado dos próprios
   botões no Chromium 159, e o `docs-shots` remove `getBattery` e `PressureObserver` junto das
   outras fontes de variação: a captura da doc mostra a cascata completa e não muda entre execuções

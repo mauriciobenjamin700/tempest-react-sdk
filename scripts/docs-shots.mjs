@@ -159,6 +159,11 @@ async function startPreview() {
  * because demo data is full of them. React schedules on `performance.now`, which
  * is untouched.
  *
+ * Battery and Compute Pressure are removed for the same reason: the live
+ * `<PerfHud>` of the `perf` section would otherwise print the charge and the
+ * CPU state of whatever machine ran the capture. Without them it reads
+ * "indisponível", the same on every run.
+ *
  * @param {import("@playwright/test").Page} page - The page to instrument.
  */
 async function freezeEntropy(page) {
@@ -179,6 +184,9 @@ async function freezeEntropy(page) {
         FakeDate.parse = RealDate.parse;
         FakeDate.UTC = RealDate.UTC;
         globalThis.Date = FakeDate;
+
+        delete Navigator.prototype.getBattery;
+        delete globalThis.PressureObserver;
     });
 }
 

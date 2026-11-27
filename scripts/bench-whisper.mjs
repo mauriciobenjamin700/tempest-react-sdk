@@ -15,6 +15,7 @@
  *
  *     npm run build
  *     WHISPER_MODEL_DIR=/tmp/whisper-tiny node scripts/bench-whisper.mjs
+ *     WHISPER_MODEL_DIR=/tmp/whisper-tiny ISOLATION=0 node scripts/bench-whisper.mjs   # one thread
  *     WHISPER_MODEL_DIR=/tmp/whisper-tiny DTYPE=fp16 PROVIDERS=webgpu,wasm node scripts/bench-whisper.mjs
  */
 
@@ -43,8 +44,10 @@ const TYPES = {
     json: "application/json",
 };
 const server = createServer((request, response) => {
-    response.setHeader("cross-origin-opener-policy", "same-origin");
-    response.setHeader("cross-origin-embedder-policy", "require-corp");
+    if (process.env.ISOLATION !== "0") {
+        response.setHeader("cross-origin-opener-policy", "same-origin");
+        response.setHeader("cross-origin-embedder-policy", "require-corp");
+    }
     const path = decodeURIComponent((request.url ?? "/").split("?")[0] ?? "/");
     if (path === "/") {
         response.setHeader("content-type", "text/html");

@@ -446,7 +446,9 @@ configureOrtAssets("/ort/");
     failed)` — a message that never names the missing file. In Chromium the
     file requested was `ort-wasm-simd-threaded.jsep.wasm`.
 
-    Copy the binaries from `node_modules/onnxruntime-web/dist/` into your
+    With Vite, the [`tempestOrtAssets()`](vite-config.md#onnx-models-in-the-browser-tempestortassets)
+    plugin serves and emits the binaries under `/ort/` by itself. Without it,
+    copy the binaries from `node_modules/onnxruntime-web/dist/` into your
     public directory at build time, and precache them:
 
     The `.wasm` files live in `public/`, so Vite never emits them into the

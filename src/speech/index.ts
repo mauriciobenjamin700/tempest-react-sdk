@@ -33,3 +33,4 @@ export type {
     WhisperModel,
     WhisperParts,
 } from "./whisper";
+export { configureOrtAssets, ortAssetUrls } from "@/tabular/assets";

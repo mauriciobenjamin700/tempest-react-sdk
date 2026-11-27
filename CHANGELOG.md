@@ -64,6 +64,24 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   no whisper-base int8, nas mesmas 30 frases do FLEURS: WER de 15,9 % sem prompt, **11,2 %** com os
   nomes próprios das frases e 14,3 % com cidades que não aparecem, sem nenhuma saída degenerada
   (`PROMPT=… node scripts/bench-whisper-wer.mjs`).
+- **`createSpeechToText<TServer>`: o servidor pode devolver mais que o texto.** Para backend que
+  transcreve **e** interpreta (a busca por voz do transport devolve a rota pronta), `server` resolve
+  na resposta inteira, `serverText` aponta o texto, e a resposta volta intacta em
+  `SpeechResult.server` (`null` quando o aparelho respondeu). Sem isso, o app jogaria fora a
+  interpretação do servidor e reenviaria o texto. Resposta que não é `string` sem `serverText` é
+  recusada com um erro que diz o que passar.
+- **`loadWhisper({ ortAssetsUrl })` e `configureOrtAssets` / `ortAssetUrls` reexportados pelo
+  `/speech`.** O ONNX Runtime Web não embute os `.wasm`; num app empacotado a sessão falha com
+  `Aborted(both async and sync fetching of the wasm failed)`. O `loadWhisper` aplica
+  `env.wasm.wasmPaths` a partir da opção ou do `configureOrtAssets` global (o mesmo do `/tabular`).
+  A doc do `/speech` ganhou o passo "Sirva o runtime", que faltava.
+- **`ISOLATION=0` nos scripts de bench do Whisper**, para medir sem COOP/COEP (uma thread). whisper-base
+  nas 30 frases do FLEURS: fator de tempo real 0,109 com threads, **0,248** sem, mesmo WER.
+- **Plugin `tempestOrtAssets()` no `tempest-react-sdk/vite`.** Serve os `.wasm` do ONNX Runtime Web
+  (`/speech`, `/tabular`, `/vision`) da origem do app: middleware no `vite dev` e emissão em
+  `dist/ort/` no build, a partir do `onnxruntime-web` que o app instalou. Falha no boot nomeando o
+  pacote ausente ou o arquivo que a versão instalada não traz. Substitui o passo "copie os
+  binários" que a doc do `/tabular` mandava cada app fazer à mão, e que faltava na do `/speech`.
 
 ### Budgets
 

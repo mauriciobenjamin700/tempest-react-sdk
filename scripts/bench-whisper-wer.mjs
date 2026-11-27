@@ -19,7 +19,8 @@
  *     WHISPER_MODEL_DIR=/tmp/whisper-base DATASET_DIR=/tmp/pt30 LANGUAGE=pt \
  *       node scripts/bench-whisper-wer.mjs
  *
- * Optional: `DTYPE` (default `int8`), `PROMPT` (vocabulary prompt passed to
+ * Optional: `ISOLATION=0` drops COOP/COEP, so ONNX Runtime runs on one
+ * thread — how an app without those headers runs it. `DTYPE` (default `int8`), `PROMPT` (vocabulary prompt passed to
  * every transcription), `VERBOSE=1` to print every hypothesis.
  */
 
@@ -97,8 +98,10 @@ const TYPES = {
     json: "application/json",
 };
 const server = createServer((request, response) => {
-    response.setHeader("cross-origin-opener-policy", "same-origin");
-    response.setHeader("cross-origin-embedder-policy", "require-corp");
+    if (process.env.ISOLATION !== "0") {
+        response.setHeader("cross-origin-opener-policy", "same-origin");
+        response.setHeader("cross-origin-embedder-policy", "require-corp");
+    }
     const path = decodeURIComponent((request.url ?? "/").split("?")[0] ?? "/");
     if (path === "/") {
         response.setHeader("content-type", "text/html");

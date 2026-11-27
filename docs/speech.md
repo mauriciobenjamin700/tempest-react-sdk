@@ -35,7 +35,28 @@ done
 - **O que entra no WER:** a normalização tira pontuação e caixa, mas mantém acentos e não converte numerais. Por isso "dez" × "10" conta como erro.
 - **Os erros que pesam numa busca são nomes próprios** ("polo" → "Paulo"). Meça com gravações do seu domínio: o mesmo script aceita qualquer pasta com `transcripts.tsv` (`arquivo<TAB>texto`).
 
-## 2. Transcreva com fallback para o servidor
+## 2. Sirva o runtime
+
+O ONNX Runtime Web **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado pelo Vite, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin [`tempestOrtAssets()`](vite-config.md#modelos-onnx-no-navegador-tempestortassets) serve os binários em `/ort/` no dev e no build:
+
+```ts
+import { defineConfig } from "vite";
+import { tempestOrtAssets } from "tempest-react-sdk/vite";
+
+export default defineConfig({ plugins: [tempestOrtAssets()] });
+```
+
+E o modelo carrega apontando para lá:
+
+```typescript
+import { loadWhisper } from "tempest-react-sdk/speech";
+
+export const carregar = () => loadWhisper({ baseUrl: "/models/whisper-base", ortAssetsUrl: "/ort/" });
+```
+
+Ou uma vez no boot, com o `configureOrtAssets("/ort/")` que o `/speech` reexporta do `/tabular` (vale para os dois). Para precache offline, `ortAssetUrls("/ort/")` lista os arquivos.
+
+## 3. Transcreva com fallback para o servidor
 
 ```typescript
 import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
@@ -60,6 +81,36 @@ export async function aoGravar(gravacao: Blob): Promise<string> {
 ```
 
 O `server` é seu: endpoint, autenticação, polling de job. O SDK só chama a função e repassa o `signal`.
+
+## Backend que transcreve **e** interpreta
+
+Se o seu servidor não devolve só o texto, e sim a resposta inteira (uma busca já interpretada, o resultado de um job), deixe o `server` devolver essa resposta e diga em `serverText` onde está o texto. Ela volta intacta em `resultado.server`, e na rota do aparelho o app manda o `text` para o endpoint de texto:
+
+```typescript
+import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+
+interface BuscaDeRota {
+    text: string;
+    results: unknown[];
+}
+
+declare function buscarPorAudio(audio: Blob, signal: AbortSignal): Promise<BuscaDeRota>;
+declare function buscarPorTexto(texto: string): Promise<BuscaDeRota>;
+
+const voz = createSpeechToText<BuscaDeRota>({
+    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
+    server: (audio, { signal }) => buscarPorAudio(audio, signal),
+    serverText: (resposta) => resposta.text,
+    language: "pt",
+});
+
+export async function buscarFalando(gravacao: Blob): Promise<BuscaDeRota> {
+    const resultado = await voz.transcribe(gravacao);
+    return resultado.server ?? buscarPorTexto(resultado.text);
+}
+```
+
+O servidor nunca interpreta duas vezes: quando ele respondeu, a resposta dele é usada; quando o aparelho transcreveu, só o texto viaja.
 
 ## Como a rota é escolhida
 
@@ -194,7 +245,7 @@ console.log(aparelho.wasmThreads, aparelho.webgpu, aparelho.deviceMemoryGb);
 Síncrono e sem carregar nada. Só descarta o claramente impossível: sem WebAssembly, sem SIMD (o ONNX Runtime Web só tem builds SIMD), ou `deviceMemory` abaixo de `minMemoryGb` (2 GiB). Lento ou não, quem decide é o prazo.
 
 !!! tip "Threads precisam de isolamento cross-origin"
-    O WASM do ONNX Runtime usa várias threads só com `crossOriginIsolated` (headers `Cross-Origin-Opener-Policy: same-origin` e `Cross-Origin-Embedder-Policy: require-corp`). Sem eles, roda numa thread só, e o prazo vai notar. `assessSpeechDevice().wasmThreads` diz se o isolamento está ligado.
+    O WASM do ONNX Runtime usa várias threads só com `crossOriginIsolated` (headers `Cross-Origin-Opener-Policy: same-origin` e `Cross-Origin-Embedder-Policy: require-corp`). Sem eles, roda numa thread só, e o prazo vai notar: no mesmo desktop, o whisper-base nas 30 frases do FLEURS foi de fator de tempo real 0,109 para **0,248** (`ISOLATION=0 … node scripts/bench-whisper-wer.mjs`), com o mesmo WER. Num celular de entrada, a thread única é o que manda a gravação para o servidor. `assessSpeechDevice().wasmThreads` diz se o isolamento está ligado.
 
 ## Recap
 

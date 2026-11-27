@@ -15,3 +15,5 @@ export { tempestCsp } from "./tempest-csp";
 export type { TempestCspOptions, TempestCspPolicy, TempestCspSource } from "./tempest-csp";
 export { tempestThemeInit } from "./tempest-theme-init";
 export type { TempestThemeInitOptions } from "./tempest-theme-init";
+export { tempestOrtAssets } from "./tempest-ort-assets";
+export type { TempestOrtAssetsOptions } from "./tempest-ort-assets";

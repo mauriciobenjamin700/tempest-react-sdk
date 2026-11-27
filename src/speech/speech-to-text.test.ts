@@ -423,4 +423,39 @@ describe("createSpeechToText", () => {
             if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
         }
     });
+
+    it("keeps a backend's richer answer and takes the text from serverText", async () => {
+        const answer = { text: "de picos pra sobral", results: [{ id: 7 }] };
+        const speech = createSpeechToText({
+            loadModel: async () => fakeModel().model,
+            server: async () => answer,
+            serverText: (value) => value.text,
+            assessDevice: () => WEAK,
+            storage: null,
+        });
+        await expect(speech.transcribe(audio)).resolves.toEqual({
+            text: "de picos pra sobral",
+            source: "server",
+            reason: "device-unsupported",
+            transcription: null,
+            server: answer,
+        });
+    });
+
+    it("leaves server null when the device answers", async () => {
+        const { speech } = setup({ whileLoading: "wait" });
+        const run = speech.transcribe(audio);
+        await vi.advanceTimersByTimeAsync(100);
+        await expect(run).resolves.toMatchObject({ source: "device", server: null });
+    });
+
+    it("refuses a non-string server answer without serverText", async () => {
+        const speech = createSpeechToText<{ text: string }>({
+            loadModel: async () => fakeModel().model,
+            server: async () => ({ text: "x" }),
+            assessDevice: () => WEAK,
+            storage: null,
+        });
+        await expect(speech.transcribe(audio)).rejects.toThrow(/serverText/);
+    });
 });

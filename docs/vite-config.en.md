@@ -305,6 +305,23 @@ fallback `index.html` in its place. Absolute `http(s):` URLs are not checked.
 | `tempestPwaDevSw({ build })`            | `true`                                     | Bundles `swSrc` into the production build at `swUrl`       |
 | `tempestPwaManifest({ serviceWorker })` | `tempestPwaDevSw`'s `swUrl`, else `/sw.js` | Worker URL required in the build; `false` turns it off     |
 
+## ONNX models in the browser: `tempestOrtAssets`
+
+ONNX Runtime Web (`/speech`, `/tabular`, `/vision`) does **not** embed its `.wasm` files, not even in the `.bundle` builds. In a bundled app the session fails with `Aborted(both async and sync fetching of the wasm failed)`, naming no file. The plugin serves the binaries of the `onnxruntime-web` the app installed, from your own origin:
+
+```ts
+import { defineConfig } from "vite";
+import { tempestOrtAssets } from "tempest-react-sdk/vite";
+
+export default defineConfig({ plugins: [tempestOrtAssets()] });
+```
+
+- **`vite dev`:** answers `/ort/<file>` straight from `node_modules/onnxruntime-web/dist/`.
+- **Build:** emits the same four files (`ort-wasm-simd-threaded[.jsep].{wasm,mjs}`) into `dist/ort/`.
+- **Package not installed:** fails at startup saying what to install. A version missing one of the files fails naming the file.
+
+Point the runtime at the same path: `loadWhisper({ ortAssetsUrl: "/ort/" })` or `configureOrtAssets("/ort/")`. The files (~25 MB) are **not** added to the PWA precache, so installs that never use the model do not pay for them. For offline inference from the first launch, pass `ortAssetUrls("/ort/")` to `tempestPwaManifest`'s `additionalUrls`.
+
 ## Options reference
 
 All options are optional.

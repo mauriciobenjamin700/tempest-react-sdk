@@ -1376,7 +1376,8 @@ async function features(gravacao: Blob): Promise<Float32Array> {
 ```
 
 - `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, filtros mel Slaney, `log10`, piso em `max − 8`, `(x + 4) / 4`. 30 s dão 3000 quadros.
-- O resultado tem o tamanho do áudio que entrou (`frames` = amostras ÷ 160). Não completa até 30 s: o Whisper espera 3000 quadros, e o `/speech` completa por dentro.
+- O resultado é `{ data, nMels, frames }`, com `data` banda por banda: o valor da banda `b` no quadro `f` está em `data[b * frames + f]`. É o layout `[nMels, frames]` que o Whisper lê.
+- O tamanho segue o áudio que entrou (`frames` = amostras ÷ 160). Para a entrada fixa de 30 s do Whisper (3000 quadros), complete as **amostras** com zeros até 480 000 antes de calcular, como o `pad_or_trim` do openai-whisper. O `/speech` faz isso por dentro.
 - Modelo próprio: passe a sua `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
 - **Paridade medida:** contra um port em numpy do `whisper.audio.log_mel_spectrogram`, conferido com o `transformers.WhisperFeatureExtractor`, a diferença máxima é **1,2e-7** (o épsilon do float32). 30 s custam 83 ms no Node 24. A fixture e o script que a gera estão no repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
 
@@ -16178,7 +16179,7 @@ você mudou `server.hmr` para outra porta, adicione a origem dele em
 | Diretiva | Valor | Por quê |
 | --- | --- | --- |
 | `default-src` | `'self'` | base de tudo |
-| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/speech`, `/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
 | `style-src` | `'self' 'unsafe-inline'` | o `applyTheme` injeta um `<style>` |
 | `img-src` | `'self' data: blob:` | preview de imagem por object URL |
 | `font-src` | `'self' data:` | fonte embutida |
@@ -16218,7 +16219,7 @@ export default createViteConfig({
 ```
 
 !!! warning "`AudioWorklet` segue o `script-src`, e o default não aceita `blob:`"
-    O `worker-src 'self' blob:` cobre Web Worker e service worker, mas **não** worklet: `audioWorklet.addModule()` é governado pelo `script-src`. Com o default acima, o `createPcmStream` não carrega o processador inline por `blob:` (medido no Chromium 159). Não afrouxe o `script-src`; use o arquivo que o pacote publica, servido da sua origem: `import url from "tempest-react-sdk/pcm-worklet.js?url"` e `workletUrl: url`. Detalhes em [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa).
+    O `worker-src 'self' blob:` cobre Web Worker e service worker, mas **não** worklet: `audioWorklet.addModule()` é governado pelo `script-src`. Com o default acima, o `createPcmStream` não carrega o processador inline por `blob:` (medido no Chromium 159). Não afrouxe o `script-src`; use o arquivo que o pacote publica, servido da sua origem: `import url from "tempest-react-sdk/pcm-worklet.js?url"` e `workletUrl: url`. Vale também para o [`createSpeechDetector`](speech-vad.md) e o [`createSoundMonitor`](speech-sounds.md), que recebem a mesma opção em `stream: { workletUrl: url }`. Detalhes em [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa).
 
 ## Script inline entra por hash
 
@@ -43776,6 +43777,27 @@ O console mostra `device device` quando o aparelho transcreveu dentro do prazo, 
 - **O nome do arquivo:** o Safari grava AAC em MP4, e os outros navegadores gravam Opus em WebM. Por isso a extensão segue o `audio.type`.
 - **A pasta do runtime** vem do `configureOrtAssets("/ort/")` chamado no boot, e o SDK a repassa ao worker.
 
+## A busca por voz inteira
+
+O botão de busca junta três peças: a gravação que para sozinha ([`gravarAteCalar`](speech-vad.md#gravar-ate-a-pessoa-parar-de-falar)), o `fala` acima, e a sua busca por texto:
+
+```typescript
+import type { SpeechToText } from "tempest-react-sdk/speech";
+
+declare function gravarAteCalar(): Promise<Blob | null>;
+declare const fala: SpeechToText;
+declare function buscarRotas(texto: string): Promise<void>;
+
+export async function aoTocarNoMicrofone(): Promise<void> {
+    const gravacao = await gravarAteCalar();
+    if (!gravacao) return;
+    const { text } = await fala.transcribe(gravacao);
+    if (text.trim()) await buscarRotas(text);
+}
+```
+
+Gravação sem fala (`null`) não vai a lugar nenhum: nem ao modelo, nem ao servidor.
+
 ## O que o `transcribe` devolve
 
 | Campo | O que é |
@@ -43804,7 +43826,7 @@ A cada `transcribe`, nesta ordem:
 | Aparelho falhou (memória, WASM) | servidor | `device-error` |
 | Servidor falhou | aparelho | `server-error` |
 
-Sem `isServerAvailable`, o servidor conta como disponível sempre que `server` existe.
+Sem `isServerAvailable`, o servidor conta como disponível sempre que `server` existe. Se as duas rotas falham, o `transcribe` rejeita com o erro.
 
 !!! info "\"O aparelho não aguenta\" é medido, não chutado"
     O prazo é a duração do áudio × `realtimeFactor` (default `1`: 10 s de gravação têm 10 s), nunca menos que `minBudgetMs` (4 s). Se estourar, a execução é cancelada entre dois passos do decoder, o servidor responde, e o aparelho fica marcado como lento por `slowVerdictTtlMs` (7 dias), no `localStorage`. A decisão vem de uma execução real **neste** aparelho com **este** modelo, e não de `deviceMemory` ou do número de núcleos.
@@ -43948,13 +43970,24 @@ Vigiar o microfone e avisar quando uma sirene começa:
 
 ```typescript
 import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
-import { createSoundMonitor, loadSoundClassifier, type SoundMonitor } from "tempest-react-sdk/speech";
+import {
+    createSoundMonitor,
+    loadSoundClassifier,
+    type SoundClassifier,
+    type SoundMonitor,
+} from "tempest-react-sdk/speech";
 
-export async function vigiarSirene(mic: MediaStream, aoOuvir: () => void): Promise<SoundMonitor> {
-    const classificador = await loadSoundClassifier({
+export const carregarYamnet = (): Promise<SoundClassifier> =>
+    loadSoundClassifier({
         modelUrl: "/models/yamnet/yamnet.onnx",
         labelsUrl: "/models/yamnet/yamnet_class_map.csv",
     });
+
+export function vigiarSirene(
+    mic: MediaStream,
+    classificador: SoundClassifier,
+    aoOuvir: () => void,
+): Promise<SoundMonitor> {
     let tocando = false;
     return createSoundMonitor(
         mic,
@@ -43965,7 +43998,7 @@ export async function vigiarSirene(mic: MediaStream, aoOuvir: () => void): Promi
         },
         {
             classifier: classificador,
-            classes: ["Siren", "Vehicle horn, car horn, honking"],
+            classes: ["Siren"],
             stream: { workletUrl: pcmWorkletUrl },
         },
     );
@@ -43974,6 +44007,7 @@ export async function vigiarSirene(mic: MediaStream, aoOuvir: () => void): Promi
 
 - O `onChange` recebe a **lista de classes ativas** sempre que ela muda, não a cada janela. Uma lista vazia quer dizer que nenhuma das classes vigiadas está tocando.
 - Cada janela de ~1 s é classificada a cada 0,5 s. O score é a média das últimas `smoothing` janelas. A classe liga em `threshold` e só desliga abaixo de `releaseThreshold`. Assim, um som não pisca a cada janela.
+- O classificador é carregado à parte (`carregarYamnet`) e passado ao monitor: uma carga serve vários monitores, e quem carregou chama `release()` quando não precisar mais.
 - O monitor devolvido tem `active` (a lista de agora) e `stop()`, que libera o grafo de áudio. O microfone e o classificador continuam seus.
 - `stream: { workletUrl }` faz o monitor funcionar sob o [CSP do `tempestCsp()`](csp.md), como no [`createPcmStream`](audio.md#do-microfone-createpcmstream).
 - Uma classe que não existe no CSV lança `Unknown class "…"` na hora, em vez de nunca disparar.
@@ -44046,49 +44080,64 @@ curl -sfL -o public/models/silero_vad.onnx \
 
 ## Gravar até a pessoa parar de falar
 
-O exemplo completo: abre o microfone, grava, para 1 s depois do fim da fala (ou em 15 s, se ninguém falar) e devolve o `Blob`. Ele já roda sob o [CSP do `tempestCsp()`](csp.md).
+O exemplo completo: abre o microfone, grava e para 1 s depois do fim da fala. Se ninguém falar em 15 s, devolve `null` em vez de um áudio vazio. Ele já roda sob o [CSP do `tempestCsp()`](csp.md). Chame a partir do clique no botão: é o gesto do usuário que libera o microfone e o áudio.
 
 ```typescript
 import { createAudioRecorder } from "tempest-react-sdk";
 import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
-import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
+import { createSpeechDetector, loadSileroVad, type SileroVad } from "tempest-react-sdk/speech";
 
-const LIMITE_MS = 15_000;
+const SEM_FALA_MS = 15_000;
 
-export async function gravarAteCalar(): Promise<Blob> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+let vadCarregado: Promise<SileroVad> | undefined;
+
+export function carregarVad(): Promise<SileroVad> {
+    vadCarregado ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+    return vadCarregado;
+}
+
+export async function gravarAteCalar(): Promise<Blob | null> {
+    const vad = await carregarVad();
     const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
     const gravador = createAudioRecorder(mic);
+    let limite: ReturnType<typeof setTimeout> | undefined;
     try {
         gravador.start();
-        let fimDaFala = (): void => undefined;
-        const calou = new Promise<void>((resolve) => (fimDaFala = resolve));
-        const limite = setTimeout(fimDaFala, LIMITE_MS);
         let falou = false;
+        let encerrar = (): void => undefined;
+        const fim = new Promise<void>((resolve) => (encerrar = resolve));
+        limite = setTimeout(encerrar, SEM_FALA_MS);
         const detector = await createSpeechDetector(
             mic,
             (falando) => {
-                if (falando) falou = true;
-                else if (falou) fimDaFala();
+                if (falando) {
+                    falou = true;
+                    clearTimeout(limite);
+                } else if (falou) encerrar();
             },
             { vad, minSilenceMs: 1000, stream: { workletUrl: pcmWorkletUrl } },
         );
-        await calou;
-        clearTimeout(limite);
+        await fim;
         detector.stop();
-        return (await gravador.stop()).blob;
+        const { blob } = await gravador.stop();
+        return falou ? blob : null;
     } finally {
+        clearTimeout(limite);
+        if (gravador.status() === "recording") gravador.cancel();
         mic.getTracks().forEach((track) => track.stop());
     }
 }
 ```
 
+- **O VAD carrega uma vez** (`carregarVad`) e serve para todas as gravações. Chame `carregarVad()` cedo, ao montar a tela, para a primeira gravação não esperar o download.
+- **Sem fala, sem transcrição.** Mandar silêncio ao Whisper é pedir texto inventado: com um `prompt`, o modelo pode devolver o próprio prompt. Por isso o `null`.
+- O limite de 15 s vale só até a fala começar. Depois, quem para é o silêncio.
 - O gravador começa **antes** do detector. O detector precisa de alguns quadros para ligar: no teste abaixo, a fala começou em 1,0 s e ele ligou em 1,6 s. Como a gravação já estava rodando, o começo não se perde.
 - O `onChange` recebe `true` quando a fala começa e `false` quando ela termina. Só é chamado na **virada**, não a cada quadro.
 - `stop()` libera o grafo de áudio do detector. Ele **não** para o microfone (o stream é seu) nem descarrega o VAD (`vad.release()` faz isso). Um VAD carregado serve para várias gravações.
 - `stream: { workletUrl }` é a mesma opção do [`createPcmStream`](audio.md#do-microfone-createpcmstream). Sem ela, o processador carrega de uma URL `blob:`, que o `script-src` do `tempestCsp()` recusa.
 
-Medido no Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de fala e silêncio depois: o detector ligou aos 1,6 s e desligou aos 6,7 s, depois de 1 s calado. Processou 281 de 281 quadros.
+Medido no Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de uma frase gravada e silêncio depois: o detector ligou aos 1,6 s e desligou aos 6,7 s. A frase gravada já termina com pausa própria, então o fim da fala real fica antes dos 6,5 s. Processou 281 de 281 quadros.
 
 ### Opções do `createSpeechDetector(fonte, onChange, opções)`
 
@@ -44113,9 +44162,10 @@ Para cortar o silêncio antes de enviar ou de transcrever:
 import { decodeAudioToPcm } from "tempest-react-sdk";
 import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
 
+const vad = loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+
 export async function segundosDeFala(gravacao: Blob): Promise<number> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
-    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), vad);
+    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), await vad);
     console.log(segmentos);
     return segmentos.reduce((total, s) => total + (s.endMs - s.startMs), 0) / 1000;
 }
@@ -44152,7 +44202,9 @@ Comparado ao VAD por energia, em acurácia por quadro de 32 ms em 10 frases do F
 
 ## Recap
 
-- `loadSileroVad({ modelUrl })` carrega o modelo (~2 MB) uma vez. Ele serve para várias gravações.
+- `loadSileroVad({ modelUrl })` carrega o modelo (~2 MB). Carregue uma vez e reuse em todas as gravações.
+- Sem fala até o limite: devolva `null`, não mande o silêncio ao Whisper.
+- Para juntar com a transcrição, veja [a busca por voz completa](speech-fallback.md#a-busca-por-voz-inteira).
 - `createSpeechDetector(mic, onChange, { vad, minSilenceMs: 1000 })` diz quando a fala começa e termina. Sob CSP, passe `stream: { workletUrl }`.
 - `stop()` libera o grafo de áudio; o microfone e o VAD continuam seus.
 - `detectSpeechSegments(pcm, vad)` → `[{ startMs, endMs }]`, com os defaults do silero-vad.
@@ -44239,14 +44291,16 @@ done
 O ONNX Runtime Web **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado pelo Vite, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin [`tempestOrtAssets()`](vite-config.md#modelos-onnx-no-navegador-tempestortassets) serve os binários em `/ort/`, no dev e no build:
 
 ```ts
-import { createViteConfig, tempestOrtAssets } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestOrtAssets } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestOrtAssets({ crossOriginIsolation: true })],
+    plugins: [tempestOrtAssets({ crossOriginIsolation: true }), tempestCsp()],
 });
 ```
 
-`crossOriginIsolation: true` liga as [threads](#threads-isolamento-cross-origin) no `vite dev` e no `vite preview`. Em produção, os headers vêm do seu servidor.
+- `crossOriginIsolation: true` liga as [threads](#threads-isolamento-cross-origin) no `vite dev` e no `vite preview`. Em produção, os headers vêm do seu servidor.
+- O [`tempestCsp()`](csp.md) é opcional e fica por último. O default dele já libera o que o `/speech` precisa: `'wasm-unsafe-eval'` para compilar o runtime e `worker-src 'self' blob:` para os workers. O AudioWorklet é a exceção: as funções que ouvem o microfone recebem `stream: { workletUrl }` ([fim da fala](speech-vad.md)).
+- O `import url from "…?url"` dos exemplos é sintaxe do Vite. Em TypeScript, ele compila com `"types": ["vite/client"]` no `tsconfig`, que o template do SDK já traz.
 
 Diga ao SDK onde o runtime está **uma vez**, no boot do app (o `main.tsx`). Vale para todo modelo do `/speech`, do `/tabular` e do `/vision`, inclusive dentro do worker do passo 4:
 
@@ -44284,19 +44338,21 @@ export async function transcreverArquivo(gravacao: Blob): Promise<string> {
 }
 ```
 
-Para gravar o `Blob`, use o [`createAudioRecorder`](audio.md#fora-do-react-os-primitivos) (ou o `useAudioRecorder`, no React). O console mostra algo como:
+Para gravar o `Blob`, use o [`createAudioRecorder`](audio.md#fora-do-react-os-primitivos) (ou o `useAudioRecorder`, no React). O console mostra isto:
 
 ```text
 {
-  text: "Quero uma passagem para Picos amanhã de manhã.",
+  text: "Você pode ver as pirâmides no escuro e no silêncio antes de o chão começar.",
   language: "pt",
-  audioMs: 3420,
-  timings: { decodeMs: 31, featuresMs: 28, encoderMs: 302, decoderMs: 351, totalMs: 712 },
-  compressionRatio: 1.06,
+  audioMs: 8160,
+  timings: { decodeMs: 56, featuresMs: 83, encoderMs: 467, decoderMs: 430, totalMs: 1037 },
+  compressionRatio: 0.99,
   degenerate: false,
-  tokens: [...]
+  tokens: [ … 22 ids … ]
 }
 ```
+
+Medido numa frase do FLEURS `pt_br` ("Você pode ver as pirâmides no escuro e também no silêncio antes de o show começar."), whisper-base int8, Chromium 159 num desktop, execução aquecida, com `WHISPER_MODEL_DIR=… LANGUAGE=pt node scripts/bench-whisper.mjs`. O modelo trocou "show" por "chão" e omitiu "também": é o tipo de erro que o [`prompt`](#nomes-proprios-prompt) reduz.
 
 O que o `transcribe` aceita e o que ele faz:
 
@@ -52491,21 +52547,25 @@ do fallback da SPA no lugar dele. URLs absolutas `http(s):` não são conferidas
 O ONNX Runtime Web (`/speech`, `/tabular`, `/vision`) **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin serve os binários do `onnxruntime-web` que o app instalou, da sua própria origem:
 
 ```ts
-import { defineConfig } from "vite";
-import { tempestOrtAssets } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestOrtAssets } from "tempest-react-sdk/vite";
 
-export default defineConfig({ plugins: [tempestOrtAssets()] });
+export default createViteConfig({
+    plugins: [tempestOrtAssets({ crossOriginIsolation: true })],
+});
 ```
+
+Com `defineConfig` do Vite, o plugin entra do mesmo jeito em `plugins`.
 
 - **`vite dev`:** responde `/ort/<arquivo>` direto de `node_modules/onnxruntime-web/dist/`.
 - **Build:** emite os mesmos quatro arquivos (`ort-wasm-simd-threaded[.jsep].{wasm,mjs}`) em `dist/ort/`.
 - **Workers como módulo ES** (`worker.format: "es"`), a menos que o app já tenha escolhido. O default do Vite, IIFE, não faz code-splitting, e o worker de um modelo sempre tem o `import("onnxruntime-web")` sob demanda: sem isso, o build quebra com `Invalid value "iife" for option "worker.format"`.
+- **`crossOriginIsolation: true`** (default `false`): manda `Cross-Origin-Opener-Policy: same-origin` e `Cross-Origin-Embedder-Policy: credentialless` no `vite dev` e no `vite preview`. A página fica `crossOriginIsolated` e o WASM roda em várias threads, 2,3× mais rápido no whisper-base. `credentialless` mantém carregando imagem e fonte de outra origem (sem cookies), que o `require-corp` bloquearia. Em produção, quem manda os headers é o seu servidor; veja [Threads](speech.md#threads-isolamento-cross-origin).
 - **Sem o pacote instalado:** falha no boot dizendo o que instalar. Numa versão que não traga um dos arquivos, falha nomeando o arquivo.
 
 !!! warning "Em produção, o servidor precisa servir `.mjs` como JavaScript"
     O ONNX Runtime carrega `ort-wasm-simd-threaded.jsep.mjs` como módulo, e o `mime.types` padrão do **nginx** não conhece `.mjs`: o arquivo sai como `application/octet-stream`, o navegador recusa (`Failed to fetch dynamically imported module`) e o modelo não carrega. Achado servindo um app real pelo nginx. Adicione um `location ~* \.mjs$ { types { } default_type application/javascript; }`, ou `application/javascript mjs;` ao seu `mime.types`.
 
-Aponte o runtime para o mesmo caminho: `loadWhisper({ ortAssetsUrl: "/ort/" })` ou `configureOrtAssets("/ort/")`. Os arquivos (~25 MB) **não** entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe `ortAssetUrls("/ort/")` em `additionalUrls` do `tempestPwaManifest`.
+Aponte o runtime para o mesmo caminho, uma vez no boot: `configureOrtAssets("/ort/")` (ou `ortAssetsUrl: "/ort/"` em cada modelo). Os arquivos (~25 MB) **não** entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe `ortAssetUrls("/ort/")` em `additionalUrls` do `tempestPwaManifest`.
 
 ## Referência das opções
 

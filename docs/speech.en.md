@@ -75,14 +75,16 @@ done
 ONNX Runtime Web does **not** embed its `.wasm` files, not even in the `.bundle` builds. In a Vite-bundled app the session fails with `Aborted(both async and sync fetching of the wasm failed)`, without naming the missing file. The [`tempestOrtAssets()`](vite-config.md#onnx-models-in-the-browser-tempestortassets) plugin serves the binaries at `/ort/`, in dev and in the build:
 
 ```ts
-import { createViteConfig, tempestOrtAssets } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestCsp, tempestOrtAssets } from "tempest-react-sdk/vite";
 
 export default createViteConfig({
-    plugins: [tempestOrtAssets({ crossOriginIsolation: true })],
+    plugins: [tempestOrtAssets({ crossOriginIsolation: true }), tempestCsp()],
 });
 ```
 
-`crossOriginIsolation: true` turns the [threads](#threads-cross-origin-isolation) on in `vite dev` and `vite preview`. In production the headers come from your server.
+- `crossOriginIsolation: true` turns the [threads](#threads-cross-origin-isolation) on in `vite dev` and `vite preview`. In production the headers come from your server.
+- [`tempestCsp()`](csp.md) is optional and goes last. Its default already allows what `/speech` needs: `'wasm-unsafe-eval'` to compile the runtime and `worker-src 'self' blob:` for the workers. The AudioWorklet is the exception: the functions that listen to the microphone take `stream: { workletUrl }` ([end of speech](speech-vad.md)).
+- The examples' `import url from "…?url"` is Vite syntax. In TypeScript it compiles with `"types": ["vite/client"]` in `tsconfig`, which the SDK's template already has.
 
 Tell the SDK where the runtime is **once**, at app boot (`main.tsx`). It holds for every model in `/speech`, `/tabular` and `/vision`, including inside the worker of step 4:
 

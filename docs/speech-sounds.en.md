@@ -40,13 +40,24 @@ Watch the microphone and say when a siren starts:
 
 ```typescript
 import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
-import { createSoundMonitor, loadSoundClassifier, type SoundMonitor } from "tempest-react-sdk/speech";
+import {
+    createSoundMonitor,
+    loadSoundClassifier,
+    type SoundClassifier,
+    type SoundMonitor,
+} from "tempest-react-sdk/speech";
 
-export async function watchForSirens(mic: MediaStream, onSiren: () => void): Promise<SoundMonitor> {
-    const classifier = await loadSoundClassifier({
+export const loadYamnet = (): Promise<SoundClassifier> =>
+    loadSoundClassifier({
         modelUrl: "/models/yamnet/yamnet.onnx",
         labelsUrl: "/models/yamnet/yamnet_class_map.csv",
     });
+
+export function watchForSirens(
+    mic: MediaStream,
+    classifier: SoundClassifier,
+    onSiren: () => void,
+): Promise<SoundMonitor> {
     let sounding = false;
     return createSoundMonitor(
         mic,
@@ -57,7 +68,7 @@ export async function watchForSirens(mic: MediaStream, onSiren: () => void): Pro
         },
         {
             classifier,
-            classes: ["Siren", "Vehicle horn, car horn, honking"],
+            classes: ["Siren"],
             stream: { workletUrl: pcmWorkletUrl },
         },
     );
@@ -66,6 +77,7 @@ export async function watchForSirens(mic: MediaStream, onSiren: () => void): Pro
 
 - `onChange` gets the **list of active classes** whenever it changes, not on every window. An empty list means none of the watched classes is sounding.
 - Each ~1 s window is classified every 0.5 s. The score is the mean of the last `smoothing` windows. A class turns on at `threshold` and only turns off under `releaseThreshold`, so a sound does not flicker every window.
+- The classifier is loaded separately (`loadYamnet`) and handed to the monitor: one load serves many monitors, and whoever loaded it calls `release()` when it is no longer needed.
 - The monitor returned has `active` (the current list) and `stop()`, which frees the audio graph. The microphone and the classifier stay yours.
 - `stream: { workletUrl }` makes the monitor work under the [`tempestCsp()` CSP](csp.md), as with [`createPcmStream`](audio.md#from-the-microphone-createpcmstream).
 - A class missing from the CSV throws `Unknown class "…"` at once, instead of never firing.

@@ -36,7 +36,12 @@ fetching of the wasm failed)` num app empacotado). Achado num teste em que um LL
   `createSoundMonitor` (`stream: { workletUrl }`, que não estava documentada; um deles não compilou).
   Agora cada função tem tabela de opções com defaults, a primeira transcrição mostra a saída real, o
   exemplo do detector não usa a variável antes do `await`, há glossário (WER, RTF, int8, VAD), e as
-  medições ficam em blocos recolhíveis.
+  medições ficam em blocos recolhíveis. Uma segunda rodada, com dois LLMs novos sobre a doc nova,
+  compilou limpo contra o build e pediu o resto: o exemplo da gravação reaproveita o VAD e devolve
+  `null` quando ninguém fala (silêncio mandado ao Whisper com `prompt` volta como o próprio prompt),
+  a busca por voz inteira numa seção só, `tempestCsp()` e `tempestOrtAssets()` no mesmo
+  `vite.config.ts`, e o layout do `logMelSpectrogram` (`data[banda * frames + quadro]`) com o
+  preenchimento até 30 s.
 - **`docs/audio.md`:** dica para pular "Áudio para modelos" quando se usa o `/speech`, default do
   `sampleRate` do `decodeAudioToPcm` e o tamanho do log-mel; saiu a linguagem de PR ("este PR não
   teve WebKit").

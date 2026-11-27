@@ -51,6 +51,27 @@ The console shows `device device` when the device transcribed within the deadlin
 - **The file name:** Safari records AAC in MP4 and the other browsers record Opus in WebM, so the extension follows `audio.type`.
 - **The runtime folder** comes from the `configureOrtAssets("/ort/")` called at boot, and the SDK passes it on to the worker.
 
+## The whole voice search
+
+The search button joins three pieces: the recording that stops on its own ([`recordUntilQuiet`](speech-vad.md#record-until-the-person-stops-talking)), the `speech` above, and your text search:
+
+```typescript
+import type { SpeechToText } from "tempest-react-sdk/speech";
+
+declare function recordUntilQuiet(): Promise<Blob | null>;
+declare const speech: SpeechToText;
+declare function searchRoutes(text: string): Promise<void>;
+
+export async function onMicrophoneTap(): Promise<void> {
+    const recording = await recordUntilQuiet();
+    if (!recording) return;
+    const { text } = await speech.transcribe(recording);
+    if (text.trim()) await searchRoutes(text);
+}
+```
+
+A recording with no speech (`null`) goes nowhere: neither to the model nor to the server.
+
 ## What `transcribe` returns
 
 | Field | What it is |
@@ -79,7 +100,7 @@ On every `transcribe`, in this order:
 | Device failed (memory, WASM) | server | `device-error` |
 | Server failed | device | `server-error` |
 
-Without `isServerAvailable`, the server counts as available whenever `server` is set.
+Without `isServerAvailable`, the server counts as available whenever `server` is set. If both routes fail, `transcribe` rejects with the error.
 
 !!! info "\"The device cannot keep up\" is measured, not guessed"
     The deadline is the audio duration × `realtimeFactor` (default `1`: a 10 s recording gets 10 s), never less than `minBudgetMs` (4 s). Past it, the run is cancelled between two decoder steps, the server answers, and the device is marked slow for `slowVerdictTtlMs` (7 days), in `localStorage`. The decision comes from a real run on **this** device with **this** model, not from `deviceMemory` or the core count.

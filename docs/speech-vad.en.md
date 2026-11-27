@@ -15,49 +15,64 @@ curl -sfL -o public/models/silero_vad.onnx \
 
 ## Record until the person stops talking
 
-The complete example: opens the microphone, records, stops 1 s after the speech ends (or at 15 s, if nobody speaks) and returns the `Blob`. It already works under the [`tempestCsp()` CSP](csp.md).
+The complete example: opens the microphone, records and stops 1 s after the speech ends. If nobody speaks within 15 s, it returns `null` instead of empty audio. It already works under the [`tempestCsp()` CSP](csp.md). Call it from the button's click: the user's gesture is what unlocks the microphone and audio.
 
 ```typescript
 import { createAudioRecorder } from "tempest-react-sdk";
 import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
-import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
+import { createSpeechDetector, loadSileroVad, type SileroVad } from "tempest-react-sdk/speech";
 
-const LIMIT_MS = 15_000;
+const NO_SPEECH_MS = 15_000;
 
-export async function recordUntilQuiet(): Promise<Blob> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+let vadLoading: Promise<SileroVad> | undefined;
+
+export function loadVad(): Promise<SileroVad> {
+    vadLoading ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+    return vadLoading;
+}
+
+export async function recordUntilQuiet(): Promise<Blob | null> {
+    const vad = await loadVad();
     const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
     const recorder = createAudioRecorder(mic);
+    let limit: ReturnType<typeof setTimeout> | undefined;
     try {
         recorder.start();
-        let endOfSpeech = (): void => undefined;
-        const quiet = new Promise<void>((resolve) => (endOfSpeech = resolve));
-        const limit = setTimeout(endOfSpeech, LIMIT_MS);
         let spoke = false;
+        let finish = (): void => undefined;
+        const done = new Promise<void>((resolve) => (finish = resolve));
+        limit = setTimeout(finish, NO_SPEECH_MS);
         const detector = await createSpeechDetector(
             mic,
             (speaking) => {
-                if (speaking) spoke = true;
-                else if (spoke) endOfSpeech();
+                if (speaking) {
+                    spoke = true;
+                    clearTimeout(limit);
+                } else if (spoke) finish();
             },
             { vad, minSilenceMs: 1000, stream: { workletUrl: pcmWorkletUrl } },
         );
-        await quiet;
-        clearTimeout(limit);
+        await done;
         detector.stop();
-        return (await recorder.stop()).blob;
+        const { blob } = await recorder.stop();
+        return spoke ? blob : null;
     } finally {
+        clearTimeout(limit);
+        if (recorder.status() === "recording") recorder.cancel();
         mic.getTracks().forEach((track) => track.stop());
     }
 }
 ```
 
+- **The VAD loads once** (`loadVad`) and serves every recording. Call `loadVad()` early, when the screen mounts, so the first recording does not wait for the download.
+- **No speech, no transcription.** Sending silence to Whisper asks for made-up text: with a `prompt`, the model may return the prompt itself. Hence the `null`.
+- The 15 s limit only holds until speech starts. After that, silence is what stops it.
 - The recorder starts **before** the detector. The detector needs a few frames to turn on: in the test below, speech started at 1.0 s and it turned on at 1.6 s. Since the recording was already running, the start is not lost.
 - `onChange` gets `true` when speech starts and `false` when it ends. It is called only on the **change**, not on every frame.
 - `stop()` frees the detector's audio graph. It does **not** stop the microphone (the stream is yours) or unload the VAD (`vad.release()` does that). One loaded VAD serves many recordings.
 - `stream: { workletUrl }` is the same option as [`createPcmStream`](audio.md#from-the-microphone-createpcmstream)'s. Without it, the processor loads from a `blob:` URL, which `tempestCsp()`'s `script-src` refuses.
 
-Measured on Chromium 159, with a fake microphone playing 1 s of silence, 5.5 s of speech and silence after: the detector turned on at 1.6 s and off at 6.7 s, after 1 s of quiet. It processed 281 of 281 frames.
+Measured on Chromium 159, with a fake microphone playing 1 s of silence, 5.5 s of a recorded sentence and silence after: the detector turned on at 1.6 s and off at 6.7 s. The recorded sentence already ends in a pause of its own, so the real end of speech is before 6.5 s. It processed 281 of 281 frames.
 
 ### `createSpeechDetector(source, onChange, options)` options
 
@@ -82,9 +97,10 @@ To trim the silence before uploading or transcribing:
 import { decodeAudioToPcm } from "tempest-react-sdk";
 import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
 
+const vad = loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+
 export async function secondsOfSpeech(recording: Blob): Promise<number> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
-    const segments = await detectSpeechSegments(await decodeAudioToPcm(recording), vad);
+    const segments = await detectSpeechSegments(await decodeAudioToPcm(recording), await vad);
     console.log(segments);
     return segments.reduce((total, s) => total + (s.endMs - s.startMs), 0) / 1000;
 }
@@ -121,7 +137,9 @@ Compared with the energy VAD, as per-frame accuracy over 32 ms frames on 10 FLEU
 
 ## Recap
 
-- `loadSileroVad({ modelUrl })` loads the model (~2 MB) once. It serves many recordings.
+- `loadSileroVad({ modelUrl })` loads the model (~2 MB). Load it once and reuse it for every recording.
+- No speech before the limit: return `null`, do not send the silence to Whisper.
+- To put it together with transcription, see [the whole voice search](speech-fallback.md#the-whole-voice-search).
 - `createSpeechDetector(mic, onChange, { vad, minSilenceMs: 1000 })` says when speech starts and ends. Under a CSP, pass `stream: { workletUrl }`.
 - `stop()` frees the audio graph; the microphone and the VAD stay yours.
 - `detectSpeechSegments(pcm, vad)` → `[{ startMs, endMs }]`, with silero-vad's defaults.

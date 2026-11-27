@@ -15,49 +15,64 @@ curl -sfL -o public/models/silero_vad.onnx \
 
 ## Gravar até a pessoa parar de falar
 
-O exemplo completo: abre o microfone, grava, para 1 s depois do fim da fala (ou em 15 s, se ninguém falar) e devolve o `Blob`. Ele já roda sob o [CSP do `tempestCsp()`](csp.md).
+O exemplo completo: abre o microfone, grava e para 1 s depois do fim da fala. Se ninguém falar em 15 s, devolve `null` em vez de um áudio vazio. Ele já roda sob o [CSP do `tempestCsp()`](csp.md). Chame a partir do clique no botão: é o gesto do usuário que libera o microfone e o áudio.
 
 ```typescript
 import { createAudioRecorder } from "tempest-react-sdk";
 import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
-import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
+import { createSpeechDetector, loadSileroVad, type SileroVad } from "tempest-react-sdk/speech";
 
-const LIMITE_MS = 15_000;
+const SEM_FALA_MS = 15_000;
 
-export async function gravarAteCalar(): Promise<Blob> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+let vadCarregado: Promise<SileroVad> | undefined;
+
+export function carregarVad(): Promise<SileroVad> {
+    vadCarregado ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+    return vadCarregado;
+}
+
+export async function gravarAteCalar(): Promise<Blob | null> {
+    const vad = await carregarVad();
     const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
     const gravador = createAudioRecorder(mic);
+    let limite: ReturnType<typeof setTimeout> | undefined;
     try {
         gravador.start();
-        let fimDaFala = (): void => undefined;
-        const calou = new Promise<void>((resolve) => (fimDaFala = resolve));
-        const limite = setTimeout(fimDaFala, LIMITE_MS);
         let falou = false;
+        let encerrar = (): void => undefined;
+        const fim = new Promise<void>((resolve) => (encerrar = resolve));
+        limite = setTimeout(encerrar, SEM_FALA_MS);
         const detector = await createSpeechDetector(
             mic,
             (falando) => {
-                if (falando) falou = true;
-                else if (falou) fimDaFala();
+                if (falando) {
+                    falou = true;
+                    clearTimeout(limite);
+                } else if (falou) encerrar();
             },
             { vad, minSilenceMs: 1000, stream: { workletUrl: pcmWorkletUrl } },
         );
-        await calou;
-        clearTimeout(limite);
+        await fim;
         detector.stop();
-        return (await gravador.stop()).blob;
+        const { blob } = await gravador.stop();
+        return falou ? blob : null;
     } finally {
+        clearTimeout(limite);
+        if (gravador.status() === "recording") gravador.cancel();
         mic.getTracks().forEach((track) => track.stop());
     }
 }
 ```
 
+- **O VAD carrega uma vez** (`carregarVad`) e serve para todas as gravações. Chame `carregarVad()` cedo, ao montar a tela, para a primeira gravação não esperar o download.
+- **Sem fala, sem transcrição.** Mandar silêncio ao Whisper é pedir texto inventado: com um `prompt`, o modelo pode devolver o próprio prompt. Por isso o `null`.
+- O limite de 15 s vale só até a fala começar. Depois, quem para é o silêncio.
 - O gravador começa **antes** do detector. O detector precisa de alguns quadros para ligar: no teste abaixo, a fala começou em 1,0 s e ele ligou em 1,6 s. Como a gravação já estava rodando, o começo não se perde.
 - O `onChange` recebe `true` quando a fala começa e `false` quando ela termina. Só é chamado na **virada**, não a cada quadro.
 - `stop()` libera o grafo de áudio do detector. Ele **não** para o microfone (o stream é seu) nem descarrega o VAD (`vad.release()` faz isso). Um VAD carregado serve para várias gravações.
 - `stream: { workletUrl }` é a mesma opção do [`createPcmStream`](audio.md#do-microfone-createpcmstream). Sem ela, o processador carrega de uma URL `blob:`, que o `script-src` do `tempestCsp()` recusa.
 
-Medido no Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de fala e silêncio depois: o detector ligou aos 1,6 s e desligou aos 6,7 s, depois de 1 s calado. Processou 281 de 281 quadros.
+Medido no Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de uma frase gravada e silêncio depois: o detector ligou aos 1,6 s e desligou aos 6,7 s. A frase gravada já termina com pausa própria, então o fim da fala real fica antes dos 6,5 s. Processou 281 de 281 quadros.
 
 ### Opções do `createSpeechDetector(fonte, onChange, opções)`
 
@@ -82,9 +97,10 @@ Para cortar o silêncio antes de enviar ou de transcrever:
 import { decodeAudioToPcm } from "tempest-react-sdk";
 import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
 
+const vad = loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+
 export async function segundosDeFala(gravacao: Blob): Promise<number> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
-    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), vad);
+    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), await vad);
     console.log(segmentos);
     return segmentos.reduce((total, s) => total + (s.endMs - s.startMs), 0) / 1000;
 }
@@ -121,7 +137,9 @@ Comparado ao VAD por energia, em acurácia por quadro de 32 ms em 10 frases do F
 
 ## Recap
 
-- `loadSileroVad({ modelUrl })` carrega o modelo (~2 MB) uma vez. Ele serve para várias gravações.
+- `loadSileroVad({ modelUrl })` carrega o modelo (~2 MB). Carregue uma vez e reuse em todas as gravações.
+- Sem fala até o limite: devolva `null`, não mande o silêncio ao Whisper.
+- Para juntar com a transcrição, veja [a busca por voz completa](speech-fallback.md#a-busca-por-voz-inteira).
 - `createSpeechDetector(mic, onChange, { vad, minSilenceMs: 1000 })` diz quando a fala começa e termina. Sob CSP, passe `stream: { workletUrl }`.
 - `stop()` libera o grafo de áudio; o microfone e o VAD continuam seus.
 - `detectSpeechSegments(pcm, vad)` → `[{ startMs, endMs }]`, com os defaults do silero-vad.

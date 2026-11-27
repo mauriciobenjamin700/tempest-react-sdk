@@ -714,7 +714,8 @@ async function features(recording: Blob): Promise<Float32Array> {
 ```
 
 - `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, Slaney mel filters, `log10`, floor at `max − 8`, `(x + 4) / 4`. 30 s give 3000 frames.
-- The result is as long as the audio that went in (`frames` = samples ÷ 160). It is not padded to 30 s: Whisper expects 3000 frames, and `/speech` pads inside.
+- The result is `{ data, nMels, frames }`, with `data` band by band: band `b` at frame `f` is `data[b * frames + f]`. That is the `[nMels, frames]` layout Whisper reads.
+- The length follows the audio that went in (`frames` = samples ÷ 160). For Whisper's fixed 30 s input (3000 frames), zero-pad the **samples** to 480,000 before computing, as openai-whisper's `pad_or_trim` does. `/speech` does that inside.
 - Your own model: pass your `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
 - **Measured parity:** against a numpy port of `whisper.audio.log_mel_spectrogram`, checked against `transformers.WhisperFeatureExtractor`, the maximum difference is **1.2e-7** (float32 epsilon). 30 s cost 83 ms on Node 24. The fixture and the script that makes it are in the repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
 

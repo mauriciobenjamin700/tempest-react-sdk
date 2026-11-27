@@ -149,7 +149,7 @@ você mudou `server.hmr` para outra porta, adicione a origem dele em
 | Diretiva | Valor | Por quê |
 | --- | --- | --- |
 | `default-src` | `'self'` | base de tudo |
-| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/speech`, `/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
 | `style-src` | `'self' 'unsafe-inline'` | o `applyTheme` injeta um `<style>` |
 | `img-src` | `'self' data: blob:` | preview de imagem por object URL |
 | `font-src` | `'self' data:` | fonte embutida |

@@ -51,6 +51,27 @@ O console mostra `device device` quando o aparelho transcreveu dentro do prazo, 
 - **O nome do arquivo:** o Safari grava AAC em MP4, e os outros navegadores gravam Opus em WebM. Por isso a extensão segue o `audio.type`.
 - **A pasta do runtime** vem do `configureOrtAssets("/ort/")` chamado no boot, e o SDK a repassa ao worker.
 
+## A busca por voz inteira
+
+O botão de busca junta três peças: a gravação que para sozinha ([`gravarAteCalar`](speech-vad.md#gravar-ate-a-pessoa-parar-de-falar)), o `fala` acima, e a sua busca por texto:
+
+```typescript
+import type { SpeechToText } from "tempest-react-sdk/speech";
+
+declare function gravarAteCalar(): Promise<Blob | null>;
+declare const fala: SpeechToText;
+declare function buscarRotas(texto: string): Promise<void>;
+
+export async function aoTocarNoMicrofone(): Promise<void> {
+    const gravacao = await gravarAteCalar();
+    if (!gravacao) return;
+    const { text } = await fala.transcribe(gravacao);
+    if (text.trim()) await buscarRotas(text);
+}
+```
+
+Gravação sem fala (`null`) não vai a lugar nenhum: nem ao modelo, nem ao servidor.
+
 ## O que o `transcribe` devolve
 
 | Campo | O que é |
@@ -79,7 +100,7 @@ A cada `transcribe`, nesta ordem:
 | Aparelho falhou (memória, WASM) | servidor | `device-error` |
 | Servidor falhou | aparelho | `server-error` |
 
-Sem `isServerAvailable`, o servidor conta como disponível sempre que `server` existe.
+Sem `isServerAvailable`, o servidor conta como disponível sempre que `server` existe. Se as duas rotas falham, o `transcribe` rejeita com o erro.
 
 !!! info "\"O aparelho não aguenta\" é medido, não chutado"
     O prazo é a duração do áudio × `realtimeFactor` (default `1`: 10 s de gravação têm 10 s), nunca menos que `minBudgetMs` (4 s). Se estourar, a execução é cancelada entre dois passos do decoder, o servidor responde, e o aparelho fica marcado como lento por `slowVerdictTtlMs` (7 dias), no `localStorage`. A decisão vem de uma execução real **neste** aparelho com **este** modelo, e não de `deviceMemory` ou do número de núcleos.

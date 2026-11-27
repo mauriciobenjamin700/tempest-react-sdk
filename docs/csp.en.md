@@ -151,7 +151,7 @@ moved `server.hmr` to another port, add its origin under
 | Directive | Value | Why |
 | --- | --- | --- |
 | `default-src` | `'self'` | the baseline |
-| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/vision`, `/tabular`) compiles WebAssembly; without it `WebAssembly.compile` throws `CompileError` |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/speech`, `/vision`, `/tabular`) compiles WebAssembly; without it `WebAssembly.compile` throws `CompileError` |
 | `style-src` | `'self' 'unsafe-inline'` | `applyTheme` injects a `<style>` |
 | `img-src` | `'self' data: blob:` | image previews through object URLs |
 | `font-src` | `'self' data:` | embedded fonts |

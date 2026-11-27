@@ -199,6 +199,29 @@
     ]
   },
   {
+    "name": "slice: Silero VAD (`loadSileroVad` + `createSpeechDetector` + `detectSpeechSegments`, onnxruntime-web external)",
+    "path": "dist/speech.js",
+    "import": {
+      "./dist/speech.js": "{ loadSileroVad, createSpeechDetector, detectSpeechSegments }"
+    },
+    "limit": "3.8 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate",
+      "onnxruntime-web"
+    ]
+  },
+  {
     "name": "slice: log-mel spectrogram (`logMelSpectrogram` + Whisper preset)",
     "path": "dist/tempest-react-sdk.js",
     "import": {

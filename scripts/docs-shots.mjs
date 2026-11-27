@@ -33,7 +33,6 @@
  * Requires the SDK and the gallery to be built first (`npm run e2e:build`).
  */
 
-import { spawn } from "node:child_process";
 import {
     existsSync,
     mkdirSync,
@@ -45,6 +44,8 @@ import {
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "@playwright/test";
+
+import { startBackgroundServer } from "./background-server.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
@@ -118,32 +119,33 @@ function parseArgs() {
 /**
  * Start `vite preview` for the gallery and resolve once it answers.
  *
+ * Goes through {@link startBackgroundServer}, which stops the whole process
+ * group (`npm` and the `vite` it spawns) and refuses a port that is already
+ * taken; `--strictPort` makes Vite fail instead of moving to another port the
+ * capture would not look at.
+ *
  * @returns {Promise<() => void>} A function that stops the server.
  */
 async function startPreview() {
     if (!existsSync(join(GALLERY_DIR, "dist", "index.html"))) {
         throw new Error("gallery build missing — run `npm run e2e:build` first");
     }
-    const child = spawn(
-        "npm",
-        ["--prefix", GALLERY_DIR, "run", "preview", "--", "--host", "127.0.0.1", "--port", "4173"],
-        { stdio: "ignore", detached: false },
-    );
-    const deadline = Date.now() + 60_000;
-    for (;;) {
-        try {
-            const response = await fetch(ORIGIN, { signal: AbortSignal.timeout(2000) });
-            if (response.ok) break;
-        } catch {
-            /* server not up yet */
-        }
-        if (Date.now() > deadline) {
-            child.kill();
-            throw new Error(`preview server did not answer on ${ORIGIN} within 60s`);
-        }
-        await new Promise((resolve) => setTimeout(resolve, 400));
-    }
-    return () => child.kill();
+    return startBackgroundServer({
+        command: "npm",
+        args: [
+            "--prefix",
+            GALLERY_DIR,
+            "run",
+            "preview",
+            "--",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "4173",
+            "--strictPort",
+        ],
+        origin: ORIGIN,
+    });
 }
 
 /**

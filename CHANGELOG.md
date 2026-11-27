@@ -81,7 +81,10 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`/speech`, `/tabular`, `/vision`) da origem do app: middleware no `vite dev` e emissão em
   `dist/ort/` no build, a partir do `onnxruntime-web` que o app instalou. Falha no boot nomeando o
   pacote ausente ou o arquivo que a versão instalada não traz. Substitui o passo "copie os
-  binários" que a doc do `/tabular` mandava cada app fazer à mão, e que faltava na do `/speech`.
+  binários" que a doc do `/tabular` mandava cada app fazer à mão, e que faltava na do `/speech`. Também
+  configura `worker.format: "es"` (salvo escolha do app): com o default IIFE do Vite, o build de um
+  app com `loadWhisper({ worker })` quebrava com `Invalid value "iife" for option "worker.format"`,
+  achado adotando no transport-frontend.
 - **`loadWhisper({ worker })` + `exposeWhisperWorker()`: Whisper fora da thread principal.** O
   backend WASM do ONNX Runtime calcula na thread que o chama, e na página a tela congelava a
   transcrição inteira. Medido no Chromium 159 (whisper-tiny int8, 11 s): **3 frames desenhados em

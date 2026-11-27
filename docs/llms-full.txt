@@ -52027,7 +52027,11 @@ export default defineConfig({ plugins: [tempestOrtAssets()] });
 
 - **`vite dev`:** responde `/ort/<arquivo>` direto de `node_modules/onnxruntime-web/dist/`.
 - **Build:** emite os mesmos quatro arquivos (`ort-wasm-simd-threaded[.jsep].{wasm,mjs}`) em `dist/ort/`.
+- **Workers como módulo ES** (`worker.format: "es"`), a menos que o app já tenha escolhido. O default do Vite, IIFE, não faz code-splitting, e o worker de um modelo sempre tem o `import("onnxruntime-web")` sob demanda: sem isso, o build quebra com `Invalid value "iife" for option "worker.format"`.
 - **Sem o pacote instalado:** falha no boot dizendo o que instalar. Numa versão que não traga um dos arquivos, falha nomeando o arquivo.
+
+!!! warning "Em produção, o servidor precisa servir `.mjs` como JavaScript"
+    O ONNX Runtime carrega `ort-wasm-simd-threaded.jsep.mjs` como módulo, e o `mime.types` padrão do **nginx** não conhece `.mjs`: o arquivo sai como `application/octet-stream`, o navegador recusa (`Failed to fetch dynamically imported module`) e o modelo não carrega. Achado servindo um app real pelo nginx. Adicione um `location ~* \.mjs$ { types { } default_type application/javascript; }`, ou `application/javascript mjs;` ao seu `mime.types`.
 
 Aponte o runtime para o mesmo caminho: `loadWhisper({ ortAssetsUrl: "/ort/" })` ou `configureOrtAssets("/ort/")`. Os arquivos (~25 MB) **não** entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe `ortAssetUrls("/ort/")` em `additionalUrls` do `tempestPwaManifest`.
 

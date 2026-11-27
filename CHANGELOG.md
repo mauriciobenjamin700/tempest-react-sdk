@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.95.1] — 2026-11-26
+
 ### Corrigido
 
 - **`<PerfHud>` passa a ser um único landmark.** Na 0.95.0 os blocos "Último toque" e

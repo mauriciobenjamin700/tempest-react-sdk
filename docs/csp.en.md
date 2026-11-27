@@ -190,6 +190,9 @@ export default createViteConfig({
 });
 ```
 
+!!! warning "`AudioWorklet` follows `script-src`, and the default does not allow `blob:`"
+    `worker-src 'self' blob:` covers Web Workers and service workers, but **not** worklets: `audioWorklet.addModule()` is governed by `script-src`. With the default above, `createPcmStream` cannot load its inline `blob:` processor (measured on Chromium 159). Do not loosen `script-src`; use the file the package ships, served from your origin: `import url from "tempest-react-sdk/pcm-worklet.js?url"` and `workletUrl: url`. Details in [Audio for models](audio.md#audio-for-models-pcm-at-the-right-rate).
+
 ## Inline scripts enter by hash
 
 An inline `<script>` in `index.html` — the `themeInitScript()` anti-flash script,

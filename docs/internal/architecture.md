@@ -11,7 +11,7 @@ mexer em barrel, ou tocar no empacotamento.
 src/
 ├── access/          useCan, <Can>, permissionsFromToken (RBAC)
 ├── app/             <AppProviders> (ErrorBoundary → Query → Theme → i18n)
-├── audio/           createAudioPlayer, useAudio, playAudio, createAudioBus
+├── audio/           createAudioPlayer, useAudio, createAudioBus, decodeAudioToPcm, createPcmStream
 ├── auth/            createAuthStore, AuthGuard, decodeJWT, createRefreshQueue
 ├── br/           ⇢  5.571 municípios do IBGE + 35 RAs do DF + mapa UF clicável
 ├── capture/         createMediaRecorder, useVideoRecorder, useBarcodeScanner
@@ -70,8 +70,9 @@ Fora de `src/`: `bin/` (CLIs `create-tempest-app` e `tempest`), `template/` e
 
 ## Subpaths
 
-A lista viva é o campo `exports` do `package.json`. Hoje são 18: `.`, `/testing`,
-`/vite`, `/sw`, `/charts`, `/editor`, `/imaging`, `/tabular`, `/vision`, `/br`,
+A lista viva é o campo `exports` do `package.json`. Hoje são 20: `.`, `/testing`,
+`/vite`, `/sw`, `/charts`, `/editor`, `/imaging`, `/tabular`, `/vision`, `/neural`,
+`/pcm-worklet.js`, `/br`,
 `/icons`, `/icons/virtual`, `/styles.css`, `/styles/*.css`,
 `/styles/manifest.json`, `/utilities.css`, `/node-css-loader`, `/package.json`.
 

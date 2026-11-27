@@ -4,6 +4,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **PCM para modelos de áudio: `decodeAudioToPcm`, `createPcmStream`, `resamplePcm` (#820).** Base
+  da épica #826 (VAD, transcrição, classificação no navegador), sem `onnxruntime-web`.
+  `decodeAudioToPcm(blob, { sampleRate: 16_000 })` decodifica o que o navegador toca, faz a média
+  dos canais (o `MediaRecorder` do Chromium grava Opus estéreo mesmo de microfone mono) e converte
+  com um sinc janelado por Kaiser próprio. `createPcmStream(mic, { frameSize: 512, onFrame })`
+  converte e fatia num `AudioWorklet`, com o **mesmo** filtro. `framePcm` corta um arquivo em
+  quadros com o último completado por zeros. O reamostrador do navegador perde −5 dB a 7 kHz e só
+  atenua −20 dB a 9 kHz no 48 → 16 kHz (Chromium 159, `OfflineAudioContext` de 16 kHz); o do SDK
+  fica em −0,01 dB e −94 dB, e converte 30 s em 350 ms (Node 24, `vitest`). E2E no Chromium: webm do
+  `MediaRecorder` decodificado no tom certo, e o stream ao vivo sem perder nem repetir quadro
+  (`e2e/audio-pcm.spec.ts`).
+- **Subpath `tempest-react-sdk/pcm-worklet.js`.** Worklet segue o `script-src`, e o CSP do
+  `tempestCsp()` recusa o processador inline por `blob:` com um `AbortError` que não diz o motivo
+  (medido no Chromium 159). O build grava o mesmo módulo em `dist/pcm-worklet.js`
+  (`scripts/write-pcm-worklet.mjs`, a partir do `pcmWorkletSource()`), e o `createPcmStream` troca
+  o `AbortError` por um erro que manda passar `workletUrl` de
+  `tempest-react-sdk/pcm-worklet.js?url`. Coberto sob esse CSP no e2e.
+
+### Budgets
+
+- **#820, medido com `npm run build && npx size-limit --json` sobre a `main` em `d9b1271` e sobre
+  este branch**, bytes brotli: `ceiling: full barrel ESM` 182 391 → 184 251 (+1 860 B, teto 183 →
+  184,8 kB); `ceiling: full barrel CJS` 216 224 → 218 381 (+2 157 B, teto 216,8 → 219 kB). Os bytes
+  são o reamostrador, a decodificação e o `createPcmStream`; fatia nova `slice: audio PCM for
+models` com 2 281 B (teto 2,4 kB). Nenhuma fatia existente variou mais que o ruído (≤ 41 B).
+
 ## [0.95.1] — 2026-11-26
 
 ### Corrigido

@@ -58,3 +58,10 @@ export type { LevelMeter, LevelMeterOptions } from "./level-meter";
 
 export { blobToWav, encodeWav } from "./wav";
 export type { PcmAudio, WavOptions } from "./wav";
+
+export { decodeAudioToPcm, framePcm } from "./decode-pcm";
+export type { DecodeAudioOptions, MonoPcm } from "./decode-pcm";
+export { createSincResampler, resamplePcm } from "./resample";
+export type { SincResampler } from "./resample";
+export { createPcmStream, isPcmStreamSupported, pcmWorkletSource } from "./pcm-stream";
+export type { PcmFrameInfo, PcmStream, PcmStreamOptions } from "./pcm-stream";

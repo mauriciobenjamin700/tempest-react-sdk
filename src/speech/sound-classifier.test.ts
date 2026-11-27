@@ -235,6 +235,22 @@ describe("createSoundMonitor", () => {
         expect(pcm.release).toHaveBeenCalled();
     });
 
+    it("keeps watching after a window whose classification fails", async () => {
+        const changes: string[][] = [];
+        const classifier = scripted([[0.9, 0]]);
+        (classifier.classify as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+            new Error("wasm trap"),
+        );
+        await createSoundMonitor({} as MediaStreamTrack, (a) => changes.push([...a]), {
+            classifier,
+            classes: ["Siren"],
+            smoothing: 1,
+        });
+        pcm.onFrame?.(new Float32Array(YAMNET_WINDOW_SAMPLES));
+        pcm.onFrame?.(new Float32Array(YAMNET_WINDOW_SAMPLES));
+        await vi.waitFor(() => expect(changes).toEqual([["Siren"]]));
+    });
+
     it("refuses a class the model does not have", async () => {
         await expect(
             createSoundMonitor({} as MediaStreamTrack, () => undefined, {

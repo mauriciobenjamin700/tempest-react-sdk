@@ -98,6 +98,17 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 - **`loadWhisper({ persistStorage: true })`**: pede `navigator.storage.persist()` antes de baixar
   o modelo. Default `false`, como o resto do SDK, porque o Firefox responde com um prompt de
   permissão.
+- **Silero VAD no `/speech` (#822): `loadSileroVad`, `createSpeechDetector`, `detectSpeechSegments`.**
+  Detecção de fala por modelo (Silero v5, ~2 MB, MIT) no lugar do limiar de energia.
+  `createSpeechDetector` tem o mesmo formato `{ speaking, stop }` do `monitorVoiceActivity`, sobre
+  o `createPcmStream`; `detectSpeechSegments` porta o `get_speech_timestamps` do silero-vad. Os
+  tamanhos de quadro e contexto (512 + 64) e os defaults de segmentação são constantes portadas da
+  fonte. Medido em 10 frases do FLEURS `pt_br` com rótulo do sinal limpo, acurácia por quadro:
+  ruído branco 0/5/10 dB **87,9/89,1/89,3 %** contra 60,9/64,4/61,4 % da energia com defaults;
+  babble (fala de fundo) 74,2/70,7/77,3 % contra 59–63 %, com recall de 95–98 %; sinal limpo 89,5 %
+  contra 63,6 %. Custo de 0,16 ms por quadro de 32 ms (WASM, 1 thread). Reprodução:
+  `scripts/gen-vad-fixtures.py` + `scripts/bench-vad.mjs`. No Chromium, com microfone falso, o
+  detector ligou no começo da fala, desligou depois de 1 s de silêncio e processou 281/281 quadros.
 
 ### Budgets
 
@@ -117,6 +128,7 @@ on-device speech` 5 958 B (teto 6,3 kB, sem o `onnxruntime-web`) e `slice: log-m
 speech` 5 958 → 6 376 B (teto 6 3 → 6 6 kB). Os bytes são o encode BPE (pré-tokenização e merges
   por rank) que o prompt precisa.
 - **Worker do `/speech` medido com `npm run build && npx size-limit --json`**: `slice: on-device speech` 6 376 → 6 965 B (teto 6 6 → 7 2 kB) o cliente do worker que o `loadWhisper` carrega junto.
+- **#822 medido com `npm run build && npx size-limit --json`**: fatia nova `slice: Silero VAD` com 3,569 B (teto 3,8 kB, sem o `onnxruntime-web`); as fatias existentes não mudam.
 
 ## [0.95.1] — 2026-11-26
 

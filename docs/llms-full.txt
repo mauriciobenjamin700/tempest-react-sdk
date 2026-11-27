@@ -43948,6 +43948,72 @@ Carga: 1 266 ms com download de 43,3 MB, 343 ms do cache. Transcrição palavra 
 
 O que a transcrição precisa dele — decodificação gulosa com KV-cache e o *decode* do tokenizer BPE — está no `/speech` sobre o `onnxruntime-web` que já é peer.
 
+## Quando a pessoa para de falar: Silero VAD
+
+O VAD por energia (`monitorVoiceActivity`) decide por volume, e por isso erra justo onde a voz importa: ônibus, rua, TV ligada. O `/speech` traz o **Silero VAD** (v5, ~2 MB, MIT), um modelo que separa fala de ruído quadro a quadro, a cada 32 ms.
+
+```bash
+curl -sfL -o public/models/silero_vad.onnx \
+  https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
+```
+
+### Parar a gravação sozinho: `createSpeechDetector`
+
+Mesmo formato do `monitorVoiceActivity` (`{ speaking, stop }` e `onChange(speaking)`), então um troca pelo outro:
+
+```typescript
+import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
+
+export async function pararNoSilencio(mic: MediaStream, parar: () => void): Promise<void> {
+    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx", ortAssetsUrl: "/ort/" });
+    let falou = false;
+    const detector = await createSpeechDetector(
+        mic,
+        (falando) => {
+            if (falando) falou = true;
+            else if (falou) {
+                detector.stop();
+                parar();
+            }
+        },
+        { vad, minSilenceMs: 1000 },
+    );
+}
+```
+
+No Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de fala e silêncio depois, o detector ligou aos 1,6 s e desligou aos 6,7 s, depois de 1 s calado. Processou 281 de 281 quadros.
+
+### Cortar o silêncio de uma gravação: `detectSpeechSegments`
+
+```typescript
+import { decodeAudioToPcm } from "tempest-react-sdk";
+import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
+
+export async function trechosComFala(gravacao: Blob): Promise<string> {
+    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), vad);
+    return segmentos.map((s) => `${s.startMs}–${s.endMs} ms`).join(", ");
+}
+```
+
+A segmentação é a do `get_speech_timestamps` do silero-vad, com os mesmos defaults (constantes `SILERO_DEFAULT_*`, com a origem citada): limiar 0,5, saída em `max(limiar − 0,15, 0,01)`, fala mínima de 250 ms, silêncio mínimo de 100 ms e 30 ms de margem.
+
+### Quanto acerta, comparado ao VAD por energia
+
+Acurácia por quadro de 32 ms em 10 frases do FLEURS `pt_br`. O rótulo vem do sinal **limpo**, e a medição é feita sobre o sinal com ruído:
+
+| Condição | Energia (default) | Energia (calibrada no piso de ruído) | **Silero** |
+| --- | --- | --- | --- |
+| limpa | 63,6 % | 86,1 % | **89,5 %** |
+| ruído branco 0 / 5 / 10 dB | 60,9 / 64,4 / 61,4 % | 41,1 / 67,0 / 82,6 % | **87,9 / 89,1 / 89,3 %** |
+| babble 0 / 5 / 10 dB | 59,2 / 60,1 / 62,6 % | 47,2 / 50,9 / 54,1 % | **74,2 / 70,7 / 77,3 %** |
+
+- No babble (outras pessoas falando, como num ônibus cheio), o Silero cai para 71–77 %: o ruído **é** fala. Mesmo assim, o recall fica em 95–98 %, então ele não perde quem está falando.
+- O VAD por energia com os defaults perde metade da fala até no sinal limpo (recall de 50 %), porque o limiar fixo de 0,045 é alto para esse nível de gravação.
+- **Custo:** 0,16 ms por quadro de 32 ms (WASM numa thread, Node 24). Cabe na thread principal, sem worker.
+
+Reproduza: gere os dados com `scripts/gen-vad-fixtures.py` e rode `DATASET_DIR=… SILERO_MODEL=… node --import ./loader/css-loader.mjs scripts/bench-vad.mjs`.
+
 ## Antes de oferecer o botão: `assessSpeechDevice`
 
 ```typescript
@@ -43972,6 +44038,7 @@ Síncrono e sem carregar nada. Só descarta o claramente impossível: sem WebAss
 - Modelo ainda não carregado: o servidor responde e o modelo baixa em segundo plano.
 - `loadWhisper` para uso direto; whisper-tiny int8 transcreveu 11 s em 778 ms num desktop (`scripts/bench-whisper.mjs`).
 - `loadWhisper({ worker })` com um arquivo `exposeWhisperWorker()`: a tela segue em 60 fps durante a transcrição (3 → 45 frames em 720 ms).
+- Silero VAD (`createSpeechDetector`, `detectSpeechSegments`): 88–89 % de acurácia por quadro com ruído branco, contra ~61 % do VAD por energia; 0,16 ms por quadro.
 - `onnxruntime-web` é peer opcional; WebGPU fica fora do default até ser medido num aparelho real.
 
 ---

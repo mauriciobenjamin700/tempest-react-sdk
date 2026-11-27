@@ -365,9 +365,9 @@ describe("createSpeechToText", () => {
             { server: async () => Promise.reject(new Error("502")) },
             fakeModel(10, true),
         );
-        const run = speech.transcribe(audio);
+        const assertion = expect(speech.transcribe(audio)).rejects.toThrow("502");
         await vi.advanceTimersByTimeAsync(10);
-        await expect(run).rejects.toThrow("502");
+        await assertion;
     });
 
     it("swallows a failed background load and serves from the server", async () => {

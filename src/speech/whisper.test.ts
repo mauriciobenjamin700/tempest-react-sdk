@@ -27,6 +27,7 @@ const PT = 50267;
 const TRANSCRIBE = 50359;
 const TRANSLATE = 50358;
 const NO_TIMESTAMPS = 50363;
+const PREV = 50361;
 
 /**
  * Logits that make `winner` the argmax, with `runnerUp` second.
@@ -97,12 +98,14 @@ function parts(script: [number, number?][]) {
             begin_suppress_tokens: [220, EOT],
         },
         tokenizer: createWhisperTokenizer({
-            model: { vocab },
-            added_tokens: [SOT, EOT, EN, PT, TRANSCRIBE, TRANSLATE, NO_TIMESTAMPS].map((id) => ({
-                id,
-                content: `<|${id}|>`,
-                special: true,
-            })),
+            model: { vocab, merges: ["Ġ b", "Ġb o", "Ġbo m"] },
+            added_tokens: [SOT, EOT, EN, PT, TRANSCRIBE, TRANSLATE, NO_TIMESTAMPS, PREV].map(
+                (id) => ({
+                    id,
+                    content: id === PREV ? "<|startofprev|>" : `<|${id}|>`,
+                    special: true,
+                }),
+            ),
         }),
         dtype: "int8",
         providers: ["wasm"],
@@ -182,6 +185,37 @@ describe("createWhisperModel", () => {
         expect(result.tokens).toHaveLength(3);
         expect(partials).toEqual(["bom", "bom bom", "bom bom bom"]);
         expect(result.degenerate).toBe(true);
+    });
+
+    it("puts the vocabulary prompt before the task tokens, behind <|startofprev|>", async () => {
+        const { value, feeds } = parts([[10], [EOT]]);
+        await createWhisperModel(value).transcribe(second(), { language: "pt", prompt: "  bom  " });
+        expect(Array.from(feeds[0]?.input_ids?.data as BigInt64Array, Number)).toEqual([
+            PREV,
+            10,
+            SOT,
+            PT,
+            TRANSCRIBE,
+            NO_TIMESTAMPS,
+        ]);
+        expect(Array.from(feeds[1]?.input_ids?.data as BigInt64Array, Number)).toEqual([10]);
+    });
+
+    it("ignores a blank prompt", async () => {
+        const { value, feeds } = parts([[10], [EOT]]);
+        await createWhisperModel(value).transcribe(second(), { language: "pt", prompt: "   " });
+        expect(Array.from(feeds[0]?.input_ids?.data as BigInt64Array, Number)[0]).toBe(SOT);
+    });
+
+    it("refuses a prompt on a model without <|startofprev|>", async () => {
+        const { value } = parts([[EOT]]);
+        const model = createWhisperModel({
+            ...value,
+            tokenizer: createWhisperTokenizer({ model: { vocab: {}, merges: ["a b"] } }),
+        });
+        await expect(model.transcribe(second(), { language: "pt", prompt: "x" })).rejects.toThrow(
+            /startofprev/,
+        );
     });
 
     it("uses the translate task", async () => {

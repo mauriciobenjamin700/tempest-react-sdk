@@ -24,6 +24,9 @@ export const DEFAULT_SPEECH_MODEL_CACHE = "tempest-speech-models";
 
 const SAMPLE_RATE = 16_000;
 
+/** Prompt tokens kept: half of the decoder's 448-token context, minus `<|startofprev|>`. */
+const PROMPT_TOKENS = 223;
+
 /**
  * Above this gzip compression ratio the text is a repetition loop, not speech.
  * Ported from openai-whisper's `transcribe(compression_ratio_threshold=2.4)`.
@@ -87,6 +90,16 @@ export interface TranscribeOptions {
     language?: string;
     /** `"translate"` outputs English. Default `"transcribe"`. */
     task?: "transcribe" | "translate";
+    /**
+     * Words the audio is likely to contain — place names, product names,
+     * jargon — written the way they should come out: `"Picos, Sobral,
+     * Teresina"`. Whisper reads it as text that came before the recording
+     * (`<|startofprev|>`, openai-whisper's `initial_prompt`) and leans towards
+     * those spellings. Keep it short and relevant: on silence or noise the
+     * model may echo it. Truncated to the last 223 tokens, half the decoder's
+     * context, as Whisper does.
+     */
+    prompt?: string;
     /**
      * Tokens per 30 s window before giving up. Default `224` — half the
      * decoder's context, Whisper's own default, and what stops a model stuck
@@ -385,7 +398,7 @@ export function createWhisperModel(parts: WhisperParts): WhisperModel {
         dtype: parts.dtype,
         providers: parts.providers,
         async transcribe(audio, options = {}): Promise<Transcription> {
-            const { signal, onPartial, task = "transcribe", maxNewTokens = 224 } = options;
+            const { signal, onPartial, task = "transcribe", maxNewTokens = 224, prompt } = options;
             const started = performance.now();
             const timings: TranscriptionTimings = {
                 decodeMs: 0,
@@ -406,6 +419,17 @@ export function createWhisperModel(parts: WhisperParts): WhisperModel {
                 language === undefined ? undefined : generation.lang_to_id[`<|${language}|>`];
             if (language !== undefined && languageId === undefined) {
                 throw new Error(`This model does not know the language "${language}".`);
+            }
+
+            const promptPrefix: number[] = [];
+            if (prompt?.trim()) {
+                const previous = tokenizer.special("<|startofprev|>");
+                if (previous === undefined)
+                    throw new Error("This model has no <|startofprev|> token.");
+                promptPrefix.push(
+                    previous,
+                    ...tokenizer.encode(` ${prompt.trim()}`).slice(-PROMPT_TOKENS),
+                );
             }
 
             const tokens: number[] = [];
@@ -444,6 +468,7 @@ export function createWhisperModel(parts: WhisperParts): WhisperModel {
                     language = languageIds.get(languageId) as string;
                 }
                 let ids = [
+                    ...promptPrefix,
                     generation.decoder_start_token_id,
                     languageId,
                     taskId,

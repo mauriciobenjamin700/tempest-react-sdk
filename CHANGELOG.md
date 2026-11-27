@@ -51,6 +51,19 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   Node 24.
 - **`fetchModelBytes` (`/tabular`) ganhou `onProgress`**, usado pelo `/speech` para mostrar o
   download de dezenas de MB.
+- **`scripts/bench-whisper-wer.mjs`: WER do Whisper no aparelho sobre uma pasta de gravações.**
+  Aceita qualquer pasta com `transcripts.tsv` (`arquivo<TAB>texto`), o formato para medir com as
+  gravações reais de um app. Primeira medição em português (FLEURS `pt_br` dev, 30 frases, 363 s,
+  Chromium 159, int8): **whisper-tiny 34,0 % de WER**, **whisper-base 15,9 %**, fatores de tempo real
+  0,071 e 0,109, nenhuma saída degenerada. A doc do `/speech` passa a recomendar o base para
+  português.
+- **`prompt` no `/speech`: vocabulário esperado (nomes de cidade, produtos) para as duas rotas.**
+  O Whisper recebe o texto atrás de `<|startofprev|>` (o `initial_prompt` do openai-whisper); o
+  callback `server` recebe em `context.prompt`. O tokenizer ganhou o encode BPE de bytes, idêntico ao
+  `tokenizers` do Hugging Face no vocabulário real do Whisper (`tokenizer.parity.test.ts`). Medido
+  no whisper-base int8, nas mesmas 30 frases do FLEURS: WER de 15,9 % sem prompt, **11,2 %** com os
+  nomes próprios das frases e 14,3 % com cidades que não aparecem, sem nenhuma saída degenerada
+  (`PROMPT=… node scripts/bench-whisper-wer.mjs`).
 
 ### Budgets
 
@@ -66,6 +79,9 @@ models` com 2 281 B (teto 2,4 kB). Nenhuma fatia existente variou mais que o ru�
 entry` 4 795 → 4 944 (+149 B, o progresso de download, dentro do teto). Fatias novas: `slice:
 on-device speech` 5 958 B (teto 6,3 kB, sem o `onnxruntime-web`) e `slice: log-mel spectrogram`
   1 276 B (teto 1,4 kB).
+- **`prompt` do `/speech` medido com `npm run build && npx size-limit --json`**: `slice: on-device
+speech` 5 958 → 6 376 B (teto 6 3 → 6 6 kB). Os bytes são o encode BPE (pré-tokenização e merges
+  por rank) que o prompt precisa.
 
 ## [0.95.1] — 2026-11-26
 

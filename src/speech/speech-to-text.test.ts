@@ -112,7 +112,7 @@ afterEach(() => {
 
 describe("createSpeechToText", () => {
     it("runs on the device once the model is loaded and keeps up", async () => {
-        const { speech, server } = setup();
+        const { speech, server, model } = setup({ prompt: "Picos, Sobral" });
         await speech.warmUp();
         const run = speech.transcribe(audio);
         await vi.advanceTimersByTimeAsync(100);
@@ -122,6 +122,7 @@ describe("createSpeechToText", () => {
             reason: "device",
         });
         expect(server).not.toHaveBeenCalled();
+        expect(model.transcribe.mock.calls[0]?.[1]).toMatchObject({ prompt: "Picos, Sobral" });
     });
 
     it("answers from the server while the model loads in the background, then uses the device", async () => {

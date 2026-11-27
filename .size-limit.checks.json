@@ -181,7 +181,7 @@
     "import": {
       "./dist/speech.js": "{ createSpeechToText, loadWhisper }"
     },
-    "limit": "6.3 kB",
+    "limit": "6.6 kB",
     "ignore": [
       "react",
       "react-dom",

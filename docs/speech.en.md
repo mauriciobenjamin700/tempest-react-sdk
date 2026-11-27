@@ -22,13 +22,18 @@ for f in config.json generation_config.json tokenizer.json \
 done
 ```
 
-| Model | Download (int8) | For |
-| --- | --- | --- |
-| `whisper-tiny` | 41 MB | weak devices, short phrases |
-| `whisper-base` | 77 MB | Portuguese with better accuracy |
-| `whisper-small` | 249 MB | too big for a phone |
+| Model | Download (int8) | Portuguese WER | Real-time factor |
+| --- | --- | --- | --- |
+| `whisper-tiny` | 41 MB | 34.0 % | 0.071 |
+| `whisper-base` | 77 MB | **15.9 %** | 0.109 |
+| `whisper-small` | 249 MB | — | too big for a phone |
 
-Sizes of `encoder_model_int8.onnx` + `decoder_model_merged_int8.onnx` from the Hugging Face API, on 2026-11-26.
+**For Portuguese, use `whisper-base`:** tiny gets one word in three wrong.
+
+- **Sizes:** `encoder_model_int8.onnx` + `decoder_model_merged_int8.onnx` from the Hugging Face API, on 2026-11-26.
+- **WER:** 30 utterances of FLEURS `pt_br` (`dev` split, 363 s of read speech), Chromium 159 on a desktop, with `npm run build && WHISPER_MODEL_DIR=… DATASET_DIR=… LANGUAGE=pt node scripts/bench-whisper-wer.mjs`.
+- **What the WER counts:** normalisation drops punctuation and case, but keeps accents and does not convert numerals, so "dez" vs "10" counts as an error.
+- **The errors that matter in a search are proper nouns** ("polo" → "Paulo"). Measure with recordings from your own domain: the same script takes any folder with a `transcripts.tsv` (`file<TAB>text`).
 
 ## 2. Transcribe with a server fallback
 
@@ -96,6 +101,32 @@ export function warmUpWhenIdle(): void {
     requestIdleCallback(() => void speech.warmUp());
 }
 ```
+
+## Proper nouns: `prompt`
+
+In a voice search the key information is often a proper noun, the city. That is exactly what Whisper gets wrong most ("polo" → "Paulo"). Pass the expected vocabulary as `prompt`:
+
+```typescript
+import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+
+export const search = createSpeechToText({
+    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
+    language: "pt",
+    prompt: "Picos, Sobral, Teresina, Juazeiro do Norte, Fortaleza, Parnaíba",
+});
+```
+
+Whisper reads the prompt as text that came before the recording (`<|startofprev|>`, openai-whisper's `initial_prompt`) and leans towards those spellings. In `createSpeechToText` it applies to both routes: the device uses it, and the `server` callback receives it in `context.prompt`.
+
+whisper-base int8, the same 30 FLEURS `pt_br` utterances:
+
+| Prompt | WER | Degenerate outputs |
+| --- | --- | --- |
+| none | 15.9 % | 0 |
+| proper nouns that occur in the utterances | **11.2 %** | 0 |
+| Northeast Brazil cities that do **not** occur | 14.3 % | 0 |
+
+Command: `PROMPT="…" WHISPER_MODEL_DIR=… DATASET_DIR=… node scripts/bench-whisper-wer.mjs`. The right vocabulary cuts almost a third of the errors. A prompt unrelated to the audio did not make it worse, which makes a fixed list of cities safe. The prompt's encoding is identical to Hugging Face's `tokenizers` on Whisper's real vocabulary (`tokenizer.parity.test.ts`).
 
 ## Device only: `loadWhisper`
 
@@ -170,6 +201,7 @@ Synchronous and loads nothing. It only rules out the clearly impossible: no WebA
 - `createSpeechToText({ loadModel, server, isServerAvailable, language })` → `transcribe(blob)` → `{ text, source, reason }`. ✅
 - The device gets audio × `realtimeFactor`; past it, the server answers and the device is marked slow for 7 days.
 - A repetition loop (`compressionRatio` > 2.4) counts as a failure.
+- `prompt` with the expected vocabulary: 15.9 % → 11.2 % WER on base, and an unrelated prompt does not hurt.
 - Model not loaded yet: the server answers while the model downloads in the background.
 - `loadWhisper` for direct use; whisper-tiny int8 transcribed 11 s in 778 ms on a desktop (`scripts/bench-whisper.mjs`).
 - `onnxruntime-web` is an optional peer; WebGPU stays out of the default until measured on a real device.

@@ -22,13 +22,18 @@ for f in config.json generation_config.json tokenizer.json \
 done
 ```
 
-| Modelo | Download (int8) | Para |
-| --- | --- | --- |
-| `whisper-tiny` | 41 MB | aparelhos fracos, frases curtas |
-| `whisper-base` | 77 MB | português com mais acerto |
-| `whisper-small` | 249 MB | grande demais para celular |
+| Modelo | Download (int8) | WER em português | Fator de tempo real |
+| --- | --- | --- | --- |
+| `whisper-tiny` | 41 MB | 34,0 % | 0,071 |
+| `whisper-base` | 77 MB | **15,9 %** | 0,109 |
+| `whisper-small` | 249 MB | — | grande demais para celular |
 
-Tamanhos dos arquivos `encoder_model_int8.onnx` + `decoder_model_merged_int8.onnx` na API do Hugging Face, em 26/11/2026.
+**Para português, use o `whisper-base`:** o tiny erra uma palavra em cada três.
+
+- **Tamanhos:** arquivos `encoder_model_int8.onnx` + `decoder_model_merged_int8.onnx` na API do Hugging Face, em 26/11/2026.
+- **WER:** 30 frases do FLEURS `pt_br` (conjunto `dev`, 363 s de fala lida), Chromium 159 num desktop, com `npm run build && WHISPER_MODEL_DIR=… DATASET_DIR=… LANGUAGE=pt node scripts/bench-whisper-wer.mjs`.
+- **O que entra no WER:** a normalização tira pontuação e caixa, mas mantém acentos e não converte numerais. Por isso "dez" × "10" conta como erro.
+- **Os erros que pesam numa busca são nomes próprios** ("polo" → "Paulo"). Meça com gravações do seu domínio: o mesmo script aceita qualquer pasta com `transcripts.tsv` (`arquivo<TAB>texto`).
 
 ## 2. Transcreva com fallback para o servidor
 
@@ -96,6 +101,32 @@ export function aquecerQuandoOcioso(): void {
     requestIdleCallback(() => void speech.warmUp());
 }
 ```
+
+## Nomes próprios: `prompt`
+
+Na busca por voz, a informação central costuma ser um nome próprio, a cidade. É justamente o que o Whisper mais erra ("polo" → "Paulo"). Passe o vocabulário esperado como `prompt`:
+
+```typescript
+import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+
+export const busca = createSpeechToText({
+    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
+    language: "pt",
+    prompt: "Picos, Sobral, Teresina, Juazeiro do Norte, Fortaleza, Parnaíba",
+});
+```
+
+O Whisper lê o prompt como texto que veio antes da gravação (`<|startofprev|>`, o `initial_prompt` do openai-whisper) e se inclina para aquelas grafias. No `createSpeechToText` ele vale para as duas rotas: o aparelho usa, e o callback `server` recebe em `context.prompt`.
+
+whisper-base int8, mesmas 30 frases do FLEURS `pt_br`:
+
+| Prompt | WER | Saídas degeneradas |
+| --- | --- | --- |
+| nenhum | 15,9 % | 0 |
+| nomes próprios que aparecem nas frases | **11,2 %** | 0 |
+| cidades do Nordeste que **não** aparecem | 14,3 % | 0 |
+
+Comando: `PROMPT="…" WHISPER_MODEL_DIR=… DATASET_DIR=… node scripts/bench-whisper-wer.mjs`. O vocabulário certo corta quase um terço dos erros. Um prompt sem relação com o áudio não piorou o resultado, o que torna seguro deixar a lista de cidades fixa. O encode do prompt é idêntico ao do `tokenizers` do Hugging Face no vocabulário real do Whisper (`tokenizer.parity.test.ts`).
 
 ## Só no aparelho: `loadWhisper`
 
@@ -170,6 +201,7 @@ Síncrono e sem carregar nada. Só descarta o claramente impossível: sem WebAss
 - `createSpeechToText({ loadModel, server, isServerAvailable, language })` → `transcribe(blob)` → `{ text, source, reason }`. ✅
 - O aparelho tem prazo de áudio × `realtimeFactor`; estourou, vai ao servidor e o aparelho fica marcado como lento por 7 dias.
 - Texto em loop (`compressionRatio` > 2,4) conta como falha.
+- `prompt` com o vocabulário esperado: 15,9 % → 11,2 % de WER no base, e um prompt sem relação não piora.
 - Modelo ainda não carregado: o servidor responde e o modelo baixa em segundo plano.
 - `loadWhisper` para uso direto; whisper-tiny int8 transcreveu 11 s em 778 ms num desktop (`scripts/bench-whisper.mjs`).
 - `onnxruntime-web` é peer opcional; WebGPU fica fora do default até ser medido num aparelho real.

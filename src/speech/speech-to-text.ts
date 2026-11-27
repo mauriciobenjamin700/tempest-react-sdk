@@ -48,6 +48,8 @@ export interface SpeechServerContext {
     signal: AbortSignal;
     /** Language asked for, if any. */
     language?: string;
+    /** Vocabulary prompt, if any — pass it to your server's model too. */
+    prompt?: string;
 }
 
 /** Options for {@link createSpeechToText}. */
@@ -67,6 +69,12 @@ export interface SpeechToTextOptions {
     isServerAvailable?: () => boolean | Promise<boolean>;
     /** Language for both routes. Omit to let Whisper detect it. */
     language?: string;
+    /**
+     * Vocabulary the recordings are likely to contain (city names, products),
+     * for both routes: the device passes it to Whisper as `prompt`, the server
+     * callback receives it in its context.
+     */
+    prompt?: string;
     /**
      * The device must finish within `audio duration × realtimeFactor`
      * (and never less than `minBudgetMs`) when a server can take over.
@@ -197,6 +205,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
         server,
         isServerAvailable,
         language,
+        prompt,
         realtimeFactor = 1,
         minBudgetMs = 4000,
         whileLoading = "background",
@@ -260,6 +269,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
             const text = await (server as NonNullable<typeof server>)(audio, {
                 signal: controller.signal,
                 language,
+                prompt,
             });
             return { text, source: "server", reason, transcription: null };
         } finally {
@@ -287,6 +297,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
         try {
             const transcription = await loaded.transcribe(pcm, {
                 language,
+                prompt,
                 signal: controller.signal,
                 onPartial: call.onPartial,
             });

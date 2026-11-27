@@ -2337,6 +2337,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#perfhud" class="md-nav__link">
+    <span class="md-ellipsis">
+      PerfHud
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#updateprompt" class="md-nav__link">
     <span class="md-ellipsis">
       UpdatePrompt
@@ -2965,6 +2974,8 @@
       
         
       
+        
+      
     
     
       
@@ -3466,6 +3477,148 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fala e som (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Fala e som (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transcrição no aparelho (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Aparelho ou servidor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fim da fala (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sons e modelo próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../vision/" class="md-nav__link">
         
@@ -3807,6 +3960,8 @@
       
         
       
+        
+      
     
     
       
@@ -3873,6 +4028,27 @@
   
   <span class="md-ellipsis">
     Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Desempenho de interações (perf)
   </span>
   
 
@@ -4898,6 +5074,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#perfhud" class="md-nav__link">
+    <span class="md-ellipsis">
+      PerfHud
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#updateprompt" class="md-nav__link">
     <span class="md-ellipsis">
       UpdatePrompt
@@ -5908,6 +6093,67 @@ descrição.</p>
 </table>
 <p><code>null</code> é "o navegador não informa": com <code>usage</code> ou <code>quota</code> <code>null</code> (ou <code>quota</code> <code>0</code>) a barra dá lugar a uma frase, em vez de uma barra vazia que leria 0%. <code>pendingBytes</code> omitido esconde a linha de pendências; <code>persisted</code> <code>null</code> não mostra aviso nem botão.</p>
 <p><strong>A11y:</strong> a barra é <code>role="meter"</code> (nível, não progresso de tarefa) nomeada pelo título, com <code>aria-valuetext</code> igual ao "X de Y usados" que o olho lê. Os avisos usam <code>role="status"</code> (polido), não o <code>role="alert"</code> padrão do <code>Alert</code>: o componente costuma montar numa tela com o aviso já verdadeiro, e um anúncio assertivo a cada montagem interromperia o leitor.</p>
+<h2 id="perfhud"><code>PerfHud</code></h2>
+<!-- gallery:perf -->
+<p><a href="../../gallery/"><img alt="Desempenho: etapas · CPU · bateria na gallery" src="../../assets/gallery/perf.webp" /></a></p>
+<p><em>Seção <code>perf</code> da <a href="../../gallery/">gallery</a> — rode localmente para interagir.</em></p>
+<!-- /gallery -->
+
+<p><strong>Quando usar:</strong> ver, em desenvolvimento, o que um <a href="../../perf-monitor/"><code>createPerfMonitor</code></a> está medindo — bateria e taxa de descarga, pressão de CPU, a latência do último toque e uma cascata das últimas interações com cada etapa. O componente <strong>não lê o navegador sozinho</strong>: recebe o snapshot do <code>usePerfMonitor(monitor)</code>, então o mesmo monitor que alimenta a telemetria de produção alimenta o HUD.</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">PerfHud</span><span class="p">,</span><span class="w"> </span><span class="nx">createPerfMonitor</span><span class="p">,</span><span class="w"> </span><span class="nx">usePerfMonitor</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">perf</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">createPerfMonitor</span><span class="p">();</span>
+
+<span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">DevOverlay</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">snapshot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">usePerfMonitor</span><span class="p">(</span><span class="nx">perf</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="k">import</span><span class="p">.</span><span class="nx">meta</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">DEV</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">PerfHud</span><span class="w"> </span><span class="na">snapshot</span><span class="o">=</span><span class="p">{</span><span class="nx">snapshot</span><span class="p">}</span><span class="w"> </span><span class="p">/&gt;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="kc">null</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Fechado, ocupa uma linha no canto ("Desempenho 82% · CPU normal · checkout 410 ms"); aberto, mostra:</p>
+<ul>
+<li><strong>Bateria</strong>: nível, "na bateria"/"carregando" e a taxa em %/h — ou "medindo consumo…" até o segundo degrau de 1 %.</li>
+<li><strong>CPU</strong>: o estado de pressão (<code>normal</code>, <code>moderada</code>, <code>alta</code>, <code>crítica</code>), em âmbar e vermelho nos dois últimos.</li>
+<li><strong>Último toque</strong>: barra empilhada de espera do input, handler e pintura, com o número de cada um.</li>
+<li><strong>Interações</strong>: as últimas <code>maxReports</code>, cada etapa numa linha recuada pela profundidade, com a barra posicionada pelo início e largura pela duração. Etapa que falhou fica vermelha.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Prop</th>
+<th>Tipo</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>snapshot</code></td>
+<td><code>PerfSnapshot</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>position</code></td>
+<td><code>"bottom-right" \| "bottom-left" \| "top-right" \| "top-left" \| "inline"</code></td>
+<td><code>"bottom-right"</code></td>
+</tr>
+<tr>
+<td><code>maxReports</code></td>
+<td><code>number</code></td>
+<td><code>5</code></td>
+</tr>
+<tr>
+<td><code>defaultOpen</code></td>
+<td><code>boolean</code></td>
+<td><code>false</code></td>
+</tr>
+<tr>
+<td><code>labels</code></td>
+<td><code>Partial&lt;PerfHudLabels&gt;</code></td>
+<td>PT-BR</td>
+</tr>
+</tbody>
+</table>
+<p>Fonte que o navegador não expõe (bateria e pressão no Safari/Firefox) aparece como "indisponível neste navegador", nunca como zero; fonte suportada que ainda não respondeu aparece como "…". <code>"inline"</code> tira o <code>position: fixed</code>, para uma página de debug.</p>
+<p><strong>A11y:</strong> é um <code>&lt;aside&gt;</code> nomeado pelo título — o único landmark; os blocos de dentro não são <code>region</code>, e um segundo HUD na mesma página recebe <code>aria-label</code> próprio — com o conteúdo dentro de um <code>&lt;details&gt;</code> nativo — abre e fecha pelo teclado sem script. As barras são decorativas (<code>aria-hidden</code>): cada uma tem o número escrito ao lado.</p>
 <h2 id="updateprompt"><code>UpdatePrompt</code></h2>
 <p><strong>Quando usar:</strong> avisar que há uma versão nova do app (service worker) e deixar o usuário recarregar. Par de <code>useServiceWorkerUpdate</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">UpdatePrompt</span><span class="p">,</span><span class="w"> </span><span class="nx">useServiceWorkerUpdate</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>

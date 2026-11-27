@@ -2876,6 +2876,8 @@
       
         
       
+        
+      
     
     
       
@@ -3377,6 +3379,148 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Speech and sound (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Speech and sound (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    On-device transcription (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device or server
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    End of speech (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sounds and your own model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../vision/" class="md-nav__link">
         
@@ -3718,6 +3862,8 @@
       
         
       
+        
+      
     
     
       
@@ -3784,6 +3930,27 @@
   
   <span class="md-ellipsis">
     Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interaction performance (perf)
   </span>
   
 
@@ -4921,7 +5088,7 @@ moved <code>server.hmr</code> to another port, add its origin under
 <tr>
 <td><code>script-src</code></td>
 <td><code>'self' 'wasm-unsafe-eval'</code></td>
-<td>ONNX Runtime (<code>/vision</code>, <code>/tabular</code>) compiles WebAssembly; without it <code>WebAssembly.compile</code> throws <code>CompileError</code></td>
+<td>ONNX Runtime (<code>/speech</code>, <code>/vision</code>, <code>/tabular</code>) compiles WebAssembly; without it <code>WebAssembly.compile</code> throws <code>CompileError</code></td>
 </tr>
 <tr>
 <td><code>style-src</code></td>
@@ -4996,6 +5163,10 @@ injects CSS.</p>
 <span class="w">    </span><span class="p">],</span>
 <span class="p">});</span>
 </code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title"><code>AudioWorklet</code> follows <code>script-src</code>, and the default does not allow <code>blob:</code></p>
+<p><code>worker-src 'self' blob:</code> covers Web Workers and service workers, but <strong>not</strong> worklets: <code>audioWorklet.addModule()</code> is governed by <code>script-src</code>. With the default above, <code>createPcmStream</code> cannot load its inline <code>blob:</code> processor (measured on Chromium 159). Do not loosen <code>script-src</code>; use the file the package ships, served from your origin: <code>import url from "tempest-react-sdk/pcm-worklet.js?url"</code> and <code>workletUrl: url</code>. The same goes for <a href="../speech-vad/"><code>createSpeechDetector</code></a> and <a href="../speech-sounds/"><code>createSoundMonitor</code></a>, which take the option as <code>stream: { workletUrl: url }</code>. Details in <a href="../audio/#audio-for-models-pcm-at-the-right-rate">Audio for models</a>.</p>
+</div>
 <h2 id="inline-scripts-enter-by-hash">Inline scripts enter by hash</h2>
 <p>An inline <code>&lt;script&gt;</code> in <code>index.html</code> — the <code>themeInitScript()</code> anti-flash script,
 pasted by hand or injected by <code>tempestThemeInit()</code>, say — is allowed by the <strong>SHA-256 of its content</strong>, never by <code>'unsafe-inline'</code>.

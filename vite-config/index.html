@@ -1473,6 +1473,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#modelos-onnx-no-navegador-tempestortassets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modelos ONNX no navegador: tempestOrtAssets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#referencia-das-opcoes" class="md-nav__link">
     <span class="md-ellipsis">
       Referência das opções
@@ -2873,6 +2882,8 @@
       
         
       
+        
+      
     
     
       
@@ -3374,6 +3385,148 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fala e som (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Fala e som (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transcrição no aparelho (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Aparelho ou servidor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fim da fala (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sons e modelo próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../vision/" class="md-nav__link">
         
@@ -3715,6 +3868,8 @@
       
         
       
+        
+      
     
     
       
@@ -3781,6 +3936,27 @@
   
   <span class="md-ellipsis">
     Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Desempenho de interações (perf)
   </span>
   
 
@@ -4716,6 +4892,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#modelos-onnx-no-navegador-tempestortassets" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modelos ONNX no navegador: tempestOrtAssets
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#referencia-das-opcoes" class="md-nav__link">
     <span class="md-ellipsis">
       Referência das opções
@@ -5118,6 +5303,27 @@ no build padrão, o <code>build:sw</code> separado fica redundante e pode sair d
 </tr>
 </tbody>
 </table>
+<h2 id="modelos-onnx-no-navegador-tempestortassets">Modelos ONNX no navegador: <code>tempestOrtAssets</code></h2>
+<p>O ONNX Runtime Web (<code>/speech</code>, <code>/tabular</code>, <code>/vision</code>) <strong>não embute</strong> os <code>.wasm</code>, nem nos builds <code>.bundle</code>. Num app empacotado, a sessão falha com <code>Aborted(both async and sync fetching of the wasm failed)</code>, sem dizer qual arquivo faltou. O plugin serve os binários do <code>onnxruntime-web</code> que o app instalou, da sua própria origem:</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">,</span><span class="w"> </span><span class="nx">tempestOrtAssets</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk/vite"</span><span class="p">;</span>
+
+<span class="k">export</span><span class="w"> </span><span class="k">default</span><span class="w"> </span><span class="nx">createViteConfig</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">plugins</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="nx">tempestOrtAssets</span><span class="p">({</span><span class="w"> </span><span class="nx">crossOriginIsolation</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">})],</span>
+<span class="p">});</span>
+</code></pre></div>
+<p>Com <code>defineConfig</code> do Vite, o plugin entra do mesmo jeito em <code>plugins</code>.</p>
+<ul>
+<li><strong><code>vite dev</code>:</strong> responde <code>/ort/&lt;arquivo&gt;</code> direto de <code>node_modules/onnxruntime-web/dist/</code>.</li>
+<li><strong>Build:</strong> emite os mesmos quatro arquivos (<code>ort-wasm-simd-threaded[.jsep].{wasm,mjs}</code>) em <code>dist/ort/</code>.</li>
+<li><strong>Workers como módulo ES</strong> (<code>worker.format: "es"</code>), a menos que o app já tenha escolhido. O default do Vite, IIFE, não faz code-splitting, e o worker de um modelo sempre tem o <code>import("onnxruntime-web")</code> sob demanda: sem isso, o build quebra com <code>Invalid value "iife" for option "worker.format"</code>.</li>
+<li><strong><code>crossOriginIsolation: true</code></strong> (default <code>false</code>): manda <code>Cross-Origin-Opener-Policy: same-origin</code> e <code>Cross-Origin-Embedder-Policy: credentialless</code> no <code>vite dev</code> e no <code>vite preview</code>. A página fica <code>crossOriginIsolated</code> e o WASM roda em várias threads, 2,3× mais rápido no whisper-base. <code>credentialless</code> mantém carregando imagem e fonte de outra origem (sem cookies), que o <code>require-corp</code> bloquearia. Em produção, quem manda os headers é o seu servidor; veja <a href="../speech/#threads-isolamento-cross-origin">Threads</a>.</li>
+<li><strong>Sem o pacote instalado:</strong> falha no boot dizendo o que instalar. Numa versão que não traga um dos arquivos, falha nomeando o arquivo.</li>
+</ul>
+<div class="admonition warning">
+<p class="admonition-title">Em produção, o servidor precisa servir <code>.mjs</code> como JavaScript</p>
+<p>O ONNX Runtime carrega <code>ort-wasm-simd-threaded.jsep.mjs</code> como módulo, e o <code>mime.types</code> padrão do <strong>nginx</strong> não conhece <code>.mjs</code>: o arquivo sai como <code>application/octet-stream</code>, o navegador recusa (<code>Failed to fetch dynamically imported module</code>) e o modelo não carrega. Achado servindo um app real pelo nginx. Adicione um <code>location ~* \.mjs$ { types { } default_type application/javascript; }</code>, ou <code>application/javascript mjs;</code> ao seu <code>mime.types</code>.</p>
+</div>
+<p>Aponte o runtime para o mesmo caminho, uma vez no boot: <code>configureOrtAssets("/ort/")</code> (ou <code>ortAssetsUrl: "/ort/"</code> em cada modelo). Os arquivos (~25 MB) <strong>não</strong> entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe <code>ortAssetUrls("/ort/")</code> em <code>additionalUrls</code> do <code>tempestPwaManifest</code>.</p>
 <h2 id="referencia-das-opcoes">Referência das opções</h2>
 <p>Todas as opções são opcionais.</p>
 <table>

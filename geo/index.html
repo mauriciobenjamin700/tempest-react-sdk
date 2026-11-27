@@ -2720,6 +2720,8 @@
       
         
       
+        
+      
     
     
       
@@ -3131,9 +3133,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#tiles-reais-opt-in-com-leaflet" class="md-nav__link">
+  <a href="#tiles-reais-opt-in-sem-dependencia" class="md-nav__link">
     <span class="md-ellipsis">
-      Tiles reais (opt-in) com Leaflet
+      Tiles reais (opt-in, sem dependência)
     </span>
   </a>
   
@@ -3528,6 +3530,148 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fala e som (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Fala e som (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transcrição no aparelho (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Aparelho ou servidor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fim da fala (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sons e modelo próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../vision/" class="md-nav__link">
         
@@ -3875,6 +4019,8 @@
       
         
       
+        
+      
     
     
       
@@ -3944,6 +4090,27 @@
   
   <span class="md-ellipsis">
     Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Desempenho de interações (perf)
   </span>
   
 
@@ -4898,9 +5065,9 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#tiles-reais-opt-in-com-leaflet" class="md-nav__link">
+  <a href="#tiles-reais-opt-in-sem-dependencia" class="md-nav__link">
     <span class="md-ellipsis">
-      Tiles reais (opt-in) com Leaflet
+      Tiles reais (opt-in, sem dependência)
     </span>
   </a>
   
@@ -5084,7 +5251,7 @@
 <p>Módulo de geolocalização <strong>100% self-hosted</strong>: coleta de latitude/longitude pela API do navegador, cálculo de distância/trajetória e plot de mapas — <strong>sem nenhuma API paga ou externa</strong>. O mapa padrão é um plot <strong>SVG tile-free</strong> (sem imagens de tiles, sem requests). Espelha o módulo <code>geo</code> do <a href="https://pypi.org/project/tempest-fastapi-sdk/"><code>tempest-fastapi-sdk</code></a>, então os tipos e a matemática batem entre cliente e servidor.</p>
 <div class="admonition info">
 <p class="admonition-title">Por que tile-free?</p>
-<p>Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa <em>tiles</em> de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o <code>TrajectoryMap</code> desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você <strong>hospeda seu próprio</strong> servidor de tiles, dá pra ligar a camada Leaflet opcional passando <code>tileUrl</code>.</p>
+<p>Qualquer mapa com imagem (OpenStreetMap, Mapbox, Google) baixa <em>tiles</em> de um servidor externo. Isso colide com o requisito de "nada externo". Por isso o <code>TrajectoryMap</code> desenha a trajetória projetada em SVG (Web Mercator) sem fundo — zero request. Se você <strong>hospeda seu próprio</strong> servidor de tiles, basta passar <code>tileUrl</code> e os tiles são desenhados sob a mesma projeção SVG, sem biblioteca de mapa extra.</p>
 </div>
 <!-- gallery:geo -->
 <p><a href="../gallery/"><img alt="Geolocalização (mapas &amp; trajetória) na gallery" src="../assets/gallery/geo.webp" /></a></p>
@@ -5266,22 +5433,21 @@ que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.</p>
 <span class="w">  </span><span class="na">showScale</span>
 <span class="p">/&gt;;</span>
 </code></pre></div>
-<h3 id="tiles-reais-opt-in-com-leaflet">Tiles reais (opt-in) com Leaflet</h3>
-<p>Se você <strong>hospeda tiles próprios</strong>, passe <code>tileUrl</code> — o componente carrega o Leaflet sob demanda (import dinâmico) e sobe uma camada de tiles de verdade. Requer o <code>leaflet</code> instalado no app e a folha de estilo importada uma vez.</p>
-<div class="highlight"><pre><span></span><code><span class="c1">// npm install leaflet</span>
-<span class="k">import</span><span class="w"> </span><span class="s2">"leaflet/dist/leaflet.css"</span><span class="p">;</span>
-<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TrajectoryMap</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
+<h3 id="tiles-reais-opt-in-sem-dependencia">Tiles reais (opt-in, sem dependência)</h3>
+<p>Se você <strong>hospeda tiles próprios</strong>, passe <code>tileUrl</code> — o componente desenha os tiles <code>{z}/{x}/{y}</code> diretamente no SVG sob a mesma projeção Web Mercator da trajetória e dos marcadores, sem Leaflet e sem folha de estilo extra. Funciona inclusive só com <code>markers</code> (<code>points={[]}</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">TrajectoryMap</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="p">&lt;</span><span class="nt">TrajectoryMap</span>
-<span class="w">  </span><span class="na">points</span><span class="o">=</span><span class="p">{</span><span class="nx">points</span><span class="p">}</span>
+<span class="w">  </span><span class="na">points</span><span class="o">=</span><span class="p">{[]}</span>
+<span class="w">  </span><span class="na">markers</span><span class="o">=</span><span class="p">{[{</span><span class="w"> </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"loja-1"</span><span class="p">,</span><span class="w"> </span><span class="nx">latitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">23.5505</span><span class="p">,</span><span class="w"> </span><span class="nx">longitude</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">46.6333</span><span class="p">,</span><span class="w"> </span><span class="nx">label</span><span class="o">:</span><span class="w"> </span><span class="s2">"Loja"</span><span class="w"> </span><span class="p">}]}</span>
 <span class="w">  </span><span class="na">tileUrl</span><span class="o">=</span><span class="s">"https://tiles.SEU-SERVIDOR/{z}/{x}/{y}.png"</span>
 <span class="w">  </span><span class="na">tileAttribution</span><span class="o">=</span><span class="s">"© Seus dados de mapa"</span>
 <span class="w">  </span><span class="na">height</span><span class="o">=</span><span class="p">{</span><span class="mf">420</span><span class="p">}</span>
 <span class="p">/&gt;;</span>
 </code></pre></div>
 <div class="admonition note">
-<p class="admonition-title">Leaflet é peer opcional</p>
-<p>Sem <code>tileUrl</code>, o Leaflet <strong>nunca</strong> entra no bundle (o import é lazy). Se <code>tileUrl</code> for passado e o <code>leaflet</code> não estiver instalado, o componente mostra uma mensagem em vez de quebrar.</p>
+<p class="admonition-title">Zero dependência externa</p>
+<p>Sem <code>tileUrl</code>, nenhum request sai da página. Com <code>tileUrl</code>, o mapa usa o mesmo motor de tiles SVG do <code>LiveRouteMap</code> — nenhuma biblioteca extra precisa ser instalada.</p>
 </div>
 <table>
 <thead>
@@ -5306,6 +5472,18 @@ que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.</p>
 <td>Marcador de posição atual (pulsante).</td>
 </tr>
 <tr>
+<td><code>markers</code></td>
+<td><code>readonly GeoMarker[]</code></td>
+<td>—</td>
+<td>Marcadores pontuais sobrepostos (entram no auto-fit com ou sem <code>points</code>).</td>
+</tr>
+<tr>
+<td><code>onMarkerClick</code></td>
+<td><code>(marker: GeoMarker, index: number) =&gt; void</code></td>
+<td>—</td>
+<td>Clique ou Enter/Espaço num marcador.</td>
+</tr>
+<tr>
 <td><code>height</code></td>
 <td><code>number</code></td>
 <td><code>320</code></td>
@@ -5321,7 +5499,7 @@ que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.</p>
 <td><code>showGrid</code> / <code>showScale</code></td>
 <td><code>boolean</code></td>
 <td><code>true</code></td>
-<td>Grid e barra de escala (modo SVG).</td>
+<td>Grade (quando sem <code>tileUrl</code>) e barra de escala.</td>
 </tr>
 <tr>
 <td><code>strokeColor</code></td>
@@ -5333,13 +5511,19 @@ que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.</p>
 <td><code>tileUrl</code></td>
 <td><code>string</code></td>
 <td>—</td>
-<td>Template <code>{z}/{x}/{y}</code> do <strong>seu</strong> tile server → liga o Leaflet.</td>
+<td>Template <code>{z}/{x}/{y}</code> do <strong>seu</strong> tile server — desenha os tiles direto no SVG.</td>
 </tr>
 <tr>
 <td><code>tileAttribution</code></td>
 <td><code>string</code></td>
 <td>—</td>
-<td>Atribuição sobre os tiles.</td>
+<td>Atribuição exibida no canto inferior direito sobre os tiles.</td>
+</tr>
+<tr>
+<td><code>tileMaxZoom</code></td>
+<td><code>number</code></td>
+<td><code>19</code></td>
+<td>Zoom máximo servido pelo tile server.</td>
 </tr>
 </tbody>
 </table>
@@ -6171,7 +6355,7 @@ que está prestes a sobrescrever, em vez de repeti-lo e sair de sincronia.</p>
 <ul>
 <li><strong>Coleta</strong>: <code>usePositionTracker</code> / <code>createPositionTracker</code> gravam trajetória via <code>navigator.geolocation</code>, filtrando jitter — tudo no navegador.</li>
 <li><strong>Matemática</strong>: <code>haversineKm</code>, <code>pathLengthKm</code>, <code>bearingDeg</code>, <code>estimateTravel</code> — offline, espelhando o <code>tempest-fastapi-sdk</code>.</li>
-<li><strong>Mapa</strong>: <code>TrajectoryMap</code> plota em SVG sem tiles por padrão; <code>tileUrl</code> liga o Leaflet só com servidor <strong>seu</strong>.</li>
+<li><strong>Mapa</strong>: <code>TrajectoryMap</code> plota em SVG sem tiles por padrão; <code>tileUrl</code> desenha tiles do <strong>seu</strong> servidor sob a mesma projeção, sem dependência externa.</li>
 <li><strong>Viagem ao vivo</strong>: <code>LiveRouteMap</code> mostra rota planejada + trilha + veículo com direção, e segue o veículo sem reenquadrar a cada posição. Com <code>roads</code>, desenha as ruas e encaixa veículo e trilha nelas, sem código no app. <code>emphasis</code>, <code>glyphText</code>, <code>icon</code> e <code>markerScale</code> mudam o glifo, e o <code>LiveRouteMapLegend</code> desenha a legenda com os mesmos glifos.</li>
 <li><strong>Encaixe na rua</strong>: <code>createRoadGraph</code> + <code>matchToRoads</code> (trajeto inteiro) e <code>createRoadMatcher</code> (ao vivo) colocam cada posição na rua certa — 98,5% medido fora das áreas sem rua. Com <code>timestamp</code>, uma posição a cada 5–30 s não quebra a cadeia na esquina.</li>
 <li><strong>Rota real</strong>: <code>createOSRMBackend</code> é opt-in e aponta pro <strong>seu</strong> OSRM — o único ponto que toca a rede.</li>

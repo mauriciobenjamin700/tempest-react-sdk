@@ -2718,6 +2718,8 @@
       
         
       
+        
+      
     
     
       
@@ -3211,6 +3213,148 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fala e som (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Fala e som (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transcrição no aparelho (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Aparelho ou servidor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fim da fala (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sons e modelo próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -4337,6 +4481,8 @@
       
         
       
+        
+      
     
     
       
@@ -4406,6 +4552,27 @@
   
   <span class="md-ellipsis">
     Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Desempenho de interações (perf)
   </span>
   
 
@@ -6136,10 +6303,21 @@ componente são <strong>idênticos</strong>. O que muda é quanto CSS chega, nã
 faz.</p>
 </div>
 <div class="admonition info">
-<p class="admonition-title"><code>styles.css</code> continua publicado</p>
-<p>Uma linha, todos os 138 componentes, e nada quebra: o bundler deduplica a
-folha que o componente importa contra a que você importou. Custa bytes, nunca
-correção — é a mesma troca do <code>auto.css</code>.</p>
+<p class="admonition-title"><code>styles.css</code> continua publicado — e overrides do app vencem sempre via <code>@layer</code></p>
+<p>Uma linha, todos os 138 componentes, e nada quebra. Como <code>styles.css</code> e os
+<code>styles/component/*.css</code> são arquivos distintos, o CSS do componente pode entrar
+no documento depois do CSS do seu app (por exemplo, numa rota lazy). Para que uma
+classe sua passada em <code>className</code> ou <code>wrapperClassName</code> sempre vença com a mesma
+especificidade, o SDK declara a ordem:</p>
+<div class="highlight"><pre><span></span><code><span class="p">@</span><span class="k">layer</span><span class="w"> </span><span class="nt">tempest</span><span class="p">.</span><span class="nc">reset</span><span class="o">,</span><span class="w"> </span><span class="nt">tempest</span><span class="p">.</span><span class="nc">components</span><span class="o">,</span><span class="w"> </span><span class="nt">tempest</span><span class="p">.</span><span class="nc">utilities</span><span class="p">;</span>
+</code></pre></div>
+<p>Qualquer regra <strong>sem <code>@layer</code></strong> no seu app vence todas as camadas do SDK,
+independentemente da ordem de import. Os tokens (<code>tokens.css</code> e <code>inverse.css</code>)
+ficam intencionalmente fora de <code>@layer</code> para que um <code>:root</code> do app não esmague
+<code>[data-tempest-theme="dark"]</code> nem <code>[data-tempest-tone="inverse"]</code>.</p>
+<p>Se o seu app usa um framework baseado em camadas (como <strong>Tailwind v4</strong>, que coloca
+utilitários em <code>@layer utilities</code>), declare <code>@layer tempest, utilities;</code> no topo
+do seu CSS para os utilitários vencerem os componentes do SDK.</p>
 </div>
 <h3 id="ainda-precisa-de-fundacao">Ainda precisa de fundação</h3>
 <p>A fundação é a única coisa que o componente <strong>não</strong> traz, e não é esquecimento: os
@@ -6514,7 +6692,7 @@ razão: a gallery renderiza demos que dependem do relógio, então o mesmo
 build medido duas vezes não devolve sempre a mesma contagem. Medido: 87 e
 depois 88 nós de <code>color-contrast</code> em <code>incomplete</code>, sem nada mudar entre as
 duas execuções. É um ratchet, não uma allowlist: a gallery
-renderiza 69 seções de demo e carrega dívida real de acessibilidade, e
+renderiza 70 seções de demo e carrega dívida real de acessibilidade, e
 reprovar tudo deixaria o build vermelho para sempre — que é como um gate é
 deletado. Cair não falha; os números estão lá para serem baixados.</p>
 </div>

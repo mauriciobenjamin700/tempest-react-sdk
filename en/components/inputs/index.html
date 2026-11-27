@@ -3073,6 +3073,8 @@
       
         
       
+        
+      
     
     
       
@@ -3574,6 +3576,148 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Speech and sound (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Speech and sound (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    On-device transcription (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Device or server
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    End of speech (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sounds and your own model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../../vision/" class="md-nav__link">
         
@@ -3915,6 +4059,8 @@
       
         
       
+        
+      
     
     
       
@@ -3981,6 +4127,27 @@
   
   <span class="md-ellipsis">
     Inference cost (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interaction performance (perf)
   </span>
   
 
@@ -5795,14 +5962,14 @@ confuses the user about when the change takes effect.</p>
 <span class="p">}</span>
 </code></pre></div>
 <h2 id="searchbar"><code>SearchBar</code></h2>
-<p>A search input with a clear button + optional debounce via <code>useDebounce</code>.</p>
+<p>A search input with a clear button + optional debounce via <code>useDebounce</code>. By default the wrapper caps at <code>360px</code>; pass <code>fullWidth</code> to fill the container width.</p>
 <div class="highlight"><pre><span></span><code><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">useState</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"react"</span><span class="p">;</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">SearchBar</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">"tempest-react-sdk"</span><span class="p">;</span>
 
 <span class="k">export</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">Busca</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">[</span><span class="nx">q</span><span class="p">,</span><span class="w"> </span><span class="nx">setQ</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useState</span><span class="p">(</span><span class="s2">""</span><span class="p">);</span>
 
-<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">SearchBar</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">q</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setQ</span><span class="p">}</span><span class="w"> </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"What are you looking for?"</span><span class="w"> </span><span class="p">/&gt;;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="p">&lt;</span><span class="nt">SearchBar</span><span class="w"> </span><span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">q</span><span class="p">}</span><span class="w"> </span><span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">setQ</span><span class="p">}</span><span class="w"> </span><span class="na">fullWidth</span><span class="w"> </span><span class="na">placeholder</span><span class="o">=</span><span class="s">"What are you looking for?"</span><span class="w"> </span><span class="p">/&gt;;</span>
 <span class="p">}</span>
 </code></pre></div>
 <h2 id="datepicker"><code>DatePicker</code></h2>

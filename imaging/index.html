@@ -2720,6 +2720,8 @@
       
         
       
+        
+      
     
     
       
@@ -3213,6 +3215,148 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fala e som (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Fala e som (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transcrição no aparelho (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Aparelho ou servidor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fim da fala (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sons e modelo próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -3749,6 +3893,8 @@
       
         
       
+        
+      
     
     
       
@@ -3818,6 +3964,27 @@
   
   <span class="md-ellipsis">
     Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Desempenho de interações (perf)
   </span>
   
 
@@ -5019,7 +5186,7 @@ daquele instante ser apresentado, captura e <strong>devolve o player onde estava
 </tr>
 <tr>
 <td><code>timeoutMs</code></td>
-<td>Teto para a busca e para o frame depois dela. Padrão <code>3000</code></td>
+<td>Teto para cada espera: a busca, o frame depois dela e o primeiro frame legível. Padrão <code>3000</code></td>
 </tr>
 <tr>
 <td><code>signal</code></td>
@@ -5055,7 +5222,7 @@ vídeo <strong>reproduz</strong> e <strong>não</strong> dispara em seek de elem
 <li>captura com <strong><code>atMs</code></strong> espera <code>seeked</code> + dois animation frames →
   <code>confirmed: false</code>, sempre;</li>
 <li>captura do frame corrente de vídeo <strong>pausado</strong> não espera nada — o frame
-  na tela já é o frame.</li>
+  na tela já é o frame — desde que ele exista (veja abaixo).</li>
 </ul>
 <p><code>false</code> num seek é o normal, não um aviso. Tratar como falha rejeitaria a
 maioria das capturas corretas. E é por isso que o seek <strong>não</strong> bloqueia no
@@ -5074,6 +5241,25 @@ finalizada num único <code>stop()</code> (3.000197 s para 3 s de canvas), entã
 caminho a sondagem não roda. Ela existe para os caminhos que omitem —
 gravação em chunks por <code>timeslice</code>, e outros navegadores. O
 <code>useVideoRecorder</code> mantém o próprio relógio justamente por isso.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title"><code>readyState</code> diz que há dado, não que há frame</p>
+<p>O Chromium sobe o <code>readyState</code> — e dispara <code>loadeddata</code> — antes de o player
+ter um frame que o <code>createImageBitmap</code> consiga ler. Nessa janela a leitura
+rejeita com <code>InvalidStateError</code> ("The image source is not usable"), e
+nenhum evento avisa quando ela fecha. Medido em 23/11/2026: lendo um vídeo
+pausado dentro do próprio <code>loadeddata</code>, 2 de 30 leituras falharam com
+<code>readyState</code> 4 e funcionaram 11 e 94 ms depois. Pior: um vídeo <strong>pausado</strong>
+com <code>preload="metadata"</code> nunca decodifica frame sozinho — 60 de 60
+capturas falhavam, e 1,5 s depois de <code>loadeddata</code> e <code>canplay</code> ele ainda
+recusava; um seek para a posição atual destrava em ~17 ms.</p>
+<p>Por isso, quando a leitura de um vídeo pausado é recusada, o
+<code>captureFrame</code> faz <strong>um</strong> seek para onde ele já está (a posição não muda,
+mas <code>seeking</code>/<code>seeked</code> disparam no elemento) e repete a leitura a cada
+~16 ms até dar certo, o <code>signal</code> abortar ou o <code>timeoutMs</code> acabar — aí sai
+<code>FrameSeekError</code> dizendo o <code>readyState</code>. Vídeo tocando só é esperado.
+Qualquer outra falha de leitura (vídeo de outra origem, fonte quebrada)
+não é repetida.</p>
 </div>
 <div class="admonition warning">
 <p class="admonition-title">Vídeo de outra origem precisa de <code>crossOrigin</code></p>
@@ -5214,8 +5400,8 @@ por dezenas de milissegundos por imagem.</p>
 </table>
 <p>Erros: <code>ImagingError</code> na raiz, com <code>ImageDecodeError</code>, <code>ImageEncodeError</code>,
 <code>FrameSeekError</code>, <code>UnsupportedImageTypeError</code> e <code>ImagingUnavailableError</code>. O
-<code>FrameSeekError</code> é o do <code>captureFrame</code>: a busca não chegou, ou o vídeo não tem
-linha do tempo. Ele existe como classe própria porque a alternativa seria
+<code>FrameSeekError</code> é o do <code>captureFrame</code>: a busca não chegou, o vídeo não tem
+linha do tempo, ou nenhum frame ficou legível dentro do <code>timeoutMs</code>. Ele existe como classe própria porque a alternativa seria
 devolver frame do instante errado, que é indistinguível de um correto para tudo
 o que vem depois.</p>
 <p>Os defaults de cada opção também saem exportados, para uma tela de ajustes

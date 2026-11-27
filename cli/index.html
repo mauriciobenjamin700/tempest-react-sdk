@@ -2906,6 +2906,8 @@
       
         
       
+        
+      
     
     
       
@@ -3407,6 +3409,148 @@
   
   
   
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_4_23" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_4_23" id="__nav_6_4_23_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Fala e som (ONNX)
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_4_23_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_4_23">
+            <span class="md-nav__icon md-icon"></span>
+            Fala e som (ONNX)
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Transcrição no aparelho (Whisper)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Aparelho ou servidor
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-vad/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fim da fala (Silero VAD)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../speech-sounds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sons e modelo próprio
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../vision/" class="md-nav__link">
         
@@ -3748,6 +3892,8 @@
       
         
       
+        
+      
     
     
       
@@ -3814,6 +3960,27 @@
   
   <span class="md-ellipsis">
     Custo de inferência (perf)
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../perf-monitor/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Desempenho de interações (perf)
   </span>
   
 
@@ -4908,7 +5075,7 @@ Tooling
 <p>As checagens que perguntam "esse projeto usa X?" leem o <strong>código</strong>, não a prosa:
 comentários saem antes da busca, então um <code>@example</code> mostrando
 <code>import "tempest-react-sdk/styles.css"</code> não vira um segundo import, e um docstring
-com <code>&lt;TrajectoryMap tileUrl=…&gt;</code> não passa a exigir o <code>leaflet</code>. Arquivos de teste
+com <code>import "tempest-react-sdk/charts"</code> não passa a exigir o <code>recharts</code>. Arquivos de teste
 também ficam de fora — um teste que renderiza um componente justamente para provar
 como ele degrada <strong>sem</strong> o peer opcional não é o projeto pedindo aquele peer.</p>
 <p>Peer marcada como <code>optional</code> em <code>peerDependenciesMeta</code> nunca é reportada como não
@@ -4955,7 +5122,7 @@ e como passo rápido na CI. Ele sai com código <strong>1</strong> se houver qua
 <li><strong>Deps declaradas mas não instaladas</strong> (drift entre <code>package.json</code> e <code>node_modules</code>) → <code>npm install</code>.</li>
 <li><strong><code>peerDependencies</code> do próprio app</strong> não satisfeitas.</li>
 <li><strong><code>@types/react</code> × <code>react</code></strong> com majors diferentes → erros de tipo fantasma.</li>
-<li><strong>Peers opcionais de subpaths usados</strong>: se você importa <code>tempest-react-sdk/charts</code> sem <code>recharts</code>, <code>/editor</code> sem <code>@tiptap/react</code>, <code>/vision</code> sem <code>onnxruntime-web</code>, ou passa <code>tileUrl</code> no <code>TrajectoryMap</code> sem <code>leaflet</code> — tudo compila, mas quebra no import lazy em runtime.</li>
+<li><strong>Peers opcionais de subpaths usados</strong>: se você importa <code>tempest-react-sdk/charts</code> sem <code>recharts</code>, <code>/editor</code> sem <code>@tiptap/react</code>, ou <code>/vision</code> sem <code>onnxruntime-web</code> — tudo compila, mas quebra no import em runtime.</li>
 <li><strong>SDK desatualizado</strong> vs o <code>latest</code> no npm (best-effort, com timeout curto; pulado offline).</li>
 <li><strong><code>lucide-react</code> em cópia dupla</strong> — checagem separada da de cima, porque duas cópias de lucide não quebram hooks como um segundo React: elas duplicam bytes e, o que é pior, deixam as <strong>tabelas de slug geradas</strong> do <code>/icons</code> apontando pra exports que a cópia mais antiga não tem. Avisa quando o seu <code>package.json</code> declara lucide numa faixa diferente da do SDK (é a causa), quando existe cópia aninhada sob <code>tempest-react-sdk</code> (é a prova), e <strong>reprova</strong> quando a versão instalada é mais antiga do que as tabelas exigem — esse caso quebra o build com <code>… is not exported by lucide-react</code> apontando pra dentro do SDK. Ver <a href="../icons/">Ícones por slug</a>.</li>
 </ul>

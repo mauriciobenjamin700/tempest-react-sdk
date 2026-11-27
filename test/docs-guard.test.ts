@@ -41,6 +41,13 @@ const DOCS = join(ROOT, "docs");
  * Subpath → entry module, mirroring the `exports` map in `package.json`. The
  * vision entry is `public.ts` (the vendored `index.ts` plus this SDK's own
  * camera hooks), which is what the published subpath resolves to.
+ *
+ * A subpath missing here is not reported as missing: with `dist/` built it
+ * resolves to the package's own `.d.ts`, and without it the import is a
+ * "cannot find module" the fragment filter drops, so every name from it is
+ * `any`. `/speech` and `/neural` were missing, and the release smokes, which
+ * run the suite before the build, checked none of their examples — and
+ * reported a false error the `any` produced.
  */
 const ENTRIES: Record<string, string> = {
     ".": "src/index.ts",
@@ -52,8 +59,11 @@ const ENTRIES: Record<string, string> = {
     "/vision": "src/vision/public.ts",
     "/br": "src/br/index.ts",
     "/icons": "src/icons/index.ts",
+    "/icons/virtual": "src/icons/virtual.ts",
     "/imaging": "src/imaging/index.ts",
     "/tabular": "src/tabular/index.ts",
+    "/speech": "src/speech/index.ts",
+    "/neural": "src/neural/index.ts",
 };
 
 /**
@@ -304,6 +314,18 @@ function compileBlocks(blocks: DocBlock[]): string[] {
     }
     return failures;
 }
+
+describe("docs example entries", () => {
+    it("map every typed subpath the package exports to its source", () => {
+        const manifest = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
+            exports: Record<string, string | { types?: string }>;
+        };
+        const typed = Object.entries(manifest.exports)
+            .filter(([, target]) => typeof target === "object" && target.types)
+            .map(([subpath]) => subpath.replace(/^\./, "") || ".");
+        expect(typed.filter((subpath) => !(subpath in ENTRIES))).toEqual([]);
+    });
+});
 
 describe("docs examples", () => {
     const blocks = collectBlocks();

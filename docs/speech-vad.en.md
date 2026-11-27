@@ -27,8 +27,7 @@ const NO_SPEECH_MS = 15_000;
 let vadLoading: Promise<SileroVad> | undefined;
 
 export function loadVad(): Promise<SileroVad> {
-    vadLoading ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
-    return vadLoading;
+    return (vadLoading ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" }));
 }
 
 export async function recordUntilQuiet(): Promise<Blob | null> {

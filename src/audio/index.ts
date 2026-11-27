@@ -65,3 +65,5 @@ export { createSincResampler, resamplePcm } from "./resample";
 export type { SincResampler } from "./resample";
 export { createPcmStream, isPcmStreamSupported, pcmWorkletSource } from "./pcm-stream";
 export type { PcmFrameInfo, PcmStream, PcmStreamOptions } from "./pcm-stream";
+export { WHISPER_LOG_MEL_128, WHISPER_LOG_MEL_80, logMelSpectrogram } from "./log-mel";
+export type { LogMelConfig, LogMelScaling, LogMelSpectrogram } from "./log-mel";

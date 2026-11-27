@@ -29,6 +29,46 @@ export interface ModelCacheOptions {
     readonly revalidate?: boolean;
     /** `fetch` options, e.g. credentials for a private model endpoint. */
     readonly requestInit?: RequestInit;
+    /**
+     * Called as a download progresses, with the bytes read so far and the
+     * total from `Content-Length` (`null` when the server does not send it).
+     * Not called for a cache hit. A speech model is tens of megabytes; this
+     * is what lets the app show a bar instead of a frozen screen.
+     */
+    readonly onProgress?: (loaded: number, total: number | null) => void;
+}
+
+/**
+ * Read a response body, reporting progress as chunks arrive.
+ *
+ * @param response The response.
+ * @param onProgress Progress callback, if any.
+ * @returns The body bytes.
+ */
+async function readBody(
+    response: Response,
+    onProgress?: (loaded: number, total: number | null) => void,
+): Promise<Uint8Array> {
+    if (!onProgress || !response.body) return new Uint8Array(await response.arrayBuffer());
+    const header = Number(response.headers.get("content-length"));
+    const total = Number.isFinite(header) && header > 0 ? header : null;
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        loaded += value.byteLength;
+        onProgress(loaded, total);
+    }
+    const bytes = new Uint8Array(loaded);
+    let offset = 0;
+    for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return bytes;
 }
 
 /**
@@ -67,7 +107,7 @@ export async function fetchModelBytes(
     const cacheName = options.cacheName ?? DEFAULT_MODEL_CACHE;
 
     if (!hasCacheStorage()) {
-        return await downloadBytes(url, options.requestInit);
+        return await downloadBytes(url, options.requestInit, options.onProgress);
     }
 
     const cache = await globalThis.caches.open(cacheName);
@@ -84,8 +124,14 @@ export async function fetchModelBytes(
                 `Failed to download the model: ${response.status} ${response.statusText}`,
             );
         }
-        await cache.put(url, response.clone());
-        return new Uint8Array(await response.arrayBuffer());
+        const bytes = await readBody(response, options.onProgress);
+        await cache.put(
+            url,
+            new Response(new Uint8Array(bytes).buffer as ArrayBuffer, {
+                headers: { "content-type": "application/octet-stream" },
+            }),
+        );
+        return bytes;
     } catch (error) {
         const cached = await cache.match(url);
         if (cached !== undefined) return new Uint8Array(await cached.arrayBuffer());
@@ -107,7 +153,11 @@ export async function fetchModelBytes(
  * @returns The model bytes.
  * @throws {@link ModelFetchError} when the request fails.
  */
-async function downloadBytes(url: string, requestInit?: RequestInit): Promise<Uint8Array> {
+async function downloadBytes(
+    url: string,
+    requestInit?: RequestInit,
+    onProgress?: (loaded: number, total: number | null) => void,
+): Promise<Uint8Array> {
     try {
         const response = await fetch(url, requestInit);
         if (!response.ok) {
@@ -115,7 +165,7 @@ async function downloadBytes(url: string, requestInit?: RequestInit): Promise<Ui
                 `Failed to download the model: ${response.status} ${response.statusText}`,
             );
         }
-        return new Uint8Array(await response.arrayBuffer());
+        return await readBody(response, onProgress);
     } catch (error) {
         if (error instanceof ModelFetchError) throw error;
         throw new ModelFetchError(`Failed to download the model: ${url}`, { cause: error });

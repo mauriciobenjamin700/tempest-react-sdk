@@ -694,6 +694,27 @@ Conversion and framing run in an `AudioWorklet`, on the audio thread. The main t
     }
     ```
 
+### Log-mel spectrogram: `logMelSpectrogram`
+
+Most speech models do not take the waveform but a log-mel spectrogram with the exact training parameters. Getting one parameter wrong breaks nothing visible: the model just gets less accurate, silently.
+
+```typescript
+import { WHISPER_LOG_MEL_80, decodeAudioToPcm, logMelSpectrogram } from "tempest-react-sdk";
+
+async function features(recording: Blob): Promise<Float32Array> {
+    const pcm = await decodeAudioToPcm(recording, { sampleRate: 16_000 });
+    const mel = logMelSpectrogram(pcm.samples, WHISPER_LOG_MEL_80);
+    console.log(mel.nMels, mel.frames);
+    return mel.data;
+}
+```
+
+- `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, Slaney mel filters, `log10`, floor at `max − 8`, `(x + 4) / 4`. 30 s give 3000 frames.
+- Your own model: pass your `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
+- **Measured parity:** against a numpy port of `whisper.audio.log_mel_spectrogram`, checked against `transformers.WhisperFeatureExtractor`, the maximum difference is **1.2e-7** (float32 epsilon). 30 s cost 83 ms on Node 24. The fixture and the script that makes it are in the repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
+
+To transcribe, use the [`/speech`](speech.md) subpath, which does this for you.
+
 ### Why its own resampler
 
 Letting the browser decode straight into a 16 kHz `OfflineAudioContext` looks simpler, but its resampler is weak near the new Nyquist. Measured on Chromium 159 (48 → 16 kHz, 1 s tone):

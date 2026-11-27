@@ -191,6 +191,7 @@ plugins:
                     Áudio: Audio
                     Captura de dispositivo: Device capture
                     Neural (RNNoise 48 kHz): Neural noise suppression (RNNoise)
+                    Transcrição no aparelho (Whisper): On-device transcription (Whisper)
                     Tabular (scikit-learn): Tabular (scikit-learn)
                     Imagens (processamento): Imaging (processing)
                     Formulários: Forms
@@ -339,6 +340,7 @@ nav:
                 - Áudio: audio.md
                 - Captura de dispositivo: device-capture.md
                 - Neural (RNNoise 48 kHz): neural.md
+                - Transcrição no aparelho (Whisper): speech.md
                 - Vision (ONNX): vision.md
                 - Tabular (scikit-learn): tabular.md
                 - Imagens (processamento): imaging.md

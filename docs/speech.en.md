@@ -276,6 +276,72 @@ Load: 1,266 ms with a 43.3 MB download, 343 ms from the cache. Word-for-word tra
 
 What transcription needs from it — greedy decoding with a KV cache and the BPE tokenizer's *decode* — lives in `/speech` on top of the `onnxruntime-web` peer.
 
+## When the person stops talking: Silero VAD
+
+The energy VAD (`monitorVoiceActivity`) decides by loudness, so it fails exactly where the voice matters: a bus, the street, a TV on. `/speech` ships **Silero VAD** (v5, ~2 MB, MIT), a model that tells speech from noise every 32 ms frame.
+
+```bash
+curl -sfL -o public/models/silero_vad.onnx \
+  https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
+```
+
+### Stop recording on its own: `createSpeechDetector`
+
+Same shape as `monitorVoiceActivity` (`{ speaking, stop }` and `onChange(speaking)`), so one swaps for the other:
+
+```typescript
+import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
+
+export async function stopOnSilence(mic: MediaStream, stop: () => void): Promise<void> {
+    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx", ortAssetsUrl: "/ort/" });
+    let spoke = false;
+    const detector = await createSpeechDetector(
+        mic,
+        (speaking) => {
+            if (speaking) spoke = true;
+            else if (spoke) {
+                detector.stop();
+                stop();
+            }
+        },
+        { vad, minSilenceMs: 1000 },
+    );
+}
+```
+
+On Chromium 159, with a fake microphone playing 1 s of silence, 5.5 s of speech and then silence, the detector turned on at 1.6 s and off at 6.7 s, after 1 s of quiet. It processed 281 of 281 frames.
+
+### Trim the silence from a recording: `detectSpeechSegments`
+
+```typescript
+import { decodeAudioToPcm } from "tempest-react-sdk";
+import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
+
+export async function speechParts(recording: Blob): Promise<string> {
+    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+    const segments = await detectSpeechSegments(await decodeAudioToPcm(recording), vad);
+    return segments.map((s) => `${s.startMs}–${s.endMs} ms`).join(", ");
+}
+```
+
+Segmentation is silero-vad's `get_speech_timestamps`, with the same defaults (`SILERO_DEFAULT_*` constants, source cited): threshold 0.5, exit at `max(threshold − 0.15, 0.01)`, 250 ms minimum speech, 100 ms minimum silence, 30 ms padding.
+
+### How accurate, compared to the energy VAD
+
+Frame accuracy (32 ms frames) over 10 FLEURS `pt_br` utterances. Labels come from the **clean** signal; the measurement runs on the noisy one:
+
+| Condition | Energy (default) | Energy (calibrated on the noise floor) | **Silero** |
+| --- | --- | --- | --- |
+| clean | 63.6 % | 86.1 % | **89.5 %** |
+| white noise 0 / 5 / 10 dB | 60.9 / 64.4 / 61.4 % | 41.1 / 67.0 / 82.6 % | **87.9 / 89.1 / 89.3 %** |
+| babble 0 / 5 / 10 dB | 59.2 / 60.1 / 62.6 % | 47.2 / 50.9 / 54.1 % | **74.2 / 70.7 / 77.3 %** |
+
+- In babble (other people talking, like a full bus), Silero drops to 71–77 %: the noise **is** speech. Even so, recall stays at 95–98 %, so it does not lose whoever is talking.
+- The energy VAD with its defaults misses half the speech even on the clean signal (50 % recall), because its fixed 0.045 threshold is high for this recording level.
+- **Cost:** 0.16 ms per 32 ms frame (WASM, one thread, Node 24). It fits on the main thread, no worker needed.
+
+Reproduce: generate the data with `scripts/gen-vad-fixtures.py` and run `DATASET_DIR=… SILERO_MODEL=… node --import ./loader/css-loader.mjs scripts/bench-vad.mjs`.
+
 ## Before offering the button: `assessSpeechDevice`
 
 ```typescript
@@ -300,4 +366,5 @@ Synchronous and loads nothing. It only rules out the clearly impossible: no WebA
 - Model not loaded yet: the server answers while the model downloads in the background.
 - `loadWhisper` for direct use; whisper-tiny int8 transcribed 11 s in 778 ms on a desktop (`scripts/bench-whisper.mjs`).
 - `loadWhisper({ worker })` with an `exposeWhisperWorker()` file: the screen stays at 60 fps while transcribing (3 → 45 frames in 720 ms).
+- Silero VAD (`createSpeechDetector`, `detectSpeechSegments`): 88–89 % frame accuracy in white noise, against ~61 % for the energy VAD; 0.16 ms per frame.
 - `onnxruntime-web` is an optional peer; WebGPU stays out of the default until measured on a real device.

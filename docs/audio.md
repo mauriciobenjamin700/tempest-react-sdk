@@ -639,6 +639,73 @@ const rec = useAudioRecorder(mic.stream, {
 
 Sem `timesliceMs` a gravação inteira fica em memória até o `stop()` — ok pra nota de voz, não ok pra uma reunião de uma hora. **Os chunks não são tocáveis isoladamente**: só o conjunto forma um arquivo válido.
 
+## Áudio para modelos: PCM na taxa certa
+
+Todo modelo de áudio (detecção de fala, transcrição, classificação) recebe a mesma coisa: **amostras float32 mono numa taxa fixa**, quase sempre 16 kHz. O navegador grava em webm/opus estéreo a 48 kHz e o microfone roda a 44,1 ou 48 kHz. Estas três peças fazem a ponte, sem `onnxruntime-web`.
+
+### De um arquivo: `decodeAudioToPcm`
+
+```typescript
+import { decodeAudioToPcm, framePcm } from "tempest-react-sdk";
+
+async function preparar(gravacao: Blob): Promise<Float32Array[]> {
+    const pcm = await decodeAudioToPcm(gravacao, { sampleRate: 16_000 });
+    console.log(pcm.samples.length / pcm.sampleRate, "segundos");
+    return framePcm(pcm.samples, 512);
+}
+```
+
+- Aceita o que o navegador toca (webm/opus, mp4/aac, mp3, wav), como `Blob` ou `ArrayBuffer`.
+- Faz a **média dos canais**: o `MediaRecorder` do Chromium grava Opus estéreo mesmo com microfone mono.
+- `signal` cancela; `framePcm` corta em quadros do tamanho que o modelo espera e completa o último com zeros.
+
+### Do microfone: `createPcmStream`
+
+```typescript
+import { createPcmStream } from "tempest-react-sdk";
+
+async function ouvir(): Promise<() => void> {
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await createPcmStream(mic, {
+        sampleRate: 16_000,
+        frameSize: 512,
+        onFrame: (quadro, { index, startMs }) => console.log(index, startMs, quadro.length),
+    });
+    return () => {
+        stream.release();
+        mic.getTracks().forEach((track) => track.stop());
+    };
+}
+```
+
+A conversão e o fatiamento rodam num `AudioWorklet`, no thread de áudio. A main thread só recebe os quadros prontos. `hopSize` menor que `frameSize` dá quadros sobrepostos; `pause()` descarta o áudio até `resume()`. Também aceita um `AudioNode` (o `track` de um `createVoiceChain`, um `createNeuralSuppressor`), para ligar o modelo depois da limpeza do sinal.
+
+!!! warning "CSP: worklet obedece ao `script-src`, não ao `worker-src`"
+    Por padrão o processador carrega de uma URL `blob:`. O CSP que o [`tempestCsp()`](csp.md) gera (`script-src 'self' 'wasm-unsafe-eval'`) **recusa** isso. No Chromium 159 o carregamento falha com um `AbortError` que não diz o motivo, e o `createPcmStream` o troca por um erro que diz. A correção é usar o arquivo que o pacote publica:
+
+    ```typescript
+    import { createPcmStream } from "tempest-react-sdk";
+    import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
+
+    async function ouvirComCsp(mic: MediaStream): Promise<void> {
+        await createPcmStream(mic, { workletUrl: pcmWorkletUrl, onFrame: () => undefined });
+    }
+    ```
+
+### Por que um reamostrador próprio
+
+Deixar o navegador decodificar direto num `OfflineAudioContext` de 16 kHz parece mais simples, mas o reamostrador dele é fraco perto da nova Nyquist. Medido no Chromium 159 (48 → 16 kHz, tom de 1 s):
+
+| Tom | Navegador | `resamplePcm` do SDK |
+| --- | --- | --- |
+| 7 kHz (deve passar) | −5 dB | −0,01 dB |
+| 9 kHz (acima de 8 kHz, deve sumir) | −20 dB | −94 dB |
+
+O SDK decodifica a 48 kHz e converte com um sinc janelado por Kaiser (`createSincResampler`/`resamplePcm`). O **mesmo** filtro roda dentro do worklet, então o modelo vê o mesmo espectro vindo de um arquivo e vindo do microfone. Converter 30 s leva 350 ms no Node 24 (`vitest`); o custo no aparelho entra na medição das issues de modelo.
+
+!!! note "Safari"
+    `AudioWorklet` e `OfflineAudioContext` existem no Safari, mas este PR não teve WebKit para medir: os números acima são do Chromium.
+
 ## Recap
 
 - `playAudio(src, options)` — som one-off no player compartilhado; retorna `null` se o autoplay foi bloqueado. `stopAudio()` para esse player.
@@ -655,6 +722,7 @@ Sem `timesliceMs` a gravação inteira fica em memória até o `stop()` — ok p
 - `blobToWav` — WAV sem dependência, ~10× os bytes; MP3 fica no servidor.
 - `setAudioOutput` / `isAudioOutputSelectionSupported` — roteamento de saída, só Chromium.
 - `createAudioBus` / `useAudioBus` — ganho **acima de 100%**, limiter depois da soma e `setSinkId`; `attach()` traz a âncora do crbug.687574 que impede o grafo mudo no Chrome.
+- PCM para modelos: `decodeAudioToPcm` (arquivo) e `createPcmStream` (microfone) entregam mono 16 kHz com o mesmo reamostrador; sob o CSP do `tempestCsp()`, passe `workletUrl` de `tempest-react-sdk/pcm-worklet.js?url`.
 
 ## Veja também
 

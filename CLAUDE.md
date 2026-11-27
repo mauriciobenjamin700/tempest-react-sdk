@@ -148,7 +148,7 @@ mais voltam:
   máquina do mantenedor, sem provenance. Histórico em `RELEASES.md`
   (gerado por `make releases-md`) e `CHANGELOG.md` — **não duplicar aqui**.
 - **Superfície**: 42 módulos em `src/` (`ls -d src/*/`), 138 componentes
-  (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 19 subpaths
+  (`ls -d src/components/*/`), 55 hooks `useX` no barrel de `hooks/`, 20 subpaths
   — os quatro aferidos por `test/docs-counts.test.ts`. Exports de runtime na
   raiz: **673 em 13/11/2026** (70 em `/br`, 21 em `/icons`); o método de
   contagem, e por que o `--import` não é opcional, está em

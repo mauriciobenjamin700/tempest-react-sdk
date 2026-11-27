@@ -276,6 +276,74 @@ Load: 1,266 ms with a 43.3 MB download, 343 ms from the cache. Word-for-word tra
 
 What transcription needs from it — greedy decoding with a KV cache and the BPE tokenizer's *decode* — lives in `/speech` on top of the `onnxruntime-web` peer.
 
+## Ambient sounds: `loadSoundClassifier`
+
+To know **what** is heard (siren, horn, crying, music, applause, speech), `/speech` classifies with **YAMNet**: 521 AudioSet classes, ~16 MB, Apache-2.0. The ONNX export takes the raw 16 kHz waveform and computes its own log-mel inside, so no feature step runs on the page.
+
+```bash
+M=public/models/yamnet && mkdir -p $M
+for f in yamnet.onnx yamnet_class_map.csv; do
+  curl -sfL -o $M/$f "https://huggingface.co/rostrumstudios/yamnet/resolve/main/$f"
+done
+```
+
+```typescript
+import { loadSoundClassifier } from "tempest-react-sdk/speech";
+
+export async function whatIsHeard(recording: Blob): Promise<string> {
+    const classifier = await loadSoundClassifier({
+        modelUrl: "/models/yamnet/yamnet.onnx",
+        labelsUrl: "/models/yamnet/yamnet_class_map.csv",
+    });
+    const { top } = await classifier.classify(recording);
+    return top.map((s) => `${s.label} ${s.score.toFixed(2)}`).join(", ");
+}
+```
+
+- The result has the score of every 0.48 s window (`frames`) and the classes with the highest mean (`top`).
+- Checked on that export (Node 24, WASM): a 1 kHz tone → "Beep, bleep" 0.92; a FLEURS Portuguese utterance → "Speech" 0.73; silence → "Silence" 1.00. 14 s cost 146 ms.
+- The class CSV has names with commas in quotes ("Beep, bleep"); the SDK parses it as CSV, without splitting the name.
+
+### Live: `createSoundMonitor`
+
+```typescript
+import { createSoundMonitor, loadSoundClassifier } from "tempest-react-sdk/speech";
+
+export async function watchForSirens(mic: MediaStream): Promise<void> {
+    const classifier = await loadSoundClassifier({
+        modelUrl: "/models/yamnet/yamnet.onnx",
+        labelsUrl: "/models/yamnet/yamnet_class_map.csv",
+    });
+    await createSoundMonitor(mic, (active) => console.log(active), {
+        classifier,
+        classes: ["Siren", "Vehicle horn, car horn, honking"],
+    });
+}
+```
+
+~1 s windows every 0.5 s. The score is the mean of the last `smoothing` windows (3); a class turns on at `threshold` (0.3) and off below `releaseThreshold` (0.18), so a sound does not flicker every window.
+
+## Your own model: `loadAudioModel`
+
+What every audio model repeats is the SDK's job: decode, downmix, resample with the SDK's filter and, when needed, compute the log-mel **with the training config**. Outputs come back as the model returns them:
+
+```typescript
+import { WHISPER_LOG_MEL_80 } from "tempest-react-sdk";
+import { loadAudioModel } from "tempest-react-sdk/speech";
+
+export async function runMyModel(recording: Blob): Promise<number[]> {
+    const model = await loadAudioModel({
+        modelUrl: "/models/my-model.onnx",
+        feature: { ...WHISPER_LOG_MEL_80, nMels: 64 },
+        inputDims: ({ nMels, frames }) => [1, 1, nMels as number, frames as number],
+    });
+    const outputs = await model.run(recording);
+    return Array.from(outputs[model.outputNames[0] as string]?.data ?? []);
+}
+```
+
+`feature: "waveform"` passes the raw waveform. A classifier of your own fits `loadSoundClassifier` with `feature`, `labels` and `scoresOutput`.
+
 ## Before offering the button: `assessSpeechDevice`
 
 ```typescript

@@ -36,3 +36,23 @@ export type {
 export { configureOrtAssets, ortAssetUrls } from "@/tabular/assets";
 export { exposeWhisperWorker } from "./worker";
 export type { WhisperWorkerLike, WhisperWorkerScope, WorkerLoadOptions } from "./worker";
+export { createAudioModel, loadAudioModel } from "./audio-model";
+export type { AudioModel, AudioModelOutput, LoadAudioModelOptions } from "./audio-model";
+export {
+    YAMNET_HOP_MS,
+    YAMNET_WINDOW_SAMPLES,
+    createSoundClassifier,
+    createSoundMonitor,
+    loadSoundClassifier,
+    parseClassMap,
+    parseCsvLine,
+} from "./sound-classifier";
+export type {
+    LoadSoundClassifierOptions,
+    SoundClassification,
+    SoundClassifier,
+    SoundFrame,
+    SoundMonitor,
+    SoundMonitorOptions,
+    SoundScore,
+} from "./sound-classifier";

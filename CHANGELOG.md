@@ -77,6 +77,11 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   A doc do `/speech` ganhou o passo "Sirva o runtime", que faltava.
 - **`ISOLATION=0` nos scripts de bench do Whisper**, para medir sem COOP/COEP (uma thread). whisper-base
   nas 30 frases do FLEURS: fator de tempo real 0,109 com threads, **0,248** sem, mesmo WER.
+- **Plugin `tempestOrtAssets()` no `tempest-react-sdk/vite`.** Serve os `.wasm` do ONNX Runtime Web
+  (`/speech`, `/tabular`, `/vision`) da origem do app: middleware no `vite dev` e emissão em
+  `dist/ort/` no build, a partir do `onnxruntime-web` que o app instalou. Falha no boot nomeando o
+  pacote ausente ou o arquivo que a versão instalada não traz. Substitui o passo "copie os
+  binários" que a doc do `/tabular` mandava cada app fazer à mão, e que faltava na do `/speech`.
 
 ### Budgets
 

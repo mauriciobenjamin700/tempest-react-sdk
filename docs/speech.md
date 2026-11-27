@@ -37,7 +37,16 @@ done
 
 ## 2. Sirva o runtime
 
-O ONNX Runtime Web **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado pelo Vite, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. Copie os binários de `node_modules/onnxruntime-web/dist/` para o diretório público e diga onde estão:
+O ONNX Runtime Web **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado pelo Vite, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin [`tempestOrtAssets()`](vite-config.md#modelos-onnx-no-navegador-tempestortassets) serve os binários em `/ort/` no dev e no build:
+
+```ts
+import { defineConfig } from "vite";
+import { tempestOrtAssets } from "tempest-react-sdk/vite";
+
+export default defineConfig({ plugins: [tempestOrtAssets()] });
+```
+
+E o modelo carrega apontando para lá:
 
 ```typescript
 import { loadWhisper } from "tempest-react-sdk/speech";

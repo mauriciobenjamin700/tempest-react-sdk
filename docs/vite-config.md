@@ -304,6 +304,23 @@ do fallback da SPA no lugar dele. URLs absolutas `http(s):` não são conferidas
 | `tempestPwaDevSw({ build })`           | `true`                                       | Empacota `swSrc` no build de produção em `swUrl`                  |
 | `tempestPwaManifest({ serviceWorker })` | `swUrl` do `tempestPwaDevSw`, senão `/sw.js` | URL do worker exigido no build; `false` desliga a conferência     |
 
+## Modelos ONNX no navegador: `tempestOrtAssets`
+
+O ONNX Runtime Web (`/speech`, `/tabular`, `/vision`) **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin serve os binários do `onnxruntime-web` que o app instalou, da sua própria origem:
+
+```ts
+import { defineConfig } from "vite";
+import { tempestOrtAssets } from "tempest-react-sdk/vite";
+
+export default defineConfig({ plugins: [tempestOrtAssets()] });
+```
+
+- **`vite dev`:** responde `/ort/<arquivo>` direto de `node_modules/onnxruntime-web/dist/`.
+- **Build:** emite os mesmos quatro arquivos (`ort-wasm-simd-threaded[.jsep].{wasm,mjs}`) em `dist/ort/`.
+- **Sem o pacote instalado:** falha no boot dizendo o que instalar. Numa versão que não traga um dos arquivos, falha nomeando o arquivo.
+
+Aponte o runtime para o mesmo caminho: `loadWhisper({ ortAssetsUrl: "/ort/" })` ou `configureOrtAssets("/ort/")`. Os arquivos (~25 MB) **não** entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe `ortAssetUrls("/ort/")` em `additionalUrls` do `tempestPwaManifest`.
+
 ## Referência das opções
 
 Todas as opções são opcionais.

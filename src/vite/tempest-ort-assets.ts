@@ -63,6 +63,13 @@ function ortDist(root: string): string {
  * into the output. Point the runtime at `path` with `loadWhisper({
  * ortAssetsUrl })` or `configureOrtAssets()`.
  *
+ * It also builds workers as ES modules (`worker.format: "es"`) unless the app
+ * chose a format. Vite's default, IIFE, cannot code-split, and a worker that
+ * runs a model always has a lazy `import("onnxruntime-web")` — found adopting
+ * `loadWhisper({ worker })` in a real app, whose build failed with `Invalid
+ * value "iife" for option "worker.format"`. Module workers run in every
+ * current browser.
+ *
  * The files are not added to the PWA precache: they are ~25 MB, and an app
  * that runs a model only for some users should not make every install
  * download them. Add `ortAssetUrls(path)` to `tempestPwaManifest`'s
@@ -87,6 +94,10 @@ export function tempestOrtAssets(options: TempestOrtAssetsOptions = {}): Tempest
 
     const plugin: Plugin = {
         name: "tempest-ort-assets",
+        config(userConfig) {
+            if (userConfig.worker?.format) return undefined;
+            return { worker: { format: "es" } };
+        },
         configResolved(config) {
             base = config.base.endsWith("/") ? config.base : `${config.base}/`;
             dist = ortDist(config.root);

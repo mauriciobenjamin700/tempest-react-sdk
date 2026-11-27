@@ -81,7 +81,23 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   (`/speech`, `/tabular`, `/vision`) da origem do app: middleware no `vite dev` e emissão em
   `dist/ort/` no build, a partir do `onnxruntime-web` que o app instalou. Falha no boot nomeando o
   pacote ausente ou o arquivo que a versão instalada não traz. Substitui o passo "copie os
-  binários" que a doc do `/tabular` mandava cada app fazer à mão, e que faltava na do `/speech`.
+  binários" que a doc do `/tabular` mandava cada app fazer à mão, e que faltava na do `/speech`. Também
+  configura `worker.format: "es"` (salvo escolha do app): com o default IIFE do Vite, o build de um
+  app com `loadWhisper({ worker })` quebrava com `Invalid value "iife" for option "worker.format"`,
+  achado adotando no transport-frontend.
+- **`loadWhisper({ worker })` + `exposeWhisperWorker()`: Whisper fora da thread principal.** O
+  backend WASM do ONNX Runtime calcula na thread que o chama, e na página a tela congelava a
+  transcrição inteira. Medido no Chromium 159 (whisper-tiny int8, 11 s): **3 frames desenhados em
+  724 ms na página contra 45 em 715 ms no worker**; numa thread, 2 contra 86 em ~1,42 s. Mesmo
+  tempo e mesmo texto (`WHISPER_MODEL_DIR=… node scripts/bench-whisper-worker.mjs`). O arquivo do
+  worker é uma linha; o `WhisperModel` devolvido tem a mesma interface, então o `createSpeechToText`
+  (prazo, fallback) funciona igual. A gravação é decodificada na página (worker não tem
+  `OfflineAudioContext`) e as amostras são transferidas sem cópia. O `env.wasm.proxy` do ORT não
+  serve: transfere os buffers de entrada e o decoder reusa a saída do encoder a cada passo
+  (`DataCloneError: An ArrayBuffer is detached`).
+- **`loadWhisper({ persistStorage: true })`**: pede `navigator.storage.persist()` antes de baixar
+  o modelo. Default `false`, como o resto do SDK, porque o Firefox responde com um prompt de
+  permissão.
 
 ### Budgets
 
@@ -100,6 +116,7 @@ on-device speech` 5 958 B (teto 6,3 kB, sem o `onnxruntime-web`) e `slice: log-m
 - **`prompt` do `/speech` medido com `npm run build && npx size-limit --json`**: `slice: on-device
 speech` 5 958 → 6 376 B (teto 6 3 → 6 6 kB). Os bytes são o encode BPE (pré-tokenização e merges
   por rank) que o prompt precisa.
+- **Worker do `/speech` medido com `npm run build && npx size-limit --json`**: `slice: on-device speech` 6 376 → 6 965 B (teto 6 6 → 7 2 kB) o cliente do worker que o `loadWhisper` carrega junto.
 
 ## [0.95.1] — 2026-11-26
 

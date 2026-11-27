@@ -103,4 +103,10 @@ describe("tempestOrtAssets", () => {
             (plugin.configResolved as Hook)({ root: process.cwd(), base: "/" }),
         ).not.toThrow();
     });
+
+    it("builds workers as ES modules unless the app chose a format", () => {
+        const plugin = tempestOrtAssets();
+        expect((plugin.config as Hook)({})).toEqual({ worker: { format: "es" } });
+        expect((plugin.config as Hook)({ worker: { format: "iife" } })).toBeUndefined();
+    });
 });

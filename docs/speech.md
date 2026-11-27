@@ -82,6 +82,50 @@ export async function aoGravar(gravacao: Blob): Promise<string> {
 
 O `server` é seu: endpoint, autenticação, polling de job. O SDK só chama a função e repassa o `signal`.
 
+## 4. Tire o modelo da thread principal: `worker`
+
+O backend WASM do ONNX Runtime calcula na thread que o chama. Na página, isso congela a tela durante a transcrição inteira: o spinner para, e um toque espera o fim. Rode o modelo num Web Worker. O arquivo do worker tem uma linha:
+
+```typescript
+import { exposeWhisperWorker } from "tempest-react-sdk/speech";
+
+exposeWhisperWorker();
+```
+
+E o `loadWhisper` recebe o worker. O resto da API é igual, inclusive no `createSpeechToText`:
+
+```typescript
+import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+
+export const fala = createSpeechToText({
+    loadModel: () =>
+        loadWhisper({
+            baseUrl: "/models/whisper-base",
+            ortAssetsUrl: "/ort/",
+            worker: new Worker(new URL("./fala.worker.ts", import.meta.url), { type: "module" }),
+        }),
+    language: "pt",
+});
+```
+
+Medido no Chromium 159 (whisper-tiny int8, 11 s de fala, `WHISPER_MODEL_DIR=… node scripts/bench-whisper-worker.mjs`):
+
+| Onde roda | Transcrição | Frames desenhados (esperado a 60 fps) |
+| --- | --- | --- |
+| página, com threads | 724 ms | **3** (43) |
+| worker, com threads | 715 ms | **45** (43) |
+| página, 1 thread | 1 423 ms | **2** (85) |
+| worker, 1 thread | 1 419 ms | **86** (85) |
+
+O tempo é o mesmo; só a tela deixa de congelar. A gravação é decodificada na página (worker não tem `OfflineAudioContext`), e só as amostras atravessam para o worker, transferidas sem cópia. Cancelar (ou o prazo do `createSpeechToText`) rejeita na hora e para o worker no próximo passo do decoder.
+
+!!! info "Por que não o `env.wasm.proxy` do ONNX Runtime"
+    O proxy embutido **transfere** os buffers de entrada para o worker dele, e o decoder do Whisper reusa a saída do encoder a cada passo. Medido: `DataCloneError: An ArrayBuffer is detached` no segundo passo. Ele também não funciona com WebGPU. Aqui o laço inteiro (features, encoder, decoder) roda no worker.
+
+### Guardar o modelo: `persistStorage`
+
+`loadWhisper({ persistStorage: true })` pede `navigator.storage.persist()` antes de baixar, para o navegador não apagar o modelo sob pressão de disco. O default é `false`, como em todo o SDK: no Firefox esse pedido abre um prompt de permissão, e um prompt surgido do nada durante um download é negado. O Chrome decide sozinho, sem prompt.
+
 ## Backend que transcreve **e** interpreta
 
 Se o seu servidor não devolve só o texto, e sim a resposta inteira (uma busca já interpretada, o resultado de um job), deixe o `server` devolver essa resposta e diga em `serverText` onde está o texto. Ela volta intacta em `resultado.server`, e na rota do aparelho o app manda o `text` para o endpoint de texto:
@@ -255,4 +299,5 @@ Síncrono e sem carregar nada. Só descarta o claramente impossível: sem WebAss
 - `prompt` com o vocabulário esperado: 15,9 % → 11,2 % de WER no base, e um prompt sem relação não piora.
 - Modelo ainda não carregado: o servidor responde e o modelo baixa em segundo plano.
 - `loadWhisper` para uso direto; whisper-tiny int8 transcreveu 11 s em 778 ms num desktop (`scripts/bench-whisper.mjs`).
+- `loadWhisper({ worker })` com um arquivo `exposeWhisperWorker()`: a tela segue em 60 fps durante a transcrição (3 → 45 frames em 720 ms).
 - `onnxruntime-web` é peer opcional; WebGPU fica fora do default até ser medido num aparelho real.

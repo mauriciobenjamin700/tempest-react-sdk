@@ -109,6 +109,15 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   contra 63,6 %. Custo de 0,16 ms por quadro de 32 ms (WASM, 1 thread). Reprodução:
   `scripts/gen-vad-fixtures.py` + `scripts/bench-vad.mjs`. No Chromium, com microfone falso, o
   detector ligou no começo da fala, desligou depois de 1 s de silêncio e processou 281/281 quadros.
+- **Classificação de som e executor genérico no `/speech` (#824, #821): `loadSoundClassifier`,
+  `createSoundMonitor`, `loadAudioModel`.** YAMNet (521 classes do AudioSet, ~16 MB, Apache-2.0)
+  na exportação tf2onnx, que recebe a onda crua e calcula o log-mel por dentro. Por isso o preset de
+  log-mel do YAMNet que a #821 previa não é necessário. Conferido no modelo real (teste opt-in
+  `YAMNET_MODEL_DIR`): tom de 1 kHz → "Beep, bleep" 0,92; silêncio → "Silence" 1,00; fala do FLEURS →
+  "Speech" 0,73; 14 s em 146 ms (WASM, Node 24). `createSoundMonitor` classifica janelas de ~1 s a cada
+  0,5 s, com média móvel e histerese por classe. `loadAudioModel` roda modelo próprio: decodifica,
+  reamostra e, se pedido, calcula o log-mel com a `LogMelConfig` do treino; devolve as saídas como
+  vieram. Parser de CSV (RFC 4180) para o class map, que tem nomes com vírgula entre aspas.
 
 ### Budgets
 

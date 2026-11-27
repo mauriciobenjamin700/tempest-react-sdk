@@ -44014,6 +44014,74 @@ Acurácia por quadro de 32 ms em 10 frases do FLEURS `pt_br`. O rótulo vem do s
 
 Reproduza: gere os dados com `scripts/gen-vad-fixtures.py` e rode `DATASET_DIR=… SILERO_MODEL=… node --import ./loader/css-loader.mjs scripts/bench-vad.mjs`.
 
+## Sons do ambiente: `loadSoundClassifier`
+
+Para saber **o que** se ouve (sirene, buzina, choro, música, aplausos, fala), o `/speech` classifica com o **YAMNet**: 521 classes do AudioSet, ~16 MB, Apache-2.0. A exportação ONNX recebe a onda crua a 16 kHz e calcula o próprio log-mel por dentro, então nada de features roda na página.
+
+```bash
+M=public/models/yamnet && mkdir -p $M
+for f in yamnet.onnx yamnet_class_map.csv; do
+  curl -sfL -o $M/$f "https://huggingface.co/rostrumstudios/yamnet/resolve/main/$f"
+done
+```
+
+```typescript
+import { loadSoundClassifier } from "tempest-react-sdk/speech";
+
+export async function oQueSeOuve(gravacao: Blob): Promise<string> {
+    const classificador = await loadSoundClassifier({
+        modelUrl: "/models/yamnet/yamnet.onnx",
+        labelsUrl: "/models/yamnet/yamnet_class_map.csv",
+    });
+    const { top } = await classificador.classify(gravacao);
+    return top.map((s) => `${s.label} ${s.score.toFixed(2)}`).join(", ");
+}
+```
+
+- O resultado traz o score de cada janela de 0,48 s (`frames`) e as classes com maior média (`top`).
+- Conferido nessa exportação (Node 24, WASM): tom de 1 kHz → "Beep, bleep" 0,92; uma frase do FLEURS em português → "Speech" 0,73; silêncio → "Silence" 1,00. 14 s custaram 146 ms.
+- O CSV de classes tem nomes com vírgula entre aspas ("Beep, bleep"); o SDK lê como CSV, sem quebrar o nome.
+
+### Ao vivo: `createSoundMonitor`
+
+```typescript
+import { createSoundMonitor, loadSoundClassifier } from "tempest-react-sdk/speech";
+
+export async function vigiarSirene(mic: MediaStream): Promise<void> {
+    const classificador = await loadSoundClassifier({
+        modelUrl: "/models/yamnet/yamnet.onnx",
+        labelsUrl: "/models/yamnet/yamnet_class_map.csv",
+    });
+    await createSoundMonitor(mic, (ativos) => console.log(ativos), {
+        classifier: classificador,
+        classes: ["Siren", "Vehicle horn, car horn, honking"],
+    });
+}
+```
+
+Janelas de ~1 s a cada 0,5 s. O score é a média das últimas `smoothing` janelas (3), e a classe liga em `threshold` (0,3) e desliga abaixo de `releaseThreshold` (0,18). Assim, um som não pisca a cada janela.
+
+## Seu próprio modelo: `loadAudioModel`
+
+O que todo modelo de áudio repete fica com o SDK: decodificar, converter para mono, reamostrar com o filtro do SDK e, se for o caso, calcular o log-mel **com a config do treino**. As saídas voltam como o modelo devolve:
+
+```typescript
+import { WHISPER_LOG_MEL_80 } from "tempest-react-sdk";
+import { loadAudioModel } from "tempest-react-sdk/speech";
+
+export async function rodarMeuModelo(gravacao: Blob): Promise<number[]> {
+    const modelo = await loadAudioModel({
+        modelUrl: "/models/meu-modelo.onnx",
+        feature: { ...WHISPER_LOG_MEL_80, nMels: 64 },
+        inputDims: ({ nMels, frames }) => [1, 1, nMels as number, frames as number],
+    });
+    const saidas = await modelo.run(gravacao);
+    return Array.from(saidas[modelo.outputNames[0] as string]?.data ?? []);
+}
+```
+
+`feature: "waveform"` passa a onda crua. Um classificador próprio cabe no `loadSoundClassifier` com `feature`, `labels` e `scoresOutput`.
+
 ## Antes de oferecer o botão: `assessSpeechDevice`
 
 ```typescript

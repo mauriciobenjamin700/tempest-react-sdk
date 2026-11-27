@@ -130,6 +130,14 @@ describe("createSileroVad", () => {
         await vad.release();
     });
 
+    it("keeps stepping after one run fails", async () => {
+        const fake = session([0.6]);
+        fake.run.mockRejectedValueOnce(new Error("wasm trap"));
+        const vad = createSileroVad({ Tensor: FakeTensor } as never, fake as never);
+        await expect(vad.probability(new Float32Array(512))).rejects.toThrow("wasm trap");
+        await expect(vad.probability(new Float32Array(512))).resolves.toBeCloseTo(0.6);
+    });
+
     it("ports silero's exit threshold", () => {
         expect(sileroNegThreshold(0.5)).toBeCloseTo(0.35);
         expect(sileroNegThreshold(0.1)).toBe(0.01);
@@ -206,6 +214,17 @@ describe("createSpeechDetector", () => {
         detector.stop();
         detector.stop();
         expect(pcm.release).toHaveBeenCalledTimes(1);
+    });
+
+    it("survives a frame whose inference fails", async () => {
+        const changes: boolean[] = [];
+        const fake = session([0.9]);
+        fake.run.mockRejectedValueOnce(new Error("wasm trap"));
+        const vad = createSileroVad({ Tensor: FakeTensor } as never, fake as never);
+        await createSpeechDetector({} as MediaStreamTrack, (s) => changes.push(s), { vad });
+        pcm.onFrame?.(new Float32Array(512));
+        pcm.onFrame?.(new Float32Array(512));
+        await vi.waitFor(() => expect(changes).toEqual([true]));
     });
 
     it("ignores frames that finish after stop", async () => {

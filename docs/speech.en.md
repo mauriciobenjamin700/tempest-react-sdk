@@ -61,6 +61,36 @@ export async function onRecorded(recording: Blob): Promise<string> {
 
 `server` is yours: endpoint, auth, job polling. The SDK only calls it and forwards the `signal`.
 
+## A backend that transcribes **and** interprets
+
+If your server does not return just the text but the whole answer (an interpreted search, a job result), let `server` resolve to that answer and say in `serverText` where the text is. It comes back untouched in `result.server`, and on the device route the app sends `text` to its text endpoint:
+
+```typescript
+import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+
+interface RouteSearch {
+    text: string;
+    results: unknown[];
+}
+
+declare function searchByAudio(audio: Blob, signal: AbortSignal): Promise<RouteSearch>;
+declare function searchByText(text: string): Promise<RouteSearch>;
+
+const voice = createSpeechToText<RouteSearch>({
+    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
+    server: (audio, { signal }) => searchByAudio(audio, signal),
+    serverText: (answer) => answer.text,
+    language: "pt",
+});
+
+export async function searchBySpeech(recording: Blob): Promise<RouteSearch> {
+    const result = await voice.transcribe(recording);
+    return result.server ?? searchByText(result.text);
+}
+```
+
+The server never interprets twice: when it answered, its answer is used; when the device transcribed, only the text travels.
+
 ## How the route is chosen
 
 On every `transcribe`, in this order:

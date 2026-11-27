@@ -34,13 +34,24 @@ export type SpeechRouteReason =
     /** The server failed and the device took over. */
     | "server-error";
 
-/** A finished transcription and the route it took. */
-export interface SpeechResult {
+/**
+ * A finished transcription and the route it took.
+ *
+ * @typeParam TServer What the `server` callback resolves to.
+ */
+export interface SpeechResult<TServer = string> {
+    /** The transcript, from the device or extracted from the server's answer. */
     text: string;
     source: SpeechSource;
     reason: SpeechRouteReason;
     /** Details of the on-device run; `null` when the server answered. */
     transcription: Transcription | null;
+    /**
+     * The server callback's own answer, untouched — for a backend that
+     * returns more than the text (a parsed search, a job result). `null` when
+     * the device answered.
+     */
+    server: TServer | null;
 }
 
 /** Context handed to the server callback. */
@@ -52,16 +63,29 @@ export interface SpeechServerContext {
     prompt?: string;
 }
 
-/** Options for {@link createSpeechToText}. */
-export interface SpeechToTextOptions {
+/**
+ * Options for {@link createSpeechToText}.
+ *
+ * @typeParam TServer What the `server` callback resolves to — `string` when
+ *   it returns the transcript, anything else when the backend answers with
+ *   more (then `serverText` is required).
+ */
+export interface SpeechToTextOptions<TServer = string> {
     /** Loads the on-device model, once (usually `() => loadWhisper({ baseUrl })`). */
     loadModel: () => Promise<WhisperModel>;
     /**
-     * Transcribe on the server — upload and wait for the text. Omit for
-     * device-only. The SDK only calls it; the endpoint, auth and polling are
-     * the app's.
+     * Transcribe on the server — upload and wait. Omit for device-only. The
+     * SDK only calls it; the endpoint, auth and polling are the app's. It may
+     * resolve to the text, or to whatever the backend answers (a parsed
+     * search, say) with `serverText` saying where the text is.
      */
-    server?: (audio: Blob, context: SpeechServerContext) => Promise<string>;
+    server?: (audio: Blob, context: SpeechServerContext) => Promise<TServer>;
+    /**
+     * Where the transcript is in the server's answer. Needed when the server
+     * resolves to something other than a string; the answer itself is kept
+     * in `SpeechResult.server`.
+     */
+    serverText?: (answer: TServer) => string;
     /**
      * Whether the server can take a request right now (health check, feature
      * flag, `navigator.onLine`). Default: available whenever `server` is set.
@@ -108,8 +132,12 @@ export interface SpeechTranscribeOptions {
     onPartial?: (text: string) => void;
 }
 
-/** A transcriber that picks the device or the server per call. */
-export interface SpeechToText {
+/**
+ * A transcriber that picks the device or the server per call.
+ *
+ * @typeParam TServer What the `server` callback resolves to.
+ */
+export interface SpeechToText<TServer = string> {
     /**
      * Transcribe a recording.
      *
@@ -118,7 +146,7 @@ export interface SpeechToText {
      * @returns The text and the route it took.
      * @throws Error when neither route could produce text (the last cause attached).
      */
-    transcribe(audio: Blob, options?: SpeechTranscribeOptions): Promise<SpeechResult>;
+    transcribe(audio: Blob, options?: SpeechTranscribeOptions): Promise<SpeechResult<TServer>>;
     /** Start loading the model now (e.g. on Wi-Fi, after the page is idle). */
     warmUp(): Promise<void>;
     /** Forget a remembered "slow" verdict. */
@@ -173,6 +201,12 @@ function defaultStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem"> |
  * "succeeds" with a repetition loop (`Transcription.degenerate`, Whisper's
  * compression-ratio test) counts as a failure when the server can answer.
  *
+ * When the backend transcribes **and** interprets (a voice search that
+ * returns results, not text), let `server` resolve to that answer and point
+ * `serverText` at the transcript: the answer comes back in
+ * `SpeechResult.server`, so the app uses it as is, and on the device route it
+ * sends `text` to its text endpoint instead.
+ *
  * @param options Model loader, server callback and policy.
  * @returns The transcriber.
  *
@@ -199,10 +233,13 @@ function defaultStorage(): Pick<Storage, "getItem" | "setItem" | "removeItem"> |
  * }
  * ```
  */
-export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
+export function createSpeechToText<TServer = string>(
+    options: SpeechToTextOptions<TServer>,
+): SpeechToText<TServer> {
     const {
         loadModel,
         server,
+        serverText,
         isServerAvailable,
         language,
         prompt,
@@ -261,17 +298,24 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
         audio: Blob,
         reason: SpeechRouteReason,
         signal: AbortSignal | undefined,
-    ): Promise<SpeechResult> => {
+    ): Promise<SpeechResult<TServer>> => {
         const controller = new AbortController();
         const forward = (): void => controller.abort(signal?.reason);
         signal?.addEventListener("abort", forward, { once: true });
         try {
-            const text = await (server as NonNullable<typeof server>)(audio, {
+            const answer = await (server as NonNullable<typeof server>)(audio, {
                 signal: controller.signal,
                 language,
                 prompt,
             });
-            return { text, source: "server", reason, transcription: null };
+            let text: string;
+            if (serverText) text = serverText(answer);
+            else if (typeof answer === "string") text = answer;
+            else
+                throw new TypeError(
+                    "createSpeechToText: the server answered a non-string; pass serverText.",
+                );
+            return { text, source: "server", reason, transcription: null, server: answer };
         } finally {
             signal?.removeEventListener("abort", forward);
         }
@@ -282,7 +326,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
         reason: SpeechRouteReason,
         withDeadline: boolean,
         call: SpeechTranscribeOptions,
-    ): Promise<SpeechResult> => {
+    ): Promise<SpeechResult<TServer>> => {
         const loaded = model ?? (await load());
         const pcm = await decodeAudioToPcm(audio, { sampleRate: 16_000, signal: call.signal });
         const controller = new AbortController();
@@ -304,7 +348,13 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
             if (withDeadline && transcription.degenerate) {
                 throw new DegenerateError(transcription.text);
             }
-            return { text: transcription.text, source: "device", reason, transcription };
+            return {
+                text: transcription.text,
+                source: "device",
+                reason,
+                transcription,
+                server: null,
+            };
         } catch (error) {
             if (controller.signal.reason instanceof DeadlineError) throw controller.signal.reason;
             throw error;
@@ -315,7 +365,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
     };
 
     return {
-        async transcribe(audio, call = {}): Promise<SpeechResult> {
+        async transcribe(audio, call = {}): Promise<SpeechResult<TServer>> {
             call.signal?.throwIfAborted();
             const device = assessDevice();
             const up = await serverUp();
@@ -330,7 +380,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
                 return runDevice(audio, "server-unavailable", false, call);
             }
 
-            const fallbackToDevice = async (cause: unknown): Promise<SpeechResult> => {
+            const fallbackToDevice = async (cause: unknown): Promise<SpeechResult<TServer>> => {
                 if (!device.canRun || call.signal?.aborted) throw cause;
                 try {
                     return await runDevice(audio, "server-error", false, call);
@@ -338,7 +388,7 @@ export function createSpeechToText(options: SpeechToTextOptions): SpeechToText {
                     throw cause;
                 }
             };
-            const viaServer = async (reason: SpeechRouteReason): Promise<SpeechResult> => {
+            const viaServer = async (reason: SpeechRouteReason): Promise<SpeechResult<TServer>> => {
                 try {
                     return await runServer(audio, reason, call.signal);
                 } catch (error) {

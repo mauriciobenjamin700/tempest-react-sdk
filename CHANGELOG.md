@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.96.0] — 2026-11-27
+
 ### Adicionado
 
 - **PCM para modelos de áudio: `decodeAudioToPcm`, `createPcmStream`, `resamplePcm` (#820).** Base

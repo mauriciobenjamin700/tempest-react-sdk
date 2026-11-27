@@ -24,6 +24,34 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   o `AbortError` por um erro que manda passar `workletUrl` de
   `tempest-react-sdk/pcm-worklet.js?url`. Coberto sob esse CSP no e2e.
 
+- **Subpath `tempest-react-sdk/speech`: Whisper no aparelho, com fallback para o servidor (#823).**
+  `createSpeechToText({ loadModel, server, isServerAvailable, language })` transcreve no navegador
+  e manda ao servidor do app quando o aparelho não aguenta. A decisão é medida a cada chamada:
+  o aparelho tem um prazo de duração do áudio × `realtimeFactor` (mínimo `minBudgetMs`); se
+  estourar, a execução é cancelada entre passos do decoder, o servidor responde e o aparelho fica
+  marcado como lento por 7 dias. Com o modelo ainda não carregado, o servidor responde enquanto ele
+  baixa em segundo plano. `result.source` e `result.reason` dizem a rota e o porquê. Texto em loop
+  conta como falha: razão de compressão acima de 2,4 (o teste do Whisper de referência) marca
+  `Transcription.degenerate`. No Chromium 159 com WebGPU num ambiente headless, o whisper-tiny
+  fp16 "terminou" com `"Wars!!!!…"` por 224 tokens (razão 14,9; fala real 1,0–1,34).
+  `loadWhisper({ baseUrl, dtype, providers, onProgress })` lê o export `onnx-community/whisper-*`
+  com cache em Cache Storage e decodificação gulosa com KV-cache. `assessSpeechDevice()` descarta
+  só o impossível (sem WASM SIMD, `deviceMemory` < 2 GiB). Feito sobre o `onnxruntime-web` (peer
+  opcional) em vez do `@huggingface/transformers@4.3.2`, que fixa o próprio `onnxruntime-web`
+  `1.31.0-dev` (segundo runtime em app com `/vision`/`/tabular`) e traz `onnxruntime-node` e
+  `sharp` nativos. Medido com `WHISPER_MODEL_DIR=… node scripts/bench-whisper.mjs` (Chromium 159,
+  desktop, WASM com threads, whisper-tiny int8): 11 s de fala transcritos palavra por palavra em
+  778 ms; carga de 43,3 MB em 1 266 ms, 343 ms do cache. **Não medido num Android de entrada.**
+  E2E opt-in `e2e/speech-whisper.spec.ts` (`WHISPER_MODEL_DIR`).
+- **`logMelSpectrogram` com os presets `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128`** (parte da
+  #821). FFT de raiz mista (o `n_fft` 400 do Whisper não é potência de 2), filtros mel Slaney e
+  a escala do Whisper. Diferença máxima de 1,2e-7 contra um port numpy de
+  `whisper.audio.log_mel_spectrogram`, conferido com o `transformers.WhisperFeatureExtractor`
+  (`uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`); 30 s em 83 ms no
+  Node 24.
+- **`fetchModelBytes` (`/tabular`) ganhou `onProgress`**, usado pelo `/speech` para mostrar o
+  download de dezenas de MB.
+
 ### Budgets
 
 - **#820, medido com `npm run build && npx size-limit --json` sobre a `main` em `d9b1271` e sobre
@@ -31,6 +59,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   184,8 kB); `ceiling: full barrel CJS` 216 224 → 218 381 (+2 157 B, teto 216,8 → 219 kB). Os bytes
   são o reamostrador, a decodificação e o `createPcmStream`; fatia nova `slice: audio PCM for
 models` com 2 281 B (teto 2,4 kB). Nenhuma fatia existente variou mais que o ruído (≤ 41 B).
+
+- **#823, medido com `npm run build && npx size-limit --json` sobre a `main` em `11c6d2d` e sobre
+  este branch**, bytes brotli: `ceiling: full barrel ESM` 184 251 → 185 188 (+937 B, teto 184,8 →
+  185,8 kB); `ceiling: full barrel CJS` 218 381 → 219 634 (+1 253 B, teto 219 → 220,3 kB); `tabular
+entry` 4 795 → 4 944 (+149 B, o progresso de download, dentro do teto). Fatias novas: `slice:
+on-device speech` 5 958 B (teto 6,3 kB, sem o `onnxruntime-web`) e `slice: log-mel spectrogram`
+  1 276 B (teto 1,4 kB).
 
 ## [0.95.1] — 2026-11-26
 

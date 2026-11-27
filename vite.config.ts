@@ -31,6 +31,9 @@ const LIB_ENTRIES: Record<string, string> = {
     // AudioWorklet. `@sapphi-red/web-noise-suppressor` is an optional peer;
     // the caller serves the worklet and wasm assets and hands over their URLs.
     neural: resolve(import.meta.dirname, "src/neural/index.ts"),
+    // Whisper speech-to-text on the device — `onnxruntime-web` is the same
+    // optional peer as `/tabular`, imported only when a model loads.
+    speech: resolve(import.meta.dirname, "src/speech/index.ts"),
     // Vision inference (vendored ort-vision-sdk-web) — onnxruntime-web
     // is an optional peer, externalized. Entry is `public.ts`, which
     // re-exports the vendored `index.ts` plus the SDK camera/luminance

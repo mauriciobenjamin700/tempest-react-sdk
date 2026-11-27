@@ -692,6 +692,27 @@ A conversão e o fatiamento rodam num `AudioWorklet`, no thread de áudio. A mai
     }
     ```
 
+### Espectrograma log-mel: `logMelSpectrogram`
+
+A maioria dos modelos de fala não recebe a onda, e sim um espectrograma log-mel com os parâmetros exatos do treino. Errar um parâmetro não quebra nada visível: o modelo só passa a acertar menos, calado.
+
+```typescript
+import { WHISPER_LOG_MEL_80, decodeAudioToPcm, logMelSpectrogram } from "tempest-react-sdk";
+
+async function features(gravacao: Blob): Promise<Float32Array> {
+    const pcm = await decodeAudioToPcm(gravacao, { sampleRate: 16_000 });
+    const mel = logMelSpectrogram(pcm.samples, WHISPER_LOG_MEL_80);
+    console.log(mel.nMels, mel.frames);
+    return mel.data;
+}
+```
+
+- `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, filtros mel Slaney, `log10`, piso em `max − 8`, `(x + 4) / 4`. 30 s dão 3000 quadros.
+- Modelo próprio: passe a sua `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
+- **Paridade medida:** contra um port em numpy do `whisper.audio.log_mel_spectrogram`, conferido com o `transformers.WhisperFeatureExtractor`, a diferença máxima é **1,2e-7** (o épsilon do float32). 30 s custam 83 ms no Node 24. A fixture e o script que a gera estão no repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
+
+Para transcrever, use o subpath [`/speech`](speech.md), que faz isso por você.
+
 ### Por que um reamostrador próprio
 
 Deixar o navegador decodificar direto num `OfflineAudioContext` de 16 kHz parece mais simples, mas o reamostrador dele é fraco perto da nova Nyquist. Medido no Chromium 159 (48 → 16 kHz, tom de 1 s):

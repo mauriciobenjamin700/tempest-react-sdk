@@ -5,7 +5,7 @@ mexer em barrel, ou tocar no empacotamento.
 
 ## Estrutura de `src/`
 
-42 módulos, um por domínio. O que é subpath público está marcado com ⇢.
+43 módulos, um por domínio. O que é subpath público está marcado com ⇢.
 
 ```text
 src/
@@ -37,6 +37,7 @@ src/
 ├── query/           QueryProvider, createQueryKeys, useOfflineMutation
 ├── router/          defineRoutes, <AppRouter>, <RouteGuard>
 ├── share/           share, isShareSupported, shareOrDownloadBlob
+├── speech/       ⇢  createSpeechToText, loadWhisper (Whisper no aparelho)
 ├── sse/             createEventStream, useEventStream
 ├── store/           createStore, createSelectors (Zustand)
 ├── styles/          colors + density + motion + typography + reset + print
@@ -70,8 +71,8 @@ Fora de `src/`: `bin/` (CLIs `create-tempest-app` e `tempest`), `template/` e
 
 ## Subpaths
 
-A lista viva é o campo `exports` do `package.json`. Hoje são 20: `.`, `/testing`,
-`/vite`, `/sw`, `/charts`, `/editor`, `/imaging`, `/tabular`, `/vision`, `/neural`,
+A lista viva é o campo `exports` do `package.json`. Hoje são 21: `.`, `/testing`,
+`/vite`, `/sw`, `/charts`, `/editor`, `/imaging`, `/tabular`, `/vision`, `/neural`, `/speech`,
 `/pcm-worklet.js`, `/br`,
 `/icons`, `/icons/virtual`, `/styles.css`, `/styles/*.css`,
 `/styles/manifest.json`, `/utilities.css`, `/node-css-loader`, `/package.json`.
@@ -130,7 +131,7 @@ número medido e a razão escritos no CHANGELOG. Sem isso, o teto vira carimbo.
 - **Deps diretas** (instaladas junto): `@tanstack/react-query`, `zod`, `zustand`,
   `dexie`, `react-hook-form`, `lucide-react`, `fflate`. Todas externalizadas no
   `vite.config.ts`.
-- **Peers opcionais**: `recharts`, `@tiptap/*`, `onnxruntime-web`,
+- **Peers opcionais**: `recharts`, `@tiptap/*`, `onnxruntime-web` (`/vision`, `/tabular`, `/speech`),
   `vite` + `@vitejs/plugin-react`.
 - **Adapters injetam a instância** (Sentry, PostHog, GrowthBook, LaunchDarkly):
   nunca peer dep. O caller passa o SDK; exportamos uma interface `<X>Like` com o

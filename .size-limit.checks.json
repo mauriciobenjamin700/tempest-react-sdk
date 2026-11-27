@@ -176,6 +176,51 @@
     ]
   },
   {
+    "name": "slice: on-device speech (`createSpeechToText` + `loadWhisper`, onnxruntime-web external)",
+    "path": "dist/speech.js",
+    "import": {
+      "./dist/speech.js": "{ createSpeechToText, loadWhisper }"
+    },
+    "limit": "6.3 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate",
+      "onnxruntime-web"
+    ]
+  },
+  {
+    "name": "slice: log-mel spectrogram (`logMelSpectrogram` + Whisper preset)",
+    "path": "dist/tempest-react-sdk.js",
+    "import": {
+      "./dist/tempest-react-sdk.js": "{ logMelSpectrogram, WHISPER_LOG_MEL_80 }"
+    },
+    "limit": "1.4 kB",
+    "ignore": [
+      "react",
+      "react-dom",
+      "react/jsx-runtime",
+      "zod",
+      "zustand",
+      "zustand/middleware",
+      "@tanstack/react-query",
+      "lucide-react",
+      "dexie",
+      "react-hook-form",
+      "react-router",
+      "fflate"
+    ]
+  },
+  {
     "name": "slice: audio PCM for models (`decodeAudioToPcm` + `createPcmStream` + `framePcm`, no ONNX)",
     "path": "dist/tempest-react-sdk.js",
     "import": {
@@ -625,7 +670,7 @@
   {
     "name": "ceiling: full barrel ESM (nobody imports this — tree-shaking is the real cost)",
     "path": "dist/tempest-react-sdk.js",
-    "limit": "184.8 kB",
+    "limit": "185.8 kB",
     "ignore": [
       "react",
       "react-dom",
@@ -644,7 +689,7 @@
   {
     "name": "ceiling: full barrel CJS (no tree-shaking — worst case for require() consumers)",
     "path": "dist/tempest-react-sdk.cjs",
-    "limit": "219 kB",
+    "limit": "220.3 kB",
     "ignore": [
       "react",
       "react-dom",

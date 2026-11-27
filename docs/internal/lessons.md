@@ -215,3 +215,16 @@ inerte: a regra respeitava `validation` como override, e o `useDescribeApiError`
 **sempre** passa `validation` — o ramo nunca rodaria em componente nenhum. Ao
 adicionar condição sobre uma opção, confira o que os wrappers do próprio SDK
 passam por default, não só o que a função pura aceita.
+
+## Guard que depende do `dist/` mente nos dois sentidos
+
+**O guard de exemplos só checa o subpath que está no `ENTRIES`.** O `/speech` e o
+`/neural` não estavam. Com `dist/` buildado, o import caía no `.d.ts` do próprio
+pacote e o exemplo era checado. Sem `dist/`, o import virava "cannot find module",
+o filtro de fragmento descartava, e tudo dali virava `any`. Resultado: na máquina
+de quem escreve (com `dist/`) o exemplo passava; no `release-pack`, que roda a
+suíte **antes** do build, ele reprovou com um TS2322 que só o `any` produzia, e
+parou a v0.97.0 antes do `npm publish`. Os exemplos do `/speech` nunca tinham sido
+checados contra o código-fonte. Hoje `docs example entries` reprova subpath com
+`types` no `exports` que falte no `ENTRIES`. Ao rodar um guard de doc localmente,
+rode também com `dist/` fora do caminho.

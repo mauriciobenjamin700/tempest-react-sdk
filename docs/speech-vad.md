@@ -27,8 +27,7 @@ const SEM_FALA_MS = 15_000;
 let vadCarregado: Promise<SileroVad> | undefined;
 
 export function carregarVad(): Promise<SileroVad> {
-    vadCarregado ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
-    return vadCarregado;
+    return (vadCarregado ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" }));
 }
 
 export async function gravarAteCalar(): Promise<Blob | null> {

@@ -4,6 +4,8 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+## [0.97.0] — 2026-11-27
+
 ### Adicionado
 
 - **`tempestOrtAssets({ crossOriginIsolation: true })`.** Manda `Cross-Origin-Opener-Policy:

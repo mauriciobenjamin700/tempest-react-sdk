@@ -325,4 +325,101 @@ describe("createSpeechToText", () => {
         await expect(speech.warmUp()).rejects.toThrow("offline");
         await expect(speech.warmUp()).resolves.toBeUndefined();
     });
+
+    it("keeps the slow verdict in localStorage by default", async () => {
+        localStorage.clear();
+        const speech = createSpeechToText({
+            loadModel: async () => fakeModel(60_000).model,
+            server: async () => "ok",
+            assessDevice: () => CAPABLE,
+        });
+        await speech.warmUp();
+        const run = speech.transcribe(audio);
+        await vi.advanceTimersByTimeAsync(5000);
+        await run;
+        expect(Number(localStorage.getItem("tempest-speech-slow-until"))).toBeGreaterThan(
+            Date.now(),
+        );
+        speech.resetSlowVerdict();
+        expect(localStorage.getItem("tempest-speech-slow-until")).toBeNull();
+    });
+
+    it("cancels the server request when the caller aborts", async () => {
+        let seen: AbortSignal | null = null;
+        const server = (_audio: Blob, context: { signal: AbortSignal }) =>
+            new Promise<string>((_resolve, reject) => {
+                seen = context.signal;
+                context.signal.addEventListener("abort", () => reject(context.signal.reason));
+            });
+        const { speech } = setup({ server, assessDevice: () => WEAK });
+        const controller = new AbortController();
+        const run = speech.transcribe(audio, { signal: controller.signal });
+        await vi.advanceTimersByTimeAsync(0);
+        controller.abort(new Error("user cancelled"));
+        await expect(run).rejects.toThrow("user cancelled");
+        expect((seen as AbortSignal | null)?.aborted).toBe(true);
+    });
+
+    it("reports the server's error when the device cannot take over either", async () => {
+        const { speech } = setup(
+            { server: async () => Promise.reject(new Error("502")) },
+            fakeModel(10, true),
+        );
+        const run = speech.transcribe(audio);
+        await vi.advanceTimersByTimeAsync(10);
+        await expect(run).rejects.toThrow("502");
+    });
+
+    it("swallows a failed background load and serves from the server", async () => {
+        const { speech } = setup({ loadModel: async () => Promise.reject(new Error("offline")) });
+        await expect(speech.transcribe(audio)).resolves.toMatchObject({
+            reason: "model-not-ready",
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        await expect(speech.transcribe(audio)).resolves.toMatchObject({
+            reason: "model-not-ready",
+        });
+    });
+
+    it("releases a model that is still loading", async () => {
+        const model = fakeModel();
+        const { speech } = setup({ loadModel: async () => model.model });
+        const warming = speech.warmUp();
+        await speech.release();
+        await warming;
+        expect(model.model.release).toHaveBeenCalled();
+    });
+
+    it("releases cleanly while a load that fails is in flight", async () => {
+        const { speech } = setup({ loadModel: async () => Promise.reject(new Error("offline")) });
+        const warming = speech.warmUp().catch(() => undefined);
+        await expect(speech.release()).resolves.toBeUndefined();
+        await warming;
+    });
+
+    it("keeps the verdict in memory when reading localStorage itself throws", async () => {
+        const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+        Object.defineProperty(globalThis, "localStorage", {
+            configurable: true,
+            get: () => {
+                throw new DOMException("denied", "SecurityError");
+            },
+        });
+        try {
+            const speech = createSpeechToText({
+                loadModel: async () => fakeModel(60_000).model,
+                server: async () => "ok",
+                assessDevice: () => CAPABLE,
+            });
+            await speech.warmUp();
+            const run = speech.transcribe(audio);
+            await vi.advanceTimersByTimeAsync(5000);
+            await expect(run).resolves.toMatchObject({ reason: "device-slow" });
+            await expect(speech.transcribe(audio)).resolves.toMatchObject({
+                reason: "device-remembered-slow",
+            });
+        } finally {
+            if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+        }
+    });
 });

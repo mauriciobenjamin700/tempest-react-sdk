@@ -19,6 +19,13 @@ describe("assessSpeechDevice", () => {
         expect(assessSpeechDevice()).toMatchObject({ canRun: false, blockers: ["no-wasm-simd"] });
     });
 
+    it("treats a validator that throws as no SIMD", () => {
+        vi.spyOn(WebAssembly, "validate").mockImplementation(() => {
+            throw new TypeError("blocked");
+        });
+        expect(assessSpeechDevice().wasmSimd).toBe(false);
+    });
+
     it("rules out an engine without WebAssembly at all", () => {
         vi.stubGlobal("WebAssembly", undefined);
         expect(assessSpeechDevice().blockers).toEqual(["no-webassembly"]);

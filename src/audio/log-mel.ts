@@ -112,11 +112,6 @@ function planFft(n: number): FftPlan {
         outIm: Float64Array,
         outOffset: number,
     ): void => {
-        if (size === 1) {
-            outRe[outOffset] = re[offset] as number;
-            outIm[outOffset] = im[offset] as number;
-            return;
-        }
         const radix = smallestFactor(size);
         const m = size / radix;
         if (m === 1) {

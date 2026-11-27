@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/audio/decode-pcm", () => ({
+    decodeAudioToPcm: vi.fn(async () => ({
+        samples: new Float32Array(32_000),
+        sampleRate: 16_000,
+    })),
+}));
+
 import { createWhisperTokenizer } from "./tokenizer";
 import { compressionRatio, createWhisperModel, type WhisperParts } from "./whisper";
 
@@ -190,6 +197,14 @@ describe("createWhisperModel", () => {
             { language: "pt" },
         );
         expect(result.audioMs).toBe(1000);
+    });
+
+    it("decodes a recorded Blob before transcribing", async () => {
+        const { value } = parts([[EOT, 10], [EOT]]);
+        const result = await createWhisperModel(value).transcribe(new Blob([new Uint8Array(4)]), {
+            language: "pt",
+        });
+        expect(result.audioMs).toBe(2000);
     });
 
     it("stops between decoder steps when aborted", async () => {

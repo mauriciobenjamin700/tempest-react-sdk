@@ -69,6 +69,19 @@ describe("logMelSpectrogram", () => {
         expect(mel.data.every((v) => Math.abs(v - Math.log(0.001)) < 1e-6)).toBe(true);
     });
 
+    it("runs prime and odd FFT sizes through the direct DFT", () => {
+        const mel = logMelSpectrogram(new Float32Array(400).fill(0.1), {
+            sampleRate: 16_000,
+            nFft: 7,
+            hopLength: 7,
+            nMels: 2,
+            center: false,
+            scaling: { log: "natural", offset: 1 },
+        });
+        expect(mel.frames).toBe(57);
+        expect(Number.isFinite(mel.data[0] as number)).toBe(true);
+    });
+
     it("refuses input shorter than the centre padding", () => {
         expect(() => logMelSpectrogram(new Float32Array(10), WHISPER_LOG_MEL_80)).toThrow(
             RangeError,

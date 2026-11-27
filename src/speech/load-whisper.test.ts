@@ -5,11 +5,15 @@ const create = vi.fn(async (_bytes: Uint8Array, _options: unknown) => ({
     release: vi.fn(async () => undefined),
 }));
 
+const env = { wasm: { wasmPaths: undefined as unknown } };
+
 vi.mock("onnxruntime-web", () => ({
     InferenceSession: { create: (bytes: Uint8Array, options: unknown) => create(bytes, options) },
     Tensor: class {},
+    env,
 }));
 
+import { configureOrtAssets } from "./index";
 import { loadWhisper } from "./whisper";
 
 const FILES: Record<string, unknown> = {
@@ -85,5 +89,17 @@ describe("loadWhisper", () => {
             loaded: 10,
             total: 10,
         });
+    });
+
+    it("points the runtime at the served .wasm binaries", async () => {
+        await loadWhisper({ baseUrl: "https://cdn.example/whisper-tiny", ortAssetsUrl: "/ort" });
+        expect(env.wasm.wasmPaths).toBe("/ort/");
+    });
+
+    it("falls back to the folder configureOrtAssets set", async () => {
+        env.wasm.wasmPaths = undefined;
+        configureOrtAssets("/runtime/");
+        await loadWhisper({ baseUrl: "https://cdn.example/whisper-tiny" });
+        expect(env.wasm.wasmPaths).toBe("/runtime/");
     });
 });

@@ -4,6 +4,7 @@ import type * as ort from "onnxruntime-web";
 import { decodeAudioToPcm, type MonoPcm } from "@/audio/decode-pcm";
 import { WHISPER_LOG_MEL_80, logMelSpectrogram } from "@/audio/log-mel";
 import { resamplePcm } from "@/audio/resample";
+import { configuredOrtAssetPath } from "@/tabular/assets";
 import { fetchModelBytes } from "@/tabular/cache";
 
 import {
@@ -79,6 +80,15 @@ export interface LoadWhisperOptions {
     cacheName?: string;
     /** Download progress, per file. */
     onProgress?: (progress: WhisperLoadProgress) => void;
+    /**
+     * Folder the ONNX Runtime `.wasm` binaries are served from (copied from
+     * `node_modules/onnxruntime-web/dist/`), e.g. `"/ort/"`. ONNX Runtime Web
+     * does not embed them, and a bundled app that does not say where they are
+     * fails at session creation with `Aborted(both async and sync fetching of
+     * the wasm failed)`. Default: what `configureOrtAssets()` set (shared with
+     * `/tabular`), else the runtime's own guess.
+     */
+    ortAssetsUrl?: string;
 }
 
 /** Options for one {@link WhisperModel.transcribe} call. */
@@ -257,6 +267,10 @@ export async function loadWhisper(options: LoadWhisperOptions): Promise<WhisperM
     const cacheName = options.cacheName ?? DEFAULT_SPEECH_MODEL_CACHE;
     const base = options.baseUrl.replace(/\/+$/, "");
     const runtime = await loadRuntime();
+    const assets = options.ortAssetsUrl ?? configuredOrtAssetPath();
+    if (assets !== undefined) {
+        runtime.env.wasm.wasmPaths = assets.endsWith("/") ? assets : `${assets}/`;
+    }
 
     const fetchFile = (file: string): Promise<Uint8Array> =>
         fetchModelBytes(`${base}/${file}`, {

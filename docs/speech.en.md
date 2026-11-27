@@ -35,7 +35,19 @@ done
 - **What the WER counts:** normalisation drops punctuation and case, but keeps accents and does not convert numerals, so "dez" vs "10" counts as an error.
 - **The errors that matter in a search are proper nouns** ("polo" → "Paulo"). Measure with recordings from your own domain: the same script takes any folder with a `transcripts.tsv` (`file<TAB>text`).
 
-## 2. Transcribe with a server fallback
+## 2. Serve the runtime
+
+ONNX Runtime Web does **not** embed its `.wasm` files, not even in the `.bundle` builds. In a Vite-bundled app the session fails with `Aborted(both async and sync fetching of the wasm failed)`, naming no file. Copy the binaries from `node_modules/onnxruntime-web/dist/` to your public folder and say where they are:
+
+```typescript
+import { loadWhisper } from "tempest-react-sdk/speech";
+
+export const load = () => loadWhisper({ baseUrl: "/models/whisper-base", ortAssetsUrl: "/ort/" });
+```
+
+Or once at boot, with `configureOrtAssets("/ort/")`, which `/speech` re-exports from `/tabular` (it applies to both). For offline precache, `ortAssetUrls("/ort/")` lists the files.
+
+## 3. Transcribe with a server fallback
 
 ```typescript
 import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
@@ -224,7 +236,7 @@ console.log(device.wasmThreads, device.webgpu, device.deviceMemoryGb);
 Synchronous and loads nothing. It only rules out the clearly impossible: no WebAssembly, no SIMD (ONNX Runtime Web only ships SIMD builds), or `deviceMemory` below `minMemoryGb` (2 GiB). Slow or not is the deadline's call.
 
 !!! tip "Threads need cross-origin isolation"
-    ONNX Runtime's WASM uses several threads only with `crossOriginIsolated` (headers `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`). Without them it runs on one thread, and the deadline will notice. `assessSpeechDevice().wasmThreads` tells whether isolation is on.
+    ONNX Runtime's WASM uses several threads only with `crossOriginIsolated` (headers `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp`). Without them it runs on one thread, and the deadline will notice: on the same desktop, whisper-base over the 30 FLEURS utterances went from a real-time factor of 0.109 to **0.248** (`ISOLATION=0 … node scripts/bench-whisper-wer.mjs`), same WER. On an entry-level phone, one thread is what sends the recording to the server. `assessSpeechDevice().wasmThreads` tells whether isolation is on.
 
 ## Recap
 

@@ -70,6 +70,13 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
   `SpeechResult.server` (`null` quando o aparelho respondeu). Sem isso, o app jogaria fora a
   interpretação do servidor e reenviaria o texto. Resposta que não é `string` sem `serverText` é
   recusada com um erro que diz o que passar.
+- **`loadWhisper({ ortAssetsUrl })` e `configureOrtAssets` / `ortAssetUrls` reexportados pelo
+  `/speech`.** O ONNX Runtime Web não embute os `.wasm`; num app empacotado a sessão falha com
+  `Aborted(both async and sync fetching of the wasm failed)`. O `loadWhisper` aplica
+  `env.wasm.wasmPaths` a partir da opção ou do `configureOrtAssets` global (o mesmo do `/tabular`).
+  A doc do `/speech` ganhou o passo "Sirva o runtime", que faltava.
+- **`ISOLATION=0` nos scripts de bench do Whisper**, para medir sem COOP/COEP (uma thread). whisper-base
+  nas 30 frases do FLEURS: fator de tempo real 0,109 com threads, **0,248** sem, mesmo WER.
 
 ### Budgets
 

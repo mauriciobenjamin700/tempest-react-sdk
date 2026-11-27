@@ -36,7 +36,12 @@ if (!MODEL_DIR) {
 }
 
 /** @type {Record<string, string>} */
-const TYPES = { js: "text/javascript", mjs: "text/javascript", wasm: "application/wasm", json: "application/json" };
+const TYPES = {
+    js: "text/javascript",
+    mjs: "text/javascript",
+    wasm: "application/wasm",
+    json: "application/json",
+};
 const server = createServer((request, response) => {
     response.setHeader("cross-origin-opener-policy", "same-origin");
     response.setHeader("cross-origin-embedder-policy", "require-corp");
@@ -50,7 +55,8 @@ const server = createServer((request, response) => {
     }
     let file = null;
     if (path.startsWith("/dist/")) file = join(ROOT, path);
-    else if (path.startsWith("/ort/")) file = join(ROOT, "node_modules/onnxruntime-web/dist", path.slice(5));
+    else if (path.startsWith("/ort/"))
+        file = join(ROOT, "node_modules/onnxruntime-web/dist", path.slice(5));
     else if (path.startsWith("/fflate/")) file = join(ROOT, "node_modules/fflate", path.slice(8));
     else if (path.startsWith("/models/")) file = join(MODEL_DIR, path.slice(8));
     if (!file || !existsSync(file)) {
@@ -59,7 +65,10 @@ const server = createServer((request, response) => {
         return;
     }
     const body = readFileSync(file);
-    response.setHeader("content-type", TYPES[file.split(".").pop() ?? ""] ?? "application/octet-stream");
+    response.setHeader(
+        "content-type",
+        TYPES[file.split(".").pop() ?? ""] ?? "application/octet-stream",
+    );
     response.setHeader("content-length", body.length);
     response.end(body);
 });
@@ -110,8 +119,15 @@ server.close();
 
 const ms = (/** @type {number} */ value) => `${Math.round(value)} ms`;
 console.log(`bench-whisper: ${DTYPE} on ${PROVIDERS.join("+")}, Chromium ${browser.version()}`);
-console.log(`  device      threads=${result.device.wasmThreads} webgpu=${result.device.webgpu} cores=${result.device.hardwareConcurrency}`);
-console.log(`  load        ${ms(result.loadMs)} (${result.downloadedMb.toFixed(1)} MB), from cache ${ms(result.cachedLoadMs)}`);
-for (const [stage, value] of Object.entries(result.timings)) console.log(`  ${stage.padEnd(11)} ${ms(value)}`);
-console.log(`  audio       ${ms(result.audioMs)}, ${result.tokens} tokens, degenerate=${result.degenerate}`);
+console.log(
+    `  device      threads=${result.device.wasmThreads} webgpu=${result.device.webgpu} cores=${result.device.hardwareConcurrency}`,
+);
+console.log(
+    `  load        ${ms(result.loadMs)} (${result.downloadedMb.toFixed(1)} MB), from cache ${ms(result.cachedLoadMs)}`,
+);
+for (const [stage, value] of Object.entries(result.timings))
+    console.log(`  ${stage.padEnd(11)} ${ms(value)}`);
+console.log(
+    `  audio       ${ms(result.audioMs)}, ${result.tokens} tokens, degenerate=${result.degenerate}`,
+);
 console.log(`  text        ${result.text}`);

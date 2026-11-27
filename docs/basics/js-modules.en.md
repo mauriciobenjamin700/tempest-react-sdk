@@ -1,3 +1,7 @@
+---
+description: "ES modules, npm's three kinds of dependency and what the bundler's tree-shaking needs."
+---
+
 # Modules, npm and the bundler
 
 !!! tip "Skip this page if you already know…"

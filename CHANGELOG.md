@@ -4,6 +4,43 @@ Todas as mudanças notáveis seguirão [Keep a Changelog](https://keepachangelog
 
 ## [Unreleased]
 
+### Adicionado
+
+- **`tempestOrtAssets({ crossOriginIsolation: true })`.** Manda `Cross-Origin-Opener-Policy:
+same-origin` e `Cross-Origin-Embedder-Policy: credentialless` no `vite dev` e no `vite preview`,
+  para a página ficar `crossOriginIsolated` e o WASM do ONNX Runtime rodar em várias threads (RTF
+  do whisper-base 0,248 → 0,109). A doc mandava escrever os headers à mão e ainda indicava
+  `require-corp`, que bloqueia toda imagem e fonte de outra origem sem `Cross-Origin-Resource-Policy`.
+  Default `false`.
+
+### Corrigido
+
+- **`loadWhisper({ worker })` agora leva ao worker a pasta do runtime do `configureOrtAssets`.** O
+  `configureOrtAssets("/ort/")` chamado na página só configura a cópia do módulo da página; o worker
+  tem a sua, e carregava sem pasta, caindo no palpite do runtime (`Aborted(both async and sync
+fetching of the wasm failed)` num app empacotado). Achado num teste em que um LLM escrevia o app só
+  a partir da doc.
+- **`llms.txt`: 48 das 118 descrições estavam quebradas.** O `scripts/gen-llms.mjs` lia só a primeira
+  linha do parágrafo e não pulava admonitions: 38 entradas terminavam no meio da frase e 10
+  descreviam a dica "Pule esta página…" em vez da página. Agora lê o parágrafo inteiro, pula
+  admonitions e código, corta na primeira frase completa, e aceita `description:` no front matter
+  (que também vira o `<meta name="description">` do site). `test/llms-index.test.ts` reprova
+  descrição sem frase completa.
+
+### Documentação
+
+- **`/speech` dividido em quatro páginas:** [transcrição](docs/speech.md), [aparelho ou
+  servidor](docs/speech-fallback.md), [fim da fala](docs/speech-vad.md) e [sons e modelo
+  próprio](docs/speech-sounds.md). A página única tinha 13 seções e oito conceitos. Dois LLMs que
+  escreveram código só a partir dela erraram a opção de CSP do `createSpeechDetector` e do
+  `createSoundMonitor` (`stream: { workletUrl }`, que não estava documentada; um deles não compilou).
+  Agora cada função tem tabela de opções com defaults, a primeira transcrição mostra a saída real, o
+  exemplo do detector não usa a variável antes do `await`, há glossário (WER, RTF, int8, VAD), e as
+  medições ficam em blocos recolhíveis.
+- **`docs/audio.md`:** dica para pular "Áudio para modelos" quando se usa o `/speech`, default do
+  `sampleRate` do `decodeAudioToPcm` e o tamanho do log-mel; saiu a linguagem de PR ("este PR não
+  teve WebKit").
+
 ## [0.96.0] — 2026-11-27
 
 ### Adicionado

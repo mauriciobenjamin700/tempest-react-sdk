@@ -1,3 +1,7 @@
+---
+description: "Tempest's React/TypeScript SDK: an app foundation (Vite, routing, state, cache, providers), components, hooks, HTTP, auth, forms, real time, offline and ONNX models in the browser."
+---
+
 # tempest-react-sdk
 
 Shared React/TypeScript building blocks used across Tempest frontends: an

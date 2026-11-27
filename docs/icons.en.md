@@ -1,3 +1,7 @@
+---
+description: "Icons by slug on top of lucide, with a closed catalogue and icon codes coming from the database."
+---
+
 # Icons by slug
 
 Every SDK component that takes an icon takes a `ReactNode`:

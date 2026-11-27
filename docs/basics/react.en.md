@@ -1,3 +1,7 @@
+---
+description: "Components, state and effects: the React you need to read and write code with the SDK."
+---
+
 # React: component, state, effect
 
 !!! tip "Skip this page if you already know…"

@@ -1,3 +1,7 @@
+---
+description: "Estrutura e semântica do HTML, bloco e inline, e a árvore de acessibilidade que o leitor de tela lê."
+---
+
 # HTML: estrutura e semântica
 
 !!! tip "Pule esta página se você já sabe…"

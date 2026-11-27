@@ -643,6 +643,9 @@ Sem `timesliceMs` a gravação inteira fica em memória até o `stop()` — ok p
 
 Todo modelo de áudio (detecção de fala, transcrição, classificação) recebe a mesma coisa: **amostras float32 mono numa taxa fixa**, quase sempre 16 kHz. O navegador grava em webm/opus estéreo a 48 kHz e o microfone roda a 44,1 ou 48 kHz. Estas três peças fazem a ponte, sem `onnxruntime-web`.
 
+!!! tip "Usando Whisper, Silero ou YAMNet? Pule esta seção"
+    As funções do [`/speech`](speech.md) recebem o `Blob` gravado ou o microfone e fazem tudo isto por dentro. Esta seção é para quem roda um modelo de áudio próprio, ou quer entender o que acontece antes do modelo.
+
 ### De um arquivo: `decodeAudioToPcm`
 
 ```typescript
@@ -657,6 +660,7 @@ async function preparar(gravacao: Blob): Promise<Float32Array[]> {
 
 - Aceita o que o navegador toca (webm/opus, mp4/aac, mp3, wav), como `Blob` ou `ArrayBuffer`.
 - Faz a **média dos canais**: o `MediaRecorder` do Chromium grava Opus estéreo mesmo com microfone mono.
+- `sampleRate` é a taxa de saída. O default é `16_000`, a dos modelos de fala.
 - `signal` cancela; `framePcm` corta em quadros do tamanho que o modelo espera e completa o último com zeros.
 
 ### Do microfone: `createPcmStream`
@@ -708,6 +712,7 @@ async function features(gravacao: Blob): Promise<Float32Array> {
 ```
 
 - `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, filtros mel Slaney, `log10`, piso em `max − 8`, `(x + 4) / 4`. 30 s dão 3000 quadros.
+- O resultado tem o tamanho do áudio que entrou (`frames` = amostras ÷ 160). Não completa até 30 s: o Whisper espera 3000 quadros, e o `/speech` completa por dentro.
 - Modelo próprio: passe a sua `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
 - **Paridade medida:** contra um port em numpy do `whisper.audio.log_mel_spectrogram`, conferido com o `transformers.WhisperFeatureExtractor`, a diferença máxima é **1,2e-7** (o épsilon do float32). 30 s custam 83 ms no Node 24. A fixture e o script que a gera estão no repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
 
@@ -722,10 +727,10 @@ Deixar o navegador decodificar direto num `OfflineAudioContext` de 16 kHz parece
 | 7 kHz (deve passar) | −5 dB | −0,01 dB |
 | 9 kHz (acima de 8 kHz, deve sumir) | −20 dB | −94 dB |
 
-O SDK decodifica a 48 kHz e converte com um sinc janelado por Kaiser (`createSincResampler`/`resamplePcm`). O **mesmo** filtro roda dentro do worklet, então o modelo vê o mesmo espectro vindo de um arquivo e vindo do microfone. Converter 30 s leva 350 ms no Node 24 (`vitest`); o custo no aparelho entra na medição das issues de modelo.
+O SDK decodifica a 48 kHz e converte com um sinc janelado por Kaiser (`createSincResampler`/`resamplePcm`). O **mesmo** filtro roda dentro do worklet, então o modelo vê o mesmo espectro vindo de um arquivo e vindo do microfone. Converter 30 s leva 350 ms no Node 24 (`vitest`).
 
 !!! note "Safari"
-    `AudioWorklet` e `OfflineAudioContext` existem no Safari, mas este PR não teve WebKit para medir: os números acima são do Chromium.
+    `AudioWorklet` e `OfflineAudioContext` existem no Safari, mas nada aqui foi medido no WebKit: os números acima são do Chromium.
 
 ## Recap
 

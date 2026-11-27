@@ -1,3 +1,7 @@
+---
+description: "Ícones por slug sobre o lucide, com catálogo fechado e código de ícone vindo do banco."
+---
+
 # Ícones por slug
 
 Todo componente do SDK que aceita ícone aceita um `ReactNode`:

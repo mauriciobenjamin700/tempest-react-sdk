@@ -192,6 +192,10 @@ plugins:
                     Captura de dispositivo: Device capture
                     Neural (RNNoise 48 kHz): Neural noise suppression (RNNoise)
                     Transcrição no aparelho (Whisper): On-device transcription (Whisper)
+                    Fala e som (ONNX): Speech and sound (ONNX)
+                    Aparelho ou servidor: Device or server
+                    Fim da fala (Silero VAD): End of speech (Silero VAD)
+                    Sons e modelo próprio: Sounds and your own model
                     Tabular (scikit-learn): Tabular (scikit-learn)
                     Imagens (processamento): Imaging (processing)
                     Formulários: Forms
@@ -340,7 +344,11 @@ nav:
                 - Áudio: audio.md
                 - Captura de dispositivo: device-capture.md
                 - Neural (RNNoise 48 kHz): neural.md
-                - Transcrição no aparelho (Whisper): speech.md
+                - Fala e som (ONNX):
+                      - Transcrição no aparelho (Whisper): speech.md
+                      - Aparelho ou servidor: speech-fallback.md
+                      - "Fim da fala (Silero VAD)": speech-vad.md
+                      - Sons e modelo próprio: speech-sounds.md
                 - Vision (ONNX): vision.md
                 - Tabular (scikit-learn): tabular.md
                 - Imagens (processamento): imaging.md

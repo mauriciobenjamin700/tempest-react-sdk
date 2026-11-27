@@ -1,3 +1,7 @@
+---
+description: "Value and reference, shallow and deep copies, scope, closures and equality in JavaScript."
+---
+
 # JavaScript: value, reference, scope
 
 !!! tip "Skip this page if you already know…"

@@ -17,7 +17,26 @@ export interface TempestOrtAssetsOptions {
     path?: string;
     /** Files to serve, from `onnxruntime-web/dist/`. Default: the four the WASM backend loads. */
     assets?: readonly string[];
+    /**
+     * Send `Cross-Origin-Opener-Policy: same-origin` and
+     * `Cross-Origin-Embedder-Policy: credentialless` from `vite dev` and
+     * `vite preview`, so the page is `crossOriginIsolated` and the WASM
+     * backend runs on several threads (whisper-base: real-time factor 0.109
+     * against 0.248 on one thread). Default `false`: isolation changes how
+     * the page loads cross-origin resources, which is the app's call.
+     * `credentialless` rather than `require-corp` because it keeps
+     * cross-origin images and fonts loading, without credentials, instead of
+     * blocking every one that lacks a `Cross-Origin-Resource-Policy`
+     * header. Production headers come from the real server (nginx).
+     */
+    crossOriginIsolation?: boolean;
 }
+
+/** The headers that make a page `crossOriginIsolated`, keeping cross-origin subresources loadable. */
+const CROSS_ORIGIN_ISOLATION_HEADERS: Readonly<Record<string, string>> = {
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cross-Origin-Embedder-Policy": "credentialless",
+};
 
 const CONTENT_TYPES: Record<string, string> = {
     wasm: "application/wasm",
@@ -95,8 +114,15 @@ export function tempestOrtAssets(options: TempestOrtAssetsOptions = {}): Tempest
     const plugin: Plugin = {
         name: "tempest-ort-assets",
         config(userConfig) {
-            if (userConfig.worker?.format) return undefined;
-            return { worker: { format: "es" } };
+            const headers = options.crossOriginIsolation
+                ? { ...CROSS_ORIGIN_ISOLATION_HEADERS }
+                : undefined;
+            const worker = userConfig.worker?.format ? undefined : { format: "es" as const };
+            if (!headers && !worker) return undefined;
+            return {
+                ...(worker && { worker }),
+                ...(headers && { server: { headers }, preview: { headers } }),
+            };
         },
         configResolved(config) {
             base = config.base.endsWith("/") ? config.base : `${config.base}/`;

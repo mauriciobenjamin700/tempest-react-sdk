@@ -87,7 +87,9 @@ export interface LoadWhisperOptions {
      * does not embed them, and a bundled app that does not say where they are
      * fails at session creation with `Aborted(both async and sync fetching of
      * the wasm failed)`. Default: what `configureOrtAssets()` set (shared with
-     * `/tabular`), else the runtime's own guess.
+     * `/tabular`), else the runtime's own guess. With `worker`, the folder in
+     * effect on the page is sent along, because `configureOrtAssets()` only
+     * sets the page's copy of the module and the worker has its own.
      */
     ortAssetsUrl?: string;
     /**
@@ -287,7 +289,12 @@ export async function loadWhisper(options: LoadWhisperOptions): Promise<WhisperM
     if (persistStorage && typeof navigator !== "undefined" && navigator.storage?.persist) {
         await navigator.storage.persist().catch(() => false);
     }
-    if (worker) return loadWhisperInWorker(worker, rest);
+    if (worker) {
+        return loadWhisperInWorker(worker, {
+            ...rest,
+            ortAssetsUrl: rest.ortAssetsUrl ?? configuredOrtAssetPath(),
+        });
+    }
     const dtype = options.dtype ?? "int8";
     const providers = options.providers ?? ["wasm"];
     const cacheName = options.cacheName ?? DEFAULT_SPEECH_MODEL_CACHE;

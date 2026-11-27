@@ -1,3 +1,7 @@
+---
+description: "Componente, estado e efeito: o mínimo de React para ler e escrever código com o SDK."
+---
+
 # React: componente, estado, efeito
 
 !!! tip "Pule esta página se você já sabe…"

@@ -1,3 +1,7 @@
+---
+description: "Box model, flexbox, grid and container queries: how CSS places elements and where the SDK uses each one."
+---
+
 # Box, flow, flex and grid
 
 !!! tip "Skip this page if you already know…"

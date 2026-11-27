@@ -1,3 +1,7 @@
+---
+description: "Custom properties do CSS (var()) e como os tokens --tempest-* fazem o tema do SDK."
+---
+
 # Custom properties e tema
 
 !!! tip "Pule esta página se você já sabe…"

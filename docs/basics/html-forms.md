@@ -1,3 +1,7 @@
+---
+description: "Formulário HTML acessível: label, nome acessível e como os campos do SDK os montam."
+---
+
 # Formulário e acessibilidade
 
 !!! tip "Pule esta página se você já sabe…"

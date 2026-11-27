@@ -34,3 +34,5 @@ export type {
     WhisperParts,
 } from "./whisper";
 export { configureOrtAssets, ortAssetUrls } from "@/tabular/assets";
+export { exposeWhisperWorker } from "./worker";
+export type { WhisperWorkerLike, WhisperWorkerScope, WorkerLoadOptions } from "./worker";

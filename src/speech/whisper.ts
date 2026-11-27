@@ -12,6 +12,7 @@ import {
     type WhisperTokenizer,
     type WhisperTokenizerJson,
 } from "./tokenizer";
+import { loadWhisperInWorker, type WhisperWorkerLike } from "./worker";
 
 /**
  * Whisper speech-to-text on the user's device, on ONNX Runtime Web.
@@ -89,6 +90,24 @@ export interface LoadWhisperOptions {
      * `/tabular`), else the runtime's own guess.
      */
     ortAssetsUrl?: string;
+    /**
+     * Run the model in this Web Worker instead of on the page. The worker file
+     * is one line, `exposeWhisperWorker()`; the model returned has the same
+     * interface. Strongly recommended: on the page, ONNX Runtime's WASM backend
+     * blocks rendering for the whole transcription (3 frames drawn in 725 ms,
+     * measured on Chromium 159).
+     */
+    worker?: WhisperWorkerLike;
+    /**
+     * Ask the browser to keep this origin's storage, so the cached model (tens
+     * of megabytes) is not evicted under disk pressure. Default `false`: the
+     * SDK never calls `navigator.storage.persist()` on its own, because
+     * Firefox answers it with a permission prompt, and a prompt out of nowhere
+     * while a model downloads is a prompt the user denies. Chrome decides
+     * silently from engagement. Turn it on when you know the browser, or when
+     * the user just asked for offline transcription.
+     */
+    persistStorage?: boolean;
 }
 
 /** Options for one {@link WhisperModel.transcribe} call. */
@@ -247,6 +266,8 @@ function since(start: number): number {
  * @throws Error when `onnxruntime-web` is missing; `ModelFetchError` when a file
  *   is neither cached nor reachable.
  *
+ * Pass `worker` to run it off the page (see {@link LoadWhisperOptions.worker}).
+ *
  * @example
  * ```typescript
  * import { loadWhisper } from "tempest-react-sdk/speech";
@@ -262,6 +283,11 @@ function since(start: number): number {
  * ```
  */
 export async function loadWhisper(options: LoadWhisperOptions): Promise<WhisperModel> {
+    const { worker, persistStorage, ...rest } = options;
+    if (persistStorage && typeof navigator !== "undefined" && navigator.storage?.persist) {
+        await navigator.storage.persist().catch(() => false);
+    }
+    if (worker) return loadWhisperInWorker(worker, rest);
     const dtype = options.dtype ?? "int8";
     const providers = options.providers ?? ["wasm"];
     const cacheName = options.cacheName ?? DEFAULT_SPEECH_MODEL_CACHE;

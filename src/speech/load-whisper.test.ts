@@ -102,4 +102,46 @@ describe("loadWhisper", () => {
         await loadWhisper({ baseUrl: "https://cdn.example/whisper-tiny" });
         expect(env.wasm.wasmPaths).toBe("/runtime/");
     });
+
+    it("asks for persistent storage only when told to", async () => {
+        const persist = vi.fn(async () => true);
+        vi.stubGlobal("navigator", { ...navigator, storage: { persist } });
+        await loadWhisper({ baseUrl: "https://cdn.example/whisper-tiny" });
+        expect(persist).not.toHaveBeenCalled();
+        await loadWhisper({ baseUrl: "https://cdn.example/whisper-tiny", persistStorage: true });
+        expect(persist).toHaveBeenCalledTimes(1);
+    });
+
+    it("hands loading to the worker and fetches nothing on the page", async () => {
+        const posted: { type: string; options?: unknown }[] = [];
+        let reply: (event: { data: unknown }) => void = () => undefined;
+        const worker = {
+            addEventListener: (_type: string, listener: (event: { data: unknown }) => void) =>
+                (reply = listener),
+            postMessage: (message: { id: number; type: string; options?: unknown }) => {
+                posted.push(message);
+                queueMicrotask(() =>
+                    reply({
+                        data: {
+                            id: message.id,
+                            type: "loaded",
+                            dtype: "int8",
+                            providers: ["wasm"],
+                        },
+                    }),
+                );
+            },
+        };
+        const model = await loadWhisper({
+            baseUrl: "/models/whisper-base",
+            worker: worker as never,
+        });
+        expect(model.dtype).toBe("int8");
+        expect(posted[0]).toEqual({
+            id: 1,
+            type: "load",
+            options: { baseUrl: "/models/whisper-base" },
+        });
+        expect(requested).toEqual([]);
+    });
 });

@@ -33,6 +33,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import prettier from "prettier";
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, "..");
 const SOURCE = join(REPO_ROOT, "src", "styles", "reset.css");
@@ -239,9 +241,16 @@ function assertNoPropertyLost(source, generated) {
 /**
  * Entry point.
  *
- * @returns {void}
+ * The text is run through Prettier with the repo's config before it is
+ * compared or written. The rules inside `@layer` used to be emitted without
+ * indentation while the committed file had passed through lint-staged's
+ * Prettier, so every build rewrote 103 lines of `scoped.css` and `--check`
+ * reported the file stale on a clean `main` (#813). Formatting here makes the
+ * generator's output and the committed file the same bytes by construction.
+ *
+ * @returns {Promise<void>}
  */
-function main() {
+async function main() {
     const check = process.argv.includes("--check");
     const css = readFileSync(SOURCE, "utf8");
 
@@ -321,8 +330,12 @@ ${SCOPE} *::after {
         return;
     }
 
-    const text = `${header}\n${rules.join("\n\n")}\n}\n`;
-    assertNoPropertyLost(css, text);
+    const raw = `${header}\n${rules.join("\n\n")}\n}\n`;
+    assertNoPropertyLost(css, raw);
+    const text = await prettier.format(raw, {
+        ...(await prettier.resolveConfig(OUT)),
+        filepath: OUT,
+    });
     const stale = !existsSync(OUT) || readFileSync(OUT, "utf8") !== text;
     if (!check) writeFileSync(OUT, text);
 
@@ -333,4 +346,4 @@ ${SCOPE} *::after {
     }
 }
 
-main();
+await main();

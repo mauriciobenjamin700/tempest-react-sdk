@@ -318,20 +318,21 @@ export interface SpeechDetector {
  * ```typescript
  * import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
  *
- * async function stopWhenSilent(mic: MediaStream, stop: () => void): Promise<void> {
+ * async function waitUntilQuiet(mic: MediaStream): Promise<void> {
  *     const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+ *     let quiet = (): void => undefined;
+ *     const ended = new Promise<void>((resolve) => (quiet = resolve));
  *     let spoke = false;
  *     const detector = await createSpeechDetector(
  *         mic,
  *         (speaking) => {
  *             if (speaking) spoke = true;
- *             else if (spoke) {
- *                 detector.stop();
- *                 stop();
- *             }
+ *             else if (spoke) quiet();
  *         },
  *         { vad, minSilenceMs: 1000 },
  *     );
+ *     await ended;
+ *     detector.stop();
  * }
  * ```
  */

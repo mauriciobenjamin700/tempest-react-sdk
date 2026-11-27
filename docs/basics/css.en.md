@@ -1,3 +1,7 @@
+---
+description: "Selectors, cascade, specificity and inheritance: why one CSS rule beats another."
+---
+
 # CSS: selectors, cascade, specificity
 
 !!! tip "Skip this page if you already know…"

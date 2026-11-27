@@ -149,7 +149,7 @@ você mudou `server.hmr` para outra porta, adicione a origem dele em
 | Diretiva | Valor | Por quê |
 | --- | --- | --- |
 | `default-src` | `'self'` | base de tudo |
-| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/speech`, `/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
 | `style-src` | `'self' 'unsafe-inline'` | o `applyTheme` injeta um `<style>` |
 | `img-src` | `'self' data: blob:` | preview de imagem por object URL |
 | `font-src` | `'self' data:` | fonte embutida |
@@ -189,7 +189,7 @@ export default createViteConfig({
 ```
 
 !!! warning "`AudioWorklet` segue o `script-src`, e o default não aceita `blob:`"
-    O `worker-src 'self' blob:` cobre Web Worker e service worker, mas **não** worklet: `audioWorklet.addModule()` é governado pelo `script-src`. Com o default acima, o `createPcmStream` não carrega o processador inline por `blob:` (medido no Chromium 159). Não afrouxe o `script-src`; use o arquivo que o pacote publica, servido da sua origem: `import url from "tempest-react-sdk/pcm-worklet.js?url"` e `workletUrl: url`. Detalhes em [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa).
+    O `worker-src 'self' blob:` cobre Web Worker e service worker, mas **não** worklet: `audioWorklet.addModule()` é governado pelo `script-src`. Com o default acima, o `createPcmStream` não carrega o processador inline por `blob:` (medido no Chromium 159). Não afrouxe o `script-src`; use o arquivo que o pacote publica, servido da sua origem: `import url from "tempest-react-sdk/pcm-worklet.js?url"` e `workletUrl: url`. Vale também para o [`createSpeechDetector`](speech-vad.md) e o [`createSoundMonitor`](speech-sounds.md), que recebem a mesma opção em `stream: { workletUrl: url }`. Detalhes em [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa).
 
 ## Script inline entra por hash
 

@@ -1,3 +1,7 @@
+---
+description: "Seletor, cascata, especificidade e herança: por que uma regra CSS ganha da outra."
+---
+
 # CSS: seletor, cascata, especificidade
 
 !!! tip "Pule esta página se você já sabe…"

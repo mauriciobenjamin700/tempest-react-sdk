@@ -645,6 +645,9 @@ Without `timesliceMs` the whole recording sits in memory until `stop()` — fine
 
 Every audio model (speech detection, transcription, classification) takes the same thing: **mono float32 samples at a fixed rate**, almost always 16 kHz. The browser records stereo webm/opus at 48 kHz and the microphone runs at 44.1 or 48 kHz. These three pieces bridge the gap, with no `onnxruntime-web`.
 
+!!! tip "Using Whisper, Silero or YAMNet? Skip this section"
+    The [`/speech`](speech.md) functions take the recorded `Blob` or the microphone and do all of this inside. This section is for running an audio model of your own, or for understanding what happens before the model.
+
 ### From a file: `decodeAudioToPcm`
 
 ```typescript
@@ -659,6 +662,7 @@ async function prepare(recording: Blob): Promise<Float32Array[]> {
 
 - Takes whatever the browser plays (webm/opus, mp4/aac, mp3, wav), as a `Blob` or `ArrayBuffer`.
 - **Averages the channels**: Chromium's `MediaRecorder` writes stereo Opus even from a mono microphone.
+- `sampleRate` is the output rate. The default is `16_000`, the speech models' rate.
 - `signal` cancels; `framePcm` cuts frames of the size the model expects and zero-pads the last one.
 
 ### From the microphone: `createPcmStream`
@@ -710,6 +714,8 @@ async function features(recording: Blob): Promise<Float32Array> {
 ```
 
 - `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, Slaney mel filters, `log10`, floor at `max − 8`, `(x + 4) / 4`. 30 s give 3000 frames.
+- The result is `{ data, nMels, frames }`, with `data` band by band: band `b` at frame `f` is `data[b * frames + f]`. That is the `[nMels, frames]` layout Whisper reads.
+- The length follows the audio that went in (`frames` = samples ÷ 160). For Whisper's fixed 30 s input (3000 frames), zero-pad the **samples** to 480,000 before computing, as openai-whisper's `pad_or_trim` does. `/speech` does that inside.
 - Your own model: pass your `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
 - **Measured parity:** against a numpy port of `whisper.audio.log_mel_spectrogram`, checked against `transformers.WhisperFeatureExtractor`, the maximum difference is **1.2e-7** (float32 epsilon). 30 s cost 83 ms on Node 24. The fixture and the script that makes it are in the repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
 
@@ -724,10 +730,10 @@ Letting the browser decode straight into a 16 kHz `OfflineAudioContext` looks si
 | 7 kHz (should pass) | −5 dB | −0.01 dB |
 | 9 kHz (above 8 kHz, should vanish) | −20 dB | −94 dB |
 
-The SDK decodes at 48 kHz and converts with a Kaiser-windowed sinc (`createSincResampler`/`resamplePcm`). The **same** filter runs inside the worklet, so a model sees the same spectrum from a file and from the microphone. Converting 30 s takes 350 ms on Node 24 (`vitest`); the on-device cost is part of the model issues' measurements.
+The SDK decodes at 48 kHz and converts with a Kaiser-windowed sinc (`createSincResampler`/`resamplePcm`). The **same** filter runs inside the worklet, so a model sees the same spectrum from a file and from the microphone. Converting 30 s takes 350 ms on Node 24 (`vitest`).
 
 !!! note "Safari"
-    `AudioWorklet` and `OfflineAudioContext` exist in Safari, but this PR had no WebKit to measure with: the numbers above are from Chromium.
+    `AudioWorklet` and `OfflineAudioContext` exist in Safari, but nothing here was measured on WebKit: the numbers above are from Chromium.
 
 ## Recap
 

@@ -1,3 +1,7 @@
+---
+description: "Promises, async/await, fetch, serial and parallel work, and cancellation with AbortController."
+---
+
 # Async: promise, await, fetch
 
 !!! tip "Skip this page if you already know…"

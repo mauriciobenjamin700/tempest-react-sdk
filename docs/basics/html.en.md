@@ -1,3 +1,7 @@
+---
+description: "HTML structure and semantics, block and inline, and the accessibility tree a screen reader reads."
+---
+
 # HTML: structure and semantics
 
 !!! tip "Skip this page if you already know…"

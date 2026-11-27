@@ -1,3 +1,7 @@
+---
+description: "Anotação de tipo, interface, genéricos, tipos utilitários e import type: o TypeScript que o SDK usa."
+---
+
 # TypeScript: o mínimo que o SDK usa
 
 !!! tip "Pule esta página se você já sabe…"

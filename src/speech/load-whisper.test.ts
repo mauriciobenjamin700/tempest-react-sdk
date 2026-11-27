@@ -112,7 +112,7 @@ describe("loadWhisper", () => {
         expect(persist).toHaveBeenCalledTimes(1);
     });
 
-    it("hands loading to the worker and fetches nothing on the page", async () => {
+    it("hands loading to the worker with the page's runtime folder, fetching nothing on the page", async () => {
         const posted: { type: string; options?: unknown }[] = [];
         let reply: (event: { data: unknown }) => void = () => undefined;
         const worker = {
@@ -132,6 +132,7 @@ describe("loadWhisper", () => {
                 );
             },
         };
+        configureOrtAssets("/ort/");
         const model = await loadWhisper({
             baseUrl: "/models/whisper-base",
             worker: worker as never,
@@ -140,8 +141,18 @@ describe("loadWhisper", () => {
         expect(posted[0]).toEqual({
             id: 1,
             type: "load",
-            options: { baseUrl: "/models/whisper-base" },
+            options: { baseUrl: "/models/whisper-base", ortAssetsUrl: "/ort/" },
         });
         expect(requested).toEqual([]);
+
+        await loadWhisper({
+            baseUrl: "/models/whisper-base",
+            ortAssetsUrl: "/cdn/ort/",
+            worker: worker as never,
+        });
+        expect(posted[1]?.options).toEqual({
+            baseUrl: "/models/whisper-base",
+            ortAssetsUrl: "/cdn/ort/",
+        });
     });
 });

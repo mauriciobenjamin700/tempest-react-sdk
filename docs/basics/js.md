@@ -1,3 +1,7 @@
+---
+description: "Valor e referência, cópia rasa e profunda, escopo, closure e igualdade em JavaScript."
+---
+
 # JavaScript: valor, referência, escopo
 
 !!! tip "Pule esta página se você já sabe…"

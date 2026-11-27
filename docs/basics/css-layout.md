@@ -1,3 +1,7 @@
+---
+description: "Modelo de caixa, flexbox, grid e container query: como o CSS posiciona elementos e onde o SDK usa cada um."
+---
+
 # Caixa, fluxo, flex e grid
 
 !!! tip "Pule esta página se você já sabe…"

@@ -32,7 +32,9 @@ const SUMMARY =
 /**
  * Recursively collect every base Markdown file under a directory.
  *
- * Excludes `*.en.md` translation files. Returns absolute paths.
+ * Excludes `*.en.md` translation files and `internal/`, the rules for
+ * working on the SDK: `mkdocs.yml` leaves it out of the site, so an index
+ * entry for it would point a reader at a 404. Returns absolute paths.
  *
  * @param {string} dir - The directory to walk.
  * @returns {string[]} Absolute paths of the collected `.md` files.
@@ -43,9 +45,6 @@ function collectMarkdown(dir) {
     for (const entry of readdirSync(dir)) {
         const full = join(dir, entry);
         if (statSync(full).isDirectory()) {
-            // `internal/` holds the rules for working on the SDK, excluded from the
-            // published site by `mkdocs.yml` — an index of pages that have no URL
-            // would point a reader at 404s.
             if (entry === "internal") continue;
             files.push(...collectMarkdown(full));
         } else if (entry.endsWith(".md") && !entry.endsWith(".en.md")) {
@@ -89,42 +88,123 @@ function extractTitle(content, fallback) {
 }
 
 /**
- * Extract a one-line description from Markdown content.
+ * Whether a trimmed line opens a block that is not the page's prose: a
+ * heading, quote, admonition, table, list, image or raw HTML.
  *
- * Uses the first non-empty paragraph after the H1, with Markdown emphasis and
- * inline code markers stripped and whitespace collapsed. Truncated to a single
- * sentence/line so the index stays concise.
+ * @param {string} line - The trimmed line.
+ * @returns {boolean} `true` when the line is not running prose.
+ */
+function isNonProse(line) {
+    return /^(#|>|!!!|\?\?\?|\||- |\* |\d+\. |!\[|<)/.test(line);
+}
+
+/**
+ * Reduce Markdown inline syntax to plain text: code spans, emphasis, links
+ * and emoji go, whitespace collapses.
+ *
+ * @param {string} text - The Markdown text.
+ * @returns {string} Plain text.
+ */
+function plain(text) {
+    return text
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\*\*([^*]+)\*\*/g, "$1")
+        .replace(/\*([^*]+)\*/g, "$1")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/\p{Extended_Pictographic}\uFE0F?/gu, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/**
+ * The `description:` declared in a page's YAML front matter.
+ *
+ * Only the single-line form (`description: Texto.`) is read, optionally
+ * quoted — the form the docs use.
  *
  * @param {string} content - The Markdown content.
- * @returns {string} A short plain-text description (may be empty).
+ * @returns {string | undefined} The description, or `undefined` when none is declared.
  */
-function extractDescription(content) {
+export function frontMatterDescription(content) {
+    const block = /^---\n([\s\S]*?)\n---\n/.exec(content);
+    const line = block?.[1].split("\n").find((entry) => entry.startsWith("description:"));
+    if (!line) return undefined;
+    return line
+        .slice("description:".length)
+        .trim()
+        .replace(/^(["'])(.*)\1$/, "$2");
+}
+
+/**
+ * The first sentence of a paragraph that is at least `minLength` long.
+ *
+ * A sentence ends at `.`, `!` or `?` followed by a space — not at `:`,
+ * which in these docs introduces a list or a code block. Shorter
+ * openings ("Veja abaixo.") keep the next sentence, so the index never
+ * shows a fragment. A paragraph with no sentence end is returned whole.
+ *
+ * @param {string} text - The paragraph, as plain text.
+ * @param {number} [minLength] - Shortest sentence worth stopping at.
+ * @returns {string} The leading sentence(s).
+ */
+export function firstSentence(text, minLength = 40) {
+    const ends = /[.!?](?=\s)/g;
+    for (let match = ends.exec(text); match; match = ends.exec(text)) {
+        if (match.index + 1 >= minLength) return text.slice(0, match.index + 1);
+    }
+    return text;
+}
+
+/**
+ * Extract the one-sentence description of a page for `llms.txt`.
+ *
+ * A `description:` in the page's front matter wins — it is also the page's
+ * `<meta name="description">` on the site. Pages that open with a hook
+ * ("Este campo parece certo:") instead of a summary declare one. Otherwise
+ * it reads the first prose paragraph after the H1 — every line of it, since
+ * the docs wrap paragraphs across lines — skipping fenced code and the
+ * indented body of admonitions, then keeps its first full sentence. Reading
+ * only the first line, and not skipping admonitions, left 48 of 118 entries
+ * ending mid-sentence or describing a warning box instead of the page.
+ *
+ * @param {string} content - The Markdown content.
+ * @returns {string} A plain-text description (empty when the page has no prose).
+ */
+export function extractDescription(content) {
+    const declared = frontMatterDescription(content);
+    if (declared) return declared;
     const lines = content.split("\n");
     let seenH1 = false;
+    let fenced = false;
+    let inAdmonition = false;
+    /** @type {string[]} */
+    const paragraph = [];
     for (const raw of lines) {
         const line = raw.trim();
         if (!seenH1) {
-            if (line.startsWith("# ")) seenH1 = true;
+            seenH1 = line.startsWith("# ");
             continue;
         }
-        if (line === "") continue;
-        if (line.startsWith("#")) continue;
-        if (line.startsWith(">")) continue;
-        // First real paragraph line: clean it up.
-        let text = line
-            .replace(/`([^`]+)`/g, "$1")
-            .replace(/\*\*([^*]+)\*\*/g, "$1")
-            .replace(/\*([^*]+)\*/g, "$1")
-            .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-            .replace(/[➡️✅⚠️💡🚀🤖]/gu, "")
-            .replace(/\s+/g, " ")
-            .trim();
-        // Keep just the first sentence to stay one-line.
-        const dot = text.indexOf(". ");
-        if (dot > 40) text = text.slice(0, dot + 1);
-        return text;
+        if (line.startsWith("```")) {
+            fenced = !fenced;
+            if (paragraph.length > 0) break;
+            continue;
+        }
+        if (fenced) continue;
+        if (inAdmonition && (raw.startsWith("    ") || line === "")) continue;
+        inAdmonition = false;
+        if (line === "") {
+            if (paragraph.length > 0) break;
+            continue;
+        }
+        if (isNonProse(line)) {
+            if (paragraph.length > 0) break;
+            inAdmonition = /^(!!!|\?\?\?)/.test(line);
+            continue;
+        }
+        paragraph.push(line);
     }
-    return "";
+    return firstSentence(plain(paragraph.join(" ")));
 }
 
 /**
@@ -139,49 +219,56 @@ function sectionFor(slug) {
     return "Documentação";
 }
 
-const allFiles = collectMarkdown(DOCS_DIR).sort((a, b) => a.localeCompare(b));
+/**
+ * Write `docs/llms.txt` and `docs/llms-full.txt` from the base pages.
+ *
+ * @returns {void}
+ */
+function main() {
+    const allFiles = collectMarkdown(DOCS_DIR).sort((a, b) => a.localeCompare(b));
 
-/** @type {{ Documentação: string[]; Componentes: string[]; Receitas: string[] }} */
-const sections = { Documentação: [], Componentes: [], Receitas: [] };
+    /** @type {{ Documentação: string[]; Componentes: string[]; Receitas: string[] }} */
+    const sections = { Documentação: [], Componentes: [], Receitas: [] };
 
-for (const file of allFiles) {
-    const content = readFileSync(file, "utf8");
-    const rel = relative(DOCS_DIR, file).split("\\").join("/");
-    const slug = toSlug(file);
-    const title = extractTitle(content, rel);
-    const description = extractDescription(content);
-    const url = `${SITE_BASE}/${slug}`;
-    const suffix = description ? `: ${description}` : "";
-    sections[sectionFor(slug)].push(`- [${title}](${url})${suffix}`);
+    for (const file of allFiles) {
+        const content = readFileSync(file, "utf8");
+        const rel = relative(DOCS_DIR, file).split("\\").join("/");
+        const slug = toSlug(file);
+        const title = extractTitle(content, rel);
+        const description = extractDescription(content);
+        const url = `${SITE_BASE}/${slug}`;
+        const suffix = description ? `: ${description}` : "";
+        sections[sectionFor(slug)].push(`- [${title}](${url})${suffix}`);
+    }
+
+    const indexParts = ["# tempest-react-sdk", "", `> ${SUMMARY}`, ""];
+    /** @type {Array<keyof typeof sections>} */
+    const sectionOrder = ["Documentação", "Componentes", "Receitas"];
+    for (const name of sectionOrder) {
+        if (sections[name].length === 0) continue;
+        indexParts.push(`## ${name}`, "", ...sections[name], "");
+    }
+    const indexText = `${indexParts.join("\n").trimEnd()}\n`;
+
+    const fullParts = [];
+    for (const file of allFiles) {
+        const content = readFileSync(file, "utf8");
+        const rel = relative(DOCS_DIR, file).split("\\").join("/");
+        fullParts.push(`\n\n---\n\n# ${rel}\n\n${content.trimEnd()}`);
+    }
+    const fullText = `${fullParts.join("").trimStart()}\n`;
+
+    const indexPath = join(DOCS_DIR, "llms.txt");
+    const fullPath = join(DOCS_DIR, "llms-full.txt");
+    writeFileSync(indexPath, indexText, "utf8");
+    writeFileSync(fullPath, fullText, "utf8");
+
+    const indexBytes = Buffer.byteLength(indexText, "utf8");
+    const fullBytes = Buffer.byteLength(fullText, "utf8");
+
+    console.log(`gen-llms: scanned ${allFiles.length} markdown files`);
+    console.log(`gen-llms: wrote docs/llms.txt (${indexBytes} bytes)`);
+    console.log(`gen-llms: wrote docs/llms-full.txt (${fullBytes} bytes)`);
 }
 
-// --- Build docs/llms.txt (curated index) ---
-const indexParts = ["# tempest-react-sdk", "", `> ${SUMMARY}`, ""];
-/** @type {Array<keyof typeof sections>} */
-const sectionOrder = ["Documentação", "Componentes", "Receitas"];
-for (const name of sectionOrder) {
-    if (sections[name].length === 0) continue;
-    indexParts.push(`## ${name}`, "", ...sections[name], "");
-}
-const indexText = `${indexParts.join("\n").trimEnd()}\n`;
-
-// --- Build docs/llms-full.txt (full corpus) ---
-const fullParts = [];
-for (const file of allFiles) {
-    const content = readFileSync(file, "utf8");
-    const rel = relative(DOCS_DIR, file).split("\\").join("/");
-    fullParts.push(`\n\n---\n\n# ${rel}\n\n${content.trimEnd()}`);
-}
-const fullText = `${fullParts.join("").trimStart()}\n`;
-
-const indexPath = join(DOCS_DIR, "llms.txt");
-const fullPath = join(DOCS_DIR, "llms-full.txt");
-writeFileSync(indexPath, indexText, "utf8");
-writeFileSync(fullPath, fullText, "utf8");
-
-const indexBytes = Buffer.byteLength(indexText, "utf8");
-const fullBytes = Buffer.byteLength(fullText, "utf8");
-
-console.log(`gen-llms: scanned ${allFiles.length} markdown files`);
-console.log(`gen-llms: wrote docs/llms.txt (${indexBytes} bytes)`);
-console.log(`gen-llms: wrote docs/llms-full.txt (${fullBytes} bytes)`);
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();

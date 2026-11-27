@@ -1307,6 +1307,9 @@ Sem `timesliceMs` a gravação inteira fica em memória até o `stop()` — ok p
 
 Todo modelo de áudio (detecção de fala, transcrição, classificação) recebe a mesma coisa: **amostras float32 mono numa taxa fixa**, quase sempre 16 kHz. O navegador grava em webm/opus estéreo a 48 kHz e o microfone roda a 44,1 ou 48 kHz. Estas três peças fazem a ponte, sem `onnxruntime-web`.
 
+!!! tip "Usando Whisper, Silero ou YAMNet? Pule esta seção"
+    As funções do [`/speech`](speech.md) recebem o `Blob` gravado ou o microfone e fazem tudo isto por dentro. Esta seção é para quem roda um modelo de áudio próprio, ou quer entender o que acontece antes do modelo.
+
 ### De um arquivo: `decodeAudioToPcm`
 
 ```typescript
@@ -1321,6 +1324,7 @@ async function preparar(gravacao: Blob): Promise<Float32Array[]> {
 
 - Aceita o que o navegador toca (webm/opus, mp4/aac, mp3, wav), como `Blob` ou `ArrayBuffer`.
 - Faz a **média dos canais**: o `MediaRecorder` do Chromium grava Opus estéreo mesmo com microfone mono.
+- `sampleRate` é a taxa de saída. O default é `16_000`, a dos modelos de fala.
 - `signal` cancela; `framePcm` corta em quadros do tamanho que o modelo espera e completa o último com zeros.
 
 ### Do microfone: `createPcmStream`
@@ -1372,6 +1376,8 @@ async function features(gravacao: Blob): Promise<Float32Array> {
 ```
 
 - `WHISPER_LOG_MEL_80` / `WHISPER_LOG_MEL_128` (large-v3): `n_fft` 400, hop 160, filtros mel Slaney, `log10`, piso em `max − 8`, `(x + 4) / 4`. 30 s dão 3000 quadros.
+- O resultado é `{ data, nMels, frames }`, com `data` banda por banda: o valor da banda `b` no quadro `f` está em `data[b * frames + f]`. É o layout `[nMels, frames]` que o Whisper lê.
+- O tamanho segue o áudio que entrou (`frames` = amostras ÷ 160). Para a entrada fixa de 30 s do Whisper (3000 quadros), complete as **amostras** com zeros até 480 000 antes de calcular, como o `pad_or_trim` do openai-whisper. O `/speech` faz isso por dentro.
 - Modelo próprio: passe a sua `LogMelConfig` (`nFft`, `hopLength`, `nMels`, `fMin`/`fMax`, `center`, `scaling: { log: "natural", offset }`).
 - **Paridade medida:** contra um port em numpy do `whisper.audio.log_mel_spectrogram`, conferido com o `transformers.WhisperFeatureExtractor`, a diferença máxima é **1,2e-7** (o épsilon do float32). 30 s custam 83 ms no Node 24. A fixture e o script que a gera estão no repo: `uv run --with numpy --with librosa python scripts/gen-log-mel-fixture.py`.
 
@@ -1386,10 +1392,10 @@ Deixar o navegador decodificar direto num `OfflineAudioContext` de 16 kHz parece
 | 7 kHz (deve passar) | −5 dB | −0,01 dB |
 | 9 kHz (acima de 8 kHz, deve sumir) | −20 dB | −94 dB |
 
-O SDK decodifica a 48 kHz e converte com um sinc janelado por Kaiser (`createSincResampler`/`resamplePcm`). O **mesmo** filtro roda dentro do worklet, então o modelo vê o mesmo espectro vindo de um arquivo e vindo do microfone. Converter 30 s leva 350 ms no Node 24 (`vitest`); o custo no aparelho entra na medição das issues de modelo.
+O SDK decodifica a 48 kHz e converte com um sinc janelado por Kaiser (`createSincResampler`/`resamplePcm`). O **mesmo** filtro roda dentro do worklet, então o modelo vê o mesmo espectro vindo de um arquivo e vindo do microfone. Converter 30 s leva 350 ms no Node 24 (`vitest`).
 
 !!! note "Safari"
-    `AudioWorklet` e `OfflineAudioContext` existem no Safari, mas este PR não teve WebKit para medir: os números acima são do Chromium.
+    `AudioWorklet` e `OfflineAudioContext` existem no Safari, mas nada aqui foi medido no WebKit: os números acima são do Chromium.
 
 ## Recap
 
@@ -2110,6 +2116,10 @@ O fluxo: o login chama `setSession`, persistindo `user` + `token`. O `ProtectedL
 
 # basics/css-layout.md
 
+---
+description: "Modelo de caixa, flexbox, grid e container query: como o CSS posiciona elementos e onde o SDK usa cada um."
+---
+
 # Caixa, fluxo, flex e grid
 
 !!! tip "Pule esta página se você já sabe…"
@@ -2325,6 +2335,10 @@ Detalhes e a lista completa em [Estilos & Design Tokens](../styles.md).
 ---
 
 # basics/css-variables.md
+
+---
+description: "Custom properties do CSS (var()) e como os tokens --tempest-* fazem o tema do SDK."
+---
 
 # Custom properties e tema
 
@@ -2549,6 +2563,10 @@ seletor nenhum, então não há briga de especificidade ([CSS: cascata](css.md))
 
 # basics/css.md
 
+---
+description: "Seletor, cascata, especificidade e herança: por que uma regra CSS ganha da outra."
+---
+
 # CSS: seletor, cascata, especificidade
 
 !!! tip "Pule esta página se você já sabe…"
@@ -2734,6 +2752,10 @@ import "./app.css"; // depois: seus overrides ganham no desempate
 ---
 
 # basics/html-forms.md
+
+---
+description: "Formulário HTML acessível: label, nome acessível e como os campos do SDK os montam."
+---
 
 # Formulário e acessibilidade
 
@@ -2922,6 +2944,10 @@ quando o rótulo visível **não cabe** — não para quando você não quis esc
 ---
 
 # basics/html.md
+
+---
+description: "Estrutura e semântica do HTML, bloco e inline, e a árvore de acessibilidade que o leitor de tela lê."
+---
 
 # HTML: estrutura e semântica
 
@@ -3190,6 +3216,10 @@ Todas seguem a mesma forma, a mesma do resto deste site:
 
 # basics/js-async.md
 
+---
+description: "Promise, async/await, fetch, série e paralelo, e cancelamento com AbortController."
+---
+
 # Assíncrono: promise, await, fetch
 
 !!! tip "Pule esta página se você já sabe…"
@@ -3416,6 +3446,10 @@ function PerfilUsuario({ id }: { id: string }) {
 
 # basics/js-modules.md
 
+---
+description: "Módulos ES, os três tipos de dependência do npm e o que o tree-shaking do bundler precisa."
+---
+
 # Módulos, npm e o bundler
 
 !!! tip "Pule esta página se você já sabe…"
@@ -3583,6 +3617,10 @@ teto explícito de entrada inteira — não como orçamento de consumidor.
 ---
 
 # basics/js.md
+
+---
+description: "Valor e referência, cópia rasa e profunda, escopo, closure e igualdade em JavaScript."
+---
 
 # JavaScript: valor, referência, escopo
 
@@ -3789,6 +3827,10 @@ Lista completa dos hooks utilitários em [Hooks](../hooks.md).
 ---
 
 # basics/react.md
+
+---
+description: "Componente, estado e efeito: o mínimo de React para ler e escrever código com o SDK."
+---
 
 # React: componente, estado, efeito
 
@@ -4009,6 +4051,10 @@ prop e desenha; hook recebe entrada e devolve estado + funções.
 ---
 
 # basics/typescript.md
+
+---
+description: "Anotação de tipo, interface, genéricos, tipos utilitários e import type: o TypeScript que o SDK usa."
+---
 
 # TypeScript: o mínimo que o SDK usa
 
@@ -16133,7 +16179,7 @@ você mudou `server.hmr` para outra porta, adicione a origem dele em
 | Diretiva | Valor | Por quê |
 | --- | --- | --- |
 | `default-src` | `'self'` | base de tudo |
-| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/speech`, `/vision`, `/tabular`) compila WebAssembly; sem isso, `WebAssembly.compile` lança `CompileError` |
 | `style-src` | `'self' 'unsafe-inline'` | o `applyTheme` injeta um `<style>` |
 | `img-src` | `'self' data: blob:` | preview de imagem por object URL |
 | `font-src` | `'self' data:` | fonte embutida |
@@ -16173,7 +16219,7 @@ export default createViteConfig({
 ```
 
 !!! warning "`AudioWorklet` segue o `script-src`, e o default não aceita `blob:`"
-    O `worker-src 'self' blob:` cobre Web Worker e service worker, mas **não** worklet: `audioWorklet.addModule()` é governado pelo `script-src`. Com o default acima, o `createPcmStream` não carrega o processador inline por `blob:` (medido no Chromium 159). Não afrouxe o `script-src`; use o arquivo que o pacote publica, servido da sua origem: `import url from "tempest-react-sdk/pcm-worklet.js?url"` e `workletUrl: url`. Detalhes em [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa).
+    O `worker-src 'self' blob:` cobre Web Worker e service worker, mas **não** worklet: `audioWorklet.addModule()` é governado pelo `script-src`. Com o default acima, o `createPcmStream` não carrega o processador inline por `blob:` (medido no Chromium 159). Não afrouxe o `script-src`; use o arquivo que o pacote publica, servido da sua origem: `import url from "tempest-react-sdk/pcm-worklet.js?url"` e `workletUrl: url`. Vale também para o [`createSpeechDetector`](speech-vad.md) e o [`createSoundMonitor`](speech-sounds.md), que recebem a mesma opção em `stream: { workletUrl: url }`. Detalhes em [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa).
 
 ## Script inline entra por hash
 
@@ -25014,6 +25060,10 @@ const ptBR = await fetch("/i18n/pt-BR.json").then((response) => response.json())
 
 # icons.md
 
+---
+description: "Ícones por slug sobre o lucide, com catálogo fechado e código de ícone vindo do banco."
+---
+
 # Ícones por slug
 
 Todo componente do SDK que aceita ícone aceita um `ReactNode`:
@@ -26266,6 +26316,10 @@ exibir o valor que está prestes a sobrescrever em vez de repeti-lo:
 ---
 
 # index.md
+
+---
+description: "SDK React/TypeScript da Tempest: fundação de app (Vite, rotas, estado, cache, providers), componentes, hooks, HTTP, auth, formulários, tempo real, offline e modelos ONNX no navegador."
+---
 
 # tempest-react-sdk
 
@@ -43668,139 +43722,143 @@ export function ShareRide({ url }: { url: string }) {
 
 ---
 
-# speech.md
+# speech-fallback.md
 
-# Transcrição no aparelho (Whisper)
+---
+description: "createSpeechToText: transcreve no aparelho e passa a gravação ao seu servidor quando o aparelho é lento, falha ou ainda não baixou o modelo, dizendo qual rota usou e por quê."
+---
 
-O subpath `tempest-react-sdk/speech` transcreve fala **no navegador do usuário** com o Whisper e, quando o aparelho não dá conta, passa a gravação para o **seu servidor**. O app chama uma função só; o SDK decide a rota a cada gravação e diz qual usou e por quê. 🎙️
+# Aparelho ou servidor: `createSpeechToText`
 
-Transcrever no aparelho economiza upload em rede móvel, fila no backend e a ida e volta, e funciona offline depois do primeiro uso. Mas um celular de entrada pode levar mais que o próprio áudio para transcrever, e esperar por isso é pior que mandar ao servidor. O `createSpeechToText` cuida dessa escolha.
+Transcrever no aparelho economiza upload em rede móvel, fila no backend e a ida e volta, e funciona offline. Mas um celular de entrada pode levar mais que o próprio áudio para transcrever, e esperar por isso é pior que mandar ao servidor. O `createSpeechToText` decide a rota a **cada gravação** e diz qual usou e por quê.
 
-```bash
-npm install tempest-react-sdk onnxruntime-web
-```
+Esta página parte de um app que já [serve o modelo e o runtime](speech.md#1-sirva-o-modelo) e tem o [worker](speech.md#4-tire-o-modelo-da-thread-principal-worker).
 
-`onnxruntime-web` é peer opcional, o mesmo do `/vision` e do `/tabular`. Ele só é importado quando um modelo carrega, então importar o subpath e chamar `assessSpeechDevice()` não exige o pacote.
+## O exemplo completo
 
-## 1. Sirva o modelo
-
-O SDK lê o export ONNX do Hugging Face no layout do `onnx-community/whisper-*`. Baixe uma vez e sirva da sua origem:
-
-```bash
-M=public/models/whisper-base && mkdir -p $M/onnx
-for f in config.json generation_config.json tokenizer.json \
-  onnx/encoder_model_int8.onnx onnx/decoder_model_merged_int8.onnx; do
-  curl -sfL -o $M/$f "https://huggingface.co/onnx-community/whisper-base/resolve/main/$f"
-done
-```
-
-| Modelo | Download (int8) | WER em português | Fator de tempo real |
-| --- | --- | --- | --- |
-| `whisper-tiny` | 41 MB | 34,0 % | 0,071 |
-| `whisper-base` | 77 MB | **15,9 %** | 0,109 |
-| `whisper-small` | 249 MB | — | grande demais para celular |
-
-**Para português, use o `whisper-base`:** o tiny erra uma palavra em cada três.
-
-- **Tamanhos:** arquivos `encoder_model_int8.onnx` + `decoder_model_merged_int8.onnx` na API do Hugging Face, em 26/11/2026.
-- **WER:** 30 frases do FLEURS `pt_br` (conjunto `dev`, 363 s de fala lida), Chromium 159 num desktop, com `npm run build && WHISPER_MODEL_DIR=… DATASET_DIR=… LANGUAGE=pt node scripts/bench-whisper-wer.mjs`.
-- **O que entra no WER:** a normalização tira pontuação e caixa, mas mantém acentos e não converte numerais. Por isso "dez" × "10" conta como erro.
-- **Os erros que pesam numa busca são nomes próprios** ("polo" → "Paulo"). Meça com gravações do seu domínio: o mesmo script aceita qualquer pasta com `transcripts.tsv` (`arquivo<TAB>texto`).
-
-## 2. Sirva o runtime
-
-O ONNX Runtime Web **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado pelo Vite, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin [`tempestOrtAssets()`](vite-config.md#modelos-onnx-no-navegador-tempestortassets) serve os binários em `/ort/` no dev e no build:
-
-```ts
-import { defineConfig } from "vite";
-import { tempestOrtAssets } from "tempest-react-sdk/vite";
-
-export default defineConfig({ plugins: [tempestOrtAssets()] });
-```
-
-E o modelo carrega apontando para lá:
-
-```typescript
-import { loadWhisper } from "tempest-react-sdk/speech";
-
-export const carregar = () => loadWhisper({ baseUrl: "/models/whisper-base", ortAssetsUrl: "/ort/" });
-```
-
-Ou uma vez no boot, com o `configureOrtAssets("/ort/")` que o `/speech` reexporta do `/tabular` (vale para os dois). Para precache offline, `ortAssetUrls("/ort/")` lista os arquivos.
-
-## 3. Transcreva com fallback para o servidor
+Uma busca por voz: transcreve no aparelho, num worker, com os nomes de cidade como vocabulário, e manda ao `/api/transcribe` quando o aparelho não dá conta.
 
 ```typescript
 import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
 
-export const speech = createSpeechToText({
-    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
-    server: async (audio, { signal }) => {
-        const body = new FormData();
-        body.append("audio", audio, "fala.webm");
-        const response = await fetch("/api/transcribe", { method: "POST", body, signal });
-        return ((await response.json()) as { text: string }).text;
-    },
-    isServerAvailable: () => navigator.onLine,
-    language: "pt",
-});
-
-export async function aoGravar(gravacao: Blob): Promise<string> {
-    const resultado = await speech.transcribe(gravacao);
-    console.log(resultado.source, resultado.reason);
-    return resultado.text;
-}
-```
-
-O `server` é seu: endpoint, autenticação, polling de job. O SDK só chama a função e repassa o `signal`.
-
-## 4. Tire o modelo da thread principal: `worker`
-
-O backend WASM do ONNX Runtime calcula na thread que o chama. Na página, isso congela a tela durante a transcrição inteira: o spinner para, e um toque espera o fim. Rode o modelo num Web Worker. O arquivo do worker tem uma linha:
-
-```typescript
-import { exposeWhisperWorker } from "tempest-react-sdk/speech";
-
-exposeWhisperWorker();
-```
-
-E o `loadWhisper` recebe o worker. O resto da API é igual, inclusive no `createSpeechToText`:
-
-```typescript
-import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+const CIDADES = "Picos, Sobral, Teresina, Juazeiro do Norte, Fortaleza, Parnaíba";
 
 export const fala = createSpeechToText({
     loadModel: () =>
         loadWhisper({
             baseUrl: "/models/whisper-base",
-            ortAssetsUrl: "/ort/",
             worker: new Worker(new URL("./fala.worker.ts", import.meta.url), { type: "module" }),
         }),
+    server: async (audio, { signal, language, prompt }) => {
+        const body = new FormData();
+        body.append("audio", audio, audio.type.includes("mp4") ? "fala.m4a" : "fala.webm");
+        if (language) body.append("language", language);
+        if (prompt) body.append("prompt", prompt);
+        const response = await fetch("/api/transcribe", { method: "POST", body, signal });
+        if (!response.ok) throw new Error(`transcribe: HTTP ${response.status}`);
+        return ((await response.json()) as { text: string }).text;
+    },
+    isServerAvailable: () => navigator.onLine,
     language: "pt",
+    prompt: CIDADES,
 });
+
+export async function buscarPorVoz(gravacao: Blob): Promise<string> {
+    const resultado = await fala.transcribe(gravacao);
+    console.log(resultado.source, resultado.reason);
+    return resultado.text;
+}
 ```
 
-Medido no Chromium 159 (whisper-tiny int8, 11 s de fala, `WHISPER_MODEL_DIR=… node scripts/bench-whisper-worker.mjs`):
+O console mostra `device device` quando o aparelho transcreveu dentro do prazo, ou `server model-not-ready` na primeira gravação, enquanto o modelo baixa.
 
-| Onde roda | Transcrição | Frames desenhados (esperado a 60 fps) |
+- **O `server` é seu:** endpoint, autenticação, formato, polling de job. O SDK só chama a função com o `Blob` gravado e um contexto: `signal` (cancela junto com o prazo), `language` e `prompt`. Se o seu modelo de servidor aceita vocabulário, mande o `prompt`: assim as duas rotas acertam os mesmos nomes.
+- **Lançar dentro do `server`** é uma falha do servidor: a gravação volta para o aparelho, com `reason: "server-error"`.
+- **O nome do arquivo:** o Safari grava AAC em MP4, e os outros navegadores gravam Opus em WebM. Por isso a extensão segue o `audio.type`.
+- **A pasta do runtime** vem do `configureOrtAssets("/ort/")` chamado no boot, e o SDK a repassa ao worker.
+
+## A busca por voz inteira
+
+O botão de busca junta três peças: a gravação que para sozinha ([`gravarAteCalar`](speech-vad.md#gravar-ate-a-pessoa-parar-de-falar)), o `fala` acima, e a sua busca por texto:
+
+```typescript
+import type { SpeechToText } from "tempest-react-sdk/speech";
+
+declare function gravarAteCalar(): Promise<Blob | null>;
+declare const fala: SpeechToText;
+declare function buscarRotas(texto: string): Promise<void>;
+
+export async function aoTocarNoMicrofone(): Promise<void> {
+    const gravacao = await gravarAteCalar();
+    if (!gravacao) return;
+    const { text } = await fala.transcribe(gravacao);
+    if (text.trim()) await buscarRotas(text);
+}
+```
+
+Gravação sem fala (`null`) não vai a lugar nenhum: nem ao modelo, nem ao servidor.
+
+## O que o `transcribe` devolve
+
+| Campo | O que é |
+| --- | --- |
+| `text` | O texto, de qualquer uma das rotas. |
+| `source` | `"device"` ou `"server"`. |
+| `reason` | Por que essa rota (tabela abaixo). |
+| `transcription` | Detalhes da execução no aparelho (`timings`, `degenerate`…). `null` quando o servidor respondeu. |
+| `server` | A resposta do `server`, intacta. `null` quando o aparelho respondeu. Veja [backend que interpreta](#backend-que-transcreve-e-interpreta). |
+
+`transcribe(gravacao, { signal, onPartial })`: `signal` cancela, e `onPartial` recebe o texto parcial quando roda no aparelho.
+
+## Como a rota é escolhida
+
+A cada `transcribe`, nesta ordem:
+
+| Situação | Rota | `reason` |
 | --- | --- | --- |
-| página, com threads | 724 ms | **3** (43) |
-| worker, com threads | 715 ms | **45** (43) |
-| página, 1 thread | 1 423 ms | **2** (85) |
-| worker, 1 thread | 1 419 ms | **86** (85) |
+| Sem `server`, ou `isServerAvailable()` respondeu `false` | aparelho, **sem prazo** | `server-unavailable` |
+| Aparelho descartado por `assessSpeechDevice` (sem WASM SIMD, pouca memória) | servidor | `device-unsupported` |
+| Aparelho já foi lento antes (veredito guardado) | servidor | `device-remembered-slow` |
+| Modelo ainda não carregado | servidor, e o modelo carrega em segundo plano | `model-not-ready` |
+| Aparelho terminou dentro do prazo | aparelho | `device` |
+| Aparelho estourou o prazo | servidor; o aparelho fica marcado como lento | `device-slow` |
+| Aparelho devolveu texto em loop | servidor | `device-degenerate` |
+| Aparelho falhou (memória, WASM) | servidor | `device-error` |
+| Servidor falhou | aparelho | `server-error` |
 
-O tempo é o mesmo; só a tela deixa de congelar. A gravação é decodificada na página (worker não tem `OfflineAudioContext`), e só as amostras atravessam para o worker, transferidas sem cópia. Cancelar (ou o prazo do `createSpeechToText`) rejeita na hora e para o worker no próximo passo do decoder.
+Sem `isServerAvailable`, o servidor conta como disponível sempre que `server` existe. Se as duas rotas falham, o `transcribe` rejeita com o erro.
 
-!!! info "Por que não o `env.wasm.proxy` do ONNX Runtime"
-    O proxy embutido **transfere** os buffers de entrada para o worker dele, e o decoder do Whisper reusa a saída do encoder a cada passo. Medido: `DataCloneError: An ArrayBuffer is detached` no segundo passo. Ele também não funciona com WebGPU. Aqui o laço inteiro (features, encoder, decoder) roda no worker.
+!!! info "\"O aparelho não aguenta\" é medido, não chutado"
+    O prazo é a duração do áudio × `realtimeFactor` (default `1`: 10 s de gravação têm 10 s), nunca menos que `minBudgetMs` (4 s). Se estourar, a execução é cancelada entre dois passos do decoder, o servidor responde, e o aparelho fica marcado como lento por `slowVerdictTtlMs` (7 dias), no `localStorage`. A decisão vem de uma execução real **neste** aparelho com **este** modelo, e não de `deviceMemory` ou do número de núcleos.
 
-### Guardar o modelo: `persistStorage`
+!!! warning "Texto em loop conta como falha"
+    Um modelo pode "terminar" com lixo em vez de dar erro. No Chromium 159 com WebGPU num ambiente headless, o whisper-tiny fp16 devolveu `"Wars!!!!…"` por 224 tokens. O SDK aplica o teste do Whisper de referência: razão de compressão do texto (`compressionRatio`) acima de **2,4**, ou o decoder sem terminar, marca `degenerate`, e a gravação vai ao servidor. Medido: fala real comprime 1,0 a 1,34×; aquele loop, 14,9×.
 
-`loadWhisper({ persistStorage: true })` pede `navigator.storage.persist()` antes de baixar, para o navegador não apagar o modelo sob pressão de disco. O default é `false`, como em todo o SDK: no Firefox esse pedido abre um prompt de permissão, e um prompt surgido do nada durante um download é negado. O Chrome decide sozinho, sem prompt.
+## A primeira gravação, com o modelo ainda baixando
+
+Com `whileLoading: "background"` (o default), a primeira gravação vai ao servidor enquanto o modelo baixa, e as seguintes rodam no aparelho. Com `"wait"`, o `transcribe` espera o download e responde do aparelho. Sem servidor disponível, ele sempre espera.
+
+Para baixar antes, num momento bom (Wi-Fi, app ocioso), chame `warmUp()`:
+
+```typescript
+import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+
+const fala = createSpeechToText({
+    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
+    language: "pt",
+});
+
+export function aquecerQuandoOcioso(): void {
+    const conexao = (navigator as { connection?: { type?: string } }).connection;
+    if (conexao?.type === "cellular") return;
+    const ocioso = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 1000));
+    ocioso(() => void fala.warmUp());
+}
+```
 
 ## Backend que transcreve **e** interpreta
 
-Se o seu servidor não devolve só o texto, e sim a resposta inteira (uma busca já interpretada, o resultado de um job), deixe o `server` devolver essa resposta e diga em `serverText` onde está o texto. Ela volta intacta em `resultado.server`, e na rota do aparelho o app manda o `text` para o endpoint de texto:
+Se o seu servidor não devolve só o texto, e sim a resposta inteira (uma busca já interpretada, o resultado de um job), deixe o `server` devolver essa resposta e diga em `serverText` onde está o texto. Ela volta intacta em `resultado.server`. Na rota do aparelho, o app manda o `text` para o endpoint de texto:
 
 ```typescript
 import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
@@ -43828,195 +43886,55 @@ export async function buscarFalando(gravacao: Blob): Promise<BuscaDeRota> {
 
 O servidor nunca interpreta duas vezes: quando ele respondeu, a resposta dele é usada; quando o aparelho transcreveu, só o texto viaja.
 
-## Como a rota é escolhida
+## Antes de oferecer o botão: `assessSpeechDevice`
 
-A cada `transcribe`, nesta ordem:
+```typescript
+import { assessSpeechDevice } from "tempest-react-sdk/speech";
 
-| Situação | Rota | `reason` |
+const aparelho = assessSpeechDevice();
+if (!aparelho.canRun) console.log("vai para o servidor:", aparelho.blockers);
+console.log(aparelho.wasmThreads, aparelho.webgpu, aparelho.deviceMemoryGb);
+```
+
+Síncrono e sem carregar nada. Só descarta o claramente impossível: sem WebAssembly, sem SIMD (o ONNX Runtime Web só tem builds SIMD), ou `deviceMemory` abaixo de `minMemoryGb` (2 GiB). Se o aparelho é lento, quem decide é o prazo. `wasmThreads: false` quer dizer que a página não está [isolada](speech.md#threads-isolamento-cross-origin): o modelo roda numa thread, 2,3× mais lento.
+
+## Opções do `createSpeechToText`
+
+| Opção | Default | O que faz |
 | --- | --- | --- |
-| Servidor fora do ar ou não configurado | aparelho, **sem prazo** | `server-unavailable` |
-| Aparelho descartado por `assessSpeechDevice` (sem WASM SIMD, pouca memória) | servidor | `device-unsupported` |
-| Aparelho já foi lento antes (veredito guardado) | servidor | `device-remembered-slow` |
-| Modelo ainda não carregado | servidor, e o modelo carrega em segundo plano | `model-not-ready` |
-| Aparelho terminou dentro do prazo | aparelho | `device` |
-| Aparelho estourou o prazo | servidor; o aparelho fica marcado como lento | `device-slow` |
-| Aparelho devolveu texto em loop | servidor | `device-degenerate` |
-| Aparelho falhou (memória, WASM) | servidor | `device-error` |
-| Servidor falhou | aparelho | `server-error` |
+| `loadModel` | — | Carrega o modelo uma vez: `() => loadWhisper({ … })`. |
+| `server` | — | `(audio, { signal, language, prompt }) => Promise<texto ou resposta>`. Sem ele, só aparelho. |
+| `serverText` | — | Onde está o texto na resposta do `server`, quando ela não é uma string. |
+| `isServerAvailable` | sempre `true` com `server` | Health check, feature flag, `navigator.onLine`. Pode ser assíncrono. |
+| `language` | detectado | Idioma, para as duas rotas. |
+| `prompt` | — | Vocabulário esperado, para as duas rotas. |
+| `realtimeFactor` | `1` | Prazo do aparelho = duração do áudio × este fator. |
+| `minBudgetMs` | `4000` | Prazo mínimo, para um clipe de 1 s não ser julgado pelo ruído. |
+| `whileLoading` | `"background"` | Modelo não carregado: `"background"` responde do servidor, `"wait"` espera o modelo. |
+| `slowVerdictTtlMs` | 7 dias | Quanto tempo o aparelho lento fica marcado. |
+| `storage` | `localStorage` | Onde o veredito fica. `null` guarda só em memória. |
+| `assessDevice` | `assessSpeechDevice` | Troca a checagem do aparelho (útil em teste). |
 
-!!! info "\"O aparelho não aguenta\" é medido, não chutado"
-    O prazo é a duração do áudio × `realtimeFactor` (default `1`: 10 s de gravação têm 10 s), nunca menos que `minBudgetMs` (4 s). Estourou: a execução é cancelada entre dois passos do decoder, o servidor responde, e o aparelho fica marcado como lento por `slowVerdictTtlMs` (7 dias), no `localStorage`. Assim a decisão vem de uma execução real **neste** aparelho com **este** modelo, e não de `deviceMemory` ou do número de núcleos.
+## Recap
 
-!!! warning "Texto em loop conta como falha"
-    Um modelo pode "terminar" com lixo em vez de dar erro. No Chromium 159 com WebGPU num ambiente headless, o whisper-tiny fp16 devolveu `"Wars!!!!…"` por 224 tokens. O SDK aplica o teste do Whisper de referência: a razão de compressão do texto (`compressionRatio`) acima de **2,4**, ou o decoder sem terminar, marca `Transcription.degenerate`. Com servidor disponível, a gravação vai para ele. Medido: fala real comprime 1,0 a 1,34×; aquele loop, 14,9×.
+- `createSpeechToText({ loadModel, server, isServerAvailable, language, prompt })` → `transcribe(blob)` → `{ text, source, reason, transcription, server }`.
+- O `server` recebe `{ signal, language, prompt }`. Se ele lançar, a gravação volta para o aparelho.
+- O aparelho tem prazo de duração × `realtimeFactor` (mínimo 4 s). Se estourar, a gravação vai ao servidor e o aparelho fica marcado como lento por 7 dias.
+- Texto em loop (`compressionRatio` > 2,4) conta como falha.
+- Modelo ainda não carregado: o servidor responde e o modelo baixa em segundo plano. `warmUp()` baixa antes.
+- `serverText` mantém a resposta inteira do backend em `resultado.server`.
 
-### Primeira gravação, modelo ainda baixando
+---
 
-Com `whileLoading: "background"` (o default), a primeira gravação vai ao servidor enquanto o modelo baixa, e as seguintes rodam no aparelho. Para baixar antes, num momento bom (Wi-Fi, app ocioso):
+# speech-sounds.md
 
-```typescript
-import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
+---
+description: "Classificação de sons no navegador com o YAMNet (sirene, buzina, música, fala), ao vivo com createSoundMonitor, e qualquer modelo ONNX de áudio seu com loadAudioModel."
+---
 
-const speech = createSpeechToText({
-    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
-    language: "pt",
-});
+# Sons do ambiente e modelo próprio
 
-export function aquecerQuandoOcioso(): void {
-    const conexao = (navigator as { connection?: { type?: string } }).connection;
-    if (conexao?.type === "cellular") return;
-    requestIdleCallback(() => void speech.warmUp());
-}
-```
-
-## Nomes próprios: `prompt`
-
-Na busca por voz, a informação central costuma ser um nome próprio, a cidade. É justamente o que o Whisper mais erra ("polo" → "Paulo"). Passe o vocabulário esperado como `prompt`:
-
-```typescript
-import { createSpeechToText, loadWhisper } from "tempest-react-sdk/speech";
-
-export const busca = createSpeechToText({
-    loadModel: () => loadWhisper({ baseUrl: "/models/whisper-base" }),
-    language: "pt",
-    prompt: "Picos, Sobral, Teresina, Juazeiro do Norte, Fortaleza, Parnaíba",
-});
-```
-
-O Whisper lê o prompt como texto que veio antes da gravação (`<|startofprev|>`, o `initial_prompt` do openai-whisper) e se inclina para aquelas grafias. No `createSpeechToText` ele vale para as duas rotas: o aparelho usa, e o callback `server` recebe em `context.prompt`.
-
-whisper-base int8, mesmas 30 frases do FLEURS `pt_br`:
-
-| Prompt | WER | Saídas degeneradas |
-| --- | --- | --- |
-| nenhum | 15,9 % | 0 |
-| nomes próprios que aparecem nas frases | **11,2 %** | 0 |
-| cidades do Nordeste que **não** aparecem | 14,3 % | 0 |
-
-Comando: `PROMPT="…" WHISPER_MODEL_DIR=… DATASET_DIR=… node scripts/bench-whisper-wer.mjs`. O vocabulário certo corta quase um terço dos erros. Um prompt sem relação com o áudio não piorou o resultado, o que torna seguro deixar a lista de cidades fixa. O encode do prompt é idêntico ao do `tokenizers` do Hugging Face no vocabulário real do Whisper (`tokenizer.parity.test.ts`).
-
-## Só no aparelho: `loadWhisper`
-
-Sem orquestrador, para quem quer controlar tudo:
-
-```typescript
-import { loadWhisper } from "tempest-react-sdk/speech";
-
-export async function transcrever(gravacao: Blob): Promise<string> {
-    const whisper = await loadWhisper({
-        baseUrl: "/models/whisper-base",
-        onProgress: ({ file, loaded, total }) => console.log(file, loaded, total),
-    });
-    const resultado = await whisper.transcribe(gravacao, {
-        language: "pt",
-        onPartial: (texto) => console.log(texto),
-    });
-    console.log(resultado.timings, resultado.degenerate);
-    await whisper.release();
-    return resultado.text;
-}
-```
-
-- **Entrada:** `Blob` (o que o `MediaRecorder` gravou), `Float32Array` mono a 16 kHz, ou `MonoPcm` em qualquer taxa (veja [Áudio para modelos](audio.md#audio-para-modelos-pcm-na-taxa-certa)).
-- **Mais de 30 s:** processado em janelas de 30 s, uma depois da outra.
-- **`language` omitido:** detectado na primeira janela, ao custo de um passo extra do decoder.
-- **Cache:** os arquivos vão para o Cache Storage (`tempest-speech-models`); a segunda carga funciona offline.
-
-### Quanto custa
-
-Chromium 159, desktop (24 núcleos, WASM com threads por COOP/COEP), whisper-tiny int8, 11 s de fala em inglês (`jfk.flac` do repositório do Whisper), execução aquecida:
-
-| Etapa | ms |
-| --- | --- |
-| Decodificar o `.flac` e reamostrar | 106 |
-| Log-mel | 91 |
-| Encoder | 283 |
-| Decoder (24 tokens) | 297 |
-| **Total** | **778** |
-
-Carga: 1 266 ms com download de 43,3 MB, 343 ms do cache. Transcrição palavra por palavra. Reproduza com `npm run build && WHISPER_MODEL_DIR=/tmp/whisper-tiny node scripts/bench-whisper.mjs` (o comando de download está no cabeçalho de `e2e/speech-whisper.spec.ts`). **Ainda não medido num Android de entrada**: é exatamente para isso que o prazo existe.
-
-!!! warning "WebGPU não é o default"
-    `providers` aceita `["webgpu", "wasm"]`, mas o export int8 usa operações inteiras que o backend WebGPU devolve à CPU nó a nó, e o fp16 no WebGPU gerou lixo no ambiente medido. Até haver medição num aparelho real, o default é `["wasm"]`.
-
-### Por que não `@huggingface/transformers`
-
-| `@huggingface/transformers@4.3.2` | O que custaria ao app |
-| --- | --- |
-| `onnxruntime-web` fixado em `1.31.0-dev.20260914` | um segundo runtime ONNX (wasm duplicado) em app que já usa `/vision` ou `/tabular` |
-| `onnxruntime-node` e `sharp` como dependências | binários nativos baixados no `npm install` de um app de navegador |
-
-O que a transcrição precisa dele — decodificação gulosa com KV-cache e o *decode* do tokenizer BPE — está no `/speech` sobre o `onnxruntime-web` que já é peer.
-
-## Quando a pessoa para de falar: Silero VAD
-
-O VAD por energia (`monitorVoiceActivity`) decide por volume, e por isso erra justo onde a voz importa: ônibus, rua, TV ligada. O `/speech` traz o **Silero VAD** (v5, ~2 MB, MIT), um modelo que separa fala de ruído quadro a quadro, a cada 32 ms.
-
-```bash
-curl -sfL -o public/models/silero_vad.onnx \
-  https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
-```
-
-### Parar a gravação sozinho: `createSpeechDetector`
-
-Mesmo formato do `monitorVoiceActivity` (`{ speaking, stop }` e `onChange(speaking)`), então um troca pelo outro:
-
-```typescript
-import { createSpeechDetector, loadSileroVad } from "tempest-react-sdk/speech";
-
-export async function pararNoSilencio(mic: MediaStream, parar: () => void): Promise<void> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx", ortAssetsUrl: "/ort/" });
-    let falou = false;
-    const detector = await createSpeechDetector(
-        mic,
-        (falando) => {
-            if (falando) falou = true;
-            else if (falou) {
-                detector.stop();
-                parar();
-            }
-        },
-        { vad, minSilenceMs: 1000 },
-    );
-}
-```
-
-No Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de fala e silêncio depois, o detector ligou aos 1,6 s e desligou aos 6,7 s, depois de 1 s calado. Processou 281 de 281 quadros.
-
-### Cortar o silêncio de uma gravação: `detectSpeechSegments`
-
-```typescript
-import { decodeAudioToPcm } from "tempest-react-sdk";
-import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
-
-export async function trechosComFala(gravacao: Blob): Promise<string> {
-    const vad = await loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
-    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), vad);
-    return segmentos.map((s) => `${s.startMs}–${s.endMs} ms`).join(", ");
-}
-```
-
-A segmentação é a do `get_speech_timestamps` do silero-vad, com os mesmos defaults (constantes `SILERO_DEFAULT_*`, com a origem citada): limiar 0,5, saída em `max(limiar − 0,15, 0,01)`, fala mínima de 250 ms, silêncio mínimo de 100 ms e 30 ms de margem.
-
-### Quanto acerta, comparado ao VAD por energia
-
-Acurácia por quadro de 32 ms em 10 frases do FLEURS `pt_br`. O rótulo vem do sinal **limpo**, e a medição é feita sobre o sinal com ruído:
-
-| Condição | Energia (default) | Energia (calibrada no piso de ruído) | **Silero** |
-| --- | --- | --- | --- |
-| limpa | 63,6 % | 86,1 % | **89,5 %** |
-| ruído branco 0 / 5 / 10 dB | 60,9 / 64,4 / 61,4 % | 41,1 / 67,0 / 82,6 % | **87,9 / 89,1 / 89,3 %** |
-| babble 0 / 5 / 10 dB | 59,2 / 60,1 / 62,6 % | 47,2 / 50,9 / 54,1 % | **74,2 / 70,7 / 77,3 %** |
-
-- No babble (outras pessoas falando, como num ônibus cheio), o Silero cai para 71–77 %: o ruído **é** fala. Mesmo assim, o recall fica em 95–98 %, então ele não perde quem está falando.
-- O VAD por energia com os defaults perde metade da fala até no sinal limpo (recall de 50 %), porque o limiar fixo de 0,045 é alto para esse nível de gravação.
-- **Custo:** 0,16 ms por quadro de 32 ms (WASM numa thread, Node 24). Cabe na thread principal, sem worker.
-
-Reproduza: gere os dados com `scripts/gen-vad-fixtures.py` e rode `DATASET_DIR=… SILERO_MODEL=… node --import ./loader/css-loader.mjs scripts/bench-vad.mjs`.
-
-## Sons do ambiente: `loadSoundClassifier`
-
-Para saber **o que** se ouve (sirene, buzina, choro, música, aplausos, fala), o `/speech` classifica com o **YAMNet**: 521 classes do AudioSet, ~16 MB, Apache-2.0. A exportação ONNX recebe a onda crua a 16 kHz e calcula o próprio log-mel por dentro, então nada de features roda na página.
+Para saber **o que** se ouve (sirene, buzina, choro, música, aplausos, fala), o `/speech` classifica com o **YAMNet**: 521 classes do AudioSet, ~16 MB, Apache-2.0. A exportação ONNX recebe a onda crua a 16 kHz e calcula o próprio log-mel por dentro, então a página não calcula features. Ele roda no mesmo runtime do Whisper; veja [como servir o runtime](speech.md#2-sirva-o-runtime).
 
 ```bash
 M=public/models/yamnet && mkdir -p $M
@@ -44024,6 +43942,8 @@ for f in yamnet.onnx yamnet_class_map.csv; do
   curl -sfL -o $M/$f "https://huggingface.co/rostrumstudios/yamnet/resolve/main/$f"
 done
 ```
+
+## Classificar uma gravação: `loadSoundClassifier`
 
 ```typescript
 import { loadSoundClassifier } from "tempest-react-sdk/speech";
@@ -44038,32 +43958,74 @@ export async function oQueSeOuve(gravacao: Blob): Promise<string> {
 }
 ```
 
-- O resultado traz o score de cada janela de 0,48 s (`frames`) e as classes com maior média (`top`).
+- `classify` aceita `Blob`, `MonoPcm` ou `Float32Array` mono a 16 kHz.
+- O resultado traz `frames` (o score de cada classe em cada janela de 0,48 s, com `startMs`) e `top` (as `topK` classes com maior média; default 5).
+- Os nomes são os do AudioSet, em inglês: `"Siren"`, `"Vehicle horn, car horn, honking"`, `"Speech"`. A lista inteira fica em `classificador.labels`.
 - Conferido nessa exportação (Node 24, WASM): tom de 1 kHz → "Beep, bleep" 0,92; uma frase do FLEURS em português → "Speech" 0,73; silêncio → "Silence" 1,00. 14 s custaram 146 ms.
-- O CSV de classes tem nomes com vírgula entre aspas ("Beep, bleep"); o SDK lê como CSV, sem quebrar o nome.
+- `classificador.release()` libera o modelo.
 
-### Ao vivo: `createSoundMonitor`
+## Ao vivo: `createSoundMonitor`
+
+Vigiar o microfone e avisar quando uma sirene começa:
 
 ```typescript
-import { createSoundMonitor, loadSoundClassifier } from "tempest-react-sdk/speech";
+import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
+import {
+    createSoundMonitor,
+    loadSoundClassifier,
+    type SoundClassifier,
+    type SoundMonitor,
+} from "tempest-react-sdk/speech";
 
-export async function vigiarSirene(mic: MediaStream): Promise<void> {
-    const classificador = await loadSoundClassifier({
+export const carregarYamnet = (): Promise<SoundClassifier> =>
+    loadSoundClassifier({
         modelUrl: "/models/yamnet/yamnet.onnx",
         labelsUrl: "/models/yamnet/yamnet_class_map.csv",
     });
-    await createSoundMonitor(mic, (ativos) => console.log(ativos), {
-        classifier: classificador,
-        classes: ["Siren", "Vehicle horn, car horn, honking"],
-    });
+
+export function vigiarSirene(
+    mic: MediaStream,
+    classificador: SoundClassifier,
+    aoOuvir: () => void,
+): Promise<SoundMonitor> {
+    let tocando = false;
+    return createSoundMonitor(
+        mic,
+        (ativos) => {
+            const agora = ativos.includes("Siren");
+            if (agora && !tocando) aoOuvir();
+            tocando = agora;
+        },
+        {
+            classifier: classificador,
+            classes: ["Siren"],
+            stream: { workletUrl: pcmWorkletUrl },
+        },
+    );
 }
 ```
 
-Janelas de ~1 s a cada 0,5 s. O score é a média das últimas `smoothing` janelas (3), e a classe liga em `threshold` (0,3) e desliga abaixo de `releaseThreshold` (0,18). Assim, um som não pisca a cada janela.
+- O `onChange` recebe a **lista de classes ativas** sempre que ela muda, não a cada janela. Uma lista vazia quer dizer que nenhuma das classes vigiadas está tocando.
+- Cada janela de ~1 s é classificada a cada 0,5 s. O score é a média das últimas `smoothing` janelas. A classe liga em `threshold` e só desliga abaixo de `releaseThreshold`. Assim, um som não pisca a cada janela.
+- O classificador é carregado à parte (`carregarYamnet`) e passado ao monitor: uma carga serve vários monitores, e quem carregou chama `release()` quando não precisar mais.
+- O monitor devolvido tem `active` (a lista de agora) e `stop()`, que libera o grafo de áudio. O microfone e o classificador continuam seus.
+- `stream: { workletUrl }` faz o monitor funcionar sob o [CSP do `tempestCsp()`](csp.md), como no [`createPcmStream`](audio.md#do-microfone-createpcmstream).
+- Uma classe que não existe no CSV lança `Unknown class "…"` na hora, em vez de nunca disparar.
+
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `classifier` | — | O classificador, de `loadSoundClassifier`. |
+| `classes` | todas | As classes vigiadas, pelo nome exato do CSV. |
+| `threshold` | `0,3` | Score médio a partir do qual a classe liga. |
+| `releaseThreshold` | `threshold × 0,6` | Score médio abaixo do qual a classe desliga. |
+| `smoothing` | `3` | Quantas janelas entram na média (~1,5 s). |
+| `windowSamples` | `15 600` | Tamanho da janela, em amostras a 16 kHz. |
+| `hopSamples` | `8 000` | Distância entre janelas (0,5 s). |
+| `stream` | — | `{ workletUrl, context }`, repassado ao `createPcmStream`. |
 
 ## Seu próprio modelo: `loadAudioModel`
 
-O que todo modelo de áudio repete fica com o SDK: decodificar, converter para mono, reamostrar com o filtro do SDK e, se for o caso, calcular o log-mel **com a config do treino**. As saídas voltam como o modelo devolve:
+O que todo modelo de áudio repete fica com o SDK: decodificar, converter para mono, reamostrar com o filtro do SDK e, se for o caso, calcular o [log-mel](audio.md#espectrograma-log-mel-logmelspectrogram) **com a config do treino**. As saídas voltam como o modelo devolve:
 
 ```typescript
 import { WHISPER_LOG_MEL_80 } from "tempest-react-sdk";
@@ -44080,34 +44042,465 @@ export async function rodarMeuModelo(gravacao: Blob): Promise<number[]> {
 }
 ```
 
-`feature: "waveform"` passa a onda crua. Um classificador próprio cabe no `loadSoundClassifier` com `feature`, `labels` e `scoresOutput`.
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `modelUrl` | — | O `.onnx`, servido da sua origem. |
+| `feature` | — | `"waveform"` passa a onda crua; uma `LogMelConfig` calcula o log-mel com ela. |
+| `sampleRate` | `16000` | Taxa que o modelo espera, com `"waveform"`. Com log-mel, vale a taxa da config. |
+| `inputDims` | `[amostras]` ou `[1, nMels, quadros]` | Forma do tensor de entrada. |
+| `inputName` | o primeiro do modelo | Nome da entrada. |
+| `ortAssetsUrl` | o do `configureOrtAssets` | Pasta do runtime. |
 
-## Antes de oferecer o botão: `assessSpeechDevice`
-
-```typescript
-import { assessSpeechDevice } from "tempest-react-sdk/speech";
-
-const aparelho = assessSpeechDevice();
-if (!aparelho.canRun) console.log("vai para o servidor:", aparelho.blockers);
-console.log(aparelho.wasmThreads, aparelho.webgpu, aparelho.deviceMemoryGb);
-```
-
-Síncrono e sem carregar nada. Só descarta o claramente impossível: sem WebAssembly, sem SIMD (o ONNX Runtime Web só tem builds SIMD), ou `deviceMemory` abaixo de `minMemoryGb` (2 GiB). Lento ou não, quem decide é o prazo.
-
-!!! tip "Threads precisam de isolamento cross-origin"
-    O WASM do ONNX Runtime usa várias threads só com `crossOriginIsolated` (headers `Cross-Origin-Opener-Policy: same-origin` e `Cross-Origin-Embedder-Policy: require-corp`). Sem eles, roda numa thread só, e o prazo vai notar: no mesmo desktop, o whisper-base nas 30 frases do FLEURS foi de fator de tempo real 0,109 para **0,248** (`ISOLATION=0 … node scripts/bench-whisper-wer.mjs`), com o mesmo WER. Num celular de entrada, a thread única é o que manda a gravação para o servidor. `assessSpeechDevice().wasmThreads` diz se o isolamento está ligado.
+Um classificador seu cabe no `loadSoundClassifier`, com `feature`, `labels` (ou `labelsUrl`) e `scoresOutput`.
 
 ## Recap
 
-- `createSpeechToText({ loadModel, server, isServerAvailable, language })` → `transcribe(blob)` → `{ text, source, reason }`. ✅
-- O aparelho tem prazo de áudio × `realtimeFactor`; estourou, vai ao servidor e o aparelho fica marcado como lento por 7 dias.
-- Texto em loop (`compressionRatio` > 2,4) conta como falha.
-- `prompt` com o vocabulário esperado: 15,9 % → 11,2 % de WER no base, e um prompt sem relação não piora.
-- Modelo ainda não carregado: o servidor responde e o modelo baixa em segundo plano.
-- `loadWhisper` para uso direto; whisper-tiny int8 transcreveu 11 s em 778 ms num desktop (`scripts/bench-whisper.mjs`).
-- `loadWhisper({ worker })` com um arquivo `exposeWhisperWorker()`: a tela segue em 60 fps durante a transcrição (3 → 45 frames em 720 ms).
-- Silero VAD (`createSpeechDetector`, `detectSpeechSegments`): 88–89 % de acurácia por quadro com ruído branco, contra ~61 % do VAD por energia; 0,16 ms por quadro.
-- `onnxruntime-web` é peer opcional; WebGPU fica fora do default até ser medido num aparelho real.
+- `loadSoundClassifier({ modelUrl, labelsUrl })` → `classify(blob)` → `{ frames, top }`, com as 521 classes do AudioSet.
+- `createSoundMonitor(mic, onChange, { classifier, classes })` chama `onChange(ativos)` quando a lista muda, com média de 3 janelas e histerese (0,3 liga, 0,18 desliga). Sob CSP, passe `stream: { workletUrl }`.
+- `loadAudioModel({ modelUrl, feature, inputDims })` roda qualquer modelo de áudio ONNX, com decodificação, reamostragem e log-mel feitos pelo SDK.
+
+---
+
+# speech-vad.md
+
+---
+description: "Silero VAD no navegador: createSpeechDetector para a gravação sozinho quando a pessoa para de falar, e detectSpeechSegments acha os trechos com fala de uma gravação."
+---
+
+# Fim da fala: Silero VAD
+
+Numa busca por voz, a pessoa fala e espera. Se o app espera o botão de parar ou o tempo máximo, a espera fica longa. Melhor é parar a gravação sozinho, ~1 s depois que ela se cala.
+
+O [`monitorVoiceActivity`](audio.md#quem-esta-falando-monitorvoiceactivity) decide por volume, e por isso erra justo onde a voz importa: ônibus, rua, TV ligada. O `/speech` traz o **Silero VAD** (v5, ~2 MB, MIT), um modelo que separa fala de ruído a cada 32 ms. Ele roda no mesmo runtime do Whisper; veja [como servir o runtime](speech.md#2-sirva-o-runtime).
+
+```bash
+curl -sfL -o public/models/silero_vad.onnx \
+  https://github.com/snakers4/silero-vad/raw/master/src/silero_vad/data/silero_vad.onnx
+```
+
+## Gravar até a pessoa parar de falar
+
+O exemplo completo: abre o microfone, grava e para 1 s depois do fim da fala. Se ninguém falar em 15 s, devolve `null` em vez de um áudio vazio. Ele já roda sob o [CSP do `tempestCsp()`](csp.md). Chame a partir do clique no botão: é o gesto do usuário que libera o microfone e o áudio.
+
+```typescript
+import { createAudioRecorder } from "tempest-react-sdk";
+import pcmWorkletUrl from "tempest-react-sdk/pcm-worklet.js?url";
+import { createSpeechDetector, loadSileroVad, type SileroVad } from "tempest-react-sdk/speech";
+
+const SEM_FALA_MS = 15_000;
+
+let vadCarregado: Promise<SileroVad> | undefined;
+
+export function carregarVad(): Promise<SileroVad> {
+    vadCarregado ??= loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+    return vadCarregado;
+}
+
+export async function gravarAteCalar(): Promise<Blob | null> {
+    const vad = await carregarVad();
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const gravador = createAudioRecorder(mic);
+    let limite: ReturnType<typeof setTimeout> | undefined;
+    try {
+        gravador.start();
+        let falou = false;
+        let encerrar = (): void => undefined;
+        const fim = new Promise<void>((resolve) => (encerrar = resolve));
+        limite = setTimeout(encerrar, SEM_FALA_MS);
+        const detector = await createSpeechDetector(
+            mic,
+            (falando) => {
+                if (falando) {
+                    falou = true;
+                    clearTimeout(limite);
+                } else if (falou) encerrar();
+            },
+            { vad, minSilenceMs: 1000, stream: { workletUrl: pcmWorkletUrl } },
+        );
+        await fim;
+        detector.stop();
+        const { blob } = await gravador.stop();
+        return falou ? blob : null;
+    } finally {
+        clearTimeout(limite);
+        if (gravador.status() === "recording") gravador.cancel();
+        mic.getTracks().forEach((track) => track.stop());
+    }
+}
+```
+
+- **O VAD carrega uma vez** (`carregarVad`) e serve para todas as gravações. Chame `carregarVad()` cedo, ao montar a tela, para a primeira gravação não esperar o download.
+- **Sem fala, sem transcrição.** Mandar silêncio ao Whisper é pedir texto inventado: com um `prompt`, o modelo pode devolver o próprio prompt. Por isso o `null`.
+- O limite de 15 s vale só até a fala começar. Depois, quem para é o silêncio.
+- O gravador começa **antes** do detector. O detector precisa de alguns quadros para ligar: no teste abaixo, a fala começou em 1,0 s e ele ligou em 1,6 s. Como a gravação já estava rodando, o começo não se perde.
+- O `onChange` recebe `true` quando a fala começa e `false` quando ela termina. Só é chamado na **virada**, não a cada quadro.
+- `stop()` libera o grafo de áudio do detector. Ele **não** para o microfone (o stream é seu) nem descarrega o VAD (`vad.release()` faz isso). Um VAD carregado serve para várias gravações.
+- `stream: { workletUrl }` é a mesma opção do [`createPcmStream`](audio.md#do-microfone-createpcmstream). Sem ela, o processador carrega de uma URL `blob:`, que o `script-src` do `tempestCsp()` recusa.
+
+Medido no Chromium 159, com microfone falso tocando 1 s de silêncio, 5,5 s de uma frase gravada e silêncio depois: o detector ligou aos 1,6 s e desligou aos 6,7 s. A frase gravada já termina com pausa própria, então o fim da fala real fica antes dos 6,5 s. Processou 281 de 281 quadros.
+
+### Opções do `createSpeechDetector(fonte, onChange, opções)`
+
+`fonte` é um `MediaStream`, um `MediaStreamTrack` ou um `AudioNode` (o `track` de um `createVoiceChain`, por exemplo). A função devolve `{ speaking, stop }`, o mesmo formato do `monitorVoiceActivity`. Dá para trocar um pelo outro.
+
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `vad` | — | O modelo, de `loadSileroVad`. |
+| `minSilenceMs` | `100` | Silêncio que encerra a fala. Para parar uma gravação, use ~`1000`: 100 ms cortam no meio de uma pausa. |
+| `threshold` | `0,5` | Probabilidade de fala que liga. |
+| `negThreshold` | `max(threshold − 0,15, 0,01)` | Probabilidade abaixo da qual conta como silêncio. |
+| `stream` | — | `{ workletUrl, context }`, repassado ao `createPcmStream`. |
+| `onProbability` | — | Recebe a probabilidade de cada quadro, para um medidor ou para calibrar o limiar. |
+
+`minSpeechMs` existe no tipo, mas não vale ao vivo: uma resposta de uma palavra ainda precisa ligar o detector.
+
+## Achar a fala numa gravação: `detectSpeechSegments`
+
+Para cortar o silêncio antes de enviar ou de transcrever:
+
+```typescript
+import { decodeAudioToPcm } from "tempest-react-sdk";
+import { detectSpeechSegments, loadSileroVad } from "tempest-react-sdk/speech";
+
+const vad = loadSileroVad({ modelUrl: "/models/silero_vad.onnx" });
+
+export async function segundosDeFala(gravacao: Blob): Promise<number> {
+    const segmentos = await detectSpeechSegments(await decodeAudioToPcm(gravacao), await vad);
+    console.log(segmentos);
+    return segmentos.reduce((total, s) => total + (s.endMs - s.startMs), 0) / 1000;
+}
+```
+
+O console mostra uma lista de `{ startMs, endMs }`, um item por trecho com fala.
+
+A segmentação é a do `get_speech_timestamps` do silero-vad, com os mesmos defaults (constantes `SILERO_DEFAULT_*`, com a origem citada no código):
+
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `threshold` | `0,5` | Probabilidade que começa a fala. |
+| `negThreshold` | `max(threshold − 0,15, 0,01)` | Probabilidade abaixo da qual conta como silêncio. |
+| `minSpeechMs` | `250` | Trecho mais curto que é mantido. |
+| `minSilenceMs` | `100` | Silêncio que separa dois trechos. |
+| `padMs` | `30` | Margem acrescentada a cada lado do trecho. |
+
+## Quanto acerta
+
+Comparado ao VAD por energia, em acurácia por quadro de 32 ms em 10 frases do FLEURS `pt_br`. O rótulo vem do sinal **limpo**, e a medição é feita sobre o sinal com ruído:
+
+| Condição | Energia (default) | Energia (calibrada no piso de ruído) | **Silero** |
+| --- | --- | --- | --- |
+| limpa | 63,6 % | 86,1 % | **89,5 %** |
+| ruído branco 0 / 5 / 10 dB | 60,9 / 64,4 / 61,4 % | 41,1 / 67,0 / 82,6 % | **87,9 / 89,1 / 89,3 %** |
+| babble 0 / 5 / 10 dB | 59,2 / 60,1 / 62,6 % | 47,2 / 50,9 / 54,1 % | **74,2 / 70,7 / 77,3 %** |
+
+- No babble (outras pessoas falando, como num ônibus cheio), o Silero cai para 71–77 %: o ruído **é** fala. Mesmo assim, o recall fica em 95–98 %, então ele não perde quem está falando.
+- O VAD por energia com os defaults perde metade da fala até no sinal limpo (recall de 50 %), porque o limiar fixo de 0,045 é alto para esse nível de gravação.
+- **Custo:** 0,16 ms por quadro de 32 ms (WASM numa thread, Node 24). Cabe na thread principal, sem worker.
+
+??? info "Como reproduzir"
+    Gere os dados com `scripts/gen-vad-fixtures.py` e rode `DATASET_DIR=… SILERO_MODEL=… node --import ./loader/css-loader.mjs scripts/bench-vad.mjs`.
+
+## Recap
+
+- `loadSileroVad({ modelUrl })` carrega o modelo (~2 MB). Carregue uma vez e reuse em todas as gravações.
+- Sem fala até o limite: devolva `null`, não mande o silêncio ao Whisper.
+- Para juntar com a transcrição, veja [a busca por voz completa](speech-fallback.md#a-busca-por-voz-inteira).
+- `createSpeechDetector(mic, onChange, { vad, minSilenceMs: 1000 })` diz quando a fala começa e termina. Sob CSP, passe `stream: { workletUrl }`.
+- `stop()` libera o grafo de áudio; o microfone e o VAD continuam seus.
+- `detectSpeechSegments(pcm, vad)` → `[{ startMs, endMs }]`, com os defaults do silero-vad.
+- Acurácia por quadro de 87,9 a 89,3 % com ruído branco, contra ~61 % do VAD por energia; 0,16 ms por quadro.
+
+---
+
+# speech.md
+
+---
+description: "Fala e som no navegador com modelos ONNX: transcrição com o Whisper (com fallback para o servidor), fim da fala com o Silero VAD e sons do ambiente com o YAMNet."
+---
+
+# Transcrição no aparelho (Whisper)
+
+O subpath `tempest-react-sdk/speech` roda modelos de áudio **no navegador do usuário**: transcreve fala com o Whisper, percebe quando a pessoa parou de falar com o Silero VAD e reconhece sons do ambiente com o YAMNet. Nada de áudio sai do aparelho, a não ser que você mande. 🎙️
+
+Esta página leva da instalação até a primeira transcrição. As outras três cobrem o resto:
+
+| Você quer… | Página |
+| --- | --- |
+| transcrever no aparelho e mandar ao **servidor** quando o aparelho não der conta | [Aparelho ou servidor](speech-fallback.md) |
+| parar a gravação **sozinho** quando a pessoa para de falar, ou cortar silêncio | [Fim da fala (Silero VAD)](speech-vad.md) |
+| saber **o que** se ouve (sirene, buzina, música) ou rodar um modelo de áudio seu | [Sons e modelo próprio](speech-sounds.md) |
+
+## Termos que aparecem aqui
+
+| Termo | O que é |
+| --- | --- |
+| **ONNX** | Formato de arquivo de modelo. O **ONNX Runtime Web** (`onnxruntime-web`) é quem o executa no navegador. |
+| **WASM** | WebAssembly: o código do runtime, compilado. **SIMD** (contas em lote) é obrigatório; **threads** (vários núcleos) são opcionais e exigem os headers de [isolamento](#threads-isolamento-cross-origin). |
+| **int8** | Pesos do modelo guardados em 8 bits: arquivo ~4× menor que o original, com perda pequena de acerto. |
+| **WER** | *Word error rate*, a fração de palavras erradas. 15 % = uma palavra errada em cada sete. |
+| **RTF** | *Real-time factor*, o tempo de processamento ÷ a duração do áudio. 0,1 = 10 s de fala em 1 s. Não confunda com a opção `realtimeFactor` do `createSpeechToText`, que define um **prazo**. |
+| **VAD** | *Voice activity detection*: dizer, quadro a quadro, se tem fala. |
+| **log-mel** | A representação do áudio que o Whisper lê, uma "imagem" de frequências por tempo. O SDK calcula por você. |
+
+## Instalação
+
+```bash
+npm install tempest-react-sdk onnxruntime-web
+```
+
+`onnxruntime-web` é peer opcional, o mesmo do `/vision` e do `/tabular`. Ele só é importado quando um modelo carrega, então importar o subpath e chamar `assessSpeechDevice()` não exige o pacote.
+
+O app serve três coisas da própria origem. Nenhuma delas vai no bundle:
+
+| O quê | Tamanho | Quem serve |
+| --- | --- | --- |
+| o modelo (`whisper-base` int8) | 77 MB | você, de `public/models/` (passo 1) |
+| o runtime do ONNX (`.wasm` + `.mjs`) | ~25 MB | o plugin `tempestOrtAssets()` (passo 2) |
+| o worker que roda o modelo | uma linha | você (passo 4) |
+
+O navegador baixa os dois primeiros só quando o modelo carrega, e os guarda: a segunda vez funciona offline.
+
+## 1. Sirva o modelo
+
+O SDK lê o export ONNX do Hugging Face no layout do `onnx-community/whisper-*`. Baixe uma vez:
+
+```bash
+M=public/models/whisper-base && mkdir -p $M/onnx
+for f in config.json generation_config.json tokenizer.json \
+  onnx/encoder_model_int8.onnx onnx/decoder_model_merged_int8.onnx; do
+  curl -sfL -o $M/$f "https://huggingface.co/onnx-community/whisper-base/resolve/main/$f"
+done
+```
+
+| Modelo | Download (int8) | WER em português | RTF (desktop) |
+| --- | --- | --- | --- |
+| `whisper-tiny` | 41 MB | 34,0 % | 0,071 |
+| `whisper-base` | 77 MB | **15,9 %** | 0,109 |
+| `whisper-small` | 249 MB | — | grande demais para celular |
+
+**Para português, use o `whisper-base`:** o tiny erra uma palavra em cada três.
+
+??? info "Como foi medido"
+    - **Tamanhos:** arquivos `encoder_model_int8.onnx` + `decoder_model_merged_int8.onnx` na API do Hugging Face, em 26/11/2026.
+    - **WER:** 30 frases do FLEURS `pt_br` (conjunto `dev`, 363 s de fala lida), Chromium 159 num desktop, com `npm run build && WHISPER_MODEL_DIR=… DATASET_DIR=… LANGUAGE=pt node scripts/bench-whisper-wer.mjs`.
+    - **O que entra no WER:** a normalização tira pontuação e caixa, mas mantém acentos e não converte numerais. Por isso "dez" × "10" conta como erro.
+    - **Os erros que pesam numa busca são nomes próprios** ("polo" → "Paulo"). Meça com gravações do seu domínio: o mesmo script aceita qualquer pasta com `transcripts.tsv` (`arquivo<TAB>texto`).
+
+## 2. Sirva o runtime
+
+O ONNX Runtime Web **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado pelo Vite, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin [`tempestOrtAssets()`](vite-config.md#modelos-onnx-no-navegador-tempestortassets) serve os binários em `/ort/`, no dev e no build:
+
+```ts
+import { createViteConfig, tempestCsp, tempestOrtAssets } from "tempest-react-sdk/vite";
+
+export default createViteConfig({
+    plugins: [tempestOrtAssets({ crossOriginIsolation: true }), tempestCsp()],
+});
+```
+
+- `crossOriginIsolation: true` liga as [threads](#threads-isolamento-cross-origin) no `vite dev` e no `vite preview`. Em produção, os headers vêm do seu servidor.
+- O [`tempestCsp()`](csp.md) é opcional e fica por último. O default dele já libera o que o `/speech` precisa: `'wasm-unsafe-eval'` para compilar o runtime e `worker-src 'self' blob:` para os workers. O AudioWorklet é a exceção: as funções que ouvem o microfone recebem `stream: { workletUrl }` ([fim da fala](speech-vad.md)).
+- O `import url from "…?url"` dos exemplos é sintaxe do Vite. Em TypeScript, ele compila com `"types": ["vite/client"]` no `tsconfig`, que o template do SDK já traz.
+
+Diga ao SDK onde o runtime está **uma vez**, no boot do app (o `main.tsx`). Vale para todo modelo do `/speech`, do `/tabular` e do `/vision`, inclusive dentro do worker do passo 4:
+
+```typescript
+import { configureOrtAssets } from "tempest-react-sdk/speech";
+
+configureOrtAssets("/ort/");
+```
+
+!!! warning "nginx: `.mjs` e os headers de isolamento"
+    O `mime.types` padrão do nginx não conhece `.mjs`. O runtime sai como `application/octet-stream` e o navegador recusa o módulo. No bloco `server`:
+
+    ```nginx
+    location ~* \.mjs$ {
+        types { } default_type application/javascript;
+    }
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Cross-Origin-Embedder-Policy "credentialless" always;
+    ```
+
+    O nginx não herda `add_header`: uma `location` que declara os próprios headers (cache, CSP) perde os do `server`. Repita os dois de isolamento nela.
+
+## 3. A primeira transcrição
+
+Com o modelo e o runtime servidos, `loadWhisper` carrega e `transcribe` transcreve:
+
+```typescript
+import { loadWhisper } from "tempest-react-sdk/speech";
+
+export async function transcreverArquivo(gravacao: Blob): Promise<string> {
+    const whisper = await loadWhisper({ baseUrl: "/models/whisper-base" });
+    const resultado = await whisper.transcribe(gravacao, { language: "pt" });
+    console.log(resultado);
+    return resultado.text;
+}
+```
+
+Para gravar o `Blob`, use o [`createAudioRecorder`](audio.md#fora-do-react-os-primitivos) (ou o `useAudioRecorder`, no React). O console mostra isto:
+
+```text
+{
+  text: "Você pode ver as pirâmides no escuro e no silêncio antes de o chão começar.",
+  language: "pt",
+  audioMs: 8160,
+  timings: { decodeMs: 56, featuresMs: 83, encoderMs: 467, decoderMs: 430, totalMs: 1037 },
+  compressionRatio: 0.99,
+  degenerate: false,
+  tokens: [ … 22 ids … ]
+}
+```
+
+Medido numa frase do FLEURS `pt_br` ("Você pode ver as pirâmides no escuro e também no silêncio antes de o show começar."), whisper-base int8, Chromium 159 num desktop, execução aquecida, com `WHISPER_MODEL_DIR=… LANGUAGE=pt node scripts/bench-whisper.mjs`. O modelo trocou "show" por "chão" e omitiu "também": é o tipo de erro que o [`prompt`](#nomes-proprios-prompt) reduz.
+
+O que o `transcribe` aceita e o que ele faz:
+
+- **Entrada:** `Blob` (o que o `MediaRecorder` gravou: webm/opus, mp4/aac, wav, mp3), `Float32Array` mono a 16 kHz, ou `MonoPcm` em qualquer taxa.
+- **Mais de 30 s:** processado em janelas de 30 s, uma depois da outra.
+- **`language` omitido:** detectado na primeira janela, ao custo de um passo extra do decoder.
+- **`onPartial(texto)`:** recebe o texto parcial a cada token, para legenda ao vivo. **`signal`** cancela.
+- **`degenerate: true`:** o modelo entrou em loop ("Wars!!!!…"). Trate como falha. O [`createSpeechToText`](speech-fallback.md) faz isso por você.
+- **Cache:** os arquivos vão para o Cache Storage (`tempest-speech-models`). A segunda carga não baixa nada e funciona offline.
+- **`whisper.release()`** libera a memória do modelo.
+
+## 4. Tire o modelo da thread principal: `worker`
+
+O backend WASM do ONNX Runtime calcula na thread que o chama. Na página, isso **congela a tela** durante a transcrição inteira: o spinner para, e um toque espera o fim. Rode o modelo num Web Worker. São dois arquivos:
+
+```text
+src/
+├── fala.worker.ts   ← o worker: uma linha
+└── fala.ts          ← quem carrega o modelo
+```
+
+`src/fala.worker.ts`:
+
+```typescript
+import { exposeWhisperWorker } from "tempest-react-sdk/speech";
+
+exposeWhisperWorker();
+```
+
+`src/fala.ts`:
+
+```typescript
+import { loadWhisper } from "tempest-react-sdk/speech";
+
+export const carregarWhisper = () =>
+    loadWhisper({
+        baseUrl: "/models/whisper-base",
+        worker: new Worker(new URL("./fala.worker.ts", import.meta.url), { type: "module" }),
+    });
+```
+
+O modelo devolvido tem a mesma interface do passo 3. Três detalhes que o SDK já resolve:
+
+- O `new URL("./…", import.meta.url)` é o formato que o Vite reconhece para empacotar o worker. O `tempestOrtAssets()` configura `worker.format: "es"`, que o worker precisa.
+- A pasta do runtime (`configureOrtAssets` ou `ortAssetsUrl`) é enviada ao worker junto com as opções.
+- A gravação é decodificada na página (worker não tem `OfflineAudioContext`), e só as amostras vão para o worker, transferidas sem cópia. Cancelar rejeita na hora e para o worker no próximo passo do decoder.
+
+??? info "Medido: a tela deixa de congelar"
+    Chromium 159, whisper-tiny int8, 11 s de fala (`WHISPER_MODEL_DIR=… node scripts/bench-whisper-worker.mjs`):
+
+    | Onde roda | Transcrição | Frames desenhados (esperado a 60 fps) |
+    | --- | --- | --- |
+    | página, com threads | 724 ms | **3** (43) |
+    | worker, com threads | 715 ms | **45** (43) |
+    | página, 1 thread | 1 423 ms | **2** (85) |
+    | worker, 1 thread | 1 419 ms | **86** (85) |
+
+    O tempo é o mesmo; só a tela deixa de congelar.
+
+??? info "Por que não o `env.wasm.proxy` do ONNX Runtime"
+    O proxy embutido **transfere** os buffers de entrada para o worker dele, e o decoder do Whisper reusa a saída do encoder a cada passo. Medido: `DataCloneError: An ArrayBuffer is detached` no segundo passo. Ele também não funciona com WebGPU. Aqui o laço inteiro (features, encoder, decoder) roda no worker.
+
+## Nomes próprios: `prompt`
+
+Numa busca por voz, a informação central costuma ser um nome próprio, como a cidade. É justamente o que o Whisper mais erra ("polo" → "Paulo"). Passe o vocabulário esperado como `prompt`:
+
+```typescript
+import { loadWhisper } from "tempest-react-sdk/speech";
+
+export async function transcreverBusca(gravacao: Blob): Promise<string> {
+    const whisper = await loadWhisper({ baseUrl: "/models/whisper-base" });
+    const { text } = await whisper.transcribe(gravacao, {
+        language: "pt",
+        prompt: "Picos, Sobral, Teresina, Juazeiro do Norte, Fortaleza, Parnaíba",
+    });
+    return text;
+}
+```
+
+O Whisper lê o prompt como texto que veio antes da gravação e se inclina para aquelas grafias. Nas mesmas 30 frases, o WER do base foi de 15,9 % para **11,2 %**. Uma lista sem relação com o áudio não piorou o resultado (14,3 %), então é seguro deixar a lista fixa. Mantenha a lista curta: em silêncio ou ruído, o modelo pode repetir o prompt.
+
+??? info "Como foi medido"
+    whisper-base int8, 30 frases do FLEURS `pt_br`, com `PROMPT="…" WHISPER_MODEL_DIR=… DATASET_DIR=… node scripts/bench-whisper-wer.mjs`:
+
+    | Prompt | WER | Saídas degeneradas |
+    | --- | --- | --- |
+    | nenhum | 15,9 % | 0 |
+    | nomes próprios que aparecem nas frases | **11,2 %** | 0 |
+    | cidades do Nordeste que **não** aparecem | 14,3 % | 0 |
+
+    O encode do prompt é idêntico ao do `tokenizers` do Hugging Face no vocabulário real do Whisper (`tokenizer.parity.test.ts`).
+
+## Opções do `loadWhisper`
+
+| Opção | Default | O que faz |
+| --- | --- | --- |
+| `baseUrl` | — | Pasta do export (`config.json`, `tokenizer.json`, `onnx/…`). |
+| `dtype` | `"int8"` | Quais pesos baixar: `"int8"`, `"fp32"`, `"fp16"` ou `"q4"`. |
+| `worker` | — | Roda o modelo neste Web Worker (passo 4). |
+| `ortAssetsUrl` | o do `configureOrtAssets` | Pasta do runtime, se você não chamou `configureOrtAssets`. |
+| `onProgress` | — | `({ file, loaded, total })` durante o download, por arquivo. |
+| `persistStorage` | `false` | Pede `navigator.storage.persist()` antes de baixar, para o navegador não apagar o modelo quando falta disco. Fica desligado por default porque, no Firefox, o pedido abre um prompt de permissão. |
+| `providers` | `["wasm"]` | Backends do ONNX Runtime, em ordem de preferência. |
+| `cacheName` | `"tempest-speech-models"` | Nome do bucket no Cache Storage. |
+
+!!! warning "WebGPU não é o default"
+    `providers` aceita `["webgpu", "wasm"]`, mas o export int8 usa operações inteiras que o backend WebGPU devolve à CPU nó a nó, e o fp16 no WebGPU gerou lixo no ambiente medido. Até haver medição num aparelho real, o default é `["wasm"]`.
+
+## Threads: isolamento cross-origin
+
+O WASM do ONNX Runtime usa vários núcleos só numa página `crossOriginIsolated`, com os headers `Cross-Origin-Opener-Policy: same-origin` e `Cross-Origin-Embedder-Policy: credentialless`. Sem eles, roda numa thread só e fica **2,3× mais lento**: o whisper-base foi de RTF 0,109 para 0,248 no mesmo desktop, com o mesmo WER (`ISOLATION=0 … node scripts/bench-whisper-wer.mjs`). Num celular de entrada, é a diferença entre transcrever no aparelho e mandar ao servidor.
+
+- **Dev e preview:** `tempestOrtAssets({ crossOriginIsolation: true })`.
+- **Produção:** os dois `add_header` do nginx do passo 2.
+- **Por que `credentialless`, e não `require-corp`:** com `require-corp`, toda imagem, fonte ou script de outra origem sem o header `Cross-Origin-Resource-Policy` deixa de carregar. Com `credentialless`, eles carregam sem cookies. Num navegador que não conhece `credentialless`, a página não fica isolada: o modelo roda numa thread, mas roda.
+- **Para conferir:** `crossOriginIsolated` no console, ou `assessSpeechDevice().wasmThreads`.
+
+## Quanto custa
+
+Chromium 159, desktop (24 núcleos, WASM com threads), whisper-tiny int8, 11 s de fala em inglês (`jfk.flac` do repositório do Whisper), execução aquecida:
+
+| Etapa | ms |
+| --- | --- |
+| Decodificar o `.flac` e reamostrar | 106 |
+| Log-mel | 91 |
+| Encoder | 283 |
+| Decoder (24 tokens) | 297 |
+| **Total** | **778** |
+
+Carga: 1 266 ms com download de 43,3 MB, 343 ms do cache. Reproduza com `npm run build && WHISPER_MODEL_DIR=/tmp/whisper-tiny node scripts/bench-whisper.mjs` (o comando de download está no cabeçalho de `e2e/speech-whisper.spec.ts`). **Ainda não medido num Android de entrada**: é para isso que o [prazo do `createSpeechToText`](speech-fallback.md#como-a-rota-e-escolhida) existe.
+
+??? info "Por que não `@huggingface/transformers`"
+    | `@huggingface/transformers@4.3.2` | O que custaria ao app |
+    | --- | --- |
+    | `onnxruntime-web` fixado em `1.31.0-dev.20260914` | um segundo runtime ONNX (wasm duplicado) em app que já usa `/vision` ou `/tabular` |
+    | `onnxruntime-node` e `sharp` como dependências | binários nativos baixados no `npm install` de um app de navegador |
+
+    O que a transcrição precisa dele (decodificação gulosa com KV-cache e o tokenizer BPE) está no `/speech`, sobre o `onnxruntime-web` que já é peer.
+
+## Recap
+
+- Sirva o modelo em `public/models/` (o `whisper-base` int8: 77 MB, 15,9 % de WER em português) e o runtime com `tempestOrtAssets()` (~25 MB). No nginx, `.mjs` precisa de MIME de JavaScript.
+- `configureOrtAssets("/ort/")` uma vez no boot. Vale para todo modelo, inclusive no worker.
+- `loadWhisper({ baseUrl })` → `transcribe(blob, { language: "pt" })` → `{ text, degenerate, timings, … }`.
+- `loadWhisper({ worker })` com um arquivo `exposeWhisperWorker()`: a tela segue desenhando durante a transcrição (3 → 45 frames em ~720 ms).
+- `prompt` com os nomes próprios esperados: WER de 15,9 % → 11,2 %.
+- Threads: COOP `same-origin` + COEP `credentialless` (RTF 0,248 → 0,109). `tempestOrtAssets({ crossOriginIsolation: true })` liga no dev.
+- Próximo: [aparelho ou servidor](speech-fallback.md), [fim da fala](speech-vad.md), [sons e modelo próprio](speech-sounds.md).
 
 ---
 
@@ -52154,21 +52547,25 @@ do fallback da SPA no lugar dele. URLs absolutas `http(s):` não são conferidas
 O ONNX Runtime Web (`/speech`, `/tabular`, `/vision`) **não embute** os `.wasm`, nem nos builds `.bundle`. Num app empacotado, a sessão falha com `Aborted(both async and sync fetching of the wasm failed)`, sem dizer qual arquivo faltou. O plugin serve os binários do `onnxruntime-web` que o app instalou, da sua própria origem:
 
 ```ts
-import { defineConfig } from "vite";
-import { tempestOrtAssets } from "tempest-react-sdk/vite";
+import { createViteConfig, tempestOrtAssets } from "tempest-react-sdk/vite";
 
-export default defineConfig({ plugins: [tempestOrtAssets()] });
+export default createViteConfig({
+    plugins: [tempestOrtAssets({ crossOriginIsolation: true })],
+});
 ```
+
+Com `defineConfig` do Vite, o plugin entra do mesmo jeito em `plugins`.
 
 - **`vite dev`:** responde `/ort/<arquivo>` direto de `node_modules/onnxruntime-web/dist/`.
 - **Build:** emite os mesmos quatro arquivos (`ort-wasm-simd-threaded[.jsep].{wasm,mjs}`) em `dist/ort/`.
 - **Workers como módulo ES** (`worker.format: "es"`), a menos que o app já tenha escolhido. O default do Vite, IIFE, não faz code-splitting, e o worker de um modelo sempre tem o `import("onnxruntime-web")` sob demanda: sem isso, o build quebra com `Invalid value "iife" for option "worker.format"`.
+- **`crossOriginIsolation: true`** (default `false`): manda `Cross-Origin-Opener-Policy: same-origin` e `Cross-Origin-Embedder-Policy: credentialless` no `vite dev` e no `vite preview`. A página fica `crossOriginIsolated` e o WASM roda em várias threads, 2,3× mais rápido no whisper-base. `credentialless` mantém carregando imagem e fonte de outra origem (sem cookies), que o `require-corp` bloquearia. Em produção, quem manda os headers é o seu servidor; veja [Threads](speech.md#threads-isolamento-cross-origin).
 - **Sem o pacote instalado:** falha no boot dizendo o que instalar. Numa versão que não traga um dos arquivos, falha nomeando o arquivo.
 
 !!! warning "Em produção, o servidor precisa servir `.mjs` como JavaScript"
     O ONNX Runtime carrega `ort-wasm-simd-threaded.jsep.mjs` como módulo, e o `mime.types` padrão do **nginx** não conhece `.mjs`: o arquivo sai como `application/octet-stream`, o navegador recusa (`Failed to fetch dynamically imported module`) e o modelo não carrega. Achado servindo um app real pelo nginx. Adicione um `location ~* \.mjs$ { types { } default_type application/javascript; }`, ou `application/javascript mjs;` ao seu `mime.types`.
 
-Aponte o runtime para o mesmo caminho: `loadWhisper({ ortAssetsUrl: "/ort/" })` ou `configureOrtAssets("/ort/")`. Os arquivos (~25 MB) **não** entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe `ortAssetUrls("/ort/")` em `additionalUrls` do `tempestPwaManifest`.
+Aponte o runtime para o mesmo caminho, uma vez no boot: `configureOrtAssets("/ort/")` (ou `ortAssetsUrl: "/ort/"` em cada modelo). Os arquivos (~25 MB) **não** entram no precache do PWA, para não pesar na instalação de quem nunca usa o modelo. Para inferência offline desde o primeiro uso, passe `ortAssetUrls("/ort/")` em `additionalUrls` do `tempestPwaManifest`.
 
 ## Referência das opções
 

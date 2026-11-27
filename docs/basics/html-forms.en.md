@@ -1,3 +1,7 @@
+---
+description: "Accessible HTML forms: labels, the accessible name and how the SDK's fields build them."
+---
+
 # Forms and accessibility
 
 !!! tip "Skip this page if you already know…"

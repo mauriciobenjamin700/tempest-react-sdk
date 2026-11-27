@@ -151,7 +151,7 @@ moved `server.hmr` to another port, add its origin under
 | Directive | Value | Why |
 | --- | --- | --- |
 | `default-src` | `'self'` | the baseline |
-| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/vision`, `/tabular`) compiles WebAssembly; without it `WebAssembly.compile` throws `CompileError` |
+| `script-src` | `'self' 'wasm-unsafe-eval'` | ONNX Runtime (`/speech`, `/vision`, `/tabular`) compiles WebAssembly; without it `WebAssembly.compile` throws `CompileError` |
 | `style-src` | `'self' 'unsafe-inline'` | `applyTheme` injects a `<style>` |
 | `img-src` | `'self' data: blob:` | image previews through object URLs |
 | `font-src` | `'self' data:` | embedded fonts |
@@ -191,7 +191,7 @@ export default createViteConfig({
 ```
 
 !!! warning "`AudioWorklet` follows `script-src`, and the default does not allow `blob:`"
-    `worker-src 'self' blob:` covers Web Workers and service workers, but **not** worklets: `audioWorklet.addModule()` is governed by `script-src`. With the default above, `createPcmStream` cannot load its inline `blob:` processor (measured on Chromium 159). Do not loosen `script-src`; use the file the package ships, served from your origin: `import url from "tempest-react-sdk/pcm-worklet.js?url"` and `workletUrl: url`. Details in [Audio for models](audio.md#audio-for-models-pcm-at-the-right-rate).
+    `worker-src 'self' blob:` covers Web Workers and service workers, but **not** worklets: `audioWorklet.addModule()` is governed by `script-src`. With the default above, `createPcmStream` cannot load its inline `blob:` processor (measured on Chromium 159). Do not loosen `script-src`; use the file the package ships, served from your origin: `import url from "tempest-react-sdk/pcm-worklet.js?url"` and `workletUrl: url`. The same goes for [`createSpeechDetector`](speech-vad.md) and [`createSoundMonitor`](speech-sounds.md), which take the option as `stream: { workletUrl: url }`. Details in [Audio for models](audio.md#audio-for-models-pcm-at-the-right-rate).
 
 ## Inline scripts enter by hash
 

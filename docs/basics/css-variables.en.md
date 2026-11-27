@@ -1,3 +1,7 @@
+---
+description: "CSS custom properties (var()) and how the --tempest-* tokens drive the SDK's theme."
+---
+
 # Custom properties and theming
 
 !!! tip "Skip this page if you already know…"

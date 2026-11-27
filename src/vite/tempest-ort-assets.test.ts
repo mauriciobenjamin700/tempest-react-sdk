@@ -104,6 +104,26 @@ describe("tempestOrtAssets", () => {
         ).not.toThrow();
     });
 
+    it("makes dev and preview crossOriginIsolated with credentialless COEP only when asked", () => {
+        const headers = {
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "credentialless",
+        };
+        const plugin = tempestOrtAssets({ crossOriginIsolation: true });
+        expect((plugin.config as Hook)({ worker: { format: "es" } })).toEqual({
+            server: { headers },
+            preview: { headers },
+        });
+        expect((plugin.config as Hook)({})).toEqual({
+            worker: { format: "es" },
+            server: { headers },
+            preview: { headers },
+        });
+        expect(JSON.stringify((tempestOrtAssets().config as Hook)({}))).not.toContain(
+            "Cross-Origin",
+        );
+    });
+
     it("builds workers as ES modules unless the app chose a format", () => {
         const plugin = tempestOrtAssets();
         expect((plugin.config as Hook)({})).toEqual({ worker: { format: "es" } });

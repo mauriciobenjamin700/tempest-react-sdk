@@ -1,3 +1,7 @@
+---
+description: "Type annotations, interfaces, generics, utility types and import type: the TypeScript the SDK uses."
+---
+
 # TypeScript: the minimum the SDK uses
 
 !!! tip "Skip this page if you already know…"
